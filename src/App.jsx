@@ -2495,11 +2495,22 @@ function LoginScreen({ dark, onLogin, bg, startupError = "" }) {
   const handleLogin = async (event) => {
     event?.preventDefault?.();
     if (submitting) return;
-    if (!email.trim() || !password) { setError("Enter your email and password."); return; }
+
+    // Read the actual DOM values at submit time as well as React state. Browser/password-manager
+    // autofill can visually populate an input without firing React's onChange event, which made
+    // the old guard below incorrectly report that the fields were empty.
+    const form = event?.currentTarget;
+    const formData = form ? new FormData(form) : null;
+    const submittedEmail = String(formData?.get("email") ?? email ?? "").trim();
+    const submittedPassword = String(formData?.get("password") ?? password ?? "");
+
+    if (!submittedEmail || !submittedPassword) { setError("Enter your email and password."); return; }
+    setEmail(submittedEmail);
+    setPassword(submittedPassword);
     setSubmitting(true);
     setError("");
     try {
-      const result = await onLogin(email.trim(), password);
+      const result = await onLogin(submittedEmail, submittedPassword);
       if (!result?.ok) {
         const msg = result?.error || "Sign-in failed.";
         setError(/email not confirmed/i.test(msg) ? "Email not confirmed. Confirm this user in Supabase Authentication, then try again." : msg);
@@ -2521,10 +2532,10 @@ function LoginScreen({ dark, onLogin, bg, startupError = "" }) {
         </div>
         <form onSubmit={handleLogin}>
           <Field dark={dark} label="Email">
-            <Input dark={dark} type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }} placeholder="you@company.com" />
+            <Input dark={dark} name="email" type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }} placeholder="you@company.com" />
           </Field>
           <Field dark={dark} label="Password">
-            <Input dark={dark} type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••••" />
+            <Input dark={dark} name="password" type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••••" />
           </Field>
           {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
           <button
