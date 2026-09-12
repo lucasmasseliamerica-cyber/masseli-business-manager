@@ -1,6 +1,11 @@
-# Masseli Açaíberry — Business Manager
+# NEXALVO
 
-React + Vite project wrapper for the existing Masseli Business Manager application.
+Business Management Platform built with React, Vite, Tailwind CSS and Supabase.
+
+## Environment variables
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
 ## Run locally
 
@@ -14,5 +19,3 @@ npm run dev
 ```bash
 npm run build
 ```
-
-The existing application logic is kept in `src/App.jsx`. This phase only creates the Vite project structure and entry points; Supabase/payment architecture should be migrated and verified separately.

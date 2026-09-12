@@ -1544,34 +1544,30 @@ const dataStore = {
 };
 
 /* ============================== AUTH SERVICE BOUNDARY ==============================
- * Everything the app currently knows about "who is logged in" and "is this the right PIN"
- * lives here. This is demo/local auth (a PIN checked against the `users` collection, a
- * session that's just a userId in storage) — nothing about that changes in this refactor.
- * What changes is that App() and LoginScreen no longer touch storage or compare PINs
- * directly; they call authService instead. When this app eventually gets a real auth
- * provider, only this object's internals need to be replaced (e.g. verifyCredentials
- * becomes a real API call, session becomes a real token) — the rest of the app is
- * unaffected because it only ever depended on this shape.
+ * NEXALVO production authentication. Credentials are verified by Supabase Auth; the
+ * authenticated UUID is then resolved against public.users, which is the tenant/role
+ * identity used by RLS. No PIN is stored or compared in the browser.
  * ============================================================================== */
 const authService = {
-  async getSession() { return dataStore.get("session"); },
-  async setSession(userId) { return dataStore.set("session", { userId }); },
-  async clearSession() { return dataStore.set("session", { userId: null }); },
-  // Same check LoginScreen always did inline (string-compare PIN against the matched user's
-  // stored PIN, and require the account to be active) — just named so it's the one place a
-  // real credential check would replace.
-  verifyCredentials(user, pin) {
-    if (!user || user.active === false) return false;
-    return String(pin) === String(user.pin);
+  async getSession() {
+    const session = await supabaseAuth.restoreSession();
+    if (!session?.user?.id) return null;
+    const profile = await loadAuthenticatedProfile(session.user.id);
+    return { userId: profile.id, profile, user: session.user };
   },
-  // NEW, additive: an actual Supabase Auth attempt. Not wired into the main LoginScreen flow —
-  // no real Supabase Auth accounts exist yet (that happens as part of migration, not this step).
-  // This exists so Settings' "Supabase Test Mode" panel can prove the Auth endpoint itself is
-  // reachable and responds correctly (a clean "invalid credentials" is a PASS for this test —
-  // it means the wiring works, even though sign-in itself can't succeed pre-migration).
-  async trySupabaseSignIn(email, password) {
-    return supabaseAuth.signInWithPassword(email, password);
+  async signIn(email, password) {
+    const result = await supabaseAuth.signInWithPassword(email, password);
+    if (!result.ok) return result;
+    try {
+      const profile = await loadAuthenticatedProfile(result.user?.id);
+      return { ...result, profile };
+    } catch (e) {
+      supabaseAuth.signOut();
+      return { ok: false, reachable: true, error: e.message };
+    }
   },
+  async clearSession() { supabaseAuth.signOut(); return true; },
+  async trySupabaseSignIn(email, password) { return supabaseAuth.signInWithPassword(email, password); },
 };
 
 /* ============================== SUPABASE CONNECTION LAYER (TEST MODE) ==============================
@@ -1590,15 +1586,27 @@ const authService = {
  * inference could not be verified from this environment (no network access here); confirm it
  * matches your project's actual API URL on the API Keys page before relying on it.
  * ============================================================================== */
-const SUPABASE_URL = "https://ebhlfghbdfqgrgmtzpti.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_979DkfB_BEx9FrONwa5Gaw_9rq08cjT";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const SUPABASE_SESSION_KEY = "nexalvo.supabase.session.v1";
 
-// The real Supabase Auth session — in-memory only, intentionally never persisted (resets every
-// reload; this is a test-mode credential, not production session management — no automatic
-// refresh-token rotation is implemented, which is a disclosed, deliberate scope limit for this
-// step, not an oversight). Holds the actual JWT access_token issued by Supabase Auth after a
-// real sign-in, which is what makes auth.uid() resolve to something non-null inside RLS policies.
-let _supabaseSession = null; // { accessToken, refreshToken, expiresAt, user } | null
+function readStoredSupabaseSession() {
+  try {
+    const raw = window.localStorage.getItem(SUPABASE_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function persistSupabaseSession(session) {
+  _supabaseSession = session || null;
+  try {
+    if (session) window.localStorage.setItem(SUPABASE_SESSION_KEY, JSON.stringify(session));
+    else window.localStorage.removeItem(SUPABASE_SESSION_KEY);
+  } catch {}
+}
+
+// Real Supabase JWT session. It is persisted locally and refreshed from the refresh token so a
+// browser reload does not silently fall back to the old local/PIN authentication model.
+let _supabaseSession = readStoredSupabaseSession(); // { accessToken, refreshToken, expiresAt, user } | null
 
 // The single source of truth for which credential every request uses — verified explicitly here
 // (item 6): returns the authenticated user's access token when a real session exists, and only
@@ -1608,6 +1616,7 @@ function currentSupabaseCredential() {
 }
 
 async function supabaseFetch(path, options = {}) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("NEXALVO backend is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.");
   return fetch(`${SUPABASE_URL}${path}`, {
     ...options,
     headers: {
@@ -1698,7 +1707,7 @@ const supabaseAuth = {
       }
       if (body.access_token) {
         // Auto-confirm is on for this project — a real session comes back immediately.
-        _supabaseSession = { accessToken: body.access_token, refreshToken: body.refresh_token, expiresAt: Date.now() + (body.expires_in || 3600) * 1000, user: body.user };
+        persistSupabaseSession({ accessToken: body.access_token, refreshToken: body.refresh_token, expiresAt: Date.now() + (body.expires_in || 3600) * 1000, user: body.user });
         return { ok: true, confirmed: true, user: body.user, uid: body.user?.id };
       }
       // Account created but no session returned — email confirmation is required by this
@@ -1722,7 +1731,7 @@ const supabaseAuth = {
         // though sign-in itself fails (expected before an account exists or is confirmed).
         return { ok: false, reachable: true, status: res.status, error: body?.error_description || body?.msg || "Sign-in failed" };
       }
-      _supabaseSession = { accessToken: body.access_token, refreshToken: body.refresh_token, expiresAt: Date.now() + (body.expires_in || 3600) * 1000, user: body.user };
+      persistSupabaseSession({ accessToken: body.access_token, refreshToken: body.refresh_token, expiresAt: Date.now() + (body.expires_in || 3600) * 1000, user: body.user });
       return { ok: true, reachable: true, user: body.user, uid: body.user?.id, accessToken: body.access_token };
     } catch (e) {
       // A thrown error means the request never got an HTTP response at all — DNS/network/CORS
@@ -1730,10 +1739,51 @@ const supabaseAuth = {
       return { ok: false, reachable: false, error: e.message };
     }
   },
-  signOut() { _supabaseSession = null; },
+  async restoreSession() {
+    if (!_supabaseSession) return null;
+    if (_supabaseSession.expiresAt && _supabaseSession.expiresAt > Date.now() + 60000) return _supabaseSession;
+    if (!_supabaseSession.refreshToken) { persistSupabaseSession(null); return null; }
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: _supabaseSession.refreshToken }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !body?.access_token) { persistSupabaseSession(null); return null; }
+      const session = { accessToken: body.access_token, refreshToken: body.refresh_token || _supabaseSession.refreshToken, expiresAt: Date.now() + (body.expires_in || 3600) * 1000, user: body.user || _supabaseSession.user };
+      persistSupabaseSession(session);
+      return session;
+    } catch { return _supabaseSession; }
+  },
+  signOut() { persistSupabaseSession(null); },
   hasSession() { return !!_supabaseSession; },
   getSession() { return _supabaseSession; },
 };
+
+function appUserFromDb(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    username: row.username,
+    role: row.role,
+    permissions: row.permission_overrides || {},
+    permissionOverrides: row.permission_overrides || {},
+    active: row.active !== false,
+    employeeId: row.employee_id || "",
+    businessId: row.business_id,
+    supabase: true,
+  };
+}
+
+async function loadAuthenticatedProfile(userId) {
+  if (!userId) throw new Error("Authenticated user ID is missing.");
+  const rows = await supabaseRest.select("users", `select=id,business_id,employee_id,name,username,role,permission_overrides,active&id=eq.${encodeURIComponent(userId)}&limit=1`);
+  const row = rows?.[0];
+  if (!row) throw new Error("Your login exists in Supabase Auth, but no NEXALVO user profile was found for it.");
+  if (row.active === false) throw new Error("This NEXALVO account is inactive.");
+  return appUserFromDb(row);
+}
 
 /* ============================== STORAGE HOOK ============================== */
 function useCollection(key, seedFn) {
@@ -2060,23 +2110,39 @@ export default function App() {
   const [users, setUsers] = useCollection("users", seedUsers);
   const [auditLog, setAuditLog] = useCollection("auditLog", () => []);
 
-  // --- Session (who's logged in) ---
-  const [currentUserId, setCurrentUserId] = useState(undefined); // undefined = not yet checked, null = logged out
+  // --- Real Supabase Auth session ---
+  const [currentUserId, setCurrentUserId] = useState(undefined); // undefined = checking session, null = signed out
+  const [authProfile, setAuthProfile] = useState(null);
+  const [authStartupError, setAuthStartupError] = useState("");
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const session = await authService.getSession();
-      if (!cancelled) setCurrentUserId(session ? session.userId : null);
+      try {
+        const session = await authService.getSession();
+        if (cancelled) return;
+        setAuthProfile(session?.profile || null);
+        setCurrentUserId(session?.userId || null);
+      } catch (e) {
+        if (cancelled) return;
+        setAuthStartupError(e.message || "Could not restore your session.");
+        setAuthProfile(null);
+        setCurrentUserId(null);
+      }
     })();
     return () => { cancelled = true; };
   }, []);
-  const login = useCallback(async (userId) => {
-    setCurrentUserId(userId);
-    await authService.setSession(userId);
+  const login = useCallback(async (email, password) => {
+    const result = await authService.signIn(email, password);
+    if (!result.ok) return result;
+    setAuthStartupError("");
+    setAuthProfile(result.profile);
+    setCurrentUserId(result.profile.id);
+    return result;
   }, []);
   const logout = useCallback(async () => {
-    setCurrentUserId(null);
     await authService.clearSession();
+    setAuthProfile(null);
+    setCurrentUserId(null);
   }, []);
 
   // sales, cashTx, and expenses are cross-dependent (need products/inventory for recipe-based seeding),
@@ -2256,16 +2322,17 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: bg }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 rounded-2xl animate-pulse" style={{ background: C.lime }} />
-          <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Loading Masseli Business Manager…</div>
+          <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Loading NEXALVO…</div>
         </div>
       </div>
     );
   }
 
-  const currentUser = users.find((u) => u.id === currentUserId && u.active !== false) || null;
+  const effectiveUsers = authProfile && !users.some((u) => u.id === authProfile.id) ? [authProfile, ...users] : users;
+  const currentUser = (authProfile?.id === currentUserId ? authProfile : effectiveUsers.find((u) => u.id === currentUserId && u.active !== false)) || null;
 
   if (!currentUser) {
-    return <LoginScreen dark={dark} settings={settings} users={users} onLogin={login} bg={bg} />;
+    return <LoginScreen dark={dark} onLogin={login} bg={bg} startupError={authStartupError} />;
   }
 
   const ctx = {
@@ -2273,7 +2340,7 @@ export default function App() {
     sales, persistSales, cashTx, persistCash, expenses, setExpenses: persistExpenses,
     suppliers, setSuppliers, customers, setCustomers, employees, setEmployees,
     locations, setLocations, wasteTx, persistWaste, invTx, setInvTx,
-    purchaseOrders, persistPO, showToast, users, setUsers, currentUser, can: (perm) => can(currentUser, perm),
+    purchaseOrders, persistPO, showToast, users: effectiveUsers, setUsers, currentUser, can: (perm) => can(currentUser, perm),
     auditLog, setAuditLog, logAudit: (action, details) => logAudit(auditLog, setAuditLog, currentUser, action, details),
     tasks, persistTasks, cashRegisters, setCashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, setLoyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
   };
@@ -2374,10 +2441,10 @@ export default function App() {
 function BrandHeader({ dark, settings }) {
   return (
     <div className="flex items-center gap-3 px-1">
-      <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg" style={{ background: `linear-gradient(135deg, ${C.purple500}, ${C.purple700})`, color: C.lime, border: `2px solid ${C.lime}` }}>M</div>
+      <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg" style={{ background: `linear-gradient(135deg, ${C.purple500}, ${C.purple700})`, color: C.lime, border: `2px solid ${C.lime}` }}>N</div>
       <div className="min-w-0">
-        <div className="font-extrabold text-sm leading-tight truncate" style={{ color: dark ? C.white : C.black }}>{settings.businessName}</div>
-        <div className="text-[11px] font-semibold" style={{ color: C.yellow }}>BUSINESS MANAGER</div>
+        <div className="font-extrabold text-sm leading-tight tracking-wide" style={{ color: dark ? C.white : C.black }}>NEXALVO</div>
+        <div className="text-[10px] font-semibold truncate" style={{ color: C.yellow }}>{settings.businessName}</div>
       </div>
     </div>
   );
@@ -2419,26 +2486,26 @@ function RestrictedView({ dark }) {
   );
 }
 
-function LoginScreen({ dark, settings, users, onLogin, bg }) {
-  const [userId, setUserId] = useState(users[0]?.id || "");
-  const [pin, setPin] = useState("");
-  const [error, setError] = useState("");
+function LoginScreen({ dark, onLogin, bg, startupError = "" }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState(startupError);
   const [submitting, setSubmitting] = useState(false);
-  const activeUsers = users.filter((u) => u.active !== false);
 
-  // Shared handler for BOTH interaction paths: the button's explicit onClick (mouse/touch) and
-  // the form's onSubmit (Enter key). The `submitting` guard (checked immediately, before any
-  // async work starts) is what prevents handleLogin from ever running twice concurrently —
-  // a rapid double-click/double-Enter on the same pending attempt is a no-op, not a second call.
   const handleLogin = async (event) => {
     event?.preventDefault?.();
     if (submitting) return;
-    const user = activeUsers.find((u) => u.id === userId);
-    if (!user) { setError("Select an account."); return; }
-    if (!authService.verifyCredentials(user, pin)) { setError("Incorrect PIN."); return; }
+    if (!email.trim() || !password) { setError("Enter your email and password."); return; }
     setSubmitting(true);
+    setError("");
     try {
-      await onLogin(user.id);
+      const result = await onLogin(email.trim(), password);
+      if (!result?.ok) {
+        const msg = result?.error || "Sign-in failed.";
+        setError(/email not confirmed/i.test(msg) ? "Email not confirmed. Confirm this user in Supabase Authentication, then try again." : msg);
+      }
+    } catch (e) {
+      setError(e.message || "Sign-in failed.");
     } finally {
       setSubmitting(false);
     }
@@ -2446,36 +2513,30 @@ function LoginScreen({ dark, settings, users, onLogin, bg }) {
 
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ background: bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <div className="w-full max-w-sm rounded-3xl p-6" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-        <div className="flex flex-col items-center gap-2 mb-6">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl" style={{ background: `linear-gradient(135deg, ${C.purple500}, ${C.purple700})`, color: C.lime, border: `2px solid ${C.lime}` }}>M</div>
-          <div className="font-extrabold text-lg" style={{ color: dark ? C.white : C.black }}>{settings.businessName}</div>
-          <div className="text-xs font-semibold" style={{ color: C.yellow }}>BUSINESS MANAGER</div>
+      <div className="w-full max-w-sm rounded-3xl p-6 shadow-2xl" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
+        <div className="flex flex-col items-center gap-2 mb-7">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl" style={{ background: `linear-gradient(135deg, ${C.purple500}, ${C.purple700})`, color: C.lime, border: `2px solid ${C.lime}` }}>N</div>
+          <div className="font-black text-xl tracking-[0.16em]" style={{ color: dark ? C.white : C.black }}>NEXALVO</div>
+          <div className="text-xs font-semibold" style={{ color: C.yellow }}>BUSINESS MANAGEMENT PLATFORM</div>
         </div>
         <form onSubmit={handleLogin}>
-          <Field dark={dark} label="Account">
-            <Select dark={dark} value={userId} onChange={(e) => { setUserId(e.target.value); setError(""); }}>
-              {activeUsers.map((u) => <option key={u.id} value={u.id}>{u.name} ({roleLabel(u.role)})</option>)}
-            </Select>
+          <Field dark={dark} label="Email">
+            <Input dark={dark} type="email" autoComplete="email" value={email} onChange={(e) => { setEmail(e.target.value); setError(""); }} placeholder="you@company.com" />
           </Field>
-          <Field dark={dark} label="PIN">
-            <Input dark={dark} type="password" inputMode="numeric" maxLength={6} value={pin} onChange={(e) => { setPin(e.target.value); setError(""); }} placeholder="••••" />
+          <Field dark={dark} label="Password">
+            <Input dark={dark} type="password" autoComplete="current-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••••" />
           </Field>
           {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
-          {/* Native <button> with an explicit onClick alongside the form's onSubmit, so a click
-              has an independent event path rather than depending solely on type="submit"
-              bubbling to the form. */}
           <button
-            type="button"
-            onClick={handleLogin}
+            type="submit"
             disabled={submitting}
             className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full"
             style={{ background: submitting ? "#555" : C.lime, color: C.black, opacity: submitting ? 0.6 : 1 }}
           >
-            <Lock size={16} /> {submitting ? "Signing in…" : "Log In"}
+            <Lock size={16} /> {submitting ? "Signing in…" : "Sign In"}
           </button>
         </form>
-        <div className="text-xs text-center mt-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Demo PINs — Owner: 1234 · Rafael: 1111 · Beatriz: 2222</div>
+        <div className="text-[11px] text-center mt-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Secure authentication powered by Supabase</div>
       </div>
     </div>
   );
@@ -7638,7 +7699,6 @@ function SettingsView({ dark, settings, setSettings, users, setUsers, employees,
       )}
       {showAudit && <AuditLogModal dark={dark} auditLog={auditLog} onClose={() => setShowAudit(false)} />}
 
-      {currentUser?.role === "OWNER" && <SupabaseTestPanel dark={dark} />}
     </div>
   );
 }
