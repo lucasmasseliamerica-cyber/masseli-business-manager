@@ -1087,7 +1087,7 @@ async function createCustomer({ name, phone, email, birthday, notes }, ctx) {
   if (!trimmedName) return { success: false, error: "Enter a name." };
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return { success: false, error: "Enter a valid email address." };
   const now = nowISO();
-  const customer = { id: uid("cus"), name: trimmedName, phone: (phone || "").trim(), email: (email || "").trim(), birthday: birthday || "", notes: notes || "", active: true, createdAt: now, updatedAt: now };
+  const customer = { id: newDbId(), name: trimmedName, phone: (phone || "").trim(), email: (email || "").trim(), birthday: birthday || "", notes: notes || "", active: true, createdAt: now, updatedAt: now };
   await setCustomers([customer, ...customers]);
   await logAudit(auditLog, setAuditLog, currentUser, "Customer Created", trimmedName);
   return { success: true, customer };
@@ -1811,6 +1811,125 @@ function useCollection(key, seedFn) {
   return [data, persist];
 }
 
+
+/* ============================== SUPABASE DATA — PHASE 1 ==============================
+ * These collections are now tenant-scoped PostgreSQL data, protected by RLS.
+ * Transactional modules (sales/inventory/cash/purchases/etc.) intentionally remain on the
+ * legacy dataStore until their RPC-backed migration phases, so we never bypass the server-side
+ * business rules already installed for them.
+ * ============================================================================== */
+const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || ""));
+const newDbId = () => crypto.randomUUID();
+
+function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate" } = {}) {
+  const [data, setData] = useState(null);
+  const previousRef = useRef([]);
+
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); previousRef.current = []; return []; }
+    const rows = await supabaseRest.select(table, `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
+    const mapped = (rows || []).map(fromDb);
+    previousRef.current = mapped;
+    setData(mapped);
+    return mapped;
+  }, [table, businessId, fromDb]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!businessId) { setData([]); previousRef.current = []; return () => {}; }
+    (async () => {
+      try {
+        const rows = await supabaseRest.select(table, `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
+        if (cancelled) return;
+        const mapped = (rows || []).map(fromDb);
+        previousRef.current = mapped;
+        setData(mapped);
+      } catch (e) {
+        console.error(`Supabase load failed for ${table}`, e);
+        if (!cancelled) setData([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [table, businessId, fromDb]);
+
+  const persist = useCallback(async (next) => {
+    if (!businessId) throw new Error("No authenticated business is available.");
+    const normalized = (next || []).map((item) => ({ ...item, id: isUuid(item.id) ? item.id : newDbId() }));
+    const before = previousRef.current || [];
+    const nextIds = new Set(normalized.map((x) => x.id));
+    const missingRows = before.filter((x) => !nextIds.has(x.id));
+
+    if (normalized.length) {
+      await supabaseRest.upsert(table, normalized.map((item) => toDb(item, businessId)), "id");
+    }
+    for (const row of missingRows) {
+      if (missing === "delete") await supabaseRest.deleteOne(table, row.id);
+      else if (missing === "deactivate") await supabaseRest.updateOne(table, row.id, { active: false, updated_at: nowISO() });
+    }
+    return reload();
+  }, [table, businessId, toDb, missing, reload]);
+
+  return [data, persist, reload];
+}
+
+const fromLocationDb = (r) => ({ id: r.id, name: r.name, type: r.type || "Retail", active: r.active !== false });
+const toLocationDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, type: x.type || "Retail", active: x.active !== false, updated_at: nowISO() });
+const fromSupplierDb = (r) => ({ id: r.id, name: r.name, contact: r.contact_name || "", phone: r.phone || "", email: r.email || "", address: r.address || "", website: r.website || "", taxId: r.tax_id || "", terms: r.payment_terms || "", defaultCurrency: r.default_currency || "USD", products: r.products_supplied || "", notes: r.notes || "", active: r.active !== false });
+const toSupplierDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, contact_name: x.contact || null, phone: x.phone || null, email: x.email || null, address: x.address || null, website: x.website || null, tax_id: x.taxId || null, payment_terms: x.terms || null, default_currency: x.defaultCurrency || "USD", products_supplied: x.products || null, notes: x.notes || null, active: x.active !== false, updated_at: nowISO() });
+const fromCustomerDb = (r) => ({ id: r.id, name: r.name, phone: r.phone || "", email: r.email || "", birthday: r.birthday || "", notes: r.notes || "", active: r.active !== false, createdAt: r.created_at, updatedAt: r.updated_at });
+const toCustomerDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, phone: x.phone || null, email: x.email || null, birthday: x.birthday || null, notes: x.notes || null, active: x.active !== false, updated_at: nowISO() });
+
+function useSupabaseEmployees(businessId, locations) {
+  const byId = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
+  const byName = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.name, l.id])), [locations]);
+  const fromDb = useCallback((r) => ({ id: r.id, name: r.name, role: r.job_title || "", hourlyRate: Number(r.hourly_rate || 0), locationId: r.location_id || "", location: byId[r.location_id] || "", managerId: r.manager_id || "", active: r.active !== false, notes: r.notes || "" }), [byId]);
+  const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: x.locationId || byName[x.location] || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName]);
+  return useSupabaseArrayCollection("employees", businessId, fromDb, toDb, { missing: "deactivate" });
+}
+
+const SETTINGS_LIST_MAP = {
+  paymentMethods: "payment_method", channels: "channel", expenseCategories: "expense_category",
+  productCategories: "product_category", inventoryCategories: "inventory_category", units: "unit",
+};
+function useSupabaseBusinessSettings(businessId) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId) { const fallback = seedSettings(); setData(fallback); return fallback; }
+    const [bizRows, listRows] = await Promise.all([
+      supabaseRest.select("businesses", `select=*&id=eq.${encodeURIComponent(businessId)}&limit=1`),
+      supabaseRest.select("business_settings_lists", `select=*&business_id=eq.${encodeURIComponent(businessId)}&active=eq.true&order=sort_order.asc.nullslast,created_at.asc`),
+    ]);
+    const b = bizRows?.[0];
+    if (!b) throw new Error("Business profile was not found for the authenticated tenant.");
+    const base = seedSettings();
+    const next = { ...base, businessName: b.name, currency: b.currency || "USD", taxRate: Number(b.tax_rate || 0), taxEnabled: b.tax_enabled !== false, allowNegativeInventory: !!b.allow_negative_inventory, timezone: b.timezone || "America/New_York" };
+    for (const [appKey, dbType] of Object.entries(SETTINGS_LIST_MAP)) {
+      const values = (listRows || []).filter((r) => r.list_type === dbType).map((r) => r.value);
+      if (values.length) next[appKey] = values;
+    }
+    setData(next); return next;
+  }, [businessId]);
+  useEffect(() => { reload().catch((e) => { console.error("business settings load failed", e); setData(seedSettings()); }); }, [reload]);
+  const persist = useCallback(async (next) => {
+    if (!businessId) throw new Error("No authenticated business is available.");
+    await supabaseRest.updateOne("businesses", businessId, { name: next.businessName, currency: next.currency || "USD", tax_rate: Number(next.taxRate || 0), tax_enabled: next.taxEnabled !== false, allow_negative_inventory: !!next.allowNegativeInventory, timezone: next.timezone || "America/New_York", updated_at: nowISO() });
+    const existing = await supabaseRest.select("business_settings_lists", `select=*&business_id=eq.${encodeURIComponent(businessId)}`);
+    for (const [appKey, dbType] of Object.entries(SETTINGS_LIST_MAP)) {
+      const wanted = new Set((next[appKey] || []).map(String));
+      const current = (existing || []).filter((r) => r.list_type === dbType);
+      const currentByValue = new Map(current.map((r) => [r.value, r]));
+      const upserts = [...wanted].map((value, idx) => {
+        const old = currentByValue.get(value);
+        return { id: old?.id || newDbId(), business_id: businessId, list_type: dbType, value, active: true, sort_order: idx, updated_at: nowISO() };
+      });
+      if (upserts.length) await supabaseRest.upsert("business_settings_lists", upserts, "id");
+      for (const old of current) if (!wanted.has(old.value) && old.active !== false) await supabaseRest.updateOne("business_settings_lists", old.id, { active: false, updated_at: nowISO() });
+    }
+    return reload();
+  }, [businessId, reload]);
+  return [data, persist];
+}
+
 /* ============================== SMALL UI PRIMITIVES ============================== */
 function useTheme() {
   const [dark, setDark] = useState(true);
@@ -2089,28 +2208,7 @@ export default function App() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const [products, setProducts] = useCollection("products", seedProducts);
-  const [inventory, setInventory] = useCollection("inventory", seedInventory);
-  const [suppliers, setSuppliers] = useCollection("suppliers", seedSuppliers);
-  const [customers, setCustomers] = useCollection("customers", seedCustomers);
-  const [employees, setEmployees] = useCollection("employees", seedEmployees);
-  const [locations, setLocations] = useCollection("locations", seedLocations);
-  const [settings, setSettings] = useCollection("settings", seedSettings);
-  // Synced synchronously in the render body (not a useEffect): fmtMoney is called inline during
-  // render throughout the tree, so this must be current *before* children render on the same pass,
-  // not one render later. A useEffect here would leave every money display one render stale right
-  // after Settings is saved.
-  if (settings?.currency) setActiveCurrency(settings.currency);
-  const [tasks, persistTasks] = useCollection("tasks", seedTasks);
-  const [cashRegisters, setCashRegisters] = useCollection("cashRegisters", () => []);
-  const [loyaltyTransactions, setLoyaltyTransactions] = useCollection("loyaltyTransactions", () => []);
-  const [loyaltyRewards, setLoyaltyRewards] = useCollection("loyaltyRewards", seedLoyaltyRewards);
-  const [shifts, setShifts] = useCollection("shifts", () => []);
-  const [businessAlerts, setBusinessAlerts] = useCollection("businessAlerts", () => []);
-  const [users, setUsers] = useCollection("users", seedUsers);
-  const [auditLog, setAuditLog] = useCollection("auditLog", () => []);
-
-  // --- Real Supabase Auth session ---
+  // --- Real Supabase Auth session / tenant identity ---
   const [currentUserId, setCurrentUserId] = useState(undefined); // undefined = checking session, null = signed out
   const [authProfile, setAuthProfile] = useState(null);
   const [authStartupError, setAuthStartupError] = useState("");
@@ -2144,6 +2242,28 @@ export default function App() {
     setAuthProfile(null);
     setCurrentUserId(null);
   }, []);
+  const businessId = authProfile?.businessId || null;
+
+  // Phase 1: master/business data is now real tenant-scoped Supabase data.
+  // Transactional modules stay on the legacy store until their RPC migration phase.
+  const [locations, setLocations] = useSupabaseArrayCollection("locations", businessId, fromLocationDb, toLocationDb, { missing: "delete" });
+  const [suppliers, setSuppliers] = useSupabaseArrayCollection("suppliers", businessId, fromSupplierDb, toSupplierDb, { missing: "delete" });
+  const [customers, setCustomers] = useSupabaseArrayCollection("customers", businessId, fromCustomerDb, toCustomerDb, { missing: "deactivate" });
+  const [employees, setEmployees] = useSupabaseEmployees(businessId, locations);
+  const [settings, setSettings] = useSupabaseBusinessSettings(businessId);
+
+  // These modules are intentionally still local in Phase 1.
+  const [products, setProducts] = useCollection("products", seedProducts);
+  const [inventory, setInventory] = useCollection("inventory", seedInventory);
+  if (settings?.currency) setActiveCurrency(settings.currency);
+  const [tasks, persistTasks] = useCollection("tasks", seedTasks);
+  const [cashRegisters, setCashRegisters] = useCollection("cashRegisters", () => []);
+  const [loyaltyTransactions, setLoyaltyTransactions] = useCollection("loyaltyTransactions", () => []);
+  const [loyaltyRewards, setLoyaltyRewards] = useCollection("loyaltyRewards", seedLoyaltyRewards);
+  const [shifts, setShifts] = useCollection("shifts", () => []);
+  const [businessAlerts, setBusinessAlerts] = useCollection("businessAlerts", () => []);
+  const [users, setUsers] = useCollection("users", seedUsers);
+  const [auditLog, setAuditLog] = useCollection("auditLog", () => []);
 
   // sales, cashTx, and expenses are cross-dependent (need products/inventory for recipe-based seeding),
   // so they're seeded together, once, in a single consistent pass. cashTx is the single source of truth
@@ -5531,7 +5651,7 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
     if (!name || !String(name).trim()) { showToast("Name is required", "danger"); return; }
     setSubmitting(true);
     try {
-      const payload = { ...form, id: editing?.id || uid(title.toLowerCase()) };
+      const payload = { ...form, id: editing?.id || newDbId() };
       const next = editing ? items.map((i) => (i.id === editing.id ? payload : i)) : [payload, ...items];
       await setItems(next);
       if (auditAction && auditLog !== undefined) await logAudit(auditLog, setAuditLog, currentUser, `${auditAction} ${editing ? "Updated" : "Added"}`, name);
@@ -5543,9 +5663,9 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
   };
   const remove = async () => {
     if (!canEdit) { showToast("You don't have permission to make this change.", "danger"); return; }
-    await setItems(items.filter((i) => i.id !== editing.id));
-    if (auditAction && auditLog !== undefined) await logAudit(auditLog, setAuditLog, currentUser, `${auditAction} Deleted`, form[fields[0].key] || "");
-    showToast("Deleted", "danger");
+    await setItems(items.map((i) => i.id === editing.id ? { ...i, active: false } : i));
+    if (auditAction && auditLog !== undefined) await logAudit(auditLog, setAuditLog, currentUser, `${auditAction} Deactivated`, form[fields[0].key] || "");
+    showToast("Deactivated", "danger");
     setModal(false);
   };
 
@@ -5604,7 +5724,7 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
   const save = async (form) => {
     if (!canEdit) { showToast("You don't have permission to manage locations.", "danger"); return false; }
     if (!form.name?.trim()) { showToast("Location name is required.", "danger"); return false; }
-    const payload = { ...form, id: editing?.id || uid("loc"), active: form.active !== false };
+    const payload = { ...form, id: editing?.id || newDbId(), active: form.active !== false };
     const next = editing ? locations.map((l) => (l.id === editing.id ? payload : l)) : [payload, ...locations];
     await setLocations(next);
     await logAudit(auditLog, setAuditLog, currentUser, editing ? "Location Updated" : "Location Added", payload.name);
@@ -5747,7 +5867,7 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
     if (!form.name?.trim()) { setError("Supplier name is required."); return; }
     setSubmitting(true);
     try {
-      const payload = { ...form, id: supplier?.id || uid("sup"), active: form.active !== false };
+      const payload = { ...form, id: supplier?.id || newDbId(), active: form.active !== false };
       const next = supplier ? suppliers.map((s) => (s.id === supplier.id ? payload : s)) : [payload, ...suppliers];
       await setSuppliers(next);
       await logAudit(auditLog, setAuditLog, currentUser, supplier ? "Supplier Updated" : "Supplier Added", payload.name);
