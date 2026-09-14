@@ -1882,8 +1882,9 @@ const toCustomerDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, ph
 function useSupabaseEmployees(businessId, locations) {
   const byId = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
   const byName = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.name, l.id])), [locations]);
+  const defaultLocationId = useMemo(() => (locations || []).find((l) => l.active !== false)?.id || "", [locations]);
   const fromDb = useCallback((r) => ({ id: r.id, name: r.name, role: r.job_title || "", hourlyRate: Number(r.hourly_rate || 0), locationId: r.location_id || "", location: byId[r.location_id] || "", managerId: r.manager_id || "", active: r.active !== false, notes: r.notes || "" }), [byId]);
-  const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: x.locationId || byName[x.location] || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName]);
+  const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: x.locationId || byName[x.location] || defaultLocationId || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName, defaultLocationId]);
   return useSupabaseArrayCollection("employees", businessId, fromDb, toDb, { missing: "deactivate" });
 }
 
@@ -1928,6 +1929,167 @@ function useSupabaseBusinessSettings(businessId) {
     return reload();
   }, [businessId, reload]);
   return [data, persist];
+}
+
+
+/* ============================== SUPABASE DATA — PHASE 2 ==============================
+ * Products + recipes and the Inventory screen now read/write tenant-scoped Supabase data.
+ * IMPORTANT: legacy POS / Purchases still use their local transactional shadow until the next
+ * RPC cutover. This prevents a half-migrated sale from bypassing fn_create_sale. During Phase 2,
+ * catalog changes are therefore validated in Products/Inventory first; POS cutover is Phase 3.
+ * ============================================================================== */
+function useSupabaseProducts(businessId) {
+  const [data, setData] = useState(null);
+  const previousRef = useRef([]);
+
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); previousRef.current = []; return []; }
+    const rows = await supabaseRest.select("products", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
+    const ids = (rows || []).map((r) => r.id);
+    let recipes = [];
+    if (ids.length) recipes = await supabaseRest.select("product_recipes", `select=*&product_id=in.(${ids.join(",")})`);
+    const byProduct = new Map();
+    for (const r of recipes || []) {
+      if (!byProduct.has(r.product_id)) byProduct.set(r.product_id, []);
+      byProduct.get(r.product_id).push({ itemId: r.inventory_item_id, qty: Number(r.qty_per_unit || 0) });
+    }
+    const mapped = (rows || []).map((r) => ({
+      id: r.id, name: r.name, sku: r.sku || "", category: r.category || "", price: Number(r.price || 0),
+      active: r.active !== false, description: r.description || "", image: r.image_url || "",
+      recipe: byProduct.get(r.id) || [], createdAt: r.created_at, updatedAt: r.updated_at,
+    }));
+    previousRef.current = mapped;
+    setData(mapped);
+    return mapped;
+  }, [businessId]);
+
+  useEffect(() => { reload().catch((e) => { console.error("Supabase products load failed", e); setData([]); }); }, [reload]);
+
+  const persist = useCallback(async (next) => {
+    if (!businessId) throw new Error("No authenticated business is available.");
+    const normalized = (next || []).map((p) => ({ ...p, id: isUuid(p.id) ? p.id : newDbId() }));
+    const before = previousRef.current || [];
+    const nextIds = new Set(normalized.map((p) => p.id));
+
+    if (normalized.length) {
+      await supabaseRest.upsert("products", normalized.map((p) => ({
+        id: p.id, business_id: businessId, name: String(p.name || "").trim(), sku: p.sku || null,
+        category: p.category || null, price: Number(p.price || 0), active: p.active !== false,
+        description: p.description || null, image_url: p.image || p.imageUrl || null, updated_at: nowISO(),
+      })), "id");
+    }
+    // Product removal in the current UI is intentionally a soft-delete in the database so historical
+    // sales and future references stay valid.
+    for (const old of before) if (!nextIds.has(old.id)) await supabaseRest.updateOne("products", old.id, { active: false, updated_at: nowISO() });
+
+    for (const p of normalized) {
+      const current = await supabaseRest.select("product_recipes", `select=*&product_id=eq.${p.id}`);
+      const wanted = new Map((p.recipe || []).filter((r) => isUuid(r.itemId) && Number(r.qty) > 0).map((r) => [r.itemId, Number(r.qty)]));
+      const currentByItem = new Map((current || []).map((r) => [r.inventory_item_id, r]));
+      const rows = [...wanted.entries()].map(([itemId, qty]) => ({
+        id: currentByItem.get(itemId)?.id || newDbId(), product_id: p.id, inventory_item_id: itemId, qty_per_unit: qty,
+      }));
+      if (rows.length) await supabaseRest.upsert("product_recipes", rows, "id");
+      for (const r of current || []) if (!wanted.has(r.inventory_item_id)) await supabaseRest.deleteOne("product_recipes", r.id);
+    }
+    return reload();
+  }, [businessId, reload]);
+
+  return [data, persist, reload];
+}
+
+const inventoryTxTypeLabel = (t) => ({
+  INITIAL_STOCK: "Initial Stock", PURCHASE: "Purchase", SALE: "Sale", WASTE: "Waste",
+  ADJUSTMENT: "Adjustment", REVERSAL: "Reversal", TRANSFER_OUT: "Transfer Out", TRANSFER_IN: "Transfer In",
+}[t] || t || "Adjustment");
+
+function useSupabaseInventory(businessId, locations) {
+  const [data, setData] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const locationById = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
+
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); setTransactions([]); return []; }
+    const items = await supabaseRest.select("inventory_items", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
+    const ids = (items || []).map((i) => i.id);
+    let stock = [];
+    if (ids.length) stock = await supabaseRest.select("inventory_stock", `select=*&inventory_item_id=in.(${ids.join(",")})&order=created_at.asc`);
+    const stockByItem = new Map();
+    for (const st of stock || []) if (!stockByItem.has(st.inventory_item_id)) stockByItem.set(st.inventory_item_id, st);
+    const mapped = (items || []).map((i) => {
+      const st = stockByItem.get(i.id);
+      return {
+        id: i.id, name: i.name, sku: i.sku || "", category: i.category || "", unit: i.unit,
+        qty: Number(st?.qty || 0), minQty: Number(i.min_qty || 0), maxQty: Number(i.max_qty || 0),
+        costPerUnit: Number(st?.avg_cost_per_unit || 0), supplierId: i.supplier_id || "",
+        locationId: st?.location_id || "", location: locationById[st?.location_id] || "",
+        expiresAt: i.expires_at || "", notes: i.notes || "", active: i.active !== false,
+      };
+    });
+    const txRows = await supabaseRest.select("inventory_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=500`);
+    setTransactions((txRows || []).map((t) => ({
+      id: t.id, date: t.created_at, itemId: t.inventory_item_id, type: inventoryTxTypeLabel(t.type), qty: Number(t.qty_change || 0),
+      unit: t.unit || "", unitCost: t.unit_cost == null ? null : Number(t.unit_cost), totalCost: t.total_cost == null ? null : Number(t.total_cost),
+      referenceId: t.sale_id || t.purchase_order_id || t.related_transaction_id || "", note: t.note || "", locationId: t.location_id,
+    })));
+    setData(mapped);
+    return mapped;
+  }, [businessId, locationById]);
+
+  useEffect(() => { reload().catch((e) => { console.error("Supabase inventory load failed", e); setData([]); setTransactions([]); }); }, [reload]);
+
+  // Catalog metadata only. Quantity/cost/location are ledger-derived and are NEVER written directly.
+  const persistCatalog = useCallback(async (next) => {
+    if (!businessId) throw new Error("No authenticated business is available.");
+    const currentIds = new Set((data || []).map((i) => i.id));
+    const rows = (next || []).filter((i) => currentIds.has(i.id)).map((i) => ({
+      id: i.id, business_id: businessId, name: i.name, sku: i.sku || null, category: i.category || null,
+      unit: i.unit, min_qty: Number(i.minQty || 0), max_qty: Number(i.maxQty || 0), supplier_id: i.supplierId || null,
+      expires_at: i.expiresAt || null, notes: i.notes || null, active: i.active !== false, updated_at: nowISO(),
+    }));
+    if (rows.length) await supabaseRest.upsert("inventory_items", rows, "id");
+    return reload();
+  }, [businessId, data, reload]);
+
+  const ops = useMemo(() => ({
+    remote: true,
+    async createItem(payload) {
+      if (!payload.locationId) throw new Error("Select a storage location.");
+      await supabaseRest.rpc("fn_add_initial_stock", {
+        p_business_id: businessId, p_name: payload.name, p_sku: payload.sku || null, p_category: payload.category || null,
+        p_unit: payload.unit, p_min_qty: Number(payload.minQty || 0), p_max_qty: Number(payload.maxQty || 0),
+        p_supplier_id: payload.supplierId || null, p_location_id: payload.locationId, p_expires_at: payload.expiresAt || null,
+        p_notes: payload.notes || null, p_starting_qty: Number(payload.qty || 0), p_starting_cost: Number(payload.costPerUnit || 0),
+      });
+      return reload();
+    },
+    async receive(item, qty, notes = "") {
+      if (!item?.locationId) throw new Error("This item has no stock location.");
+      await supabaseRest.rpc("fn_receive_manual_stock", {
+        p_business_id: businessId, p_inventory_item_id: item.id, p_location_id: item.locationId,
+        p_qty: Number(qty), p_notes: notes || null,
+      });
+      return reload();
+    },
+    async adjust(item, newQty, reason, notes = "") {
+      if (!item?.locationId) throw new Error("This item has no stock location.");
+      await supabaseRest.rpc("fn_adjust_inventory_count", {
+        p_business_id: businessId, p_inventory_item_id: item.id, p_location_id: item.locationId,
+        p_new_qty: Number(newQty), p_reason: reason || "Physical Count", p_notes: notes || null,
+      });
+      return reload();
+    },
+    async waste(item, qty, reason, notes = "") {
+      if (!item?.locationId) throw new Error("This item has no stock location.");
+      await supabaseRest.rpc("fn_record_waste", {
+        p_business_id: businessId, p_inventory_item_id: item.id, p_location_id: item.locationId,
+        p_qty: Number(qty), p_reason: reason || "Other", p_notes: notes || null,
+      });
+      return reload();
+    },
+  }), [businessId, reload]);
+
+  return [data, persistCatalog, transactions, ops, reload];
 }
 
 /* ============================== SMALL UI PRIMITIVES ============================== */
@@ -2252,7 +2414,12 @@ export default function App() {
   const [employees, setEmployees] = useSupabaseEmployees(businessId, locations);
   const [settings, setSettings] = useSupabaseBusinessSettings(businessId);
 
-  // These modules are intentionally still local in Phase 1.
+  // Phase 2 adds real Supabase catalog screens while the legacy transactional shadow remains
+  // isolated for POS/Purchases until their atomic RPC cutover (Phase 3).
+  const [catalogProducts, setCatalogProducts] = useSupabaseProducts(businessId);
+  const [catalogInventory, setCatalogInventory, catalogInvTx, catalogInventoryOps] = useSupabaseInventory(businessId, locations);
+
+  // Legacy transaction shadow — intentionally NOT used by the Products/Inventory tabs anymore.
   const [products, setProducts] = useCollection("products", seedProducts);
   const [inventory, setInventory] = useCollection("inventory", seedInventory);
   if (settings?.currency) setActiveCurrency(settings.currency);
@@ -2433,7 +2600,7 @@ export default function App() {
 
   const showToast = (msg, tone = "good") => { setToast({ msg, tone }); setTimeout(() => setToast(null), 2600); };
 
-  const loading = [products, inventory, suppliers, customers, employees, locations, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, loyaltyTransactions, loyaltyRewards, shifts, businessAlerts].some((x) => x === null) || currentUserId === undefined;
+  const loading = [products, inventory, catalogProducts, catalogInventory, suppliers, customers, employees, locations, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, loyaltyTransactions, loyaltyRewards, shifts, businessAlerts].some((x) => x === null) || currentUserId === undefined;
 
   const bg = dark ? `radial-gradient(1200px 600px at 100% -10%, ${C.purple700}55, transparent), linear-gradient(180deg, ${C.black}, ${C.purple900})` : C.bgLight;
 
@@ -2495,8 +2662,8 @@ export default function App() {
             {tab === "orders" && <OrdersView {...ctx} />}
             {tab === "sales" && <SalesView {...ctx} />}
             {tab === "cashflow" && (navAllowed(currentUser, "cashflow") ? <CashFlowView {...ctx} /> : <RestrictedView dark={dark} />)}
-            {tab === "inventory" && <InventoryView {...ctx} />}
-            {tab === "products" && <ProductsView {...ctx} />}
+            {tab === "inventory" && <InventoryView {...ctx} inventory={catalogInventory} setInventory={setCatalogInventory} invTx={catalogInvTx} inventoryOps={catalogInventoryOps} />}
+            {tab === "products" && <ProductsView {...ctx} products={catalogProducts} setProducts={setCatalogProducts} inventory={catalogInventory} />}
             {tab === "purchases" && (navAllowed(currentUser, "purchases") ? <PurchasesView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "expenses" && <ExpensesView {...ctx} />}
             {tab === "suppliers" && (navAllowed(currentUser, "suppliers") ? <SuppliersView {...ctx} /> : <RestrictedView dark={dark} />)}
@@ -4273,7 +4440,7 @@ function CashFlowView({ dark, cashTx, showToast }) {
 }
 
 /* ============================== INVENTORY ============================== */
-function InventoryView({ dark, inventory, setInventory, settings, suppliers, showToast, wasteTx, persistWaste, invTx, setInvTx, purchaseOrders, persistPO, employees, locations, currentUser, can, auditLog, setAuditLog }) {
+function InventoryView({ dark, inventory, setInventory, settings, suppliers, showToast, wasteTx, persistWaste, invTx, setInvTx, purchaseOrders, persistPO, employees, locations, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
   const [tabMode, setTabMode] = useState("all");
   const [modal, setModal] = useState(null); // 'receive' | 'adjust' | 'waste' | 'new' | 'history' | null
   const [selected, setSelected] = useState(null);
@@ -4336,7 +4503,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
                 <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Current {i.qty} · Recommended purchase {suggestedOrderQty(i)} {i.unit}</div>
               </div>
-              {can("managePurchases") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setQuickPO(i)}>Create Purchase</GhostButton>}
+              {can("managePurchases") && !inventoryOps?.remote && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setQuickPO(i)}>Create Purchase</GhostButton>}
             </div>
           ))}
         </Card>
@@ -4370,7 +4537,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
       {modal && modal !== "new" && modal !== "history" && selected && (
         <StockActionModal mode={modal} item={selected} inventory={inventory} setInventory={setInventory} dark={dark}
           onClose={() => setModal(null)} suppliers={suppliers} showToast={showToast} wasteTx={wasteTx} persistWaste={persistWaste}
-          invTx={invTx} setInvTx={setInvTx} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} />
+          invTx={invTx} setInvTx={setInvTx} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} inventoryOps={inventoryOps} />
       )}
 
       {modal === "history" && selected && (
@@ -4380,7 +4547,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
       {modal === "new" && (
         <NewInventoryItemModal dark={dark} onClose={() => setModal(null)} inventory={inventory} setInventory={setInventory}
           settings={settings} suppliers={suppliers} showToast={showToast} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog}
-          invTx={invTx} setInvTx={setInvTx} locations={locations} />
+          invTx={invTx} setInvTx={setInvTx} locations={locations} inventoryOps={inventoryOps} />
       )}
 
       {quickPO && (
@@ -4392,7 +4559,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
   );
 }
 
-function NewInventoryItemModal({ dark, onClose, inventory, setInventory, settings, suppliers, showToast, currentUser, can, auditLog, setAuditLog, invTx, setInvTx, locations }) {
+function NewInventoryItemModal({ dark, onClose, inventory, setInventory, settings, suppliers, showToast, currentUser, can, auditLog, setAuditLog, invTx, setInvTx, locations, inventoryOps }) {
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
   const [category, setCategory] = useState(settings.inventoryCategories[0]);
@@ -4418,10 +4585,17 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
       const startCost = clamp0(round2(Number(costPerUnit)));
       const locName = (locations || []).find((l) => l.id === locationId)?.name || "";
       const item = {
-        id: uid("inv"), name: name.trim(), sku, category, unit, qty: startQty,
+        id: newDbId(), name: name.trim(), sku, category, unit, qty: startQty,
         minQty: clamp0(Number(minQty)), maxQty: clamp0(Number(maxQty)), costPerUnit: startCost,
         supplierId, locationId, location: locName, notes,
       };
+      if (inventoryOps?.remote) {
+        await inventoryOps.createItem(item);
+        await logAudit(auditLog, setAuditLog, currentUser, "Inventory Item Created", `${item.name} · starting qty ${item.qty} ${item.unit}`);
+        showToast(`${item.name} added to inventory`);
+        onClose();
+        return;
+      }
       await setInventory([item, ...inventory]);
 
       // A brand-new item with a non-zero starting quantity is itself an inventory movement and
@@ -4478,7 +4652,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
   );
 }
 
-function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, showToast, wasteTx, persistWaste, invTx, setInvTx, currentUser, can, auditLog, setAuditLog }) {
+function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, showToast, wasteTx, persistWaste, invTx, setInvTx, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
   const [itemId, setItemId] = useState(item.id);
   const [qty, setQty] = useState(1);
   const [reason, setReason] = useState("Physical Count");
@@ -4512,6 +4686,30 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
     if (!can(requiredPermission)) { setError(mode === "adjust" ? "You don't have permission to adjust stock counts." : "You don't have permission to manage inventory."); return; }
     setSubmitting(true);
     try {
+      if (inventoryOps?.remote) {
+        if (mode === "receive") {
+          const addQty = Number(qty);
+          if (!addQty || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+          await inventoryOps.receive(current, addQty, notes);
+          await logAudit(auditLog, setAuditLog, currentUser, "Stock Received (manual)", `${current.name} +${addQty} ${current.unit}`);
+          showToast(`Received ${addQty} ${current.unit} of ${current.name}`);
+        } else if (mode === "adjust") {
+          const nq = clamp0(round2(Number(newQty)));
+          if (nq === current.qty) { showToast("No change to save"); onClose(); return; }
+          await inventoryOps.adjust(current, nq, reason, notes);
+          await logAudit(auditLog, setAuditLog, currentUser, "Stock Adjusted", `${current.name} target ${nq} ${current.unit} · ${reason}`);
+          showToast(`${current.name} count updated to ${nq} ${current.unit}`);
+        } else if (mode === "waste") {
+          const wasteQty = Number(qty);
+          if (!wasteQty || wasteQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+          if (wasteQty > current.qty) { setError(`Only ${current.qty} ${current.unit} in stock — can't waste more than that.`); return; }
+          await inventoryOps.waste(current, wasteQty, reason, notes);
+          await logAudit(auditLog, setAuditLog, currentUser, "Waste Recorded", `${current.name} -${wasteQty} ${current.unit} · ${reason}`);
+          showToast(`Waste logged: ${wasteQty} ${current.unit}`, "danger");
+        }
+        onClose();
+        return;
+      }
       if (mode === "receive") {
         const addQty = Number(qty);
         if (!addQty || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
@@ -5400,7 +5598,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     if (recipe.some((r) => !r.qty || r.qty <= 0)) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
     setSubmitting(true);
     try {
-      const payload = { id: product?.id || uid("prod"), name, sku, category, price: round2(Number(price)), active, description, recipe, image: product?.image || "" };
+      const payload = { id: product?.id || newDbId(), name, sku, category, price: round2(Number(price)), active, description, recipe, image: product?.image || "" };
       const next = product ? products.map((p) => (p.id === product.id ? payload : p)) : [payload, ...products];
       await setProducts(next);
       await logAudit(auditLog, setAuditLog, currentUser, product ? "Product Updated" : "Product Created", `${payload.name} · ${fmtMoney(payload.price)} · cost ${fmtMoney(cost)}`);
