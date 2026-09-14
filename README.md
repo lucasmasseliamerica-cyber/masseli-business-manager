@@ -1,3 +1,7 @@
+# NEXALVO v1.4.1 — Phase 3 sale persistence hotfix
+
+This build adds a hard fail-safe so authenticated tenant sales can never silently fall back to the legacy/local sale path. It also surfaces Supabase RPC errors in the checkout UI and shows a visible `v1.4.1` build marker beside the NEXALVO brand.
+
 # NEXALVO v1.3 — Supabase Data Phase 2
 
 Phase 2 moves the Products and Inventory screens to tenant-scoped Supabase data. Inventory quantity is ledger-derived and stock changes use RPCs. The legacy POS/Purchases transaction shadow intentionally remains local until the next atomic RPC cutover.

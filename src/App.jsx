@@ -707,6 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
+const NEXALVO_BUILD = "v1.4.1";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -719,6 +720,10 @@ async function finalizeSuccessfulPayment(pendingSale, paymentDetails, ctx) {
 
   // Phase 3 production path: ONE database RPC owns sale header, line items, recipe deductions,
   // inventory ledger/balance, cash_flow and audit log in a single PostgreSQL transaction.
+  // HARD FAIL-SAFE: an authenticated tenant must NEVER fall back to the legacy/local sale path.
+  if (ctx.businessId && !supabaseSalesOps?.remote) {
+    throw new Error(`Phase 3 Supabase sales is not active in this build (${NEXALVO_BUILD}). Sale was NOT saved.`);
+  }
   if (supabaseSalesOps?.remote) {
     const sale = await supabaseSalesOps.create(pendingSale);
     if (!sale) throw new Error("Sale was created but could not be reloaded from Supabase.");
@@ -2802,7 +2807,7 @@ function BrandHeader({ dark, settings }) {
     <div className="flex items-center gap-3 px-1">
       <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-lg" style={{ background: `linear-gradient(135deg, ${C.purple500}, ${C.purple700})`, color: C.lime, border: `2px solid ${C.lime}` }}>N</div>
       <div className="min-w-0">
-        <div className="font-extrabold text-sm leading-tight tracking-wide" style={{ color: dark ? C.white : C.black }}>NEXALVO</div>
+        <div className="font-extrabold text-sm leading-tight tracking-wide" style={{ color: dark ? C.white : C.black }}>NEXALVO <span className="text-[9px] font-bold" style={{ color: C.lime }}>{NEXALVO_BUILD}</span></div>
         <div className="text-[10px] font-semibold truncate" style={{ color: C.yellow }}>{settings.businessName}</div>
       </div>
     </div>
@@ -4280,6 +4285,9 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     try {
       const result = await handle.promise;
       await handlePaymentResult(pendingSale, result);
+    } catch (e) {
+      console.error("Sale finalization failed", e);
+      setError(e?.message || "Sale could not be saved to Supabase.");
     } finally {
       setSubmitting(false);
     }
