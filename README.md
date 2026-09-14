@@ -1,19 +1,12 @@
-# NEXALVO v1.5.2 — Phase 4 Cash Register Render Fix
+# NEXALVO v1.5.3 — Phase 4 Cash Safety Hotfix
 
-Fixes the Dashboard cash-register modal crash introduced in v1.5.1.
+Fixes:
+- Cash register can open with $0.00 without inserting a zero-value cash-flow row.
+- Cash expenses require an open register.
+- Cash expenses are linked to the active register so expected cash at closing includes them.
 
-## Root cause
-The Dashboard rendered `cashRegisterOps={ctx.cashRegisterOps}` even though `ctx` does not exist inside the Dashboard component. The error only happened after clicking the register card, causing a blank React screen before the Supabase RPC could run.
-
-## Fix
-- `cashRegisterOps` is now received as a normal Dashboard prop from the existing `{...ctx}` spread.
-- CashRegisterModal receives `cashRegisterOps={cashRegisterOps}` directly.
-- Visible build marker updated to `v1.5.2`.
-- No SQL change is required.
-
-## Test
-1. Deploy files.
-2. Hard refresh and confirm `v1.5.2`.
-3. Dashboard → Cash Register → Open Register.
-4. Opening cash: 0.00.
-5. Verify `cash_registers` has an OPEN row for the location.
+## Deploy order
+1. Run `12_phase4_cash_safety_hotfix.sql` in Supabase SQL Editor.
+2. Verify both functions show security_definer=true, authenticated_execute=true, anon_execute=false.
+3. Upload the frontend files to GitHub and wait for Vercel Production.
+4. Confirm `v1.5.3` appears in the NEXALVO header.
