@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.5";
+const NEXALVO_BUILD = "v1.5.2";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -3434,7 +3434,7 @@ function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFina
   );
 }
 
-function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inventory, invTx, wasteTx, tasks, purchaseOrders, employees, locations, cashRegisters, setCashRegisters, customers, loyaltyTransactions, shifts, businessAlerts, setBusinessAlerts, auditLog, setAuditLog, setTab, currentUser, can, showToast }) {
+function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inventory, invTx, wasteTx, tasks, purchaseOrders, employees, locations, cashRegisters, setCashRegisters, cashRegisterOps, customers, loyaltyTransactions, shifts, businessAlerts, setBusinessAlerts, auditLog, setAuditLog, setTab, currentUser, can, showToast }) {
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const canFinance = can("viewFinancials");
@@ -3616,7 +3616,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
 
       {showCashRegister && (
         <CashRegisterModal dark={dark} onClose={() => setShowCashRegister(false)} cashRegisters={cashRegisters} setCashRegisters={setCashRegisters}
-          cashTx={cashTx} persistCash={persistCash} cashRegisterOps={ctx.cashRegisterOps} locations={locations} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
+          cashTx={cashTx} persistCash={persistCash} cashRegisterOps={cashRegisterOps} locations={locations} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
 
       {(() => {
