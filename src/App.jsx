@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.4.1";
+const NEXALVO_BUILD = "v1.5";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -968,6 +968,10 @@ function cashRegisterBreakdown(register, cashTx) {
 // matching paymentService/printingService's existing result convention. ----
 
 async function openCashRegister({ locationId, openingCash, notes }, ctx) {
+  if (ctx.cashRegisterOps?.remote) {
+    try { return await ctx.cashRegisterOps.open({ locationId, openingCash, notes }); }
+    catch (e) { return { success: false, error: e?.message || "Could not open cash register." }; }
+  }
   const { cashRegisters, setCashRegisters, cashTx, persistCash, locations, currentUser, auditLog, setAuditLog } = ctx;
   if (!locationId) return { success: false, error: "Select a location." };
   const existingOpen = findOpenRegister(cashRegisters, locationId);
@@ -990,6 +994,10 @@ async function openCashRegister({ locationId, openingCash, notes }, ctx) {
 }
 
 async function recordCashMovement({ registerId, movementType, amount, reason, notes }, ctx) {
+  if (ctx.cashRegisterOps?.remote) {
+    try { return await ctx.cashRegisterOps.movement({ registerId, movementType, amount, reason, notes }); }
+    catch (e) { return { success: false, error: e?.message || "Could not record cash movement." }; }
+  }
   const { cashRegisters, cashTx, persistCash, locations, currentUser, auditLog, setAuditLog } = ctx;
   const register = (cashRegisters || []).find((r) => r.id === registerId);
   if (!register) return { success: false, error: "Register not found." };
@@ -1011,6 +1019,10 @@ async function recordCashMovement({ registerId, movementType, amount, reason, no
 }
 
 async function closeCashRegister({ registerId, actualCash, differenceReason, notes }, ctx) {
+  if (ctx.cashRegisterOps?.remote) {
+    try { return await ctx.cashRegisterOps.close({ registerId, actualCash, differenceReason, notes }); }
+    catch (e) { return { success: false, error: e?.message || "Could not close cash register." }; }
+  }
   const { cashRegisters, setCashRegisters, cashTx, currentUser, auditLog, setAuditLog } = ctx;
   const latest = (cashRegisters || []).find((r) => r.id === registerId);
   if (!latest) return { success: false, error: "Register not found." };
@@ -2168,6 +2180,171 @@ function useSupabaseSales(businessId, locations) {
   return [data, persist, ops];
 }
 
+
+/* ============================== SUPABASE DATA — PHASE 4: PURCHASES / EXPENSES / CASH ============================== */
+function useSupabaseCashFlow(businessId) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const [rows, paymentRows] = await Promise.all([
+      supabaseRest.select("cash_flow", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=transaction_date.desc&limit=1000`),
+      supabaseRest.select("purchase_order_payments", "select=*&order=paid_at.desc&limit=1000"),
+    ]);
+    const poByPayment = Object.fromEntries((paymentRows || []).map((p) => [p.id, p.purchase_order_id]));
+    const mapped = (rows || []).map((r) => ({
+      id: r.id, date: r.transaction_date || r.created_at,
+      // The UI treats the opening line as positive cash but excludes its category from register sums.
+      type: r.type === "opening_balance" ? "income" : r.type,
+      category: r.category, amount: Number(r.amount || 0), paymentMethod: r.payment_method || "",
+      description: r.description || "", relatedSaleId: r.sale_id || "", relatedExpenseId: r.expense_id || "",
+      purchasePaymentId: r.purchase_order_payment_id || "", relatedPOId: poByPayment[r.purchase_order_payment_id] || "",
+      relatedCashRegisterId: r.related_cash_register_id || "", reversalOf: r.reversal_of || "", status: r.status || "completed",
+      createdBy: r.created_by || "", supabase: true,
+    }));
+    setData(mapped); return mapped;
+  }, [businessId]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase cash flow load failed", e); setData([]); }); }, [reload]);
+  return [data, reload];
+}
+
+function useSupabaseExpenses(businessId, reloadCashFlow) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const rows = await supabaseRest.select("expenses", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=expense_date.desc&limit=500`);
+    const mapped = (rows || []).map((r) => ({
+      id: r.id, amount: Number(r.amount || 0), date: r.expense_date || r.created_at, category: r.category,
+      vendor: r.vendor || "", paymentMethod: r.payment_method || "", locationId: r.location_id || "",
+      recurring: !!r.recurring, description: r.description || "", status: r.status || "completed",
+      reversedAt: r.reversed_at || "", reversedBy: r.reversed_by || "", createdBy: r.created_by || "", supabase: true,
+    }));
+    setData(mapped); return mapped;
+  }, [businessId]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase expenses load failed", e); setData([]); }); }, [reload]);
+  const ops = useMemo(() => ({ remote: true, reload,
+    async create(x) {
+      const row = await supabaseRest.rpc("fn_create_expense", {
+        p_business_id: businessId, p_location_id: x.locationId, p_expense_date: x.date,
+        p_category: x.category, p_vendor: x.vendor || null, p_amount: Number(x.amount),
+        p_payment_method: x.paymentMethod || null, p_recurring: !!x.recurring, p_notes: x.description || null,
+      });
+      await Promise.all([reload(), reloadCashFlow?.()]); return row;
+    },
+    async reverse(id) {
+      const row = await supabaseRest.rpc("fn_reverse_expense", { p_expense_id: id });
+      await Promise.all([reload(), reloadCashFlow?.()]); return row;
+    },
+  }), [businessId, reload, reloadCashFlow]);
+  return [data, ops];
+}
+
+function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const pos = await supabaseRest.select("purchase_orders", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=order_date.desc&limit=500`);
+    const ids = (pos || []).map((x) => x.id);
+    let lines = [], payments = [];
+    if (ids.length) {
+      [lines, payments] = await Promise.all([
+        supabaseRest.select("purchase_order_items", `select=*&purchase_order_id=in.(${ids.join(",")})`),
+        supabaseRest.select("purchase_order_payments", `select=*&purchase_order_id=in.(${ids.join(",")})&order=paid_at.desc`),
+      ]);
+    }
+    const linesByPo = new Map(), paymentsByPo = new Map();
+    for (const r of lines || []) {
+      if (!linesByPo.has(r.purchase_order_id)) linesByPo.set(r.purchase_order_id, []);
+      linesByPo.get(r.purchase_order_id).push({ id: r.id, itemId: r.inventory_item_id, qty: Number(r.qty_ordered || 0), unit: r.unit || "", unitCost: Number(r.unit_cost || 0), receivedQty: Number(r.received_qty || 0) });
+    }
+    for (const r of payments || []) {
+      if (!paymentsByPo.has(r.purchase_order_id)) paymentsByPo.set(r.purchase_order_id, []);
+      paymentsByPo.get(r.purchase_order_id).push({ id: r.id, amount: Number(r.amount || 0), paymentMethod: r.payment_method || "", date: r.paid_at, status: r.status || "completed", reversedAt: r.reversed_at || "" });
+    }
+    const mapped = (pos || []).map((r) => {
+      const poPayments = paymentsByPo.get(r.id) || [];
+      return {
+        id: r.id, poNumber: `PO-${r.po_number}`, poNumberRaw: r.po_number, supplierId: r.supplier_id, locationId: r.location_id,
+        orderDate: r.order_date, expectedDate: r.expected_date, status: r.status, paymentMethod: r.payment_method || "",
+        notes: r.notes || "", discount: Number(r.discount || 0), tax: Number(r.tax || 0),
+        items: linesByPo.get(r.id) || [], payments: poPayments,
+        amountPaid: round2(poPayments.filter((x) => x.status === "completed").reduce((a, x) => a + x.amount, 0)),
+        reversedAt: r.reversed_at || "", reversedBy: r.reversed_by || "", createdBy: r.created_by || "", supabase: true,
+      };
+    });
+    setData(mapped); return mapped;
+  }, [businessId]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase purchases load failed", e); setData([]); }); }, [reload]);
+  const refreshAll = useCallback(async ({ inventory=false, cash=false }={}) => {
+    const jobs=[reload()]; if (inventory && reloadInventory) jobs.push(reloadInventory()); if (cash && reloadCashFlow) jobs.push(reloadCashFlow());
+    await Promise.all(jobs);
+  }, [reload, reloadInventory, reloadCashFlow]);
+  const ops = useMemo(() => ({ remote: true, reload,
+    async create(x) {
+      const row = await supabaseRest.rpc("fn_create_purchase_order", {
+        p_business_id: businessId, p_supplier_id: x.supplierId, p_location_id: x.locationId,
+        p_order_date: x.orderDate, p_expected_date: x.expectedDate || null, p_status: x.status,
+        p_payment_method: x.paymentMethod || null, p_notes: x.notes || null,
+        p_discount: Number(x.discount || 0), p_tax: Number(x.tax || 0),
+        p_items: (x.items || []).map((it) => ({ inventory_item_id: it.itemId, qty: Number(it.qty), unit: it.unit, unit_cost: Number(it.unitCost) })),
+      });
+      await refreshAll(); return row;
+    },
+    async receive(poId, receiveLines) {
+      const row = await supabaseRest.rpc("fn_receive_purchase_order", { p_purchase_order_id: poId, p_receive_lines: receiveLines.map((x) => ({ po_item_id: x.poItemId, qty: Number(x.qty) })) });
+      await refreshAll({ inventory: true }); return row;
+    },
+    async pay(poId, amount, paymentMethod) {
+      const row = await supabaseRest.rpc("fn_pay_purchase_order", { p_purchase_order_id: poId, p_amount: Number(amount), p_payment_method: paymentMethod });
+      await refreshAll({ cash: true }); return row;
+    },
+    async reversePayment(paymentId) {
+      const row = await supabaseRest.rpc("fn_reverse_po_payment", { p_payment_id: paymentId });
+      await refreshAll({ cash: true }); return row;
+    },
+    async reversePurchase(poId) {
+      const row = await supabaseRest.rpc("fn_reverse_purchase_order", { p_purchase_order_id: poId });
+      await refreshAll({ inventory: true, cash: true }); return row;
+    },
+    async cancel(poId) {
+      const row = await supabaseRest.rpc("fn_cancel_purchase_order", { p_purchase_order_id: poId });
+      await refreshAll(); return row;
+    },
+  }), [businessId, reload, refreshAll]);
+  return [data, ops];
+}
+
+function useSupabaseCashRegisters(businessId, reloadCashFlow) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const rows = await supabaseRest.select("cash_registers", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=opened_at.desc&limit=250`);
+    const mapped = (rows || []).map((r) => ({
+      id: r.id, locationId: r.location_id, openedByUserId: r.opened_by || "", openedAt: r.opened_at,
+      openingCash: Number(r.opening_cash || 0), status: r.status, closedByUserId: r.closed_by || "", closedAt: r.closed_at || "",
+      expectedCash: r.expected_cash == null ? null : Number(r.expected_cash), actualCash: r.actual_cash == null ? null : Number(r.actual_cash),
+      difference: r.difference == null ? null : Number(r.difference), differenceReason: r.difference_reason || "", notes: r.notes || "", supabase: true,
+    }));
+    setData(mapped); return mapped;
+  }, [businessId]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase cash registers load failed", e); setData([]); }); }, [reload]);
+  const refreshBoth = useCallback(async () => { await Promise.all([reload(), reloadCashFlow?.()]); }, [reload, reloadCashFlow]);
+  const ops = useMemo(() => ({ remote: true, reload,
+    async open({ locationId, openingCash, notes }) {
+      const row = await supabaseRest.rpc("fn_open_cash_register", { p_business_id: businessId, p_location_id: locationId, p_opening_cash: Number(openingCash || 0), p_notes: notes || null });
+      await refreshBoth(); return { success: true, register: row };
+    },
+    async movement({ registerId, movementType, amount, reason, notes }) {
+      const row = await supabaseRest.rpc("fn_record_cash_movement", { p_register_id: registerId, p_movement_type: movementType, p_amount: Number(amount), p_reason: reason, p_notes: notes || null });
+      await refreshBoth(); return { success: true, entry: row };
+    },
+    async close({ registerId, actualCash, differenceReason, notes }) {
+      const row = await supabaseRest.rpc("fn_close_cash_register", { p_register_id: registerId, p_actual_cash: Number(actualCash), p_difference_reason: differenceReason || null, p_notes: notes || null });
+      await refreshBoth(); return { success: true, register: row };
+    },
+  }), [businessId, reload, refreshBoth]);
+  return [data, ops];
+}
+
 /* ============================== SMALL UI PRIMITIVES ============================== */
 function useTheme() {
   const [dark, setDark] = useState(true);
@@ -2495,6 +2672,11 @@ export default function App() {
   const [catalogProducts, setCatalogProducts] = useSupabaseProducts(businessId);
   const [catalogInventory, setCatalogInventory, catalogInvTx, catalogInventoryOps, reloadCatalogInventory] = useSupabaseInventory(businessId, locations);
   const [remoteSales, persistRemoteSales, remoteSalesOps] = useSupabaseSales(businessId, locations);
+  // Phase 4: financial operations and purchasing are server-authoritative too.
+  const [remoteCashTx, reloadRemoteCashTx] = useSupabaseCashFlow(businessId);
+  const [remoteExpenses, remoteExpenseOps] = useSupabaseExpenses(businessId, reloadRemoteCashTx);
+  const [remotePurchaseOrders, remotePurchaseOps] = useSupabasePurchases(businessId, reloadCatalogInventory, reloadRemoteCashTx);
+  const [remoteCashRegisters, remoteCashRegisterOps] = useSupabaseCashRegisters(businessId, reloadRemoteCashTx);
 
   // Legacy transaction shadow — intentionally NOT used by the Products/Inventory tabs anymore.
   const [products, setProducts] = useCollection("products", seedProducts);
@@ -2677,7 +2859,7 @@ export default function App() {
 
   const showToast = (msg, tone = "good") => { setToast({ msg, tone }); setTimeout(() => setToast(null), 2600); };
 
-  const loading = [products, inventory, catalogProducts, catalogInventory, remoteSales, suppliers, customers, employees, locations, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, loyaltyTransactions, loyaltyRewards, shifts, businessAlerts].some((x) => x === null) || currentUserId === undefined;
+  const loading = [products, inventory, catalogProducts, catalogInventory, remoteSales, remoteCashTx, remoteExpenses, remotePurchaseOrders, remoteCashRegisters, suppliers, customers, employees, locations, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, loyaltyTransactions, loyaltyRewards, shifts, businessAlerts].some((x) => x === null) || currentUserId === undefined;
 
   const bg = dark ? `radial-gradient(1200px 600px at 100% -10%, ${C.purple700}55, transparent), linear-gradient(180deg, ${C.black}, ${C.purple900})` : C.bgLight;
 
@@ -2699,14 +2881,18 @@ export default function App() {
     return <LoginScreen dark={dark} onLogin={login} bg={bg} startupError={authStartupError} />;
   }
 
+  const phase4WriteGuard = async () => { throw new Error("This Phase 4 ledger is Supabase-managed. Use its server RPC operation instead of legacy local persistence."); };
   const ctx = {
     dark, settings, setSettings, products, setProducts, inventory, setInventory,
-    sales, persistSales, cashTx, persistCash, expenses, setExpenses: persistExpenses,
+    sales: remoteSales, persistSales: persistRemoteSales, cashTx: remoteCashTx, persistCash: phase4WriteGuard,
+    expenses: remoteExpenses, setExpenses: phase4WriteGuard, expenseOps: remoteExpenseOps,
     suppliers, setSuppliers, customers, setCustomers, employees, setEmployees,
-    locations, setLocations, wasteTx, persistWaste, invTx, setInvTx,
-    purchaseOrders, persistPO, showToast, users: effectiveUsers, setUsers, currentUser, can: (perm) => can(currentUser, perm),
+    locations, setLocations, wasteTx, persistWaste, invTx: catalogInvTx, setInvTx: () => {},
+    purchaseOrders: remotePurchaseOrders, persistPO: phase4WriteGuard, purchaseOps: remotePurchaseOps,
+    showToast, users: effectiveUsers, setUsers, currentUser, can: (perm) => can(currentUser, perm),
     auditLog, setAuditLog, logAudit: (action, details) => logAudit(auditLog, setAuditLog, currentUser, action, details),
-    tasks, persistTasks, cashRegisters, setCashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, setLoyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
+    tasks, persistTasks, cashRegisters: remoteCashRegisters, setCashRegisters: phase4WriteGuard, cashRegisterOps: remoteCashRegisterOps,
+    loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, setLoyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
   };
 
   const visibleNav = NAV.filter((n) => navAllowed(currentUser, n.id));
@@ -2741,7 +2927,7 @@ export default function App() {
             {tab === "cashflow" && (navAllowed(currentUser, "cashflow") ? <CashFlowView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "inventory" && <InventoryView {...ctx} inventory={catalogInventory} setInventory={setCatalogInventory} invTx={catalogInvTx} inventoryOps={catalogInventoryOps} />}
             {tab === "products" && <ProductsView {...ctx} products={catalogProducts} setProducts={setCatalogProducts} inventory={catalogInventory} />}
-            {tab === "purchases" && (navAllowed(currentUser, "purchases") ? <PurchasesView {...ctx} /> : <RestrictedView dark={dark} />)}
+            {tab === "purchases" && (navAllowed(currentUser, "purchases") ? <PurchasesView {...ctx} inventory={catalogInventory} setInventory={setCatalogInventory} invTx={catalogInvTx} setInvTx={() => {}} /> : <RestrictedView dark={dark} />)}
             {tab === "expenses" && <ExpensesView {...ctx} />}
             {tab === "suppliers" && (navAllowed(currentUser, "suppliers") ? <SuppliersView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "customers" && <CustomersView {...ctx} />}
@@ -4992,7 +5178,7 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, onClose, can }) {
 /* ============================== PURCHASING ============================== */
 const PO_STATUS_TONE = { Draft: "default", Ordered: "warn", "Partially Received": "warn", Received: "good", Cancelled: "danger", Reversed: "danger" };
 
-function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrders, persistPO, invTx, setInvTx, cashTx, persistCash, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
+function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [tabMode, setTabMode] = useState("open");
   const [newOpen, setNewOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
@@ -5080,12 +5266,12 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
 
       {newOpen && (
         <NewPurchaseModal dark={dark} onClose={() => setNewOpen(false)} inventory={inventory} suppliers={suppliers}
-          purchaseOrders={purchaseOrders} persistPO={persistPO} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
+          purchaseOrders={purchaseOrders} persistPO={persistPO} purchaseOps={purchaseOps} locations={locations} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
 
       {viewing && (
         <PurchaseDetailModal dark={dark} po={purchaseOrders.find((p) => p.id === viewing.id) || viewing} onClose={() => setViewing(null)}
-          inventory={inventory} setInventory={setInventory} suppliers={suppliers} purchaseOrders={purchaseOrders} persistPO={persistPO}
+          inventory={inventory} setInventory={setInventory} suppliers={suppliers} purchaseOrders={purchaseOrders} persistPO={persistPO} purchaseOps={purchaseOps}
           invTx={invTx} setInvTx={setInvTx} cashTx={cashTx} persistCash={persistCash} settings={settings}
           currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
@@ -5093,8 +5279,9 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
   );
 }
 
-function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders, persistPO, currentUser, can, auditLog, setAuditLog, showToast, prefill }) {
+function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders, persistPO, purchaseOps, locations, currentUser, can, auditLog, setAuditLog, showToast, prefill }) {
   const [supplierId, setSupplierId] = useState(prefill?.supplierId || suppliers[0]?.id || "");
+  const [locationId, setLocationId] = useState(prefill?.locationId || (locations || []).find((l) => l.active !== false)?.id || inventory.find((i) => i.locationId)?.locationId || "");
   const [orderDate, setOrderDate] = useState(todayStr());
   const [expectedDate, setExpectedDate] = useState(todayStr());
   const [paymentMethod, setPaymentMethod] = useState("Net Terms");
@@ -5120,10 +5307,19 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     setError("");
     if (!can("managePurchases")) { setError("You don't have permission to create purchase orders."); return; }
     if (!supplierId) { setError("Select a supplier."); return; }
+    if (!locationId) { setError("Select a location."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.item || !l.qty || l.qty <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
     if (lineData.some((l) => l.unitCost < 0)) { setError("Unit cost can't be negative."); return; }
     setSubmitting(true);
     try {
+      if (purchaseOps?.remote) {
+        await purchaseOps.create({ supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
+          discount: Number(discount) || 0, tax: Number(tax) || 0,
+          items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)) })) });
+        showToast(`Purchase order created · ${fmtMoney(grandTotal)}`);
+        onClose();
+        return;
+      }
       const poNumber = `PO-${1000 + purchaseOrders.length + 1}`;
       const po = {
         id: uid("po"), poNumber, supplierId, orderDate: parseLocalDate(orderDate).toISOString(), expectedDate: parseLocalDate(expectedDate).toISOString(),
@@ -5145,6 +5341,11 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
         <Field dark={dark} label="Supplier">
           <Select dark={dark} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             {suppliers.filter((s) => s.active !== false).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </Select>
+        </Field>
+        <Field dark={dark} label="Location">
+          <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
+            {(locations || []).filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label="Payment Method">
@@ -5205,7 +5406,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   );
 }
 
-function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppliers, purchaseOrders, persistPO, invTx, setInvTx, cashTx, persistCash, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
+function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppliers, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, cashTx, persistCash, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [receiving, setReceiving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -5218,13 +5419,18 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
   const fullyReceived = po.items.every((l) => l.receivedQty >= l.qty);
   const anyReceived = po.items.some((l) => l.receivedQty > 0);
   const reversed = po.status === "Reversed";
-  const payments = cashTx.filter((t) => t.relatedPOId === po.id && t.category === "Supplier Payment").sort((a, b) => new Date(b.date) - new Date(a.date));
+  const payments = purchaseOps?.remote ? (po.payments || []).sort((a, b) => new Date(b.date) - new Date(a.date)) : cashTx.filter((t) => t.relatedPOId === po.id && t.category === "Supplier Payment").sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const doReversePurchase = async () => {
     if (busy) return;
     if (!can("reversePurchases")) { showToast("You don't have permission to reverse purchases.", "danger"); setReversing(false); return; }
     setBusy(true);
     try {
+      if (purchaseOps?.remote) {
+        await purchaseOps.reversePurchase(po.id);
+        showToast(`${po.poNumber} reversed · inventory & cash corrected`, "danger");
+        setReversing(false); onClose(); return;
+      }
       const latest = purchaseOrders.find((p) => p.id === po.id) || po;
       if (latest.status === "Reversed") { showToast("This purchase was already reversed.", "danger"); setReversing(false); onClose(); return; }
 
@@ -5289,6 +5495,11 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
     if (!can("paySuppliers")) { showToast("You don't have permission to reverse payments.", "danger"); setReversingPaymentId(null); return; }
     setBusy(true);
     try {
+      if (purchaseOps?.remote) {
+        await purchaseOps.reversePayment(payment.id);
+        showToast(`Payment of ${fmtMoney(payment.amount)} reversed`, "danger");
+        setReversingPaymentId(null); return;
+      }
       const latestTx = cashTx.find((t) => t.id === payment.id);
       if (!latestTx) { showToast("Payment not found.", "danger"); setReversingPaymentId(null); return; }
       const latestPO = purchaseOrders.find((p) => p.id === po.id) || po;
@@ -5399,11 +5610,11 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
 
       {receiving && (
         <ReceivePurchaseModal dark={dark} po={po} onClose={() => setReceiving(false)} inventory={inventory} setInventory={setInventory}
-          purchaseOrders={purchaseOrders} persistPO={persistPO} invTx={invTx} setInvTx={setInvTx} suppliers={suppliers}
+          purchaseOrders={purchaseOrders} persistPO={persistPO} purchaseOps={purchaseOps} invTx={invTx} setInvTx={setInvTx} suppliers={suppliers}
           currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
       {paying && (
-        <PaymentModal dark={dark} po={po} onClose={() => setPaying(false)} purchaseOrders={purchaseOrders} persistPO={persistPO}
+        <PaymentModal dark={dark} po={po} onClose={() => setPaying(false)} purchaseOrders={purchaseOrders} persistPO={persistPO} purchaseOps={purchaseOps}
           cashTx={cashTx} persistCash={persistCash} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
       {cancelling && (
@@ -5418,6 +5629,10 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
             if (latest.status === "Cancelled") { showToast(`${po.poNumber} was already cancelled.`, "danger"); setCancelling(false); onClose(); return; }
             const latestAnyReceived = latest.items.some((l) => l.receivedQty > 0);
             if (latestAnyReceived) { showToast(`${po.poNumber} has received items now — it can no longer be cancelled directly. Use Reverse instead.`, "danger"); setCancelling(false); onClose(); return; }
+            if (purchaseOps?.remote) {
+              await purchaseOps.cancel(po.id);
+              showToast(`${po.poNumber} cancelled`, "danger"); setCancelling(false); onClose(); return;
+            }
             await persistPO(purchaseOrders.map((p) => (p.id === po.id ? { ...p, status: "Cancelled" } : p)));
             await logAudit(auditLog, setAuditLog, currentUser, "Purchase Order Cancelled", po.poNumber);
             showToast(`${po.poNumber} cancelled`, "danger");
@@ -5438,7 +5653,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
   );
 }
 
-function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purchaseOrders, persistPO, invTx, setInvTx, suppliers, currentUser, can, auditLog, setAuditLog, showToast }) {
+function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, suppliers, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [receiveQtys, setReceiveQtys] = useState(Object.fromEntries(po.items.map((l) => [l.id, round2(l.qty - l.receivedQty)])));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -5462,6 +5677,14 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
 
     setSubmitting(true);
     try {
+      if (purchaseOps?.remote) {
+        await purchaseOps.receive(po.id, receivingNow.map((x) => ({ poItemId: x.line.id, qty: x.receiveQty })));
+        const allDoneRemote = receivingNow.every((x) => x.receiveQty >= round2(x.line.qty - x.line.receivedQty)) && latestPO.items.every((line) => {
+          const match = receivingNow.find((x) => x.line.id === line.id); return line.receivedQty + (match?.receiveQty || 0) >= line.qty;
+        });
+        showToast(allDoneRemote ? `${po.poNumber} fully received` : `Partial receipt recorded for ${po.poNumber}`);
+        onClose(); return;
+      }
       // Retry-safety: each operation id includes the item's receivedQty BEFORE this specific
       // receiving operation — a retry of the SAME interrupted operation always starts from the
       // same receivedQty (nothing persisted yet) and reproduces the same id, while a genuinely
@@ -5560,7 +5783,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
   );
 }
 
-function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, cashTx, persistCash, currentUser, can, auditLog, setAuditLog, showToast }) {
+function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOps, cashTx, persistCash, currentUser, can, auditLog, setAuditLog, showToast }) {
   const due = poAmountDue(po);
   const [amount, setAmount] = useState(due);
   const [paymentMethod, setPaymentMethod] = useState(po.paymentMethod === "Net Terms" || po.paymentMethod === "COD" ? "Zelle" : po.paymentMethod);
@@ -5576,6 +5799,11 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, cashTx, pe
     if (amt > due + 0.01) { setError(`Payment can't exceed the amount due (${fmtMoney(due)}).`); return; }
     setSubmitting(true);
     try {
+      if (purchaseOps?.remote) {
+        await purchaseOps.pay(po.id, amt, paymentMethod);
+        showToast(`Payment recorded: ${fmtMoney(amt)} to ${po.poNumber}`);
+        onClose(); return;
+      }
       // Re-derive the freshest PO state right before writing, so a duplicate click (or a second
       // payment made moments later) can never double-pay: amountPaid only ever moves forward once.
       const latest = purchaseOrders.find((p) => p.id === po.id) || po;
@@ -5759,7 +5987,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
 }
 
 /* ============================== EXPENSES ============================== */
-function ExpensesView({ dark, expenses, setExpenses, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
+function ExpensesView({ dark, expenses, setExpenses, expenseOps, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [modal, setModal] = useState(false);
   const [viewing, setViewing] = useState(null);
   const total30 = round2(expenses.filter((e) => e.status !== "reversed" && withinDays(e.date, 30)).reduce((a, e) => a + e.amount, 0));
@@ -5785,13 +6013,13 @@ function ExpensesView({ dark, expenses, setExpenses, cashTx, persistCash, settin
             right={`-${fmtMoney(e.amount)}`} rightSub={e.paymentMethod} />
         ))}
       </Card>
-      {modal && <ExpenseModal dark={dark} onClose={() => setModal(false)} expenses={expenses} setExpenses={setExpenses} cashTx={cashTx} persistCash={persistCash} settings={settings} locations={locations} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />}
-      {viewing && <ExpenseDetailModal dark={dark} expense={viewing} onClose={() => setViewing(null)} expenses={expenses} setExpenses={setExpenses} cashTx={cashTx} persistCash={persistCash} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />}
+      {modal && <ExpenseModal dark={dark} onClose={() => setModal(false)} expenses={expenses} setExpenses={setExpenses} expenseOps={expenseOps} cashTx={cashTx} persistCash={persistCash} settings={settings} locations={locations} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />}
+      {viewing && <ExpenseDetailModal dark={dark} expense={viewing} onClose={() => setViewing(null)} expenses={expenses} setExpenses={setExpenses} expenseOps={expenseOps} cashTx={cashTx} persistCash={persistCash} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />}
     </div>
   );
 }
 
-function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, cashTx, persistCash, currentUser, can, auditLog, setAuditLog, showToast }) {
+function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, expenseOps, cashTx, persistCash, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const reversed = expense.status === "reversed";
@@ -5801,6 +6029,11 @@ function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, cas
     if (!can("reverseExpenses")) { showToast("You don't have permission to reverse expenses.", "danger"); setConfirming(false); return; }
     setBusy(true);
     try {
+      if (expenseOps?.remote) {
+        await expenseOps.reverse(expense.id);
+        showToast(`Expense reversed: ${fmtMoney(expense.amount)}`, "danger");
+        setConfirming(false); onClose(); return;
+      }
       const latest = expenses.find((e) => e.id === expense.id) || expense;
 
       // Deterministic id on the cash side is the real signal of "already reversed" — not just
@@ -5858,7 +6091,7 @@ function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, cas
   );
 }
 
-function ExpenseModal({ dark, onClose, expenses, setExpenses, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
+function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayStr());
   const [category, setCategory] = useState(settings.expenseCategories[0]);
@@ -5878,6 +6111,11 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, cashTx, persistCas
     setSubmitting(true);
     try {
       const loc = (locations || []).find((l) => l.id === locationId);
+      if (expenseOps?.remote) {
+        if (!locationId) { setError("Select a location."); return; }
+        await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
+        showToast(`Expense added: ${fmtMoney(amt)}`); onClose(); return;
+      }
       const exp = { id: uid("exp"), amount: round2(amt), date: parseLocalDate(date).toISOString(), category, vendor, paymentMethod, locationId, location: loc?.name || "", recurring, description, status: "completed", createdBy: currentUser?.id };
       await setExpenses([exp, ...expenses]);
       await persistCash([{ id: uid("cash"), date: exp.date, type: "expense", category, amount: exp.amount, paymentMethod, locationId, location: loc?.name || "", description: description || vendor, relatedExpenseId: exp.id }, ...cashTx]);
