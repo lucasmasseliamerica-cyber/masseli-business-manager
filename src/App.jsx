@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.5.3";
+const NEXALVO_BUILD = "v1.5.5";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -920,11 +920,19 @@ function cashRegisterEntries(register, cashTx) {
   const start = new Date(register.openedAt).getTime();
   const end = register.closedAt ? new Date(register.closedAt).getTime() : Infinity;
   return (cashTx || []).filter((t) => {
-    if (t.paymentMethod !== "Cash") return false; // card/Zelle/Other never affect physical cash
-    if ((t.locationId || null) !== (register.locationId || null)) return false;
+    if ((t.paymentMethod || "").toLowerCase() !== "cash") return false; // card/Zelle/Other never affect physical cash
     if (t.category === CASH_REGISTER_CATEGORIES.OPENING) return false;
+
+    // Supabase cash-register RPCs stamp related_cash_register_id on every drawer movement.
+    // Prefer that authoritative relationship because it is exactly what fn_close_cash_register
+    // uses server-side. This keeps the live UI and the backend closing balance mathematically
+    // identical and avoids losing movements because of timestamp/location mapping differences.
+    if (t.relatedCashRegisterId) return t.relatedCashRegisterId === register.id;
+
+    // Backward-compatible fallback for historical/legacy cash rows that predate the register FK.
+    if ((t.locationId || null) !== (register.locationId || null)) return false;
     const ts = new Date(t.date).getTime();
-    return ts >= start && ts <= end;
+    return Number.isFinite(ts) && ts >= start && ts <= end;
   });
 }
 
@@ -2192,7 +2200,8 @@ function useSupabaseCashFlow(businessId) {
     ]);
     const poByPayment = Object.fromEntries((paymentRows || []).map((p) => [p.id, p.purchase_order_id]));
     const mapped = (rows || []).map((r) => ({
-      id: r.id, date: r.transaction_date || r.created_at,
+      id: r.id, date: r.transaction_date || r.created_at, locationId: r.location_id || "",
+      // Location is required by cashRegisterEntries so live register balances match the backend.
       // The UI treats the opening line as positive cash but excludes its category from register sums.
       type: r.type === "opening_balance" ? "income" : r.type,
       category: r.category, amount: Number(r.amount || 0), paymentMethod: r.payment_method || "",
