@@ -715,7 +715,16 @@ const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
 // as-is instead of re-running any side effect (prevents double deduction/ledger/cash if called
 // twice for the same payment attempt — e.g. a duplicate confirmation event in a future Stripe flow).
 async function finalizeSuccessfulPayment(pendingSale, paymentDetails, ctx) {
-  const { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog } = ctx;
+  const { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory } = ctx;
+
+  // Phase 3 production path: ONE database RPC owns sale header, line items, recipe deductions,
+  // inventory ledger/balance, cash_flow and audit log in a single PostgreSQL transaction.
+  if (supabaseSalesOps?.remote) {
+    const sale = await supabaseSalesOps.create(pendingSale);
+    if (!sale) throw new Error("Sale was created but could not be reloaded from Supabase.");
+    if (reloadInventory) await reloadInventory();
+    return { ...sale, stripePaymentIntentId: paymentDetails?.stripePaymentIntentId ?? null };
+  }
 
   // Retry-safety design: inventory.qty and the deterministic operation marker (appliedOps) are
   // computed and written TOGETHER in one setInventory() call — this is now the single critical
@@ -2092,6 +2101,68 @@ function useSupabaseInventory(businessId, locations) {
   return [data, persistCatalog, transactions, ops, reload];
 }
 
+/* ============================== SUPABASE DATA — PHASE 3: SALES / ORDERS ============================== */
+function useSupabaseSales(businessId, locations) {
+  const [data, setData] = useState(null);
+  const locationById = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
+
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const rows = await supabaseRest.select("sales", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=sale_date.desc&limit=500`);
+    const ids = (rows || []).map((r) => r.id);
+    let itemRows = [];
+    if (ids.length) itemRows = await supabaseRest.select("sale_items", `select=*&sale_id=in.(${ids.join(",")})`);
+    const bySale = new Map();
+    for (const it of itemRows || []) {
+      if (!bySale.has(it.sale_id)) bySale.set(it.sale_id, []);
+      bySale.get(it.sale_id).push({
+        id: it.id, productId: it.product_id, name: it.product_name_snapshot, qty: Number(it.qty || 0),
+        unitPrice: Number(it.unit_price || 0), cost: Number(it.unit_cost_snapshot || 0),
+      });
+    }
+    const mapped = (rows || []).map((r) => ({
+      id: r.id, orderNo: r.order_no, date: r.sale_date || r.created_at, status: r.status, paymentStatus: "paid",
+      fulfillmentStatus: r.fulfillment_status, items: bySale.get(r.id) || [], subtotal: Number(r.subtotal || 0),
+      discount: Number(r.discount || 0), tax: Number(r.tax || 0), total: Number(r.total || 0), paymentMethod: r.payment_method,
+      channel: r.channel, locationId: r.location_id, location: locationById[r.location_id] || "", employeeId: r.employee_id || "",
+      customerId: r.customer_id || "", notes: r.notes || "", createdBy: r.created_by || "", cancelledAt: r.cancelled_at || null,
+      cancelledBy: r.cancelled_by || null, supabase: true,
+    }));
+    setData(mapped);
+    return mapped;
+  }, [businessId, locationById]);
+
+  useEffect(() => { reload().catch((e) => { console.error("Supabase sales load failed", e); setData([]); }); }, [reload]);
+
+  const persist = useCallback(async (next) => {
+    const before = data || [];
+    for (const n of next || []) {
+      const old = before.find((x) => x.id === n.id);
+      if (!old) continue; // creation is exclusively fn_create_sale
+      if (old.status !== "cancelled" && n.status === "cancelled") {
+        await supabaseRest.rpc("fn_reverse_sale", { p_sale_id: n.id });
+      } else if (old.fulfillmentStatus !== n.fulfillmentStatus) {
+        await supabaseRest.rpc("fn_advance_sale_fulfillment", { p_sale_id: n.id });
+      }
+    }
+    return reload();
+  }, [data, reload]);
+
+  const ops = useMemo(() => ({ remote: true, reload, async create(pendingSale) {
+    const row = await supabaseRest.rpc("fn_create_sale", {
+      p_sale_id: pendingSale.id, p_business_id: businessId, p_location_id: pendingSale.locationId,
+      p_channel: pendingSale.channel, p_payment_method: pendingSale.paymentMethod, p_employee_id: pendingSale.employeeId || null,
+      p_customer_id: pendingSale.customerId || null, p_discount: Number(pendingSale.discount || 0), p_tax: Number(pendingSale.tax || 0),
+      p_notes: pendingSale.notes || null, p_fulfillment_status: pendingSale.fulfillmentStatus,
+      p_items: (pendingSale.items || []).map((it) => ({ product_id: it.productId, qty: Number(it.qty), unit_price: Number(it.unitPrice) })),
+    });
+    const all = await reload();
+    return all.find((s) => s.id === (row?.id || pendingSale.id)) || all.find((s) => s.id === pendingSale.id) || null;
+  }}), [businessId, reload]);
+
+  return [data, persist, ops];
+}
+
 /* ============================== SMALL UI PRIMITIVES ============================== */
 function useTheme() {
   const [dark, setDark] = useState(true);
@@ -2417,7 +2488,8 @@ export default function App() {
   // Phase 2 adds real Supabase catalog screens while the legacy transactional shadow remains
   // isolated for POS/Purchases until their atomic RPC cutover (Phase 3).
   const [catalogProducts, setCatalogProducts] = useSupabaseProducts(businessId);
-  const [catalogInventory, setCatalogInventory, catalogInvTx, catalogInventoryOps] = useSupabaseInventory(businessId, locations);
+  const [catalogInventory, setCatalogInventory, catalogInvTx, catalogInventoryOps, reloadCatalogInventory] = useSupabaseInventory(businessId, locations);
+  const [remoteSales, persistRemoteSales, remoteSalesOps] = useSupabaseSales(businessId, locations);
 
   // Legacy transaction shadow — intentionally NOT used by the Products/Inventory tabs anymore.
   const [products, setProducts] = useCollection("products", seedProducts);
@@ -2600,7 +2672,7 @@ export default function App() {
 
   const showToast = (msg, tone = "good") => { setToast({ msg, tone }); setTimeout(() => setToast(null), 2600); };
 
-  const loading = [products, inventory, catalogProducts, catalogInventory, suppliers, customers, employees, locations, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, loyaltyTransactions, loyaltyRewards, shifts, businessAlerts].some((x) => x === null) || currentUserId === undefined;
+  const loading = [products, inventory, catalogProducts, catalogInventory, remoteSales, suppliers, customers, employees, locations, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, loyaltyTransactions, loyaltyRewards, shifts, businessAlerts].some((x) => x === null) || currentUserId === undefined;
 
   const bg = dark ? `radial-gradient(1200px 600px at 100% -10%, ${C.purple700}55, transparent), linear-gradient(180deg, ${C.black}, ${C.purple900})` : C.bgLight;
 
@@ -2659,8 +2731,8 @@ export default function App() {
           <TopBar dark={dark} settings={settings} tab={tab} currentUser={currentUser} onLogout={logout} />
           <div className="px-4 md:px-8 pt-4 max-w-6xl mx-auto">
             {tab === "dashboard" && <Dashboard {...ctx} setTab={setTab} />}
-            {tab === "orders" && <OrdersView {...ctx} />}
-            {tab === "sales" && <SalesView {...ctx} />}
+            {tab === "orders" && <OrdersView {...ctx} sales={remoteSales} persistSales={persistRemoteSales} />}
+            {tab === "sales" && <SalesView {...ctx} products={catalogProducts} inventory={catalogInventory} setInventory={setCatalogInventory} sales={remoteSales} persistSales={persistRemoteSales} invTx={catalogInvTx} setInvTx={() => {}} supabaseSalesOps={remoteSalesOps} reloadInventory={reloadCatalogInventory} businessId={businessId} />}
             {tab === "cashflow" && (navAllowed(currentUser, "cashflow") ? <CashFlowView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "inventory" && <InventoryView {...ctx} inventory={catalogInventory} setInventory={setCatalogInventory} invTx={catalogInvTx} inventoryOps={catalogInventoryOps} />}
             {tab === "products" && <ProductsView {...ctx} products={catalogProducts} setProducts={setCatalogProducts} inventory={catalogInventory} />}
@@ -3738,7 +3810,7 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
   );
 }
 
-function SalesView({ dark, sales, persistSales, products, inventory, setInventory, persistCash, cashTx, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
+function SalesView({ dark, sales, persistSales, products, inventory, setInventory, persistCash, cashTx, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, businessId }) {
   const [open, setOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
   const [filter, setFilter] = useState("today");
@@ -3787,7 +3859,8 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
           sales={sales} persistSales={persistSales} cashTx={cashTx} persistCash={persistCash} settings={settings}
           locations={locations} employees={employees} customers={customers} setCustomers={setCustomers} invTx={invTx} setInvTx={setInvTx} cashRegisters={cashRegisters}
           loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} loyaltyRewards={loyaltyRewards}
-          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
+          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast}
+          supabaseSalesOps={supabaseSalesOps} reloadInventory={reloadInventory} businessId={businessId} />
       )}
 
       {viewing && (
@@ -4024,7 +4097,7 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
   );
 }
 
-function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast }) {
+function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, businessId }) {
   const activeProducts = products.filter((p) => p.active);
   const [items, setItems] = useState([{ productId: activeProducts[0]?.id || "", qty: 1 }]);
   const [discount, setDiscount] = useState(0);
@@ -4079,7 +4152,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const [completedSale, setCompletedSale] = useState(null);
   const [printPreview, setPrintPreview] = useState(null); // { title, html } | null
 
-  const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog };
+  const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId };
   const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog };
   const printCtx = { settings, locations, employees, customers };
 
@@ -4174,7 +4247,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     }
 
     const orderNo = 1000 + sales.length + 1;
-    const saleId = uid("sale");
+    const saleId = supabaseSalesOps?.remote ? newDbId() : uid("sale");
     // The payment attempt — NOT a persisted sale yet. This is the object a future Stripe Terminal
     // confirmation will eventually pass to finalizeSuccessfulPayment().
     const pendingSale = {
