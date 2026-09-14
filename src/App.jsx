@@ -3114,7 +3114,7 @@ function DifferenceBadge({ dark, diff }) {
   return <Badge dark={dark} tone={DIFF_TONE[status]}>{label}</Badge>;
 }
 
-function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cashTx, persistCash, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
+function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cashTx, persistCash, cashRegisterOps, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
   const activeLocations = (locations || []).filter((l) => l.active !== false);
   const [locationId, setLocationId] = useState(activeLocations[0]?.id || "");
   const [mode, setMode] = useState("status"); // "status" | "open" | "movement" | "close" | "history"
@@ -3125,7 +3125,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
 
   const register = findOpenRegister(cashRegisters, locationId);
   const canManage = can("manageCashRegister");
-  const opCtx = { cashRegisters, setCashRegisters, cashTx, persistCash, locations, currentUser, auditLog, setAuditLog };
+  const opCtx = { cashRegisters, setCashRegisters, cashTx, persistCash, cashRegisterOps, locations, currentUser, auditLog, setAuditLog };
 
   const [openingCash, setOpeningCash] = useState("");
   const [openNotes, setOpenNotes] = useState("");
@@ -3616,7 +3616,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
 
       {showCashRegister && (
         <CashRegisterModal dark={dark} onClose={() => setShowCashRegister(false)} cashRegisters={cashRegisters} setCashRegisters={setCashRegisters}
-          cashTx={cashTx} persistCash={persistCash} locations={locations} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
+          cashTx={cashTx} persistCash={persistCash} cashRegisterOps={ctx.cashRegisterOps} locations={locations} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
 
       {(() => {

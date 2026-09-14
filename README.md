@@ -1,3 +1,7 @@
+# NEXALVO v1.5.1 — Phase 4 Hotfix
+
+Fixes Cash Register modal wiring so Open / Movement / Close use the Supabase RPC operations instead of the guarded legacy persistence path.
+
 # NEXALVO v1.5 — Supabase Data Phase 4
 
 Phase 4 makes Purchases, Expenses, Cash Flow and Cash Register server-authoritative.
