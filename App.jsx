@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.5.4";
+const NEXALVO_BUILD = "v1.6.4.1";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -920,11 +920,19 @@ function cashRegisterEntries(register, cashTx) {
   const start = new Date(register.openedAt).getTime();
   const end = register.closedAt ? new Date(register.closedAt).getTime() : Infinity;
   return (cashTx || []).filter((t) => {
-    if (t.paymentMethod !== "Cash") return false; // card/Zelle/Other never affect physical cash
-    if ((t.locationId || null) !== (register.locationId || null)) return false;
+    if ((t.paymentMethod || "").toLowerCase() !== "cash") return false; // card/Zelle/Other never affect physical cash
     if (t.category === CASH_REGISTER_CATEGORIES.OPENING) return false;
+
+    // Supabase cash-register RPCs stamp related_cash_register_id on every drawer movement.
+    // Prefer that authoritative relationship because it is exactly what fn_close_cash_register
+    // uses server-side. This keeps the live UI and the backend closing balance mathematically
+    // identical and avoids losing movements because of timestamp/location mapping differences.
+    if (t.relatedCashRegisterId) return t.relatedCashRegisterId === register.id;
+
+    // Backward-compatible fallback for historical/legacy cash rows that predate the register FK.
+    if ((t.locationId || null) !== (register.locationId || null)) return false;
     const ts = new Date(t.date).getTime();
-    return ts >= start && ts <= end;
+    return Number.isFinite(ts) && ts >= start && ts <= end;
   });
 }
 
@@ -2181,6 +2189,70 @@ function useSupabaseSales(businessId, locations) {
 }
 
 
+/* ============================== SUPABASE DATA — PHASE 5: LOYALTY ============================== */
+function useSupabaseLoyalty(businessId) {
+  const [transactions, setTransactions] = useState(null);
+  const [rewards, setRewards] = useState(null);
+
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setTransactions([]); setRewards([]); return { transactions: [], rewards: [] }; }
+    const [txRows, rewardRows] = await Promise.all([
+      supabaseRest.select("loyalty_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=2000`),
+      supabaseRest.select("loyalty_rewards", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.asc`),
+    ]);
+    const mappedTx = (txRows || []).map((r) => ({
+      id: r.id, customerId: r.customer_id, type: r.type, points: Number(r.points || 0), reason: r.reason || "",
+      saleId: r.sale_id || null, createdAt: r.created_at, createdBy: r.created_by || null, createdByName: "",
+      supabase: true,
+    }));
+    const mappedRewards = (rewardRows || []).map((r) => ({
+      id: r.id, name: r.name, requiredPoints: Number(r.required_points || 0), discountType: r.discount_type || "fixed",
+      discountValue: Number(r.discount_value || 0), active: r.active !== false, supabase: true,
+    }));
+    setTransactions(mappedTx); setRewards(mappedRewards);
+    return { transactions: mappedTx, rewards: mappedRewards };
+  }, [businessId]);
+
+  useEffect(() => { reload().catch((e) => { console.error("Supabase loyalty load failed", e); setTransactions([]); setRewards([]); }); }, [reload]);
+
+  // Compatibility boundary for the existing Loyalty UI. The UI still expresses its desired
+  // ledger change as a next array, but authenticated production writes are translated into the
+  // existing SECURITY DEFINER RPCs. No direct loyalty_transactions writes are ever attempted.
+  const persist = useCallback(async (next) => {
+    const beforeIds = new Set((transactions || []).map((x) => x.id));
+    const added = (next || []).filter((x) => !beforeIds.has(x.id));
+    if (!added.length) return reload();
+
+    const saleCommit = added.find((x) => x.saleId && (x.type === "earn" || x.type === "redeem"));
+    if (saleCommit) {
+      const redeem = added.find((x) => x.saleId === saleCommit.saleId && x.type === "redeem");
+      let rewardId = null;
+      if (redeem) {
+        const rewardName = String(redeem.reason || "").replace(/^Redeemed:\s*/i, "").trim();
+        rewardId = (rewards || []).find((r) => r.name === rewardName)?.id || null;
+      }
+      await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: saleCommit.saleId, p_reward_id: rewardId });
+      return reload();
+    }
+
+    const saleReverse = added.find((x) => x.saleId && (x.type === "reversal" || x.type === "restore"));
+    if (saleReverse) {
+      await supabaseRest.rpc("fn_reverse_loyalty_for_sale", { p_sale_id: saleReverse.saleId });
+      return reload();
+    }
+
+    for (const row of added.filter((x) => x.type === "manual_add" || x.type === "manual_remove")) {
+      await supabaseRest.rpc("fn_manual_loyalty_adjustment", {
+        p_business_id: businessId, p_customer_id: row.customerId, p_type: row.type,
+        p_points: Number(row.points), p_reason: row.reason,
+      });
+    }
+    return reload();
+  }, [businessId, transactions, rewards, reload]);
+
+  return [transactions, persist, rewards, reload];
+}
+
 /* ============================== SUPABASE DATA — PHASE 4: PURCHASES / EXPENSES / CASH ============================== */
 function useSupabaseCashFlow(businessId) {
   const [data, setData] = useState(null);
@@ -2685,8 +2757,9 @@ export default function App() {
   if (settings?.currency) setActiveCurrency(settings.currency);
   const [tasks, persistTasks] = useCollection("tasks", seedTasks);
   const [cashRegisters, setCashRegisters] = useCollection("cashRegisters", () => []);
-  const [loyaltyTransactions, setLoyaltyTransactions] = useCollection("loyaltyTransactions", () => []);
-  const [loyaltyRewards, setLoyaltyRewards] = useCollection("loyaltyRewards", seedLoyaltyRewards);
+  // Phase 5: loyalty ledger + rewards are now tenant-scoped Supabase data. The compatibility
+  // setter translates the existing UI actions into the hardened loyalty RPCs.
+  const [loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards] = useSupabaseLoyalty(businessId);
   const [shifts, setShifts] = useCollection("shifts", () => []);
   const [businessAlerts, setBusinessAlerts] = useCollection("businessAlerts", () => []);
   const [users, setUsers] = useCollection("users", seedUsers);
@@ -2893,7 +2966,7 @@ export default function App() {
     showToast, users: effectiveUsers, setUsers, currentUser, can: (perm) => can(currentUser, perm),
     auditLog, setAuditLog, logAudit: (action, details) => logAudit(auditLog, setAuditLog, currentUser, action, details),
     tasks, persistTasks, cashRegisters: remoteCashRegisters, setCashRegisters: phase4WriteGuard, cashRegisterOps: remoteCashRegisterOps,
-    loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, setLoyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
+    loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
   };
 
   const visibleNav = NAV.filter((n) => navAllowed(currentUser, n.id));
@@ -4290,6 +4363,31 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
 }
 
 function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, businessId }) {
+  // v1.6.4: the POS customer picker uses the same Supabase-backed collection as Customers.
+  // It also performs a direct tenant refresh when the modal opens. Do not gate this refresh on
+  // hasSession(): supabaseFetch already attaches the active access token and surfaces any auth error.
+  const [posCustomers, setPosCustomers] = useState(() => Array.isArray(customers) ? customers : []);
+  const [customerLoadError, setCustomerLoadError] = useState("");
+  useEffect(() => {
+    if (Array.isArray(customers) && customers.length) setPosCustomers(customers);
+  }, [customers]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!businessId) return () => {};
+    (async () => {
+      try {
+        const rows = await supabaseRest.select("customers", `select=*&business_id=eq.${encodeURIComponent(businessId)}&active=eq.true&order=name.asc`);
+        if (!cancelled) {
+          setPosCustomers((rows || []).map(fromCustomerDb));
+          setCustomerLoadError("");
+        }
+      } catch (e) {
+        console.error("POS customer refresh failed", e);
+        if (!cancelled) setCustomerLoadError(e?.message || "Could not load customers.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [businessId]);
   const activeProducts = products.filter((p) => p.active);
   const [items, setItems] = useState([{ productId: activeProducts[0]?.id || "", qty: 1 }]);
   const [discount, setDiscount] = useState(0);
@@ -4317,7 +4415,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   });
   const subtotal = round2(lineData.reduce((a, l) => a + l.lineTotal, 0));
 
-  const selectedCustomer = customerId ? (customers || []).find((c) => c.id === customerId) : null;
+  const selectedCustomer = customerId ? (posCustomers || []).find((c) => c.id === customerId) : null;
   const loyaltyBalance = customerId ? getLoyaltyBalance(customerId, loyaltyTransactions) : 0;
   const availableRewards = customerId ? eligibleRewards(loyaltyRewards, loyaltyBalance) : [];
   const selectedReward = selectedRewardId ? (loyaltyRewards || []).find((r) => r.id === selectedRewardId && availableRewards.some((a) => a.id === r.id)) : null;
@@ -4594,13 +4692,16 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         </Field>
         <Field dark={dark} label="Customer">
           {!showCustomerCreate ? (
-            <div className="flex gap-2">
-              <Select dark={dark} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedRewardId(""); }} style={{ flex: 1 }}>
-                <option value="">Walk-in</option>
-                {(customers || []).filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
-              <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>+ New</GhostButton>
-            </div>
+            <>
+              <div className="flex gap-2">
+                <Select dark={dark} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedRewardId(""); }} style={{ flex: 1 }}>
+                  <option value="">Walk-in</option>
+                  {(posCustomers || []).filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+                <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>+ New</GhostButton>
+              </div>
+              {customerLoadError && <div className="text-xs mt-1" style={{ color: "#FF6B85" }}>Customer load error: {customerLoadError}</div>}
+            </>
           ) : (
             <NewSaleCustomerCreate dark={dark} customers={customers} setCustomers={setCustomers} currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog}
               onCreated={(newCustomer) => { setCustomerId(newCustomer.id); setShowCustomerCreate(false); }}
@@ -6653,12 +6754,16 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
         <Card dark={dark}>
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>MANUAL POINT ADJUSTMENT</div>
           {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
-          <div className="flex gap-2 mb-2">
-            <Select dark={dark} value={adjustType} onChange={(e) => setAdjustType(e.target.value)} style={{ flex: 1 }}>
-              <option value="manual_add">Add Points</option>
-              <option value="manual_remove">Remove Points</option>
-            </Select>
-            <Input dark={dark} type="number" min="1" step="1" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} placeholder="Points" style={{ flex: 1 }} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <Field dark={dark} label="Adjustment Type">
+              <Select dark={dark} value={adjustType} onChange={(e) => setAdjustType(e.target.value)} style={{ width: "100%" }}>
+                <option value="manual_add">Add Points</option>
+                <option value="manual_remove">Remove Points</option>
+              </Select>
+            </Field>
+            <Field dark={dark} label="Points">
+              <Input dark={dark} type="number" min="1" step="1" inputMode="numeric" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} placeholder="e.g. 50" style={{ width: "100%", minWidth: 0, fontSize: 16, fontWeight: 700 }} />
+            </Field>
           </div>
           <Field dark={dark} label="Reason (required)"><Input dark={dark} value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="e.g. Customer service recovery" /></Field>
           <PrimaryButton full disabled={submitting} onClick={doAdjust}><Check size={16} /> {submitting ? "Saving…" : "Apply Adjustment"}</PrimaryButton>
