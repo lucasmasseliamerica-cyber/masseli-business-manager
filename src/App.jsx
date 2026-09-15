@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.1";
+const NEXALVO_BUILD = "v1.6.2";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -6726,12 +6726,16 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
         <Card dark={dark}>
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>MANUAL POINT ADJUSTMENT</div>
           {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
-          <div className="flex gap-2 mb-2">
-            <Select dark={dark} value={adjustType} onChange={(e) => setAdjustType(e.target.value)} style={{ flex: 1 }}>
-              <option value="manual_add">Add Points</option>
-              <option value="manual_remove">Remove Points</option>
-            </Select>
-            <Input dark={dark} type="number" min="1" step="1" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} placeholder="Points" style={{ flex: 1 }} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <Field dark={dark} label="Adjustment Type">
+              <Select dark={dark} value={adjustType} onChange={(e) => setAdjustType(e.target.value)} style={{ width: "100%" }}>
+                <option value="manual_add">Add Points</option>
+                <option value="manual_remove">Remove Points</option>
+              </Select>
+            </Field>
+            <Field dark={dark} label="Points">
+              <Input dark={dark} type="number" min="1" step="1" inputMode="numeric" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} placeholder="e.g. 50" style={{ width: "100%", minWidth: 0, fontSize: 16, fontWeight: 700 }} />
+            </Field>
           </div>
           <Field dark={dark} label="Reason (required)"><Input dark={dark} value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="e.g. Customer service recovery" /></Field>
           <PrimaryButton full disabled={submitting} onClick={doAdjust}><Check size={16} /> {submitting ? "Saving…" : "Apply Adjustment"}</PrimaryButton>
