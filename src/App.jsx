@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.3";
+const NEXALVO_BUILD = "v1.6.4";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -4363,21 +4363,27 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
 }
 
 function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, businessId }) {
-  // v1.6.3: POS customer picker independently refreshes the tenant customer list from Supabase.
-  // This prevents the New Sale modal from showing only Walk-in when the parent CRM collection is stale.
-  const [posCustomers, setPosCustomers] = useState(customers || []);
+  // v1.6.4: the POS customer picker uses the same Supabase-backed collection as Customers.
+  // It also performs a direct tenant refresh when the modal opens. Do not gate this refresh on
+  // hasSession(): supabaseFetch already attaches the active access token and surfaces any auth error.
+  const [posCustomers, setPosCustomers] = useState(() => Array.isArray(customers) ? customers : []);
+  const [customerLoadError, setCustomerLoadError] = useState("");
   useEffect(() => {
-    setPosCustomers(customers || []);
+    if (Array.isArray(customers) && customers.length) setPosCustomers(customers);
   }, [customers]);
   useEffect(() => {
     let cancelled = false;
-    if (!businessId || !supabaseAuth.hasSession()) return () => {};
+    if (!businessId) return () => {};
     (async () => {
       try {
-        const rows = await supabaseRest.select("customers", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
-        if (!cancelled) setPosCustomers((rows || []).map(fromCustomerDb));
+        const rows = await supabaseRest.select("customers", `select=*&business_id=eq.${encodeURIComponent(businessId)}&active=eq.true&order=name.asc`);
+        if (!cancelled) {
+          setPosCustomers((rows || []).map(fromCustomerDb));
+          setCustomerLoadError("");
+        }
       } catch (e) {
         console.error("POS customer refresh failed", e);
+        if (!cancelled) setCustomerLoadError(e?.message || "Could not load customers.");
       }
     })();
     return () => { cancelled = true; };
@@ -4693,6 +4699,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
               </Select>
               <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>+ New</GhostButton>
             </div>
+            {customerLoadError && <div className="text-xs mt-1" style={{ color: "#FF6B85" }}>Customer load error: {customerLoadError}</div>}
           ) : (
             <NewSaleCustomerCreate dark={dark} customers={customers} setCustomers={setCustomers} currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog}
               onCreated={(newCustomer) => { setCustomerId(newCustomer.id); setShowCustomerCreate(false); }}
