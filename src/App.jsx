@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.4";
+const NEXALVO_BUILD = "v1.6.4.2";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -4692,14 +4692,16 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         </Field>
         <Field dark={dark} label="Customer">
           {!showCustomerCreate ? (
-            <div className="flex gap-2">
-              <Select dark={dark} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedRewardId(""); }} style={{ flex: 1 }}>
-                <option value="">Walk-in</option>
-                {(posCustomers || []).filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </Select>
-              <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>+ New</GhostButton>
-            </div>
-            {customerLoadError && <div className="text-xs mt-1" style={{ color: "#FF6B85" }}>Customer load error: {customerLoadError}</div>}
+            <>
+              <div className="flex gap-2">
+                <Select dark={dark} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedRewardId(""); }} style={{ flex: 1 }}>
+                  <option value="">Walk-in</option>
+                  {(posCustomers || []).filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </Select>
+                <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>+ New</GhostButton>
+              </div>
+              {customerLoadError && <div className="text-xs mt-1" style={{ color: "#FF6B85" }}>Customer load error: {customerLoadError}</div>}
+            </>
           ) : (
             <NewSaleCustomerCreate dark={dark} customers={customers} setCustomers={setCustomers} currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog}
               onCreated={(newCustomer) => { setCustomerId(newCustomer.id); setShowCustomerCreate(false); }}
