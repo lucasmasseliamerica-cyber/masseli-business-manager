@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.5";
+const NEXALVO_BUILD = "v1.6.5.2";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -1183,9 +1183,8 @@ async function commitLoyaltyForSale(sale, redeemedReward, ctx) {
   const { loyaltyTransactions, setLoyaltyTransactions, currentUser, reloadLoyalty } = ctx;
   if (!sale?.customerId) return { success: true, earned: 0 }; // walk-in — nothing to do
 
-  // Phase 5 production path: commit directly through the authoritative SECURITY DEFINER RPC.
-  // This avoids relying on a compatibility-array diff captured by a render that may be stale
-  // during an async card-payment flow. The database function is idempotent per sale.
+  // Phase 5 authoritative production path: commit loyalty directly after the sale RPC returns.
+  // The database function is idempotent per sale, so retries cannot duplicate the earn entry.
   if (supabaseAuth.hasSession()) {
     const rewardId = redeemedReward?.id || null;
     await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: sale.id, p_reward_id: rewardId });
@@ -2977,7 +2976,7 @@ export default function App() {
     showToast, users: effectiveUsers, setUsers, currentUser, can: (perm) => can(currentUser, perm),
     auditLog, setAuditLog, logAudit: (action, details) => logAudit(auditLog, setAuditLog, currentUser, action, details),
     tasks, persistTasks, cashRegisters: remoteCashRegisters, setCashRegisters: phase4WriteGuard, cashRegisterOps: remoteCashRegisterOps,
-    loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
+    loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, shifts, setShifts, businessAlerts, setBusinessAlerts,
   };
 
   const visibleNav = NAV.filter((n) => navAllowed(currentUser, n.id));
@@ -4086,7 +4085,7 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
   );
 }
 
-function SalesView({ dark, sales, persistSales, products, inventory, setInventory, persistCash, cashTx, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, businessId }) {
+function SalesView({ dark, sales, persistSales, products, inventory, setInventory, persistCash, cashTx, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId }) {
   const [open, setOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
   const [filter, setFilter] = useState("today");
@@ -4136,7 +4135,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
           locations={locations} employees={employees} customers={customers} setCustomers={setCustomers} invTx={invTx} setInvTx={setInvTx} cashRegisters={cashRegisters}
           loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} loyaltyRewards={loyaltyRewards}
           currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast}
-          supabaseSalesOps={supabaseSalesOps} reloadInventory={reloadInventory} businessId={businessId} />
+          supabaseSalesOps={supabaseSalesOps} reloadInventory={reloadInventory} reloadLoyalty={reloadLoyalty} businessId={businessId} />
       )}
 
       {viewing && (
@@ -4373,7 +4372,7 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
   );
 }
 
-function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, businessId }) {
+function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId }) {
   // v1.6.4: the POS customer picker uses the same Supabase-backed collection as Customers.
   // It also performs a direct tenant refresh when the modal opens. Do not gate this refresh on
   // hasSession(): supabaseFetch already attaches the active access token and surfaces any auth error.
