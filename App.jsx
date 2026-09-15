@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.5.2";
+const NEXALVO_BUILD = "v1.6.5.4";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -1187,7 +1187,7 @@ async function commitLoyaltyForSale(sale, redeemedReward, ctx) {
   // The database function is idempotent per sale, so retries cannot duplicate the earn entry.
   if (supabaseAuth.hasSession()) {
     const rewardId = redeemedReward?.id || null;
-    await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: sale.id, p_reward_id: rewardId });
+    await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: sale.id, p_redeemed_reward_id: rewardId });
     if (reloadLoyalty) await reloadLoyalty();
     return { success: true, earned: calculateLoyaltyPointsForSale(sale) };
   }
@@ -2241,7 +2241,7 @@ function useSupabaseLoyalty(businessId) {
         const rewardName = String(redeem.reason || "").replace(/^Redeemed:\s*/i, "").trim();
         rewardId = (rewards || []).find((r) => r.name === rewardName)?.id || null;
       }
-      await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: saleCommit.saleId, p_reward_id: rewardId });
+      await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: saleCommit.saleId, p_redeemed_reward_id: rewardId });
       return reload();
     }
 
