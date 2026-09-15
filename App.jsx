@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.4.1";
+const NEXALVO_BUILD = "v1.6.5";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -1180,9 +1180,20 @@ function getLoyaltyBalance(customerId, loyaltyTransactions) {
 // succeeds — see NewSaleModal's handlePaymentResult). Idempotent per saleId: if this sale
 // already has an earn/redeem entry, it's never duplicated, even if called again.
 async function commitLoyaltyForSale(sale, redeemedReward, ctx) {
-  const { loyaltyTransactions, setLoyaltyTransactions, currentUser } = ctx;
-  if (!sale.customerId) return { success: true, earned: 0 }; // walk-in — nothing to do
-  let next = loyaltyTransactions;
+  const { loyaltyTransactions, setLoyaltyTransactions, currentUser, reloadLoyalty } = ctx;
+  if (!sale?.customerId) return { success: true, earned: 0 }; // walk-in — nothing to do
+
+  // Phase 5 production path: commit directly through the authoritative SECURITY DEFINER RPC.
+  // This avoids relying on a compatibility-array diff captured by a render that may be stale
+  // during an async card-payment flow. The database function is idempotent per sale.
+  if (supabaseAuth.hasSession()) {
+    const rewardId = redeemedReward?.id || null;
+    await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: sale.id, p_reward_id: rewardId });
+    if (reloadLoyalty) await reloadLoyalty();
+    return { success: true, earned: calculateLoyaltyPointsForSale(sale) };
+  }
+
+  let next = loyaltyTransactions || [];
   let changed = false;
 
   if (redeemedReward && !next.some((t) => t.saleId === sale.id && t.type === "redeem")) {
@@ -2759,7 +2770,7 @@ export default function App() {
   const [cashRegisters, setCashRegisters] = useCollection("cashRegisters", () => []);
   // Phase 5: loyalty ledger + rewards are now tenant-scoped Supabase data. The compatibility
   // setter translates the existing UI actions into the hardened loyalty RPCs.
-  const [loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards] = useSupabaseLoyalty(businessId);
+  const [loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty] = useSupabaseLoyalty(businessId);
   const [shifts, setShifts] = useCollection("shifts", () => []);
   const [businessAlerts, setBusinessAlerts] = useCollection("businessAlerts", () => []);
   const [users, setUsers] = useCollection("users", seedUsers);
@@ -4443,7 +4454,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const [printPreview, setPrintPreview] = useState(null); // { title, html } | null
 
   const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId };
-  const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog };
+  const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog, reloadLoyalty };
   const printCtx = { settings, locations, employees, customers };
 
   // Routes a resolved PaymentResult (from any adapter — simulator today, Stripe Terminal later)
@@ -4469,6 +4480,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           await commitLoyaltyForSale(finalizedSale, pendingSaleObj.redeemedReward || null, loyaltyCtx);
         } catch (e) {
           console.error("loyalty commit failed after sale finalized — sale itself is unaffected", e);
+          showToast?.(`Sale saved, but loyalty points failed: ${e?.message || "Unknown loyalty error"}`, "error");
         }
         setCompletedSale(finalizedSale);
         setPendingCardSale(null);
