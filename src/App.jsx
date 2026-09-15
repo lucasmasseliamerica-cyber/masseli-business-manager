@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.2";
+const NEXALVO_BUILD = "v1.6.3";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -4363,6 +4363,25 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
 }
 
 function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, businessId }) {
+  // v1.6.3: POS customer picker independently refreshes the tenant customer list from Supabase.
+  // This prevents the New Sale modal from showing only Walk-in when the parent CRM collection is stale.
+  const [posCustomers, setPosCustomers] = useState(customers || []);
+  useEffect(() => {
+    setPosCustomers(customers || []);
+  }, [customers]);
+  useEffect(() => {
+    let cancelled = false;
+    if (!businessId || !supabaseAuth.hasSession()) return () => {};
+    (async () => {
+      try {
+        const rows = await supabaseRest.select("customers", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
+        if (!cancelled) setPosCustomers((rows || []).map(fromCustomerDb));
+      } catch (e) {
+        console.error("POS customer refresh failed", e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [businessId]);
   const activeProducts = products.filter((p) => p.active);
   const [items, setItems] = useState([{ productId: activeProducts[0]?.id || "", qty: 1 }]);
   const [discount, setDiscount] = useState(0);
@@ -4390,7 +4409,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   });
   const subtotal = round2(lineData.reduce((a, l) => a + l.lineTotal, 0));
 
-  const selectedCustomer = customerId ? (customers || []).find((c) => c.id === customerId) : null;
+  const selectedCustomer = customerId ? (posCustomers || []).find((c) => c.id === customerId) : null;
   const loyaltyBalance = customerId ? getLoyaltyBalance(customerId, loyaltyTransactions) : 0;
   const availableRewards = customerId ? eligibleRewards(loyaltyRewards, loyaltyBalance) : [];
   const selectedReward = selectedRewardId ? (loyaltyRewards || []).find((r) => r.id === selectedRewardId && availableRewards.some((a) => a.id === r.id)) : null;
@@ -4670,7 +4689,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
             <div className="flex gap-2">
               <Select dark={dark} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedRewardId(""); }} style={{ flex: 1 }}>
                 <option value="">Walk-in</option>
-                {(customers || []).filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {(posCustomers || []).filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </Select>
               <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>+ New</GhostButton>
             </div>
