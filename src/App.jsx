@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6";
+const NEXALVO_BUILD = "v1.6.1";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -2966,7 +2966,7 @@ export default function App() {
     showToast, users: effectiveUsers, setUsers, currentUser, can: (perm) => can(currentUser, perm),
     auditLog, setAuditLog, logAudit: (action, details) => logAudit(auditLog, setAuditLog, currentUser, action, details),
     tasks, persistTasks, cashRegisters: remoteCashRegisters, setCashRegisters: phase4WriteGuard, cashRegisterOps: remoteCashRegisterOps,
-    loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, setLoyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
+    loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, shifts, setShifts, businessAlerts, setBusinessAlerts,
   };
 
   const visibleNav = NAV.filter((n) => navAllowed(currentUser, n.id));
