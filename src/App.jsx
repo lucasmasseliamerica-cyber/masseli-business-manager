@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.5.5";
+const NEXALVO_BUILD = "v1.6";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -2189,6 +2189,70 @@ function useSupabaseSales(businessId, locations) {
 }
 
 
+/* ============================== SUPABASE DATA — PHASE 5: LOYALTY ============================== */
+function useSupabaseLoyalty(businessId) {
+  const [transactions, setTransactions] = useState(null);
+  const [rewards, setRewards] = useState(null);
+
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setTransactions([]); setRewards([]); return { transactions: [], rewards: [] }; }
+    const [txRows, rewardRows] = await Promise.all([
+      supabaseRest.select("loyalty_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=2000`),
+      supabaseRest.select("loyalty_rewards", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.asc`),
+    ]);
+    const mappedTx = (txRows || []).map((r) => ({
+      id: r.id, customerId: r.customer_id, type: r.type, points: Number(r.points || 0), reason: r.reason || "",
+      saleId: r.sale_id || null, createdAt: r.created_at, createdBy: r.created_by || null, createdByName: "",
+      supabase: true,
+    }));
+    const mappedRewards = (rewardRows || []).map((r) => ({
+      id: r.id, name: r.name, requiredPoints: Number(r.required_points || 0), discountType: r.discount_type || "fixed",
+      discountValue: Number(r.discount_value || 0), active: r.active !== false, supabase: true,
+    }));
+    setTransactions(mappedTx); setRewards(mappedRewards);
+    return { transactions: mappedTx, rewards: mappedRewards };
+  }, [businessId]);
+
+  useEffect(() => { reload().catch((e) => { console.error("Supabase loyalty load failed", e); setTransactions([]); setRewards([]); }); }, [reload]);
+
+  // Compatibility boundary for the existing Loyalty UI. The UI still expresses its desired
+  // ledger change as a next array, but authenticated production writes are translated into the
+  // existing SECURITY DEFINER RPCs. No direct loyalty_transactions writes are ever attempted.
+  const persist = useCallback(async (next) => {
+    const beforeIds = new Set((transactions || []).map((x) => x.id));
+    const added = (next || []).filter((x) => !beforeIds.has(x.id));
+    if (!added.length) return reload();
+
+    const saleCommit = added.find((x) => x.saleId && (x.type === "earn" || x.type === "redeem"));
+    if (saleCommit) {
+      const redeem = added.find((x) => x.saleId === saleCommit.saleId && x.type === "redeem");
+      let rewardId = null;
+      if (redeem) {
+        const rewardName = String(redeem.reason || "").replace(/^Redeemed:\s*/i, "").trim();
+        rewardId = (rewards || []).find((r) => r.name === rewardName)?.id || null;
+      }
+      await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: saleCommit.saleId, p_reward_id: rewardId });
+      return reload();
+    }
+
+    const saleReverse = added.find((x) => x.saleId && (x.type === "reversal" || x.type === "restore"));
+    if (saleReverse) {
+      await supabaseRest.rpc("fn_reverse_loyalty_for_sale", { p_sale_id: saleReverse.saleId });
+      return reload();
+    }
+
+    for (const row of added.filter((x) => x.type === "manual_add" || x.type === "manual_remove")) {
+      await supabaseRest.rpc("fn_manual_loyalty_adjustment", {
+        p_business_id: businessId, p_customer_id: row.customerId, p_type: row.type,
+        p_points: Number(row.points), p_reason: row.reason,
+      });
+    }
+    return reload();
+  }, [businessId, transactions, rewards, reload]);
+
+  return [transactions, persist, rewards, reload];
+}
+
 /* ============================== SUPABASE DATA — PHASE 4: PURCHASES / EXPENSES / CASH ============================== */
 function useSupabaseCashFlow(businessId) {
   const [data, setData] = useState(null);
@@ -2693,8 +2757,9 @@ export default function App() {
   if (settings?.currency) setActiveCurrency(settings.currency);
   const [tasks, persistTasks] = useCollection("tasks", seedTasks);
   const [cashRegisters, setCashRegisters] = useCollection("cashRegisters", () => []);
-  const [loyaltyTransactions, setLoyaltyTransactions] = useCollection("loyaltyTransactions", () => []);
-  const [loyaltyRewards, setLoyaltyRewards] = useCollection("loyaltyRewards", seedLoyaltyRewards);
+  // Phase 5: loyalty ledger + rewards are now tenant-scoped Supabase data. The compatibility
+  // setter translates the existing UI actions into the hardened loyalty RPCs.
+  const [loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards] = useSupabaseLoyalty(businessId);
   const [shifts, setShifts] = useCollection("shifts", () => []);
   const [businessAlerts, setBusinessAlerts] = useCollection("businessAlerts", () => []);
   const [users, setUsers] = useCollection("users", seedUsers);
