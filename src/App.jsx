@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.6";
+const NEXALVO_BUILD = "v1.6.7";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -4225,32 +4225,46 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       }
 
       if (!alreadyCancelled) {
-        // Same retry-safety pattern as finalizeSuccessfulPayment: inventory qty + the
-        // deterministic operation marker (appliedOps) are written TOGETHER in one setInventory()
-        // call — the critical step no longer depends on invTx as the "already done?" signal.
-        const restoreOpId = `${sale.id}-inventory-restore`;
-        const { changed, nextInventory } = applyInventoryOpIfNeeded(inventory, restoreOpId, restore);
-        if (changed) {
-          await setInventory(nextInventory);
+        if (supabaseAuth.hasSession()) {
+          // Phase 4 production path: fn_reverse_sale — invoked via persistSales's own
+          // status-change translation layer (useSupabaseSales.persist) — already handles status,
+          // inventory restoration, inventory ledger, and cash_flow reversal atomically on the
+          // server, and its own `return reload()` refreshes `sales` with the server's real state.
+          // This is the ONLY write needed here. The legacy local inventory/invTx/cash steps that
+          // used to run unconditionally after this are skipped entirely in this mode — they were
+          // redundant no-ops for inventory/invTx (setInventory/setInvTx in this mode only touch
+          // catalog metadata / are wired to a no-op) and actively broken for cashTx (persistCash
+          // is deliberately guarded — phase4WriteGuard — to prevent exactly this kind of legacy
+          // local write to a now server-authoritative ledger).
+          await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
+        } else {
+          // Legacy local fallback — unchanged, used only when there is no Supabase session.
+          // Same retry-safety pattern as finalizeSuccessfulPayment: inventory qty + the
+          // deterministic operation marker (appliedOps) are written TOGETHER in one setInventory()
+          // call — the critical step no longer depends on invTx as the "already done?" signal.
+          const restoreOpId = `${sale.id}-inventory-restore`;
+          const { changed, nextInventory } = applyInventoryOpIfNeeded(inventory, restoreOpId, restore);
+          if (changed) {
+            await setInventory(nextInventory);
+          }
+          await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
+
+          // invTx (audit ledger) — legacy-only; the server RPC handles this in Supabase mode.
+          const plannedEntries = InventoryService.saleReversalLedgerEntries(inventory, restore, { saleId: sale.id, orderNo: sale.orderNo })
+            .map((e) => ({ ...e, id: `${sale.id}-inventory-restore-${e.itemId}` }));
+          const newEntries = plannedEntries.filter((e) => !(invTx || []).some((x) => x.id === e.id));
+          if (newEntries.length) {
+            await setInvTx([...newEntries, ...(invTx || [])]);
+          }
+
+          // cashTx — legacy-only; the server RPC handles this in Supabase mode.
+          const cashId = `${sale.id}-cash-reversal`;
+          if (!(cashTx || []).some((t) => t.id === cashId)) {
+            await persistCash([{ id: cashId, date: nowISO(), type: "expense", category: "Sale Cancellation", amount: sale.total, paymentMethod: sale.paymentMethod, description: `Cancel Sale #${sale.orderNo}`, relatedSaleId: sale.id, reversalOf: sale.id }, ...cashTx]);
+          }
         }
-        await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
       }
 
-      // invTx (audit ledger) is checked/completed independently of the alreadyCancelled branch
-      // above — its failure never leaves the physical quantity wrong, only delays the audit row.
-      {
-        const plannedEntries = InventoryService.saleReversalLedgerEntries(inventory, restore, { saleId: sale.id, orderNo: sale.orderNo })
-          .map((e) => ({ ...e, id: `${sale.id}-inventory-restore-${e.itemId}` }));
-        const newEntries = plannedEntries.filter((e) => !(invTx || []).some((x) => x.id === e.id));
-        if (newEntries.length) {
-          await setInvTx([...newEntries, ...(invTx || [])]);
-        }
-      }
-
-      const cashId = `${sale.id}-cash-reversal`;
-      if (!(cashTx || []).some((t) => t.id === cashId)) {
-        await persistCash([{ id: cashId, date: nowISO(), type: "expense", category: "Sale Cancellation", amount: sale.total, paymentMethod: sale.paymentMethod, description: `Cancel Sale #${sale.orderNo}`, relatedSaleId: sale.id, reversalOf: sale.id }, ...cashTx]);
-      }
       // Reverses previously-earned points for this sale (idempotent on sale.id — safe even if
       // this handler were somehow invoked twice, and a no-op for a walk-in sale that never
       // earned points). Isolated in its own try/catch: inventory/sale/cash reversal above has
