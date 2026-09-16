@@ -1552,10 +1552,12 @@ const printingService = {
 };
 
 /* ============================== DATA STORE BOUNDARY ==============================
- * Every piece of persistence in this app currently goes through the platform's
- * window.storage key-value API. This object is the ONE place that touches it directly.
- * Nothing else in the app should call window.storage.get/set again — everything else
- * goes through dataStore.get/set/update/remove instead.
+ * Every piece of legacy local persistence in this app goes through window.localStorage,
+ * a real browser API available in every production environment (unlike the platform-only
+ * window.storage API this used to depend on — see the Phase "storage error" fix). This
+ * object is the ONE place that touches it directly. Nothing else in the app should call
+ * window.localStorage.getItem/setItem/removeItem for these collections again — everything
+ * else goes through dataStore.get/set/update/remove instead.
  *
  * Why this matters: when this app eventually moves to a real backend/database, only
  * this object needs to change (e.g. swap the bodies below for fetch() calls to an API).
@@ -1568,15 +1570,15 @@ const printingService = {
 const dataStore = {
   async get(key) {
     try {
-      const res = await window.storage.get(key, false);
-      return res ? JSON.parse(res.value) : null;
+      const raw = window.localStorage.getItem(key);
+      return raw === null ? null : JSON.parse(raw);
     } catch (e) {
       return null;
     }
   },
   async set(key, value) {
     try {
-      await window.storage.set(key, JSON.stringify(value), false);
+      window.localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (e) {
       console.error("storage error", e);
@@ -1595,7 +1597,7 @@ const dataStore = {
   // includes it for completeness since a future backend will need a real DELETE operation.
   async remove(key) {
     try {
-      await window.storage.set(key, JSON.stringify(null), false);
+      window.localStorage.removeItem(key);
       return true;
     } catch (e) {
       console.error("storage error", e);
