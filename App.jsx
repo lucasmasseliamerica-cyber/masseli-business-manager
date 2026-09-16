@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.7";
+const NEXALVO_BUILD = "v1.6.8";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -1669,6 +1669,91 @@ function persistSupabaseSession(session) {
 // browser reload does not silently fall back to the old local/PIN authentication model.
 let _supabaseSession = readStoredSupabaseSession(); // { accessToken, refreshToken, expiresAt, user } | null
 
+/* ============================== PHASE 6.1 — JWT AUTO-REFRESH (single-flight, one retry) ==============================
+ * The ONE place that actually calls Supabase's refresh-token endpoint (refreshSupabaseSession),
+ * the ONE shared in-flight Promise that makes concurrent callers share a single network refresh
+ * instead of each starting their own (_supabaseRefreshPromise / triggerSupabaseRefresh), and the
+ * ONE pre-request gate every authenticated call goes through (ensureFreshSession). restoreSession
+ * (below, in supabaseAuth) now delegates to refreshSupabaseSession rather than duplicating this.
+ * ============================================================================== */
+let _supabaseRefreshPromise = null;
+
+// Registered once by App() (see the session-restore effect) so this non-React module can signal
+// "the session is gone, return to the login screen" without a second session/state system — it
+// just reuses the exact setAuthProfile/setCurrentUserId(null) path App() already has for signing
+// out, which is what LoginScreen already renders from.
+let _onSupabaseSessionInvalid = null;
+function setSupabaseSessionInvalidHandler(fn) { _onSupabaseSessionInvalid = fn; }
+
+// The ONE implementation of "call the refresh-token endpoint and persist the result." Called by
+// restoreSession() (page-load path) and by triggerSupabaseRefresh() (runtime path, both the
+// pre-expiry check in ensureFreshSession and the reactive 401 handler in supabaseFetch) — no
+// second copy of this logic exists anywhere else in the file.
+async function refreshSupabaseSession() {
+  if (!_supabaseSession?.refreshToken) {
+    persistSupabaseSession(null);
+    _onSupabaseSessionInvalid?.();
+    throw new Error("No refresh token available.");
+  }
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: _supabaseSession.refreshToken }),
+  });
+  const body = await res.json().catch(() => null);
+
+  if (res.ok && body?.access_token) {
+    const session = {
+      accessToken: body.access_token,
+      refreshToken: body.refresh_token || _supabaseSession.refreshToken,
+      expiresAt: Date.now() + (body.expires_in || 3600) * 1000,
+      user: body.user || _supabaseSession.user,
+    };
+    persistSupabaseSession(session);
+    return session;
+  }
+
+  // Only a response that actually means "this refresh token is invalid/expired/revoked" may ever
+  // clear a working session. Supabase's Auth server (gotrue) returns 400 (invalid_grant) or 401
+  // for a bad/expired/revoked refresh token — those are the only statuses treated as definitive
+  // here. A 5xx (server error), 429 (rate limited), or any other transient failure of the refresh
+  // endpoint itself must NOT log the user out — the session may still be perfectly valid, and
+  // clearing it here would turn a momentary Supabase outage/rate-limit into an unnecessary forced
+  // logout mid-shift. Those cases just throw (no session mutation, no _onSupabaseSessionInvalid)
+  // so the caller — ensureFreshSession's try/catch in supabaseFetch, or restoreSession's own
+  // catch — preserves the existing session and the next request/refresh attempt can simply try
+  // again, with no loop introduced here.
+  if (res.status === 400 || res.status === 401) {
+    persistSupabaseSession(null);
+    _onSupabaseSessionInvalid?.();
+    throw new Error(body?.error_description || body?.msg || "Session refresh failed: refresh token is invalid or expired.");
+  }
+  throw new Error(`Session refresh temporarily unavailable (HTTP ${res.status}). The existing session was preserved.`);
+}
+
+// Single-flight gate: whether called from ensureFreshSession's pre-expiry check or from
+// supabaseFetch's reactive 401 handler, every concurrent caller awaits this SAME Promise —
+// never more than one /auth/v1/token?grant_type=refresh_token request in flight at a time.
+function triggerSupabaseRefresh() {
+  if (!_supabaseRefreshPromise) {
+    _supabaseRefreshPromise = refreshSupabaseSession().finally(() => { _supabaseRefreshPromise = null; });
+  }
+  return _supabaseRefreshPromise;
+}
+
+// Called before every authenticated Supabase request (see supabaseFetch below). No session ->
+// unauthenticated behavior is completely unchanged, callers proceed on the anon key exactly as
+// before this phase. Session still valid for more than 60s -> used as-is, no network call at all.
+// Otherwise -> await the single shared refresh rather than letting the request go out with a
+// token already known to be expired.
+function ensureFreshSession() {
+  if (!_supabaseSession) return Promise.resolve(null);
+  if (_supabaseSession.expiresAt && _supabaseSession.expiresAt > Date.now() + 60000) return Promise.resolve(_supabaseSession);
+  if (!_supabaseSession.refreshToken) return Promise.resolve(_supabaseSession);
+  return triggerSupabaseRefresh();
+}
+/* ============================== end Phase 6.1 additions ============================== */
+
 // The single source of truth for which credential every request uses — verified explicitly here
 // (item 6): returns the authenticated user's access token when a real session exists, and only
 // falls back to the anon key when it doesn't (e.g. before sign-in, or after sign-out).
@@ -1678,7 +1763,8 @@ function currentSupabaseCredential() {
 
 async function supabaseFetch(path, options = {}) {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) throw new Error("NEXALVO backend is not configured. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Vercel.");
-  return fetch(`${SUPABASE_URL}${path}`, {
+
+  const doFetch = () => fetch(`${SUPABASE_URL}${path}`, {
     ...options,
     headers: {
       apikey: SUPABASE_ANON_KEY, // apikey header is always the project key, per Supabase's API contract
@@ -1687,7 +1773,33 @@ async function supabaseFetch(path, options = {}) {
       ...(options.headers || {}),
     },
   });
+
+  // Pre-emptive refresh: if a real session exists and is expired/near-expiry, refresh it BEFORE
+  // this request goes out, via the single shared refresh Promise. If the refresh fails outright
+  // (invalid refresh token), the session was already cleared and the login-return handler already
+  // fired inside refreshSupabaseSession — this request simply proceeds on the anon key, exactly
+  // like any call made before sign-in, rather than throwing here.
+  if (_supabaseSession) {
+    try { await ensureFreshSession(); } catch { /* handled inside refreshSupabaseSession */ }
+  }
+
+  let res = await doFetch();
+
+  // Reactive path: the token looked fresh by our own clock but the server rejected it anyway
+  // (revoked, clock drift, etc). Exactly one forced shared refresh, exactly one retry — no
+  // recursion, no loop. If the forced refresh also fails, the session is already cleared/login
+  // already triggered, and the original 401 response is returned unchanged for the caller's
+  // existing `if (!res.ok) throw ...` handling (every supabaseRest.* method already has this).
+  if (res.status === 401 && _supabaseSession) {
+    try {
+      await triggerSupabaseRefresh();
+      res = await doFetch();
+    } catch { /* handled inside refreshSupabaseSession */ }
+  }
+
+  return res;
 }
+
 
 // Thin wrapper over PostgREST — the tables it can reach are governed entirely by the RLS
 // policies already deployed (02_rls.sql), not by anything in this client-side code. Every
@@ -1803,19 +1915,17 @@ const supabaseAuth = {
   async restoreSession() {
     if (!_supabaseSession) return null;
     if (_supabaseSession.expiresAt && _supabaseSession.expiresAt > Date.now() + 60000) return _supabaseSession;
-    if (!_supabaseSession.refreshToken) { persistSupabaseSession(null); return null; }
+    // Delegates entirely to the Phase 6.1 centralized refresh implementation — no duplicate
+    // fetch/parse/persist logic here anymore. On failure, `_supabaseSession` is whatever
+    // refreshSupabaseSession left it as: unchanged (old session) for a transient network error,
+    // or already cleared to null (with the login-return handler already notified) for a genuinely
+    // invalid/expired refresh token — either way, returning `_supabaseSession` here reproduces
+    // exactly the same fallback behavior this function always had.
     try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: _supabaseSession.refreshToken }),
-      });
-      const body = await res.json().catch(() => null);
-      if (!res.ok || !body?.access_token) { persistSupabaseSession(null); return null; }
-      const session = { accessToken: body.access_token, refreshToken: body.refresh_token || _supabaseSession.refreshToken, expiresAt: Date.now() + (body.expires_in || 3600) * 1000, user: body.user || _supabaseSession.user };
-      persistSupabaseSession(session);
-      return session;
-    } catch { return _supabaseSession; }
+      return await refreshSupabaseSession();
+    } catch {
+      return _supabaseSession;
+    }
   },
   signOut() { persistSupabaseSession(null); },
   hasSession() { return !!_supabaseSession; },
@@ -2729,6 +2839,14 @@ export default function App() {
   const [authStartupError, setAuthStartupError] = useState("");
   useEffect(() => {
     let cancelled = false;
+    // Phase 6.1: registers the one hook non-React session code (refreshSupabaseSession, on a
+    // definitively failed refresh) uses to cleanly return the app to the login screen — reuses
+    // exactly the same state setters signOut already relies on, no second session system.
+    setSupabaseSessionInvalidHandler(() => {
+      if (cancelled) return;
+      setAuthProfile(null);
+      setCurrentUserId(null);
+    });
     (async () => {
       try {
         const session = await authService.getSession();
