@@ -707,7 +707,7 @@ const paymentService = {
 // instead of immediate finalization. Phase B's Stripe Terminal integration is the thing that
 // changes what happens when one of these is selected — this list is the switch point.
 const CARD_PAYMENT_METHODS = ["Credit Card", "Debit Card"];
-const NEXALVO_BUILD = "v1.6.5.4";
+const NEXALVO_BUILD = "v1.6.7";
 
 // The ONE path responsible for turning a payment attempt into a real, finalized sale. Reuses the
 // existing InventoryService functions and persistence callbacks completely unchanged — deduction
@@ -1221,8 +1221,25 @@ async function commitLoyaltyForSale(sale, redeemedReward, ctx) {
 // twice for the same sale — or a sale that only did one of the two — is always a safe no-op for
 // whichever part doesn't apply.
 async function reverseLoyaltyForSale(sale, ctx) {
-  const { loyaltyTransactions, setLoyaltyTransactions, currentUser } = ctx;
+  const { loyaltyTransactions, setLoyaltyTransactions, currentUser, reloadLoyalty } = ctx;
   if (!sale.customerId) return { success: true };
+
+  // Phase 5.1 production path: call the RPC directly rather than deciding whether to call it
+  // based on whether originalEarn/originalRedeem happen to already be present in this client's
+  // local loyaltyTransactions array. fn_reverse_loyalty_for_sale re-derives everything it needs
+  // (the sale's own earn/redeem rows) straight from the database and is idempotent on sale_id
+  // regardless of what this client's ledger currently contains — so the local array is no longer
+  // a gate on whether the reversal happens at all. Previously, if this client hadn't reloaded
+  // loyalty since the sale was created (e.g. cancelling a sale immediately after creating it),
+  // originalEarn was undefined, `changed` stayed false, and the RPC was never called — the
+  // reversal silently never happened even though the cancellation itself succeeded.
+  if (supabaseAuth.hasSession()) {
+    await supabaseRest.rpc("fn_reverse_loyalty_for_sale", { p_sale_id: sale.id });
+    if (reloadLoyalty) await reloadLoyalty();
+    return { success: true };
+  }
+
+  // Legacy local fallback — unchanged, used only when there is no Supabase session.
   let next = loyaltyTransactions || [];
   let changed = false;
 
@@ -4143,7 +4160,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
           inventory={inventory} setInventory={setInventory} sales={sales} persistSales={persistSales}
           cashTx={cashTx} persistCash={persistCash} invTx={invTx} setInvTx={setInvTx} locations={locations}
           employees={employees} customers={customers} settings={settings}
-          loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions}
+          loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} reloadLoyalty={reloadLoyalty}
           businessAlerts={businessAlerts} setBusinessAlerts={setBusinessAlerts}
           currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
@@ -4151,7 +4168,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
   );
 }
 
-function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, customers, settings, loyaltyTransactions, setLoyaltyTransactions, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
+function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, customers, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [advancing, setAdvancing] = useState(false);
@@ -4208,32 +4225,46 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       }
 
       if (!alreadyCancelled) {
-        // Same retry-safety pattern as finalizeSuccessfulPayment: inventory qty + the
-        // deterministic operation marker (appliedOps) are written TOGETHER in one setInventory()
-        // call — the critical step no longer depends on invTx as the "already done?" signal.
-        const restoreOpId = `${sale.id}-inventory-restore`;
-        const { changed, nextInventory } = applyInventoryOpIfNeeded(inventory, restoreOpId, restore);
-        if (changed) {
-          await setInventory(nextInventory);
+        if (supabaseAuth.hasSession()) {
+          // Phase 4 production path: fn_reverse_sale — invoked via persistSales's own
+          // status-change translation layer (useSupabaseSales.persist) — already handles status,
+          // inventory restoration, inventory ledger, and cash_flow reversal atomically on the
+          // server, and its own `return reload()` refreshes `sales` with the server's real state.
+          // This is the ONLY write needed here. The legacy local inventory/invTx/cash steps that
+          // used to run unconditionally after this are skipped entirely in this mode — they were
+          // redundant no-ops for inventory/invTx (setInventory/setInvTx in this mode only touch
+          // catalog metadata / are wired to a no-op) and actively broken for cashTx (persistCash
+          // is deliberately guarded — phase4WriteGuard — to prevent exactly this kind of legacy
+          // local write to a now server-authoritative ledger).
+          await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
+        } else {
+          // Legacy local fallback — unchanged, used only when there is no Supabase session.
+          // Same retry-safety pattern as finalizeSuccessfulPayment: inventory qty + the
+          // deterministic operation marker (appliedOps) are written TOGETHER in one setInventory()
+          // call — the critical step no longer depends on invTx as the "already done?" signal.
+          const restoreOpId = `${sale.id}-inventory-restore`;
+          const { changed, nextInventory } = applyInventoryOpIfNeeded(inventory, restoreOpId, restore);
+          if (changed) {
+            await setInventory(nextInventory);
+          }
+          await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
+
+          // invTx (audit ledger) — legacy-only; the server RPC handles this in Supabase mode.
+          const plannedEntries = InventoryService.saleReversalLedgerEntries(inventory, restore, { saleId: sale.id, orderNo: sale.orderNo })
+            .map((e) => ({ ...e, id: `${sale.id}-inventory-restore-${e.itemId}` }));
+          const newEntries = plannedEntries.filter((e) => !(invTx || []).some((x) => x.id === e.id));
+          if (newEntries.length) {
+            await setInvTx([...newEntries, ...(invTx || [])]);
+          }
+
+          // cashTx — legacy-only; the server RPC handles this in Supabase mode.
+          const cashId = `${sale.id}-cash-reversal`;
+          if (!(cashTx || []).some((t) => t.id === cashId)) {
+            await persistCash([{ id: cashId, date: nowISO(), type: "expense", category: "Sale Cancellation", amount: sale.total, paymentMethod: sale.paymentMethod, description: `Cancel Sale #${sale.orderNo}`, relatedSaleId: sale.id, reversalOf: sale.id }, ...cashTx]);
+          }
         }
-        await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
       }
 
-      // invTx (audit ledger) is checked/completed independently of the alreadyCancelled branch
-      // above — its failure never leaves the physical quantity wrong, only delays the audit row.
-      {
-        const plannedEntries = InventoryService.saleReversalLedgerEntries(inventory, restore, { saleId: sale.id, orderNo: sale.orderNo })
-          .map((e) => ({ ...e, id: `${sale.id}-inventory-restore-${e.itemId}` }));
-        const newEntries = plannedEntries.filter((e) => !(invTx || []).some((x) => x.id === e.id));
-        if (newEntries.length) {
-          await setInvTx([...newEntries, ...(invTx || [])]);
-        }
-      }
-
-      const cashId = `${sale.id}-cash-reversal`;
-      if (!(cashTx || []).some((t) => t.id === cashId)) {
-        await persistCash([{ id: cashId, date: nowISO(), type: "expense", category: "Sale Cancellation", amount: sale.total, paymentMethod: sale.paymentMethod, description: `Cancel Sale #${sale.orderNo}`, relatedSaleId: sale.id, reversalOf: sale.id }, ...cashTx]);
-      }
       // Reverses previously-earned points for this sale (idempotent on sale.id — safe even if
       // this handler were somehow invoked twice, and a no-op for a walk-in sale that never
       // earned points). Isolated in its own try/catch: inventory/sale/cash reversal above has
@@ -4243,7 +4274,7 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       // only a console.error, so it can actually be found and acted on.
       const loyaltyAlertKey = `loyalty_reversal_failed:${sale.id}`;
       try {
-        await reverseLoyaltyForSale(sale, { loyaltyTransactions, setLoyaltyTransactions, currentUser });
+        await reverseLoyaltyForSale(sale, { loyaltyTransactions, setLoyaltyTransactions, currentUser, reloadLoyalty });
         // A later successful reversal (e.g. this same cancellation retried, or a manual retry)
         // resolves any alert raised by an earlier failed attempt — small, reuses the exact same
         // resolve semantics reconcileAlerts already uses elsewhere (status/resolvedAt).
@@ -6649,7 +6680,7 @@ function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUs
   );
 }
 
-function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
+function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
   const customer = (customers || []).find((c) => c.id === customerId);
   const [viewingSale, setViewingSale] = useState(null);
   const [adjustType, setAdjustType] = useState("manual_add");
@@ -6786,7 +6817,7 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
           inventory={inventory} setInventory={setInventory} sales={sales} persistSales={persistSales}
           cashTx={cashTx} persistCash={persistCash} invTx={invTx} setInvTx={setInvTx} locations={locations}
           employees={employees} customers={customers} settings={settings}
-          loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions}
+          loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} reloadLoyalty={reloadLoyalty}
           businessAlerts={businessAlerts} setBusinessAlerts={setBusinessAlerts}
           currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
@@ -6794,7 +6825,7 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
   );
 }
 
-function CustomersView({ dark, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
+function CustomersView({ dark, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -6811,7 +6842,7 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
   const newThisMonth = (customers || []).filter((c) => { if (!c.createdAt) return false; const d = new Date(c.createdAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
   const totalPointsOutstanding = (customers || []).reduce((a, c) => a + getLoyaltyBalance(c.id, loyaltyTransactions), 0);
 
-  const passthroughCtx = { products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast };
+  const passthroughCtx = { products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast };
 
   return (
     <div>
