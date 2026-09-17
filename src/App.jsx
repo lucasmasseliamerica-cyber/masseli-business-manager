@@ -3720,7 +3720,19 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
   };
   const expiringStock = inventory.filter((i) => expiryStatus(i)).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
 
-  const monthWasteCost = round2((wasteTx || []).filter((w) => withinDays(w.date, 30)).reduce((a, w) => a + w.cost, 0));
+  // Phase (Waste fix): in Supabase mode, wasteTx is legacy localStorage-only and never reflects
+  // real fn_record_waste writes (confirmed: inventoryOps.waste never calls persistWaste). The
+  // real ledger already exists in invTx/catalogInvTx (useSupabaseInventory's inventory_transactions
+  // read, reloaded automatically after every waste RPC call) — filtering it by type === "Waste"
+  // is the source of truth here instead. totalCost is negative for a stock reduction (confirmed
+  // in production: qty_change -0.100, total_cost -0.17 for a waste_cost of 0.17), hence Math.abs.
+  // supabaseAuth.hasSession() is the same mode check already used everywhere else in this file
+  // (commitLoyaltyForSale, reverseLoyaltyForSale, openCashRegister, etc) — not a new mechanism.
+  // The legacy wasteTx path is preserved unchanged as the fallback for a session-less local mode.
+  const wasteEntries = supabaseAuth.hasSession()
+    ? (invTx || []).filter((t) => t.type === "Waste").map((t) => ({ date: t.date, cost: Math.abs(Number(t.totalCost || 0)) }))
+    : (wasteTx || []);
+  const monthWasteCost = round2(wasteEntries.filter((w) => withinDays(w.date, 30)).reduce((a, w) => a + w.cost, 0));
 
   // Active order queue — anything not yet Completed (or cancelled), regardless of day, so nothing gets forgotten.
   const activeOrders = activeSales.filter((s) => (s.fulfillmentStatus || "Completed") !== "Completed").sort((a, b) => new Date(a.date) - new Date(b.date));
@@ -8157,7 +8169,12 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
   const netProfit = round2(grossProfit - opEx);
   const netMargin = revenue ? round2((netProfit / revenue) * 100) : 0;
   const inventoryValue = round2(inventory.reduce((a, i) => a + i.qty * i.costPerUnit, 0));
-  const waste = round2((wasteTx || []).filter((w) => withinRange(w.date, range)).reduce((a, w) => a + w.cost, 0));
+  // Phase (Waste fix): same source-of-truth switch as Dashboard's monthWasteCost — see that
+  // comment for the full explanation. Kept identical here so both screens can never disagree.
+  const wasteEntries = supabaseAuth.hasSession()
+    ? (invTx || []).filter((t) => t.type === "Waste").map((t) => ({ date: t.date, cost: Math.abs(Number(t.totalCost || 0)) }))
+    : (wasteTx || []);
+  const waste = round2(wasteEntries.filter((w) => withinRange(w.date, range)).reduce((a, w) => a + w.cost, 0));
 
   const salesCmp = useMemo(() => getSalesComparison(sales, range), [sales, range.start.getTime(), range.end.getTime()]);
   const trend = useMemo(() => getRevenueTrend(sales, range), [sales, range.start.getTime(), range.end.getTime()]);
