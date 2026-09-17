@@ -5237,7 +5237,16 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
           await logAudit(auditLog, setAuditLog, currentUser, "Stock Received (manual)", `${current.name} +${addQty} ${current.unit}`);
           showToast(`Received ${addQty} ${current.unit} of ${current.name}`);
         } else if (mode === "adjust") {
-          const nq = clamp0(round2(Number(newQty)));
+          // Validated explicitly instead of silently clamping — clamp0(round2(Number(newQty)))
+          // used to turn an invalid or negative entry (e.g. a stray "-50") into "0" with no
+          // warning at all, even though fn_adjust_inventory_count itself correctly rejects a
+          // negative p_new_qty server-side. Zero itself stays a legitimate counted quantity
+          // (a physical count can genuinely find nothing on the shelf) — only NaN/blank and
+          // negative values are rejected here, before the RPC is ever called.
+          const parsedQty = Number(newQty);
+          if (newQty === "" || Number.isNaN(parsedQty)) { setError("Enter a valid counted quantity."); return; }
+          if (parsedQty < 0) { setError("Counted quantity cannot be negative."); return; }
+          const nq = round2(parsedQty);
           if (nq === current.qty) { showToast("No change to save"); onClose(); return; }
           await inventoryOps.adjust(current, nq, reason, notes);
           await logAudit(auditLog, setAuditLog, currentUser, "Stock Adjusted", `${current.name} target ${nq} ${current.unit} · ${reason}`);
