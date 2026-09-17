@@ -1994,7 +1994,7 @@ function useCollection(key, seedFn) {
 const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || ""));
 const newDbId = () => crypto.randomUUID();
 
-function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate" } = {}) {
+function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate" } = {}, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const previousRef = useRef([]);
 
@@ -2004,8 +2004,9 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
     const mapped = (rows || []).map(fromDb);
     previousRef.current = mapped;
     setData(mapped);
+    clearLoadError?.(table); // only reached once the select above has actually succeeded
     return mapped;
-  }, [table, businessId, fromDb]);
+  }, [table, businessId, fromDb, clearLoadError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2017,13 +2018,17 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
         const mapped = (rows || []).map(fromDb);
         previousRef.current = mapped;
         setData(mapped);
+        clearLoadError?.(table);
       } catch (e) {
         console.error(`Supabase load failed for ${table}`, e);
-        if (!cancelled) setData([]);
+        // Deliberately NOT setData([]) here — an empty array means "Supabase confirmed there are
+        // zero rows", which this catch cannot claim. `data` stays null (initial load) so the
+        // caller can tell "still loading/failed" apart from "genuinely empty".
+        if (!cancelled) reportLoadError?.(table, "initial", e.message);
       }
     })();
     return () => { cancelled = true; };
-  }, [table, businessId, fromDb]);
+  }, [table, businessId, fromDb, reportLoadError, clearLoadError]);
 
   const persist = useCallback(async (next) => {
     if (!businessId) throw new Error("No authenticated business is available.");
@@ -2052,13 +2057,13 @@ const toSupplierDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, co
 const fromCustomerDb = (r) => ({ id: r.id, name: r.name, phone: r.phone || "", email: r.email || "", birthday: r.birthday || "", notes: r.notes || "", active: r.active !== false, createdAt: r.created_at, updatedAt: r.updated_at });
 const toCustomerDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, phone: x.phone || null, email: x.email || null, birthday: x.birthday || null, notes: x.notes || null, active: x.active !== false, updated_at: nowISO() });
 
-function useSupabaseEmployees(businessId, locations) {
+function useSupabaseEmployees(businessId, locations, reportLoadError, clearLoadError) {
   const byId = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
   const byName = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.name, l.id])), [locations]);
   const defaultLocationId = useMemo(() => (locations || []).find((l) => l.active !== false)?.id || "", [locations]);
   const fromDb = useCallback((r) => ({ id: r.id, name: r.name, role: r.job_title || "", hourlyRate: Number(r.hourly_rate || 0), locationId: r.location_id || "", location: byId[r.location_id] || "", managerId: r.manager_id || "", active: r.active !== false, notes: r.notes || "" }), [byId]);
   const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: x.locationId || byName[x.location] || defaultLocationId || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName, defaultLocationId]);
-  return useSupabaseArrayCollection("employees", businessId, fromDb, toDb, { missing: "deactivate" });
+  return useSupabaseArrayCollection("employees", businessId, fromDb, toDb, { missing: "deactivate" }, reportLoadError, clearLoadError);
 }
 
 const SETTINGS_LIST_MAP = {
@@ -2111,7 +2116,7 @@ function useSupabaseBusinessSettings(businessId) {
  * RPC cutover. This prevents a half-migrated sale from bypassing fn_create_sale. During Phase 2,
  * catalog changes are therefore validated in Products/Inventory first; POS cutover is Phase 3.
  * ============================================================================== */
-function useSupabaseProducts(businessId) {
+function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const previousRef = useRef([]);
 
@@ -2133,10 +2138,11 @@ function useSupabaseProducts(businessId) {
     }));
     previousRef.current = mapped;
     setData(mapped);
+    clearLoadError?.("products"); // only reached once BOTH selects above have succeeded
     return mapped;
-  }, [businessId]);
+  }, [businessId, clearLoadError]);
 
-  useEffect(() => { reload().catch((e) => { console.error("Supabase products load failed", e); setData([]); }); }, [reload]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase products load failed", e); reportLoadError?.("products", "initial", e.message); }); }, [reload, reportLoadError]);
 
   const persist = useCallback(async (next) => {
     if (!businessId) throw new Error("No authenticated business is available.");
@@ -2176,7 +2182,7 @@ const inventoryTxTypeLabel = (t) => ({
   ADJUSTMENT: "Adjustment", REVERSAL: "Reversal", TRANSFER_OUT: "Transfer Out", TRANSFER_IN: "Transfer In",
 }[t] || t || "Adjustment");
 
-function useSupabaseInventory(businessId, locations) {
+function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const locationById = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
@@ -2206,10 +2212,14 @@ function useSupabaseInventory(businessId, locations) {
       referenceId: t.sale_id || t.purchase_order_id || t.related_transaction_id || "", note: t.note || "", locationId: t.location_id,
     })));
     setData(mapped);
+    // Only reached once ALL THREE queries above (items, stock, transactions) have succeeded —
+    // exactly the "clear only after every query composing this reload succeeded" requirement,
+    // since any earlier await throwing would have skipped straight to the catch below instead.
+    clearLoadError?.("inventory");
     return mapped;
-  }, [businessId, locationById]);
+  }, [businessId, locationById, clearLoadError]);
 
-  useEffect(() => { reload().catch((e) => { console.error("Supabase inventory load failed", e); setData([]); setTransactions([]); }); }, [reload]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase inventory load failed", e); reportLoadError?.("inventory", "initial", e.message); }); }, [reload, reportLoadError]);
 
   // Catalog metadata only. Quantity/cost/location are ledger-derived and are NEVER written directly.
   const persistCatalog = useCallback(async (next) => {
@@ -2266,7 +2276,7 @@ function useSupabaseInventory(businessId, locations) {
 }
 
 /* ============================== SUPABASE DATA — PHASE 3: SALES / ORDERS ============================== */
-function useSupabaseSales(businessId, locations) {
+function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const locationById = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
 
@@ -2293,10 +2303,11 @@ function useSupabaseSales(businessId, locations) {
       cancelledBy: r.cancelled_by || null, supabase: true,
     }));
     setData(mapped);
+    clearLoadError?.("sales"); // only reached once both selects above have succeeded
     return mapped;
-  }, [businessId, locationById]);
+  }, [businessId, locationById, clearLoadError]);
 
-  useEffect(() => { reload().catch((e) => { console.error("Supabase sales load failed", e); setData([]); }); }, [reload]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase sales load failed", e); reportLoadError?.("sales", "initial", e.message); }); }, [reload, reportLoadError]);
 
   const persist = useCallback(async (next) => {
     const before = data || [];
@@ -2329,7 +2340,7 @@ function useSupabaseSales(businessId, locations) {
 
 
 /* ============================== SUPABASE DATA — PHASE 5: LOYALTY ============================== */
-function useSupabaseLoyalty(businessId) {
+function useSupabaseLoyalty(businessId, reportLoadError, clearLoadError) {
   const [transactions, setTransactions] = useState(null);
   const [rewards, setRewards] = useState(null);
 
@@ -2349,10 +2360,13 @@ function useSupabaseLoyalty(businessId) {
       discountValue: Number(r.discount_value || 0), active: r.active !== false, supabase: true,
     }));
     setTransactions(mappedTx); setRewards(mappedRewards);
+    // Reached only after BOTH halves of the Promise.all above resolved successfully — a single
+    // shared "loyalty" key covers transactions+rewards together, matching how they're loaded together.
+    clearLoadError?.("loyalty");
     return { transactions: mappedTx, rewards: mappedRewards };
-  }, [businessId]);
+  }, [businessId, clearLoadError]);
 
-  useEffect(() => { reload().catch((e) => { console.error("Supabase loyalty load failed", e); setTransactions([]); setRewards([]); }); }, [reload]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase loyalty load failed", e); reportLoadError?.("loyalty", "initial", e.message); }); }, [reload, reportLoadError]);
 
   // Compatibility boundary for the existing Loyalty UI. The UI still expresses its desired
   // ledger change as a next array, but authenticated production writes are translated into the
@@ -2393,7 +2407,7 @@ function useSupabaseLoyalty(businessId) {
 }
 
 /* ============================== SUPABASE DATA — PHASE 4: PURCHASES / EXPENSES / CASH ============================== */
-function useSupabaseCashFlow(businessId) {
+function useSupabaseCashFlow(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
@@ -2413,13 +2427,15 @@ function useSupabaseCashFlow(businessId) {
       relatedCashRegisterId: r.related_cash_register_id || "", reversalOf: r.reversal_of || "", status: r.status || "completed",
       createdBy: r.created_by || "", supabase: true,
     }));
-    setData(mapped); return mapped;
-  }, [businessId]);
-  useEffect(() => { reload().catch((e) => { console.error("Supabase cash flow load failed", e); setData([]); }); }, [reload]);
+    setData(mapped);
+    clearLoadError?.("cashFlow"); // only reached once both parallel selects above have succeeded
+    return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase cash flow load failed", e); reportLoadError?.("cashFlow", "initial", e.message); }); }, [reload, reportLoadError]);
   return [data, reload];
 }
 
-function useSupabaseExpenses(businessId, reloadCashFlow) {
+function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
@@ -2430,9 +2446,11 @@ function useSupabaseExpenses(businessId, reloadCashFlow) {
       recurring: !!r.recurring, description: r.description || "", status: r.status || "completed",
       reversedAt: r.reversed_at || "", reversedBy: r.reversed_by || "", createdBy: r.created_by || "", supabase: true,
     }));
-    setData(mapped); return mapped;
-  }, [businessId]);
-  useEffect(() => { reload().catch((e) => { console.error("Supabase expenses load failed", e); setData([]); }); }, [reload]);
+    setData(mapped);
+    clearLoadError?.("expenses");
+    return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase expenses load failed", e); reportLoadError?.("expenses", "initial", e.message); }); }, [reload, reportLoadError]);
   const ops = useMemo(() => ({ remote: true, reload,
     async create(x) {
       const row = await supabaseRest.rpc("fn_create_expense", {
@@ -2450,7 +2468,7 @@ function useSupabaseExpenses(businessId, reloadCashFlow) {
   return [data, ops];
 }
 
-function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow) {
+function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
@@ -2483,9 +2501,11 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow) {
         reversedAt: r.reversed_at || "", reversedBy: r.reversed_by || "", createdBy: r.created_by || "", supabase: true,
       };
     });
-    setData(mapped); return mapped;
-  }, [businessId]);
-  useEffect(() => { reload().catch((e) => { console.error("Supabase purchases load failed", e); setData([]); }); }, [reload]);
+    setData(mapped);
+    clearLoadError?.("purchases"); // only reached once every select above (pos, lines, payments) has succeeded
+    return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase purchases load failed", e); reportLoadError?.("purchases", "initial", e.message); }); }, [reload, reportLoadError]);
   const refreshAll = useCallback(async ({ inventory=false, cash=false }={}) => {
     const jobs=[reload()]; if (inventory && reloadInventory) jobs.push(reloadInventory()); if (cash && reloadCashFlow) jobs.push(reloadCashFlow());
     await Promise.all(jobs);
@@ -2525,7 +2545,7 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow) {
   return [data, ops];
 }
 
-function useSupabaseCashRegisters(businessId, reloadCashFlow) {
+function useSupabaseCashRegisters(businessId, reloadCashFlow, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
@@ -2536,9 +2556,11 @@ function useSupabaseCashRegisters(businessId, reloadCashFlow) {
       expectedCash: r.expected_cash == null ? null : Number(r.expected_cash), actualCash: r.actual_cash == null ? null : Number(r.actual_cash),
       difference: r.difference == null ? null : Number(r.difference), differenceReason: r.difference_reason || "", notes: r.notes || "", supabase: true,
     }));
-    setData(mapped); return mapped;
-  }, [businessId]);
-  useEffect(() => { reload().catch((e) => { console.error("Supabase cash registers load failed", e); setData([]); }); }, [reload]);
+    setData(mapped);
+    clearLoadError?.("cashRegisters");
+    return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase cash registers load failed", e); reportLoadError?.("cashRegisters", "initial", e.message); }); }, [reload, reportLoadError]);
   const refreshBoth = useCallback(async () => { await Promise.all([reload(), reloadCashFlow?.()]); }, [reload, reloadCashFlow]);
   const ops = useMemo(() => ({ remote: true, reload,
     async open({ locationId, openingCash, notes }) {
@@ -2829,11 +2851,71 @@ function navAllowed(user, tabId) {
 }
 
 /* ============================== APP ============================== */
+// Phase "Achado #6" subfase 1 — single, persistent banner for Supabase load failures across the
+// 11 tracked keys (locations/suppliers/customers/employees/products/inventory/sales/cashFlow/
+// expenses/purchases/cashRegisters/loyalty). Deliberately NOT a toast (toasts auto-dismiss after
+// ~2.6s and represent one-off events; this represents an ongoing, real condition — the affected
+// collection is still null-or-stale until the user reloads or the connection recovers) and
+// deliberately ONE component instead of a toast per failed hook, so N simultaneous failures never
+// stack N notifications. Distinguishes "initial" (this data has never loaded — nothing shown for
+// it is real yet) from "reload" (data shown may now be stale, but is not fabricated/fake).
+function DataLoadBanner({ dark, errors }) {
+  const entries = Object.entries(errors || {});
+  if (entries.length === 0) return null;
+  const initialCount = entries.filter(([, v]) => v.kind === "initial").length;
+  const reloadCount = entries.length - initialCount;
+  return (
+    <div className="mb-4 px-4 py-3 rounded-2xl text-xs font-semibold" style={{ background: "#3A0F1E", color: "#FF6B85", border: "1px solid #FF6B85" }}>
+      <div className="font-bold mb-1">
+        {initialCount > 0 && `${initialCount} area${initialCount === 1 ? "" : "s"} failed to load`}
+        {initialCount > 0 && reloadCount > 0 && " · "}
+        {reloadCount > 0 && `${reloadCount} area${reloadCount === 1 ? "" : "s"} may be out of date`}
+      </div>
+      <div className="space-y-0.5" style={{ opacity: 0.85 }}>
+        {entries.map(([key, v]) => (
+          <div key={key}>
+            {key}: {v.kind === "initial" ? "failed to load" : "last refresh failed — showing previously loaded data"}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const { dark } = useTheme();
   const [tab, setTab] = useState("dashboard");
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState(null);
+
+  /* ============================== PHASE "Achado #6" SUBFASE 1 — Supabase load error tracking ==============================
+   * Central, minimal error registry for the "simple" Supabase collection hooks only (see the
+   * explicit exclusion list below). Two operations, matching exactly what each hook needs:
+   *   reportLoadError(key, kind, message) — called from a hook's initial-load catch. Never called
+   *     to overwrite data with a fallback array/seed — the whole point of this subfase is that a
+   *     failed load leaves `data` as `null` (or, for a reload, leaves it as whatever was already
+   *     successfully loaded before) instead of masquerading as "successfully empty".
+   *   clearLoadError(key) — called at the END of a hook's reload(), only after every query that
+   *     composes that reload has itself already succeeded (this matters specifically for
+   *     useSupabaseInventory, which loads items+stock+transactions, and useSupabaseLoyalty, which
+   *     loads transactions+rewards — the clear call sits after both halves, so a stale error is
+   *     never cleared on a partial success). Never called before the request starts.
+   * Explicitly OUT OF SCOPE for this subfase (per the phased plan): useSupabaseBusinessSettings,
+   * all 16 ops.* RPC+reload methods (fn_create_sale, inventoryOps.*, etc — those get their own
+   * "kind: reload" treatment in a later subfase), Auth/JWT, supabaseRest, and business logic.
+   * ============================================================================== */
+  const [loadErrors, setLoadErrors] = useState({}); // { [key]: { kind: "initial" | "reload", message } }
+  const reportLoadError = useCallback((key, kind, message) => {
+    setLoadErrors((prev) => ({ ...prev, [key]: { kind, message } }));
+  }, []);
+  const clearLoadError = useCallback((key) => {
+    setLoadErrors((prev) => {
+      if (!(key in prev)) return prev; // no-op when nothing to clear — avoids an unnecessary re-render on every successful reload
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
 
   // --- Real Supabase Auth session / tenant identity ---
   const [currentUserId, setCurrentUserId] = useState(undefined); // undefined = checking session, null = signed out
@@ -2881,22 +2963,22 @@ export default function App() {
 
   // Phase 1: master/business data is now real tenant-scoped Supabase data.
   // Transactional modules stay on the legacy store until their RPC migration phase.
-  const [locations, setLocations] = useSupabaseArrayCollection("locations", businessId, fromLocationDb, toLocationDb, { missing: "delete" });
-  const [suppliers, setSuppliers] = useSupabaseArrayCollection("suppliers", businessId, fromSupplierDb, toSupplierDb, { missing: "delete" });
-  const [customers, setCustomers] = useSupabaseArrayCollection("customers", businessId, fromCustomerDb, toCustomerDb, { missing: "deactivate" });
-  const [employees, setEmployees] = useSupabaseEmployees(businessId, locations);
+  const [locations, setLocations] = useSupabaseArrayCollection("locations", businessId, fromLocationDb, toLocationDb, { missing: "delete" }, reportLoadError, clearLoadError);
+  const [suppliers, setSuppliers] = useSupabaseArrayCollection("suppliers", businessId, fromSupplierDb, toSupplierDb, { missing: "delete" }, reportLoadError, clearLoadError);
+  const [customers, setCustomers] = useSupabaseArrayCollection("customers", businessId, fromCustomerDb, toCustomerDb, { missing: "deactivate" }, reportLoadError, clearLoadError);
+  const [employees, setEmployees] = useSupabaseEmployees(businessId, locations, reportLoadError, clearLoadError);
   const [settings, setSettings] = useSupabaseBusinessSettings(businessId);
 
   // Phase 2 adds real Supabase catalog screens while the legacy transactional shadow remains
   // isolated for POS/Purchases until their atomic RPC cutover (Phase 3).
-  const [catalogProducts, setCatalogProducts] = useSupabaseProducts(businessId);
-  const [catalogInventory, setCatalogInventory, catalogInvTx, catalogInventoryOps, reloadCatalogInventory] = useSupabaseInventory(businessId, locations);
-  const [remoteSales, persistRemoteSales, remoteSalesOps] = useSupabaseSales(businessId, locations);
+  const [catalogProducts, setCatalogProducts] = useSupabaseProducts(businessId, reportLoadError, clearLoadError);
+  const [catalogInventory, setCatalogInventory, catalogInvTx, catalogInventoryOps, reloadCatalogInventory] = useSupabaseInventory(businessId, locations, reportLoadError, clearLoadError);
+  const [remoteSales, persistRemoteSales, remoteSalesOps] = useSupabaseSales(businessId, locations, reportLoadError, clearLoadError);
   // Phase 4: financial operations and purchasing are server-authoritative too.
-  const [remoteCashTx, reloadRemoteCashTx] = useSupabaseCashFlow(businessId);
-  const [remoteExpenses, remoteExpenseOps] = useSupabaseExpenses(businessId, reloadRemoteCashTx);
-  const [remotePurchaseOrders, remotePurchaseOps] = useSupabasePurchases(businessId, reloadCatalogInventory, reloadRemoteCashTx);
-  const [remoteCashRegisters, remoteCashRegisterOps] = useSupabaseCashRegisters(businessId, reloadRemoteCashTx);
+  const [remoteCashTx, reloadRemoteCashTx] = useSupabaseCashFlow(businessId, reportLoadError, clearLoadError);
+  const [remoteExpenses, remoteExpenseOps] = useSupabaseExpenses(businessId, reloadRemoteCashTx, reportLoadError, clearLoadError);
+  const [remotePurchaseOrders, remotePurchaseOps] = useSupabasePurchases(businessId, reloadCatalogInventory, reloadRemoteCashTx, reportLoadError, clearLoadError);
+  const [remoteCashRegisters, remoteCashRegisterOps] = useSupabaseCashRegisters(businessId, reloadRemoteCashTx, reportLoadError, clearLoadError);
 
   // Legacy transaction shadow — intentionally NOT used by the Products/Inventory tabs anymore.
   const [products, setProducts] = useCollection("products", seedProducts);
@@ -2906,7 +2988,7 @@ export default function App() {
   const [cashRegisters, setCashRegisters] = useCollection("cashRegisters", () => []);
   // Phase 5: loyalty ledger + rewards are now tenant-scoped Supabase data. The compatibility
   // setter translates the existing UI actions into the hardened loyalty RPCs.
-  const [loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty] = useSupabaseLoyalty(businessId);
+  const [loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty] = useSupabaseLoyalty(businessId, reportLoadError, clearLoadError);
   const [shifts, setShifts] = useCollection("shifts", () => []);
   const [businessAlerts, setBusinessAlerts] = useCollection("businessAlerts", () => []);
   const [users, setUsers] = useCollection("users", seedUsers);
@@ -3080,7 +3162,21 @@ export default function App() {
 
   const showToast = (msg, tone = "good") => { setToast({ msg, tone }); setTimeout(() => setToast(null), 2600); };
 
-  const loading = [products, inventory, catalogProducts, catalogInventory, remoteSales, remoteCashTx, remoteExpenses, remotePurchaseOrders, remoteCashRegisters, suppliers, customers, employees, locations, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, loyaltyTransactions, loyaltyRewards, shifts, businessAlerts].some((x) => x === null) || currentUserId === undefined;
+  // Achado #6 subfase 1: 12 real Supabase "simple collection" slots (11 unique loadErrors keys —
+  // loyaltyTransactions/loyaltyRewards share the single "loyalty" key, since they load together)
+  // only count as still-pending while `value === null` AND no error has been reported for that
+  // key yet. A collection that failed still resolves the loading gate (it becomes visible with
+  // its error banner) — it just never resolves it by silently pretending to be `[]`.
+  // useSupabaseBusinessSettings and every local/legacy useCollection-backed slot are explicitly
+  // OUT OF SCOPE for this subfase and keep their original, unconditional `=== null` check.
+  const supabasePending = [
+    [catalogProducts, "products"], [catalogInventory, "inventory"], [remoteSales, "sales"],
+    [remoteCashTx, "cashFlow"], [remoteExpenses, "expenses"], [remotePurchaseOrders, "purchases"],
+    [remoteCashRegisters, "cashRegisters"], [suppliers, "suppliers"], [customers, "customers"],
+    [employees, "employees"], [locations, "locations"], [loyaltyTransactions, "loyalty"], [loyaltyRewards, "loyalty"],
+  ].some(([value, key]) => value === null && !loadErrors[key]);
+  const legacyPending = [products, inventory, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, shifts, businessAlerts].some((x) => x === null);
+  const loading = supabasePending || legacyPending || currentUserId === undefined;
 
   const bg = dark ? `radial-gradient(1200px 600px at 100% -10%, ${C.purple700}55, transparent), linear-gradient(180deg, ${C.black}, ${C.purple900})` : C.bgLight;
 
@@ -3142,6 +3238,7 @@ export default function App() {
         <main className="flex-1 min-w-0 pb-24 md:pb-8">
           <TopBar dark={dark} settings={settings} tab={tab} currentUser={currentUser} onLogout={logout} />
           <div className="px-4 md:px-8 pt-4 max-w-6xl mx-auto">
+            {Object.keys(loadErrors).length > 0 && <DataLoadBanner dark={dark} errors={loadErrors} />}
             {tab === "dashboard" && <Dashboard {...ctx} setTab={setTab} />}
             {tab === "orders" && <OrdersView {...ctx} sales={remoteSales} persistSales={persistRemoteSales} />}
             {tab === "sales" && <SalesView {...ctx} products={catalogProducts} inventory={catalogInventory} setInventory={setCatalogInventory} sales={remoteSales} persistSales={persistRemoteSales} invTx={catalogInvTx} setInvTx={() => {}} supabaseSalesOps={remoteSalesOps} reloadInventory={reloadCatalogInventory} businessId={businessId} />}
