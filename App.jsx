@@ -5912,11 +5912,39 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
             // just below in this same component.
             const latest = purchaseOrders.find((p) => p.id === po.id) || po;
             if (latest.status === "Cancelled") { showToast(`${po.poNumber} was already cancelled.`, "danger"); setCancelling(false); onClose(); return; }
+            // Mirrors the server's own rejection (fn_cancel_purchase_order rejects a Reversed PO)
+            // with a clear client-side message, consistent with the Cancelled/anyReceived checks
+            // right above and below — same pattern, not a new one.
+            if (latest.status === "Reversed") { showToast(`${po.poNumber} was already reversed and cannot be cancelled.`, "danger"); setCancelling(false); return; }
             const latestAnyReceived = latest.items.some((l) => l.receivedQty > 0);
             if (latestAnyReceived) { showToast(`${po.poNumber} has received items now — it can no longer be cancelled directly. Use Reverse instead.`, "danger"); setCancelling(false); onClose(); return; }
             if (purchaseOps?.remote) {
-              await purchaseOps.cancel(po.id);
-              showToast(`${po.poNumber} cancelled`, "danger"); setCancelling(false); onClose(); return;
+              try {
+                await purchaseOps.cancel(po.id);
+                showToast(`${po.poNumber} cancelled`, "danger"); setCancelling(false); onClose(); return;
+              } catch (e) {
+                // ConfirmDialog's own run() only has try/finally (no catch) — this component must
+                // catch fn_cancel_purchase_order's rejection itself, or it becomes an uncaught
+                // promise rejection with no visible feedback, the same class of failure already
+                // fixed for SaleDetailModal.doCancel. supabaseRest.rpc() wraps the real Postgres
+                // error as `rpc fn_x failed (status): {"message":"...",...}` — best-effort extract
+                // the original message (e.g. "reversed purchase orders cannot be cancelled",
+                // "purchase order has received inventory; use reversal instead") from that JSON
+                // tail so the user sees the RPC's own wording instead of the raw wrapped string.
+                // No inventory/cash/status is touched here — this only shows the error and leaves
+                // the PurchaseDetailModal open (no onClose()) so the user can retry or investigate.
+                let msg = "Could not cancel this purchase order.";
+                const jsonStart = e?.message?.indexOf("{");
+                if (jsonStart >= 0) {
+                  try {
+                    const parsed = JSON.parse(e.message.slice(jsonStart));
+                    msg = parsed?.message || parsed?.error_description || parsed?.error || msg;
+                  } catch { /* not parseable — keep the generic message */ }
+                }
+                showToast(msg, "danger");
+                setCancelling(false);
+                return;
+              }
             }
             await persistPO(purchaseOrders.map((p) => (p.id === po.id ? { ...p, status: "Cancelled" } : p)));
             await logAudit(auditLog, setAuditLog, currentUser, "Purchase Order Cancelled", po.poNumber);
