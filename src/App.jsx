@@ -2070,7 +2070,7 @@ const SETTINGS_LIST_MAP = {
   paymentMethods: "payment_method", channels: "channel", expenseCategories: "expense_category",
   productCategories: "product_category", inventoryCategories: "inventory_category", units: "unit",
 };
-function useSupabaseBusinessSettings(businessId) {
+function useSupabaseBusinessSettings(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId) { const fallback = seedSettings(); setData(fallback); return fallback; }
@@ -2079,6 +2079,10 @@ function useSupabaseBusinessSettings(businessId) {
       supabaseRest.select("business_settings_lists", `select=*&business_id=eq.${encodeURIComponent(businessId)}&active=eq.true&order=sort_order.asc.nullslast,created_at.asc`),
     ]);
     const b = bizRows?.[0];
+    // Confirmed against production data: an authenticated user's business_id always has a
+    // matching row in businesses. Zero rows here is never a legitimate "new business, not set up
+    // yet" case — it's a real failure (RLS, replication lag, data integrity) and must be treated
+    // as such, not silently treated the same as the genuinely-no-tenant-yet case above.
     if (!b) throw new Error("Business profile was not found for the authenticated tenant.");
     const base = seedSettings();
     const next = { ...base, businessName: b.name, currency: b.currency || "USD", taxRate: Number(b.tax_rate || 0), taxEnabled: b.tax_enabled !== false, allowNegativeInventory: !!b.allow_negative_inventory, timezone: b.timezone || "America/New_York" };
@@ -2086,9 +2090,22 @@ function useSupabaseBusinessSettings(businessId) {
       const values = (listRows || []).filter((r) => r.list_type === dbType).map((r) => r.value);
       if (values.length) next[appKey] = values;
     }
-    setData(next); return next;
-  }, [businessId]);
-  useEffect(() => { reload().catch((e) => { console.error("business settings load failed", e); setData(seedSettings()); }); }, [reload]);
+    setData(next);
+    clearLoadError?.("settings"); // only reached once both selects above, and the row-existence check, succeeded
+    return next;
+  }, [businessId, clearLoadError]);
+  useEffect(() => {
+    reload().catch((e) => {
+      console.error("business settings load failed", e);
+      // Deliberately NOT setData(seedSettings()) — that used to make a real error (network, RLS,
+      // schema, or a genuinely missing business row) indistinguishable from a fresh business with
+      // no configuration yet, and — critically — a plausible-looking fabricated object that
+      // SettingsView.save() could then write back over the tenant's real configuration. `data`
+      // stays whatever it already was (null on a failed initial load; the last real value on a
+      // failed reload) and the failure is only recorded in the shared loadErrors registry.
+      reportLoadError?.("settings", "initial", e.message);
+    });
+  }, [reload, reportLoadError]);
   const persist = useCallback(async (next) => {
     if (!businessId) throw new Error("No authenticated business is available.");
     await supabaseRest.updateOne("businesses", businessId, { name: next.businessName, currency: next.currency || "USD", tax_rate: Number(next.taxRate || 0), tax_enabled: next.taxEnabled !== false, allow_negative_inventory: !!next.allowNegativeInventory, timezone: next.timezone || "America/New_York", updated_at: nowISO() });
@@ -2967,7 +2984,7 @@ export default function App() {
   const [suppliers, setSuppliers] = useSupabaseArrayCollection("suppliers", businessId, fromSupplierDb, toSupplierDb, { missing: "delete" }, reportLoadError, clearLoadError);
   const [customers, setCustomers] = useSupabaseArrayCollection("customers", businessId, fromCustomerDb, toCustomerDb, { missing: "deactivate" }, reportLoadError, clearLoadError);
   const [employees, setEmployees] = useSupabaseEmployees(businessId, locations, reportLoadError, clearLoadError);
-  const [settings, setSettings] = useSupabaseBusinessSettings(businessId);
+  const [settings, setSettings] = useSupabaseBusinessSettings(businessId, reportLoadError, clearLoadError);
 
   // Phase 2 adds real Supabase catalog screens while the legacy transactional shadow remains
   // isolated for POS/Purchases until their atomic RPC cutover (Phase 3).
@@ -3167,16 +3184,28 @@ export default function App() {
   // only count as still-pending while `value === null` AND no error has been reported for that
   // key yet. A collection that failed still resolves the loading gate (it becomes visible with
   // its error banner) — it just never resolves it by silently pretending to be `[]`.
-  // useSupabaseBusinessSettings and every local/legacy useCollection-backed slot are explicitly
-  // OUT OF SCOPE for this subfase and keep their original, unconditional `=== null` check.
+  // Achado #6 subfase 2 adds `settings` to this same list (see useSupabaseBusinessSettings above)
+  // — an error there also resolves the loading gate now, instead of fabricating seedSettings() as
+  // if it were the tenant's real configuration. Every other local/legacy useCollection-backed slot
+  // remains explicitly OUT OF SCOPE and keeps its original, unconditional `=== null` check.
   const supabasePending = [
     [catalogProducts, "products"], [catalogInventory, "inventory"], [remoteSales, "sales"],
     [remoteCashTx, "cashFlow"], [remoteExpenses, "expenses"], [remotePurchaseOrders, "purchases"],
     [remoteCashRegisters, "cashRegisters"], [suppliers, "suppliers"], [customers, "customers"],
     [employees, "employees"], [locations, "locations"], [loyaltyTransactions, "loyalty"], [loyaltyRewards, "loyalty"],
+    [settings, "settings"],
   ].some(([value, key]) => value === null && !loadErrors[key]);
-  const legacyPending = [products, inventory, settings, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, shifts, businessAlerts].some((x) => x === null);
+  const legacyPending = [products, inventory, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, shifts, businessAlerts].some((x) => x === null);
   const loading = supabasePending || legacyPending || currentUserId === undefined;
+
+  // Achado #6 subfase 2: `settings` itself (used for write decisions — see settingsReady below,
+  // and SettingsView's settingsUnavailable prop) is allowed to stay null when loading a real
+  // business's configuration failed. `displaySettings` is a SEPARATE, display-only fallback so
+  // components that read settings.businessName/etc without optional chaining (BrandHeader, TopBar)
+  // don't crash once the app renders past the loading gate above — it is never written back to
+  // Supabase; every write path (SettingsView.save, the _locationMigrationV1 effect below) uses the
+  // real `settings` value, not this one, and is guarded against it being null.
+  const displaySettings = settings || seedSettings();
 
   const bg = dark ? `radial-gradient(1200px 600px at 100% -10%, ${C.purple700}55, transparent), linear-gradient(180deg, ${C.black}, ${C.purple900})` : C.bgLight;
 
@@ -3200,7 +3229,7 @@ export default function App() {
 
   const phase4WriteGuard = async () => { throw new Error("This Phase 4 ledger is Supabase-managed. Use its server RPC operation instead of legacy local persistence."); };
   const ctx = {
-    dark, settings, setSettings, products, setProducts, inventory, setInventory,
+    dark, settings: displaySettings, setSettings, products, setProducts, inventory, setInventory,
     sales: remoteSales, persistSales: persistRemoteSales, cashTx: remoteCashTx, persistCash: phase4WriteGuard,
     expenses: remoteExpenses, setExpenses: phase4WriteGuard, expenseOps: remoteExpenseOps,
     suppliers, setSuppliers, customers, setCustomers, employees, setEmployees,
@@ -3219,7 +3248,7 @@ export default function App() {
       <div className="flex">
         {/* Sidebar (desktop) */}
         <aside className="hidden md:flex flex-col w-64 shrink-0 min-h-screen sticky top-0 p-4 gap-1" style={{ borderRight: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-          <BrandHeader dark={dark} settings={settings} />
+          <BrandHeader dark={dark} settings={displaySettings} />
           <div className="mt-4 flex flex-col gap-1">
             {visibleNav.map((n) => (
               <NavButton key={n.id} item={n} active={tab === n.id} dark={dark} onClick={() => setTab(n.id)} />
@@ -3236,7 +3265,7 @@ export default function App() {
 
         {/* Main */}
         <main className="flex-1 min-w-0 pb-24 md:pb-8">
-          <TopBar dark={dark} settings={settings} tab={tab} currentUser={currentUser} onLogout={logout} />
+          <TopBar dark={dark} settings={displaySettings} tab={tab} currentUser={currentUser} onLogout={logout} />
           <div className="px-4 md:px-8 pt-4 max-w-6xl mx-auto">
             {Object.keys(loadErrors).length > 0 && <DataLoadBanner dark={dark} errors={loadErrors} />}
             {tab === "dashboard" && <Dashboard {...ctx} setTab={setTab} />}
@@ -3251,7 +3280,7 @@ export default function App() {
             {tab === "customers" && <CustomersView {...ctx} />}
             {tab === "employees" && (navAllowed(currentUser, "employees") ? <EmployeesView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "reports" && (navAllowed(currentUser, "reports") ? <ReportsView {...ctx} /> : <RestrictedView dark={dark} />)}
-            {tab === "settings" && <SettingsView {...ctx} onLogout={logout} />}
+            {tab === "settings" && <SettingsView {...ctx} settingsUnavailable={settings === null} onLogout={logout} />}
           </div>
         </main>
       </div>
@@ -8665,7 +8694,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 }
 
 /* ============================== SETTINGS ============================== */
-function SettingsView({ dark, settings, setSettings, users, setUsers, employees, locations, setLocations, inventory, sales, currentUser, can, auditLog, setAuditLog, showToast, onLogout }) {
+function SettingsView({ dark, settings, setSettings, settingsUnavailable, users, setUsers, employees, locations, setLocations, inventory, sales, currentUser, can, auditLog, setAuditLog, showToast, onLogout }) {
   const [form, setForm] = useState(settings);
   const [userModal, setUserModal] = useState(null); // 'new' | user object | null
   const [showAudit, setShowAudit] = useState(false);
@@ -8676,6 +8705,11 @@ function SettingsView({ dark, settings, setSettings, users, setUsers, employees,
   const save = async () => {
     if (submitting) return;
     if (!canEditSettings) { showToast("You don't have permission to change settings.", "danger"); return; }
+    // Achado #6 subfase 2: `settings` here is always a renderable value (App() falls back to
+    // seedSettings() for display so this screen never crashes) — but when the REAL load failed,
+    // that fallback must never be written back over the tenant's actual configuration. This is
+    // the one and only place a save is blocked; nothing else in this component changes.
+    if (settingsUnavailable) { showToast("Settings could not be loaded — saving is disabled until this is resolved. Try reloading the page.", "danger"); return; }
     setSubmitting(true);
     try {
       await setSettings(form);
@@ -8727,8 +8761,13 @@ function SettingsView({ dark, settings, setSettings, users, setUsers, employees,
         </Card>
       </fieldset>
 
+      {settingsUnavailable && (
+        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>
+          The real business settings could not be loaded. What's shown below is a placeholder, not your actual configuration — saving is disabled until this is resolved.
+        </div>
+      )}
       {canEditSettings ? (
-        <PrimaryButton disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Settings"}</PrimaryButton>
+        <PrimaryButton disabled={submitting || settingsUnavailable} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Settings"}</PrimaryButton>
       ) : (
         <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>You don't have permission to change business settings.</div>
       )}
