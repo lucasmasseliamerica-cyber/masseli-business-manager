@@ -1004,7 +1004,12 @@ async function openCashRegister({ locationId, openingCash, notes }, ctx) {
 async function recordCashMovement({ registerId, movementType, amount, reason, notes }, ctx) {
   if (ctx.cashRegisterOps?.remote) {
     try { return await ctx.cashRegisterOps.movement({ registerId, movementType, amount, reason, notes }); }
-    catch (e) { return { success: false, error: e?.message || "Could not record cash movement." }; }
+    catch (e) {
+      // Preserve the distinction if a remote implementation reports that the RPC committed
+      // before a later refresh failed. Never turn a confirmed write into a retryable failure.
+      if (e?.rpcSucceeded) return { success: true, staleData: true, warning: e.message };
+      return { success: false, error: e?.message || "Could not record cash movement." };
+    }
   }
   const { cashRegisters, cashTx, persistCash, locations, currentUser, auditLog, setAuditLog } = ctx;
   const register = (cashRegisters || []).find((r) => r.id === registerId);
@@ -2543,8 +2548,20 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
       await refreshAll({ inventory: true }); return row;
     },
     async pay(poId, amount, paymentMethod) {
+      // The RPC and the UI refresh are two separate outcomes. If the RPC succeeds, the
+      // supplier payment is already committed and MUST NOT be presented as a failed payment
+      // just because the subsequent reads could not refresh the screen.
       const row = await supabaseRest.rpc("fn_pay_purchase_order", { p_purchase_order_id: poId, p_amount: Number(amount), p_payment_method: paymentMethod });
-      await refreshAll({ cash: true }); return row;
+      try {
+        await refreshAll({ cash: true });
+      } catch (e) {
+        reportLoadError?.("purchases", "reload", e?.message || "Purchase data refresh failed after payment was saved.");
+        const err = new Error("Payment was saved, but the latest data could not be refreshed. Reload the page before recording another payment.");
+        err.rpcSucceeded = true;
+        err.cause = e;
+        throw err;
+      }
+      return row;
     },
     async reversePayment(paymentId) {
       const row = await supabaseRest.rpc("fn_reverse_po_payment", { p_payment_id: paymentId });
@@ -2558,7 +2575,7 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
       const row = await supabaseRest.rpc("fn_cancel_purchase_order", { p_purchase_order_id: poId });
       await refreshAll(); return row;
     },
-  }), [businessId, reload, refreshAll]);
+  }), [businessId, reload, refreshAll, reportLoadError]);
   return [data, ops];
 }
 
@@ -2585,14 +2602,25 @@ function useSupabaseCashRegisters(businessId, reloadCashFlow, reportLoadError, c
       await refreshBoth(); return { success: true, register: row };
     },
     async movement({ registerId, movementType, amount, reason, notes }) {
+      // Once this RPC resolves, the cash movement is committed. A later refresh failure must
+      // therefore remain a successful movement with stale UI data, never a retryable failure.
       const row = await supabaseRest.rpc("fn_record_cash_movement", { p_register_id: registerId, p_movement_type: movementType, p_amount: Number(amount), p_reason: reason, p_notes: notes || null });
-      await refreshBoth(); return { success: true, entry: row };
+      try {
+        await refreshBoth();
+        return { success: true, entry: row };
+      } catch (e) {
+        reportLoadError?.("cashRegisters", "reload", e?.message || "Cash register refresh failed after movement was saved.");
+        return {
+          success: true, entry: row, staleData: true,
+          warning: "Movement was saved, but the latest data could not be refreshed. Reload the page before recording another movement.",
+        };
+      }
     },
     async close({ registerId, actualCash, differenceReason, notes }) {
       const row = await supabaseRest.rpc("fn_close_cash_register", { p_register_id: registerId, p_actual_cash: Number(actualCash), p_difference_reason: differenceReason || null, p_notes: notes || null });
       await refreshBoth(); return { success: true, register: row };
     },
-  }), [businessId, reload, refreshBoth]);
+  }), [businessId, reload, refreshBoth, reportLoadError]);
   return [data, ops];
 }
 
@@ -3501,7 +3529,11 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
     try {
       const r = await recordCashMovement({ registerId: register.id, movementType, amount: movementAmount, reason: movementReason, notes: movementNotes }, opCtx);
       if (!r.success) { setError(r.error); return; }
-      showToast("Movement recorded");
+      if (r.staleData) {
+        showToast(r.warning || "Movement saved — refresh may be needed.", "warn");
+      } else {
+        showToast("Movement recorded");
+      }
       setMode("status"); setMovementAmount(""); setMovementReason(""); setMovementNotes("");
     } finally { setSubmitting(false); }
   };
@@ -6239,9 +6271,18 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
     setSubmitting(true);
     try {
       if (purchaseOps?.remote) {
-        await purchaseOps.pay(po.id, amt, paymentMethod);
-        showToast(`Payment recorded: ${fmtMoney(amt)} to ${po.poNumber}`);
-        onClose(); return;
+        try {
+          await purchaseOps.pay(po.id, amt, paymentMethod);
+          showToast(`Payment recorded: ${fmtMoney(amt)} to ${po.poNumber}`);
+          onClose(); return;
+        } catch (e) {
+          if (e?.rpcSucceeded) {
+            showToast(e.message || "Payment saved — refresh may be needed.", "warn");
+            onClose(); return;
+          }
+          setError(e?.message || "Could not record supplier payment.");
+          return;
+        }
       }
       // Re-derive the freshest PO state right before writing, so a duplicate click (or a second
       // payment made moments later) can never double-pay: amountPaid only ever moves forward once.
