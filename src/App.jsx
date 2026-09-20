@@ -2564,8 +2564,29 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
       await refreshAll(); return row;
     },
     async receive(poId, receiveLines) {
+      // fn_receive_purchase_order itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "receive failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_receive_purchase_order", { p_purchase_order_id: poId, p_receive_lines: receiveLines.map((x) => ({ po_item_id: x.poItemId, qty: Number(x.qty) })) });
-      await refreshAll({ inventory: true }); return row;
+      try {
+        await refreshAll({ inventory: true });
+      } catch (e) {
+        // The receipt (and its inventory movement) is already confirmed on the server at this
+        // point — only the screen refresh failed. refreshAll({inventory:true}) reloads both this
+        // hook's own "purchases" data and inventory together (Promise.all), and a rejection here
+        // doesn't tell us which one actually failed — so both keys are reported, reusing the exact
+        // loadErrors/DataLoadBanner mechanism from subfases 1-2 rather than inventing a second
+        // error channel. The thrown error is tagged so the caller can tell this apart from a real
+        // receive failure and avoid showing a false "receive failed" message that could invite a
+        // duplicate receipt.
+        reportLoadError?.("purchases", "reload", e.message);
+        reportLoadError?.("inventory", "reload", e.message);
+        const err = new Error("The purchase order was received, but the screen could not refresh. Reload the page to see the latest data.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
+      return row;
     },
     async pay(poId, amount, paymentMethod) {
       // fn_pay_purchase_order itself is NOT wrapped here — a failure there must keep throwing
@@ -6218,12 +6239,24 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
     setSubmitting(true);
     try {
       if (purchaseOps?.remote) {
-        await purchaseOps.receive(po.id, receivingNow.map((x) => ({ poItemId: x.line.id, qty: x.receiveQty })));
-        const allDoneRemote = receivingNow.every((x) => x.receiveQty >= round2(x.line.qty - x.line.receivedQty)) && latestPO.items.every((line) => {
-          const match = receivingNow.find((x) => x.line.id === line.id); return line.receivedQty + (match?.receiveQty || 0) >= line.qty;
-        });
-        showToast(allDoneRemote ? `${po.poNumber} fully received` : `Partial receipt recorded for ${po.poNumber}`);
-        onClose(); return;
+        try {
+          await purchaseOps.receive(po.id, receivingNow.map((x) => ({ poItemId: x.line.id, qty: x.receiveQty })));
+          const allDoneRemote = receivingNow.every((x) => x.receiveQty >= round2(x.line.qty - x.line.receivedQty)) && latestPO.items.every((line) => {
+            const match = receivingNow.find((x) => x.line.id === line.id); return line.receivedQty + (match?.receiveQty || 0) >= line.qty;
+          });
+          showToast(allDoneRemote ? `${po.poNumber} fully received` : `Partial receipt recorded for ${po.poNumber}`);
+          onClose();
+        } catch (e) {
+          // rpcSucceeded (set by useSupabasePurchases.receive) means fn_receive_purchase_order
+          // itself already committed — the receipt and its inventory movement are real. This must
+          // never be shown as "receive failed", or the user could be misled into receiving the
+          // same purchase order again and double-counting inventory. The modal stays open (no
+          // onClose()) only because that's already how a true failure below behaves — the message
+          // itself makes clear the receipt was saved, not that anything needs retrying.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
+          else { setError(e?.message || "Could not receive this purchase order."); }
+        }
+        return;
       }
       // Retry-safety: each operation id includes the item's receivedQty BEFORE this specific
       // receiving operation — a retry of the SAME interrupted operation always starts from the
