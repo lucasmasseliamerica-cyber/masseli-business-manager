@@ -978,7 +978,15 @@ function cashRegisterBreakdown(register, cashTx) {
 async function openCashRegister({ locationId, openingCash, notes }, ctx) {
   if (ctx.cashRegisterOps?.remote) {
     try { return await ctx.cashRegisterOps.open({ locationId, openingCash, notes }); }
-    catch (e) { return { success: false, error: e?.message || "Could not open cash register." }; }
+    catch (e) {
+      // rpcSucceeded (set by useSupabaseCashRegisters.open) means fn_open_cash_register itself
+      // already committed — only the subsequent screen refresh failed. This must be reported as
+      // a success-with-a-caveat, never as `{ success: false }`, or the caller (CashRegisterModal.
+      // doOpen) would show a false "could not open" message that could mislead the user into
+      // opening a second register for the same location.
+      if (e?.rpcSucceeded) return { success: true, staleData: true, message: e.message };
+      return { success: false, error: e?.message || "Could not open cash register." };
+    }
   }
   const { cashRegisters, setCashRegisters, cashTx, persistCash, locations, currentUser, auditLog, setAuditLog } = ctx;
   if (!locationId) return { success: false, error: "Select a location." };
@@ -1005,9 +1013,12 @@ async function recordCashMovement({ registerId, movementType, amount, reason, no
   if (ctx.cashRegisterOps?.remote) {
     try { return await ctx.cashRegisterOps.movement({ registerId, movementType, amount, reason, notes }); }
     catch (e) {
-      // Preserve the distinction if a remote implementation reports that the RPC committed
-      // before a later refresh failed. Never turn a confirmed write into a retryable failure.
-      if (e?.rpcSucceeded) return { success: true, staleData: true, warning: e.message };
+      // rpcSucceeded (set by useSupabaseCashRegisters.movement) means fn_record_cash_movement
+      // itself already committed — only the subsequent screen refresh failed. This must be
+      // reported as a success-with-a-caveat, never as `{ success: false }`, or the caller (e.g.
+      // CashRegisterModal.doMovement) would show a false "movement failed" message that could
+      // mislead the user into recording the same movement again.
+      if (e?.rpcSucceeded) return { success: true, staleData: true, message: e.message };
       return { success: false, error: e?.message || "Could not record cash movement." };
     }
   }
@@ -1034,7 +1045,16 @@ async function recordCashMovement({ registerId, movementType, amount, reason, no
 async function closeCashRegister({ registerId, actualCash, differenceReason, notes }, ctx) {
   if (ctx.cashRegisterOps?.remote) {
     try { return await ctx.cashRegisterOps.close({ registerId, actualCash, differenceReason, notes }); }
-    catch (e) { return { success: false, error: e?.message || "Could not close cash register." }; }
+    catch (e) {
+      // rpcSucceeded (set by useSupabaseCashRegisters.close) means fn_close_cash_register itself
+      // already committed — only the subsequent screen refresh failed. `e.register` carries the
+      // closed register as the RPC itself returned it, so the caller can still show the real
+      // actual-vs-expected difference instead of losing that information. Never converted to
+      // `{ success: false }` — that would risk the user re-closing (or worse, re-entering a
+      // different actual cash amount for) a register that is already correctly closed.
+      if (e?.rpcSucceeded) return { success: true, staleData: true, message: e.message, register: e.register };
+      return { success: false, error: e?.message || "Could not close cash register." };
+    }
   }
   const { cashRegisters, setCashRegisters, cashTx, currentUser, auditLog, setAuditLog } = ctx;
   const latest = (cashRegisters || []).find((r) => r.id === registerId);
@@ -2473,22 +2493,6 @@ function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearL
     return mapped;
   }, [businessId, clearLoadError]);
   useEffect(() => { reload().catch((e) => { console.error("Supabase expenses load failed", e); reportLoadError?.("expenses", "initial", e.message); }); }, [reload, reportLoadError]);
-  const refreshAfterWrite = useCallback(async (actionLabel) => {
-    const jobs = [
-      { key: "expenses", run: reload },
-      ...(reloadCashFlow ? [{ key: "cashFlow", run: reloadCashFlow }] : []),
-    ];
-    const results = await Promise.allSettled(jobs.map((job) => job.run()));
-    const failed = [];
-    results.forEach((result, index) => {
-      if (result.status !== "rejected") return;
-      const job = jobs[index];
-      const message = result.reason?.message || `${job.key} refresh failed after ${actionLabel} was saved.`;
-      reportLoadError?.(job.key, "reload", message);
-      failed.push(job.key);
-    });
-    return failed;
-  }, [reload, reloadCashFlow, reportLoadError]);
   const ops = useMemo(() => ({ remote: true, reload,
     async create(x) {
       const row = await supabaseRest.rpc("fn_create_expense", {
@@ -2496,21 +2500,13 @@ function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearL
         p_category: x.category, p_vendor: x.vendor || null, p_amount: Number(x.amount),
         p_payment_method: x.paymentMethod || null, p_recurring: !!x.recurring, p_notes: x.description || null,
       });
-      const failedRefreshes = await refreshAfterWrite("expense");
-      if (failedRefreshes.length) {
-        return { row, staleData: true, warning: "Expense was saved, but some data could not be refreshed. Reload the page before adding it again." };
-      }
-      return row;
+      await Promise.all([reload(), reloadCashFlow?.()]); return row;
     },
     async reverse(id) {
       const row = await supabaseRest.rpc("fn_reverse_expense", { p_expense_id: id });
-      const failedRefreshes = await refreshAfterWrite("expense reversal");
-      if (failedRefreshes.length) {
-        return { row, staleData: true, warning: "Expense was reversed, but some data could not be refreshed. Reload the page before trying to reverse it again." };
-      }
-      return row;
+      await Promise.all([reload(), reloadCashFlow?.()]); return row;
     },
-  }), [businessId, reload, refreshAfterWrite]);
+  }), [businessId, reload, reloadCashFlow]);
   return [data, ops];
 }
 
@@ -2572,17 +2568,23 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
       await refreshAll({ inventory: true }); return row;
     },
     async pay(poId, amount, paymentMethod) {
-      // The RPC and the UI refresh are two separate outcomes. If the RPC succeeds, the
-      // supplier payment is already committed and MUST NOT be presented as a failed payment
-      // just because the subsequent reads could not refresh the screen.
+      // fn_pay_purchase_order itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "payment failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_pay_purchase_order", { p_purchase_order_id: poId, p_amount: Number(amount), p_payment_method: paymentMethod });
       try {
         await refreshAll({ cash: true });
       } catch (e) {
-        reportLoadError?.("purchases", "reload", e?.message || "Purchase data refresh failed after payment was saved.");
-        const err = new Error("Payment was saved, but the latest data could not be refreshed. Reload the page before recording another payment.");
+        // The payment itself is already confirmed on the server at this point — only the screen
+        // refresh failed. refreshAll({cash:true}) reloads both this hook's own "purchases" data
+        // and cash flow together (Promise.all), and a rejection here doesn't tell us which one
+        // actually failed — so both keys are reported, reusing the exact loadErrors/DataLoadBanner
+        // mechanism from subfases 1-2 rather than inventing a second error channel. The thrown
+        // error is tagged so the caller can tell this apart from a real payment failure and avoid
+        // showing a false "payment failed" message.
+        reportLoadError?.("purchases", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The payment was saved, but the screen could not refresh. Reload the page to see the latest balance.");
         err.rpcSucceeded = true;
-        err.cause = e;
         throw err;
       }
       return row;
@@ -2599,7 +2601,7 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
       const row = await supabaseRest.rpc("fn_cancel_purchase_order", { p_purchase_order_id: poId });
       await refreshAll(); return row;
     },
-  }), [businessId, reload, refreshAll, reportLoadError]);
+  }), [businessId, reload, refreshAll]);
   return [data, ops];
 }
 
@@ -2622,29 +2624,68 @@ function useSupabaseCashRegisters(businessId, reloadCashFlow, reportLoadError, c
   const refreshBoth = useCallback(async () => { await Promise.all([reload(), reloadCashFlow?.()]); }, [reload, reloadCashFlow]);
   const ops = useMemo(() => ({ remote: true, reload,
     async open({ locationId, openingCash, notes }) {
+      // fn_open_cash_register itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "open failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_open_cash_register", { p_business_id: businessId, p_location_id: locationId, p_opening_cash: Number(openingCash || 0), p_notes: notes || null });
-      await refreshBoth(); return { success: true, register: row };
+      try {
+        await refreshBoth();
+      } catch (e) {
+        // Same pattern as movement() below: the register is already open on the server at this
+        // point — only the screen refresh failed. Both keys refreshBoth() touches are reported,
+        // since a Promise.all rejection doesn't tell us which one actually failed.
+        reportLoadError?.("cashRegisters", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The register was opened, but the screen could not refresh. Reload the page to see the latest data.");
+        err.rpcSucceeded = true;
+        throw err;
+      }
+      return { success: true, register: row };
     },
     async movement({ registerId, movementType, amount, reason, notes }) {
-      // Once this RPC resolves, the cash movement is committed. A later refresh failure must
-      // therefore remain a successful movement with stale UI data, never a retryable failure.
+      // fn_record_cash_movement itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "movement failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_record_cash_movement", { p_register_id: registerId, p_movement_type: movementType, p_amount: Number(amount), p_reason: reason, p_notes: notes || null });
       try {
         await refreshBoth();
-        return { success: true, entry: row };
       } catch (e) {
-        reportLoadError?.("cashRegisters", "reload", e?.message || "Cash register refresh failed after movement was saved.");
-        return {
-          success: true, entry: row, staleData: true,
-          warning: "Movement was saved, but the latest data could not be refreshed. Reload the page before recording another movement.",
-        };
+        // The movement itself is already confirmed on the server at this point — only the screen
+        // refresh failed. refreshBoth() reloads both this hook's own "cashRegisters" data and cash
+        // flow together (Promise.all), and a rejection here doesn't tell us which one actually
+        // failed — so both keys are reported, reusing the exact loadErrors/DataLoadBanner
+        // mechanism from subfases 1-2 rather than inventing a second error channel. The thrown
+        // error is tagged so the caller can tell this apart from a real movement failure and avoid
+        // showing a false "movement failed" message.
+        reportLoadError?.("cashRegisters", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The cash movement was saved, but the screen could not refresh. Reload the page to see the latest balance.");
+        err.rpcSucceeded = true;
+        throw err;
       }
+      return { success: true, entry: row };
     },
     async close({ registerId, actualCash, differenceReason, notes }) {
+      // fn_close_cash_register itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "close failed" handling is unchanged. Note the RPC is
+      // idempotent server-side for an already-closed register (returns the register as-is) —
+      // that behavior is untouched, this only concerns what happens to the reload afterward.
       const row = await supabaseRest.rpc("fn_close_cash_register", { p_register_id: registerId, p_actual_cash: Number(actualCash), p_difference_reason: differenceReason || null, p_notes: notes || null });
-      await refreshBoth(); return { success: true, register: row };
+      try {
+        await refreshBoth();
+      } catch (e) {
+        // Same pattern as movement()/open() above: the register is already closed on the server
+        // at this point — only the screen refresh failed. `row` is the closed register as returned
+        // by the RPC itself, so the caller still has real, correct data to show (e.g. the actual
+        // vs. expected difference) even though the background reload didn't complete.
+        reportLoadError?.("cashRegisters", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The register was closed, but the screen could not refresh. Reload the page to see the latest data.");
+        err.rpcSucceeded = true;
+        err.register = row;
+        throw err;
+      }
+      return { success: true, register: row };
     },
-  }), [businessId, reload, refreshBoth, reportLoadError]);
+  }), [businessId, reload, refreshBoth]);
   return [data, ops];
 }
 
@@ -3536,7 +3577,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
     try {
       const r = await openCashRegister({ locationId, openingCash, notes: openNotes }, opCtx);
       if (!r.success) { setError(r.error); return; }
-      showToast("Register opened");
+      showToast(r.staleData ? r.message : "Register opened", r.staleData ? "good" : undefined);
       setMode("status"); setOpeningCash(""); setOpenNotes("");
     } finally { setSubmitting(false); }
   };
@@ -3553,11 +3594,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
     try {
       const r = await recordCashMovement({ registerId: register.id, movementType, amount: movementAmount, reason: movementReason, notes: movementNotes }, opCtx);
       if (!r.success) { setError(r.error); return; }
-      if (r.staleData) {
-        showToast(r.warning || "Movement saved — refresh may be needed.", "warn");
-      } else {
-        showToast("Movement recorded");
-      }
+      showToast(r.staleData ? r.message : "Movement recorded", r.staleData ? "good" : undefined);
       setMode("status"); setMovementAmount(""); setMovementReason(""); setMovementNotes("");
     } finally { setSubmitting(false); }
   };
@@ -3576,7 +3613,15 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
     try {
       const r = await closeCashRegister({ registerId: register.id, actualCash, differenceReason, notes: closeNotes }, opCtx);
       if (!r.success) { setError(r.error); return; }
-      showToast(r.register.difference === 0 ? "Register closed — balanced" : `Register closed — ${DIFF_STATUS(r.register.difference)} ${fmtMoney(Math.abs(r.register.difference))}`, r.register.difference === 0 ? "good" : "danger");
+      if (r.staleData) {
+        // The RPC already confirmed the close — never say "could not close" here. r.register is
+        // still the real, correct closed register as returned by the RPC itself (not a mapped
+        // reload row), so it isn't relied on for the diff-specific wording below; the generic
+        // "saved, but the screen could not refresh" message from closeCashRegister covers it.
+        showToast(r.message, "good");
+      } else {
+        showToast(r.register.difference === 0 ? "Register closed — balanced" : `Register closed — ${DIFF_STATUS(r.register.difference)} ${fmtMoney(Math.abs(r.register.difference))}`, r.register.difference === 0 ? "good" : "danger");
+      }
       setMode("status"); setActualCash(""); setDifferenceReason(""); setCloseNotes("");
     } finally { setSubmitting(false); }
   };
@@ -6298,15 +6343,15 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
         try {
           await purchaseOps.pay(po.id, amt, paymentMethod);
           showToast(`Payment recorded: ${fmtMoney(amt)} to ${po.poNumber}`);
-          onClose(); return;
+          onClose();
         } catch (e) {
-          if (e?.rpcSucceeded) {
-            showToast(e.message || "Payment saved — refresh may be needed.", "warn");
-            onClose(); return;
-          }
-          setError(e?.message || "Could not record supplier payment.");
-          return;
+          // rpcSucceeded (set by useSupabasePurchases.pay) means fn_pay_purchase_order itself
+          // already committed — only the subsequent screen refresh failed. This must never be
+          // shown as "payment failed", or the user could be misled into paying again.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
+          else { setError(e?.message || "Could not record this payment."); }
         }
+        return;
       }
       // Re-derive the freshest PO state right before writing, so a duplicate click (or a second
       // payment made moments later) can never double-pay: amountPaid only ever moves forward once.
@@ -6534,19 +6579,9 @@ function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, exp
     setBusy(true);
     try {
       if (expenseOps?.remote) {
-        try {
-          const result = await expenseOps.reverse(expense.id);
-          if (result?.staleData) {
-            showToast(result.warning || "Expense was reversed, but some data could not be refreshed. Reload the page before trying again.", "warn");
-          } else {
-            showToast(`Expense reversed: ${fmtMoney(expense.amount)}`, "danger");
-          }
-          setConfirming(false); onClose(); return;
-        } catch (e) {
-          showToast(e?.message || "Could not reverse expense.", "danger");
-          setConfirming(false);
-          return;
-        }
+        await expenseOps.reverse(expense.id);
+        showToast(`Expense reversed: ${fmtMoney(expense.amount)}`, "danger");
+        setConfirming(false); onClose(); return;
       }
       const latest = expenses.find((e) => e.id === expense.id) || expense;
 
@@ -6627,18 +6662,8 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       const loc = (locations || []).find((l) => l.id === locationId);
       if (expenseOps?.remote) {
         if (!locationId) { setError("Select a location."); return; }
-        try {
-          const result = await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
-          if (result?.staleData) {
-            showToast(result.warning || "Expense was saved, but some data could not be refreshed. Reload the page before adding it again.", "warn");
-          } else {
-            showToast(`Expense added: ${fmtMoney(amt)}`);
-          }
-          onClose(); return;
-        } catch (e) {
-          setError(e?.message || "Could not add expense.");
-          return;
-        }
+        await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
+        showToast(`Expense added: ${fmtMoney(amt)}`); onClose(); return;
       }
       const exp = { id: uid("exp"), amount: round2(amt), date: parseLocalDate(date).toISOString(), category, vendor, paymentMethod, locationId, location: loc?.name || "", recurring, description, status: "completed", createdBy: currentUser?.id };
       await setExpenses([exp, ...expenses]);
