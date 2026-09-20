@@ -2473,6 +2473,22 @@ function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearL
     return mapped;
   }, [businessId, clearLoadError]);
   useEffect(() => { reload().catch((e) => { console.error("Supabase expenses load failed", e); reportLoadError?.("expenses", "initial", e.message); }); }, [reload, reportLoadError]);
+  const refreshAfterWrite = useCallback(async (actionLabel) => {
+    const jobs = [
+      { key: "expenses", run: reload },
+      ...(reloadCashFlow ? [{ key: "cashFlow", run: reloadCashFlow }] : []),
+    ];
+    const results = await Promise.allSettled(jobs.map((job) => job.run()));
+    const failed = [];
+    results.forEach((result, index) => {
+      if (result.status !== "rejected") return;
+      const job = jobs[index];
+      const message = result.reason?.message || `${job.key} refresh failed after ${actionLabel} was saved.`;
+      reportLoadError?.(job.key, "reload", message);
+      failed.push(job.key);
+    });
+    return failed;
+  }, [reload, reloadCashFlow, reportLoadError]);
   const ops = useMemo(() => ({ remote: true, reload,
     async create(x) {
       const row = await supabaseRest.rpc("fn_create_expense", {
@@ -2480,13 +2496,21 @@ function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearL
         p_category: x.category, p_vendor: x.vendor || null, p_amount: Number(x.amount),
         p_payment_method: x.paymentMethod || null, p_recurring: !!x.recurring, p_notes: x.description || null,
       });
-      await Promise.all([reload(), reloadCashFlow?.()]); return row;
+      const failedRefreshes = await refreshAfterWrite("expense");
+      if (failedRefreshes.length) {
+        return { row, staleData: true, warning: "Expense was saved, but some data could not be refreshed. Reload the page before adding it again." };
+      }
+      return row;
     },
     async reverse(id) {
       const row = await supabaseRest.rpc("fn_reverse_expense", { p_expense_id: id });
-      await Promise.all([reload(), reloadCashFlow?.()]); return row;
+      const failedRefreshes = await refreshAfterWrite("expense reversal");
+      if (failedRefreshes.length) {
+        return { row, staleData: true, warning: "Expense was reversed, but some data could not be refreshed. Reload the page before trying to reverse it again." };
+      }
+      return row;
     },
-  }), [businessId, reload, reloadCashFlow]);
+  }), [businessId, reload, refreshAfterWrite]);
   return [data, ops];
 }
 
@@ -6510,9 +6534,19 @@ function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, exp
     setBusy(true);
     try {
       if (expenseOps?.remote) {
-        await expenseOps.reverse(expense.id);
-        showToast(`Expense reversed: ${fmtMoney(expense.amount)}`, "danger");
-        setConfirming(false); onClose(); return;
+        try {
+          const result = await expenseOps.reverse(expense.id);
+          if (result?.staleData) {
+            showToast(result.warning || "Expense was reversed, but some data could not be refreshed. Reload the page before trying again.", "warn");
+          } else {
+            showToast(`Expense reversed: ${fmtMoney(expense.amount)}`, "danger");
+          }
+          setConfirming(false); onClose(); return;
+        } catch (e) {
+          showToast(e?.message || "Could not reverse expense.", "danger");
+          setConfirming(false);
+          return;
+        }
       }
       const latest = expenses.find((e) => e.id === expense.id) || expense;
 
@@ -6593,8 +6627,18 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       const loc = (locations || []).find((l) => l.id === locationId);
       if (expenseOps?.remote) {
         if (!locationId) { setError("Select a location."); return; }
-        await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
-        showToast(`Expense added: ${fmtMoney(amt)}`); onClose(); return;
+        try {
+          const result = await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
+          if (result?.staleData) {
+            showToast(result.warning || "Expense was saved, but some data could not be refreshed. Reload the page before adding it again.", "warn");
+          } else {
+            showToast(`Expense added: ${fmtMoney(amt)}`);
+          }
+          onClose(); return;
+        } catch (e) {
+          setError(e?.message || "Could not add expense.");
+          return;
+        }
       }
       const exp = { id: uid("exp"), amount: round2(amt), date: parseLocalDate(date).toISOString(), category, vendor, paymentMethod, locationId, location: loc?.name || "", recurring, description, status: "completed", createdBy: currentUser?.id };
       await setExpenses([exp, ...expenses]);
