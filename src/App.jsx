@@ -2611,12 +2611,54 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
       return row;
     },
     async reversePayment(paymentId) {
+      // fn_reverse_po_payment itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "reversal failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_reverse_po_payment", { p_payment_id: paymentId });
-      await refreshAll({ cash: true }); return row;
+      try {
+        await refreshAll({ cash: true });
+      } catch (e) {
+        // The payment reversal is already confirmed on the server at this point — only the screen
+        // refresh failed. refreshAll({cash:true}) reloads both this hook's own "purchases" data
+        // and cash flow together (Promise.all), and a rejection here doesn't tell us which one
+        // actually failed — so both keys are reported, reusing the exact loadErrors/DataLoadBanner
+        // mechanism from subfases 1-2 rather than inventing a second error channel. The thrown
+        // error is tagged so the caller can tell this apart from a real reversal failure and avoid
+        // showing a false "reversal failed" message that could invite a duplicate reversal.
+        reportLoadError?.("purchases", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The payment was reversed successfully, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
+      return row;
     },
     async reversePurchase(poId) {
+      // fn_reverse_purchase_order itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "reversal failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_reverse_purchase_order", { p_purchase_order_id: poId });
-      await refreshAll({ inventory: true, cash: true }); return row;
+      try {
+        await refreshAll({ inventory: true, cash: true });
+      } catch (e) {
+        // The purchase reversal (inventory pulled back + cash corrected) is already confirmed on
+        // the server at this point — only the screen refresh failed. refreshAll({inventory:true,
+        // cash:true}) reloads this hook's own "purchases" data, inventory, and cash flow together
+        // (Promise.all), and a rejection here doesn't tell us which one actually failed — so all
+        // three keys are reported, reusing the exact loadErrors/DataLoadBanner mechanism from
+        // subfases 1-2. The thrown error is tagged so the caller can tell this apart from a real
+        // reversal failure and avoid showing a false "reversal failed" message that could invite a
+        // duplicate reversal of inventory and cash.
+        reportLoadError?.("purchases", "reload", e.message);
+        reportLoadError?.("inventory", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The purchase was reversed successfully, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
+      return row;
     },
     async cancel(poId) {
       const row = await supabaseRest.rpc("fn_cancel_purchase_order", { p_purchase_order_id: poId });
@@ -5960,9 +6002,19 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
     setBusy(true);
     try {
       if (purchaseOps?.remote) {
-        await purchaseOps.reversePurchase(po.id);
-        showToast(`${po.poNumber} reversed · inventory & cash corrected`, "danger");
-        setReversing(false); onClose(); return;
+        try {
+          await purchaseOps.reversePurchase(po.id);
+          showToast(`${po.poNumber} reversed · inventory & cash corrected`, "danger");
+          setReversing(false); onClose();
+        } catch (e) {
+          // rpcSucceeded (set by useSupabasePurchases.reversePurchase) means fn_reverse_purchase_order
+          // itself already committed — inventory and cash were really pulled back. This must never
+          // be shown as "reversal failed", or the user could be misled into reversing the same
+          // purchase order again, double-counting the pullback.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); setReversing(false); onClose(); }
+          else { showToast(e?.message || "Could not reverse this purchase order.", "danger"); }
+        }
+        return;
       }
       const latest = purchaseOrders.find((p) => p.id === po.id) || po;
       if (latest.status === "Reversed") { showToast("This purchase was already reversed.", "danger"); setReversing(false); onClose(); return; }
@@ -6029,9 +6081,18 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
     setBusy(true);
     try {
       if (purchaseOps?.remote) {
-        await purchaseOps.reversePayment(payment.id);
-        showToast(`Payment of ${fmtMoney(payment.amount)} reversed`, "danger");
-        setReversingPaymentId(null); return;
+        try {
+          await purchaseOps.reversePayment(payment.id);
+          showToast(`Payment of ${fmtMoney(payment.amount)} reversed`, "danger");
+          setReversingPaymentId(null);
+        } catch (e) {
+          // rpcSucceeded (set by useSupabasePurchases.reversePayment) means fn_reverse_po_payment
+          // itself already committed. This must never be shown as "reversal failed", or the user
+          // could be misled into reversing the same payment again.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); setReversingPaymentId(null); }
+          else { showToast(e?.message || "Could not reverse this payment.", "danger"); }
+        }
+        return;
       }
       const latestTx = cashTx.find((t) => t.id === payment.id);
       if (!latestTx) { showToast("Payment not found.", "danger"); setReversingPaymentId(null); return; }
