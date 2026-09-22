@@ -2415,17 +2415,38 @@ function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError
 
   const persist = useCallback(async (next) => {
     const before = data || [];
+    let reversedAny = false; // tracks whether fn_reverse_sale actually ran during this call —
+    // fulfillment (fn_advance_sale_fulfillment) is explicitly out of scope for this fix and its
+    // reload behavior below is left completely unchanged.
     for (const n of next || []) {
       const old = before.find((x) => x.id === n.id);
       if (!old) continue; // creation is exclusively fn_create_sale
       if (old.status !== "cancelled" && n.status === "cancelled") {
+        // fn_reverse_sale itself is NOT wrapped here — a failure there must keep throwing
+        // normally, so the caller's existing "cancel failed" handling is unchanged.
         await supabaseRest.rpc("fn_reverse_sale", { p_sale_id: n.id });
+        reversedAny = true;
       } else if (old.fulfillmentStatus !== n.fulfillmentStatus) {
         await supabaseRest.rpc("fn_advance_sale_fulfillment", { p_sale_id: n.id });
       }
     }
-    return reload();
-  }, [data, reload]);
+    if (!reversedAny) return reload(); // fulfillment-only (or no-op) path — behavior unchanged
+    try {
+      return await reload();
+    } catch (e) {
+      // The cancellation is already confirmed on the server at this point — only the screen
+      // refresh failed. Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2.
+      // The thrown error is tagged so the caller can tell this apart from a real cancellation
+      // failure and avoid showing a false "cancel failed" message that could invite a duplicate
+      // reversal — and, critically, so the caller can still proceed to attempt the separate
+      // loyalty reversal RPC below it, rather than this exception blocking that entirely.
+      reportLoadError?.("sales", "reload", e.message);
+      const err = new Error("The sale was cancelled, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+      err.rpcSucceeded = true;
+      err.staleData = true;
+      throw err;
+    }
+  }, [data, reload, reportLoadError]);
 
   const ops = useMemo(() => ({ remote: true, reload, async create(pendingSale) {
     const row = await supabaseRest.rpc("fn_create_sale", {
@@ -4756,6 +4777,7 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       // reaching it).
       const latest = sales.find((s) => s.id === sale.id) || sale;
       const alreadyCancelled = latest.status === "cancelled";
+      let cancellationStale = false; // set when fn_reverse_sale succeeded but the reload after it failed
 
       // Reverse the recipe deductions for every line item, restoring inventory exactly.
       const restore = {};
@@ -4776,7 +4798,23 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
           // catalog metadata / are wired to a no-op) and actively broken for cashTx (persistCash
           // is deliberately guarded — phase4WriteGuard — to prevent exactly this kind of legacy
           // local write to a now server-authoritative ledger).
-          await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
+          try {
+            await persistSales(sales.map((s) => (s.id === sale.id ? { ...s, status: "cancelled", cancelledAt: nowISO(), cancelledBy: currentUser?.id } : s)));
+          } catch (e) {
+            // rpcSucceeded (set by useSupabaseSales.persist) means fn_reverse_sale itself already
+            // committed — the sale really is cancelled. This must never be shown as "cancel
+            // failed", and — critically — must NOT stop this function here: the separate loyalty
+            // reversal RPC below still needs to run for a genuinely cancelled sale, exactly as it
+            // would on a normal success. Only a REAL cancellation failure (no rpcSucceeded) stops
+            // the flow — reversing loyalty for a sale that was never actually cancelled would be
+            // wrong.
+            if (e?.rpcSucceeded) {
+              cancellationStale = true;
+            } else {
+              showToast(e?.message || "Could not cancel this sale.", "danger");
+              return;
+            }
+          }
         } else {
           // Legacy local fallback — unchanged, used only when there is no Supabase session.
           // Same retry-safety pattern as finalizeSuccessfulPayment: inventory qty + the
@@ -4840,7 +4878,9 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       }
       await logAudit(auditLog, setAuditLog, currentUser, "Sale Reversed", `Order #${sale.orderNo} · ${fmtMoney(sale.total)} · inventory restored`);
 
-      showToast(`Sale #${sale.orderNo} cancelled · inventory restored`, "danger");
+      showToast(cancellationStale
+        ? `Sale #${sale.orderNo} cancelled, but the screen could not refresh. Refresh the page to see the latest data.`
+        : `Sale #${sale.orderNo} cancelled · inventory restored`, "danger");
       setConfirming(false);
       onClose();
     } finally {
