@@ -2554,6 +2554,8 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
   }, [reload, reloadInventory, reloadCashFlow]);
   const ops = useMemo(() => ({ remote: true, reload,
     async create(x) {
+      // fn_create_purchase_order itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "create failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_create_purchase_order", {
         p_business_id: businessId, p_supplier_id: x.supplierId, p_location_id: x.locationId,
         p_order_date: x.orderDate, p_expected_date: x.expectedDate || null, p_status: x.status,
@@ -2561,7 +2563,24 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
         p_discount: Number(x.discount || 0), p_tax: Number(x.tax || 0),
         p_items: (x.items || []).map((it) => ({ inventory_item_id: it.itemId, qty: Number(it.qty), unit: it.unit, unit_cost: Number(it.unitCost) })),
       });
-      await refreshAll(); return row;
+      try {
+        await refreshAll();
+      } catch (e) {
+        // The purchase order is already created on the server at this point — only the screen
+        // refresh failed. refreshAll() with no args only reloads this hook's own "purchases" data
+        // (inventory/cash flow are untouched by a plain create), so that is the one key reported,
+        // reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2 rather than
+        // inventing a second error channel. The thrown error is tagged so the caller can tell this
+        // apart from a real create failure and avoid showing a false "create failed" message that
+        // could invite a duplicate purchase order.
+        reportLoadError?.("purchases", "reload", e.message);
+        const err = new Error("The purchase order was created, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
+      return row;
     },
     async receive(poId, receiveLines) {
       // fn_receive_purchase_order itself is NOT wrapped here — a failure there must keep throwing
@@ -5888,11 +5907,20 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     setSubmitting(true);
     try {
       if (purchaseOps?.remote) {
-        await purchaseOps.create({ supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
-          discount: Number(discount) || 0, tax: Number(tax) || 0,
-          items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)) })) });
-        showToast(`Purchase order created · ${fmtMoney(grandTotal)}`);
-        onClose();
+        try {
+          await purchaseOps.create({ supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
+            discount: Number(discount) || 0, tax: Number(tax) || 0,
+            items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)) })) });
+          showToast(`Purchase order created · ${fmtMoney(grandTotal)}`);
+          onClose();
+        } catch (e) {
+          // rpcSucceeded (set by useSupabasePurchases.create) means fn_create_purchase_order
+          // itself already committed — a real purchase order now exists. This must never be
+          // shown as "create failed", or the user could be misled into creating a duplicate
+          // purchase order for the same items.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
+          else { setError(e?.message || "Could not create this purchase order."); }
+        }
         return;
       }
       const poNumber = `PO-${1000 + purchaseOrders.length + 1}`;
