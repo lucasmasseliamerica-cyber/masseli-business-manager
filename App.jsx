@@ -2290,27 +2290,70 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
     },
     async receive(item, qty, notes = "") {
       if (!item?.locationId) throw new Error("This item has no stock location.");
-      await supabaseRest.rpc("fn_receive_manual_stock", {
+      // fn_receive_manual_stock itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "receive failed" handling is unchanged.
+      const row = await supabaseRest.rpc("fn_receive_manual_stock", {
         p_business_id: businessId, p_inventory_item_id: item.id, p_location_id: item.locationId,
         p_qty: Number(qty), p_notes: notes || null,
       });
-      return reload();
+      try {
+        return await reload();
+      } catch (e) {
+        // The receipt is already confirmed on the server at this point — only the screen refresh
+        // failed. This hook's reload() covers both inventory items/stock and transactions under
+        // one "inventory" key (see reload's own clearLoadError call above), so that is the one
+        // key reported, reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2.
+        // The thrown error is tagged so the caller can tell this apart from a real receive failure
+        // and avoid showing a false "receive failed" message that could invite duplicate stock.
+        reportLoadError?.("inventory", "reload", e.message);
+        const err = new Error("The stock was received, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
     },
     async adjust(item, newQty, reason, notes = "") {
       if (!item?.locationId) throw new Error("This item has no stock location.");
-      await supabaseRest.rpc("fn_adjust_inventory_count", {
+      // fn_adjust_inventory_count itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "adjust failed" handling is unchanged.
+      const row = await supabaseRest.rpc("fn_adjust_inventory_count", {
         p_business_id: businessId, p_inventory_item_id: item.id, p_location_id: item.locationId,
         p_new_qty: Number(newQty), p_reason: reason || "Physical Count", p_notes: notes || null,
       });
-      return reload();
+      try {
+        return await reload();
+      } catch (e) {
+        // Same pattern as receive() above: the count is already confirmed on the server — only
+        // the screen refresh failed.
+        reportLoadError?.("inventory", "reload", e.message);
+        const err = new Error("The count was saved, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
     },
     async waste(item, qty, reason, notes = "") {
       if (!item?.locationId) throw new Error("This item has no stock location.");
-      await supabaseRest.rpc("fn_record_waste", {
+      // fn_record_waste itself is NOT wrapped here — a failure there must keep throwing normally,
+      // so the caller's existing "waste failed" handling is unchanged.
+      const row = await supabaseRest.rpc("fn_record_waste", {
         p_business_id: businessId, p_inventory_item_id: item.id, p_location_id: item.locationId,
         p_qty: Number(qty), p_reason: reason || "Other", p_notes: notes || null,
       });
-      return reload();
+      try {
+        return await reload();
+      } catch (e) {
+        // Same pattern as receive()/adjust() above: the waste entry is already confirmed on the
+        // server — only the screen refresh failed.
+        reportLoadError?.("inventory", "reload", e.message);
+        const err = new Error("The waste was recorded, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
     },
   }), [businessId, reload]);
 
@@ -5579,9 +5622,17 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
         if (mode === "receive") {
           const addQty = Number(qty);
           if (!addQty || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
-          await inventoryOps.receive(current, addQty, notes);
-          await logAudit(auditLog, setAuditLog, currentUser, "Stock Received (manual)", `${current.name} +${addQty} ${current.unit}`);
-          showToast(`Received ${addQty} ${current.unit} of ${current.name}`);
+          try {
+            await inventoryOps.receive(current, addQty, notes);
+            await logAudit(auditLog, setAuditLog, currentUser, "Stock Received (manual)", `${current.name} +${addQty} ${current.unit}`);
+            showToast(`Received ${addQty} ${current.unit} of ${current.name}`);
+          } catch (e) {
+            // rpcSucceeded (set by useSupabaseInventory.receive) means fn_receive_manual_stock
+            // itself already committed — real stock was added. This must never be shown as
+            // "receive failed", or the user could be misled into receiving the same stock again.
+            if (e?.rpcSucceeded) { showToast(e.message, "good"); }
+            else { setError(e?.message || "Could not receive this stock."); return; }
+          }
         } else if (mode === "adjust") {
           // Validated explicitly instead of silently clamping — clamp0(round2(Number(newQty)))
           // used to turn an invalid or negative entry (e.g. a stray "-50") into "0" with no
@@ -5594,16 +5645,32 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
           if (parsedQty < 0) { setError("Counted quantity cannot be negative."); return; }
           const nq = round2(parsedQty);
           if (nq === current.qty) { showToast("No change to save"); onClose(); return; }
-          await inventoryOps.adjust(current, nq, reason, notes);
-          await logAudit(auditLog, setAuditLog, currentUser, "Stock Adjusted", `${current.name} target ${nq} ${current.unit} · ${reason}`);
-          showToast(`${current.name} count updated to ${nq} ${current.unit}`);
+          try {
+            await inventoryOps.adjust(current, nq, reason, notes);
+            await logAudit(auditLog, setAuditLog, currentUser, "Stock Adjusted", `${current.name} target ${nq} ${current.unit} · ${reason}`);
+            showToast(`${current.name} count updated to ${nq} ${current.unit}`);
+          } catch (e) {
+            // rpcSucceeded (set by useSupabaseInventory.adjust) means fn_adjust_inventory_count
+            // itself already committed — the count is real. This must never be shown as "adjust
+            // failed", or the user could be misled into re-adjusting to the same count again.
+            if (e?.rpcSucceeded) { showToast(e.message, "good"); }
+            else { setError(e?.message || "Could not save this count."); return; }
+          }
         } else if (mode === "waste") {
           const wasteQty = Number(qty);
           if (!wasteQty || wasteQty <= 0) { setError("Enter a quantity greater than zero."); return; }
           if (wasteQty > current.qty) { setError(`Only ${current.qty} ${current.unit} in stock — can't waste more than that.`); return; }
-          await inventoryOps.waste(current, wasteQty, reason, notes);
-          await logAudit(auditLog, setAuditLog, currentUser, "Waste Recorded", `${current.name} -${wasteQty} ${current.unit} · ${reason}`);
-          showToast(`Waste logged: ${wasteQty} ${current.unit}`, "danger");
+          try {
+            await inventoryOps.waste(current, wasteQty, reason, notes);
+            await logAudit(auditLog, setAuditLog, currentUser, "Waste Recorded", `${current.name} -${wasteQty} ${current.unit} · ${reason}`);
+            showToast(`Waste logged: ${wasteQty} ${current.unit}`, "danger");
+          } catch (e) {
+            // rpcSucceeded (set by useSupabaseInventory.waste) means fn_record_waste itself
+            // already committed — real waste was recorded. This must never be shown as "waste
+            // failed", or the user could be misled into logging the same waste again.
+            if (e?.rpcSucceeded) { showToast(e.message, "good"); }
+            else { setError(e?.message || "Could not record this waste."); return; }
+          }
         }
         onClose();
         return;
