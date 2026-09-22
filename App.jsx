@@ -2280,13 +2280,32 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
     remote: true,
     async createItem(payload) {
       if (!payload.locationId) throw new Error("Select a storage location.");
-      await supabaseRest.rpc("fn_add_initial_stock", {
+      // fn_add_initial_stock itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "create failed" handling is unchanged. This is a
+      // single RPC (not several separate client-side writes), so there is no partial-write risk
+      // to reason about here — the server either committed the new item or it didn't.
+      const row = await supabaseRest.rpc("fn_add_initial_stock", {
         p_business_id: businessId, p_name: payload.name, p_sku: payload.sku || null, p_category: payload.category || null,
         p_unit: payload.unit, p_min_qty: Number(payload.minQty || 0), p_max_qty: Number(payload.maxQty || 0),
         p_supplier_id: payload.supplierId || null, p_location_id: payload.locationId, p_expires_at: payload.expiresAt || null,
         p_notes: payload.notes || null, p_starting_qty: Number(payload.qty || 0), p_starting_cost: Number(payload.costPerUnit || 0),
       });
-      return reload();
+      try {
+        return await reload();
+      } catch (e) {
+        // The item is already created on the server at this point — only the screen refresh
+        // failed. This hook's reload() covers both inventory items/stock and transactions under
+        // one "inventory" key (same as receive/adjust/waste), so that is the one key reported,
+        // reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2. The thrown
+        // error is tagged so the caller can tell this apart from a real create failure and avoid
+        // showing a false "create failed" message that could invite a duplicate item.
+        reportLoadError?.("inventory", "reload", e.message);
+        const err = new Error("The item was created, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
     },
     async receive(item, qty, notes = "") {
       if (!item?.locationId) throw new Error("This item has no stock location.");
@@ -5522,10 +5541,18 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
         supplierId, locationId, location: locName, notes,
       };
       if (inventoryOps?.remote) {
-        await inventoryOps.createItem(item);
-        await logAudit(auditLog, setAuditLog, currentUser, "Inventory Item Created", `${item.name} · starting qty ${item.qty} ${item.unit}`);
-        showToast(`${item.name} added to inventory`);
-        onClose();
+        try {
+          await inventoryOps.createItem(item);
+          await logAudit(auditLog, setAuditLog, currentUser, "Inventory Item Created", `${item.name} · starting qty ${item.qty} ${item.unit}`);
+          showToast(`${item.name} added to inventory`);
+          onClose();
+        } catch (e) {
+          // rpcSucceeded (set by useSupabaseInventory.createItem) means fn_add_initial_stock
+          // itself already committed — the item really exists. This must never be shown as
+          // "create failed", or the user could be misled into creating a duplicate item.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
+          else { setError(e?.message || "Could not create this item."); }
+        }
         return;
       }
       await setInventory([item, ...inventory]);
