@@ -2495,16 +2495,53 @@ function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearL
   useEffect(() => { reload().catch((e) => { console.error("Supabase expenses load failed", e); reportLoadError?.("expenses", "initial", e.message); }); }, [reload, reportLoadError]);
   const ops = useMemo(() => ({ remote: true, reload,
     async create(x) {
+      // fn_create_expense itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "create failed" handling is unchanged.
       const row = await supabaseRest.rpc("fn_create_expense", {
         p_business_id: businessId, p_location_id: x.locationId, p_expense_date: x.date,
         p_category: x.category, p_vendor: x.vendor || null, p_amount: Number(x.amount),
         p_payment_method: x.paymentMethod || null, p_recurring: !!x.recurring, p_notes: x.description || null,
       });
-      await Promise.all([reload(), reloadCashFlow?.()]); return row;
+      try {
+        await Promise.all([reload(), reloadCashFlow?.()]);
+      } catch (e) {
+        // The expense is already created on the server at this point — only the screen refresh
+        // failed. Both reload() (this hook's own "expenses" data) and reloadCashFlow?.() run in
+        // the same Promise.all, and a rejection here doesn't tell us which one actually failed —
+        // so both keys are reported, reusing the exact loadErrors/DataLoadBanner mechanism from
+        // subfases 1-2 rather than inventing a second error channel. The thrown error is tagged so
+        // the caller can tell this apart from a real create failure and avoid showing a false
+        // "create failed" message that could invite a duplicate expense.
+        reportLoadError?.("expenses", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The expense was created, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
+      return row;
     },
     async reverse(id) {
+      // fn_reverse_expense itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "reverse failed" handling is unchanged. Its own
+      // related_cash_register_id fix (server-side) is untouched by this — this only concerns what
+      // happens to the reload afterward.
       const row = await supabaseRest.rpc("fn_reverse_expense", { p_expense_id: id });
-      await Promise.all([reload(), reloadCashFlow?.()]); return row;
+      try {
+        await Promise.all([reload(), reloadCashFlow?.()]);
+      } catch (e) {
+        // Same pattern as create() above: the reversal is already confirmed on the server — only
+        // the screen refresh failed. Both keys are reported for the same Promise.all reason.
+        reportLoadError?.("expenses", "reload", e.message);
+        reportLoadError?.("cashFlow", "reload", e.message);
+        const err = new Error("The expense was reversed, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
+      return row;
     },
   }), [businessId, reload, reloadCashFlow]);
   return [data, ops];
@@ -6701,9 +6738,18 @@ function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, exp
     setBusy(true);
     try {
       if (expenseOps?.remote) {
-        await expenseOps.reverse(expense.id);
-        showToast(`Expense reversed: ${fmtMoney(expense.amount)}`, "danger");
-        setConfirming(false); onClose(); return;
+        try {
+          await expenseOps.reverse(expense.id);
+          showToast(`Expense reversed: ${fmtMoney(expense.amount)}`, "danger");
+          setConfirming(false); onClose();
+        } catch (e) {
+          // rpcSucceeded (set by useSupabaseExpenses.ops.reverse) means fn_reverse_expense itself
+          // already committed. This must never be shown as "reverse failed", or the user could be
+          // misled into reversing the same expense again.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); setConfirming(false); onClose(); }
+          else { showToast(e?.message || "Could not reverse this expense.", "danger"); }
+        }
+        return;
       }
       const latest = expenses.find((e) => e.id === expense.id) || expense;
 
@@ -6784,8 +6830,17 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       const loc = (locations || []).find((l) => l.id === locationId);
       if (expenseOps?.remote) {
         if (!locationId) { setError("Select a location."); return; }
-        await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
-        showToast(`Expense added: ${fmtMoney(amt)}`); onClose(); return;
+        try {
+          await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
+          showToast(`Expense added: ${fmtMoney(amt)}`); onClose();
+        } catch (e) {
+          // rpcSucceeded (set by useSupabaseExpenses.ops.create) means fn_create_expense itself
+          // already committed — a real expense now exists. This must never be shown as "create
+          // failed", or the user could be misled into adding a duplicate expense.
+          if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
+          else { setError(e?.message || "Could not save this expense."); }
+        }
+        return;
       }
       const exp = { id: uid("exp"), amount: round2(amt), date: parseLocalDate(date).toISOString(), category, vendor, paymentMethod, locationId, location: loc?.name || "", recurring, description, status: "completed", createdBy: currentUser?.id };
       await setExpenses([exp, ...expenses]);
