@@ -725,9 +725,44 @@ async function finalizeSuccessfulPayment(pendingSale, paymentDetails, ctx) {
     throw new Error(`Phase 3 Supabase sales is not active in this build (${NEXALVO_BUILD}). Sale was NOT saved.`);
   }
   if (supabaseSalesOps?.remote) {
-    const sale = await supabaseSalesOps.create(pendingSale);
+    let sale;
+    try {
+      sale = await supabaseSalesOps.create(pendingSale);
+    } catch (e) {
+      // rpcSucceeded (set by useSupabaseSales.ops.create) means fn_create_sale itself already
+      // committed — only its own reload afterward failed. e.result is the raw RPC return, used
+      // here to build a usable sale object (order number, totals, etc.) so the receipt/
+      // completedSale flow downstream still has something real to show, even though the full
+      // reloaded/mapped row isn't available. This must never be thrown onward as a generic "sale
+      // could not be saved" — the caller needs to be able to tell this apart and still proceed to
+      // commit loyalty for a sale that genuinely exists.
+      if (e?.rpcSucceeded) {
+        const row = e.result || {};
+        return {
+          id: row.id || pendingSale.id, orderNo: row.order_no ?? pendingSale.orderNo, date: row.sale_date || row.created_at || nowISO(),
+          status: row.status || "completed", fulfillmentStatus: row.fulfillment_status || pendingSale.fulfillmentStatus,
+          items: pendingSale.items, subtotal: Number(row.subtotal ?? pendingSale.subtotal ?? 0), discount: Number(row.discount ?? pendingSale.discount ?? 0),
+          tax: Number(row.tax ?? pendingSale.tax ?? 0), total: Number(row.total ?? pendingSale.total ?? 0), paymentMethod: pendingSale.paymentMethod,
+          channel: pendingSale.channel, locationId: pendingSale.locationId, location: pendingSale.location, employeeId: pendingSale.employeeId,
+          customerId: pendingSale.customerId, notes: pendingSale.notes, createdBy: currentUser?.id,
+          stripePaymentIntentId: paymentDetails?.stripePaymentIntentId ?? null,
+          staleData: true, staleMessage: e.message,
+        };
+      }
+      throw e; // true creation failure — propagate normally
+    }
     if (!sale) throw new Error("Sale was created but could not be reloaded from Supabase.");
-    if (reloadInventory) await reloadInventory();
+    try {
+      if (reloadInventory) await reloadInventory();
+    } catch (e) {
+      // The sale itself is fully committed and already reloaded successfully above (the try block
+      // did not throw) — only this separate catalog-inventory refresh afterward failed. This is a
+      // distinct reload from the one inside ops.create, and its failure must not be reported as a
+      // sale failure either.
+      ctx.reportLoadError?.("inventory", "reload", e.message);
+      return { ...sale, stripePaymentIntentId: paymentDetails?.stripePaymentIntentId ?? null,
+        staleData: true, staleMessage: "The sale was saved, but inventory data on screen may be outdated. Refresh the page." };
+    }
     return { ...sale, stripePaymentIntentId: paymentDetails?.stripePaymentIntentId ?? null };
   }
 
@@ -2463,6 +2498,8 @@ function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError
   }, [data, reload, reportLoadError]);
 
   const ops = useMemo(() => ({ remote: true, reload, async create(pendingSale) {
+    // fn_create_sale itself is NOT wrapped here — a failure there must keep throwing normally,
+    // so the caller's existing "sale could not be saved" handling is unchanged.
     const row = await supabaseRest.rpc("fn_create_sale", {
       p_sale_id: pendingSale.id, p_business_id: businessId, p_location_id: pendingSale.locationId,
       p_channel: pendingSale.channel, p_payment_method: pendingSale.paymentMethod, p_employee_id: pendingSale.employeeId || null,
@@ -2470,9 +2507,24 @@ function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError
       p_notes: pendingSale.notes || null, p_fulfillment_status: pendingSale.fulfillmentStatus,
       p_items: (pendingSale.items || []).map((it) => ({ product_id: it.productId, qty: Number(it.qty), unit_price: Number(it.unitPrice) })),
     });
-    const all = await reload();
+    let all;
+    try {
+      all = await reload();
+    } catch (e) {
+      // The sale is already created on the server at this point — only the screen refresh
+      // failed. Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2. The
+      // thrown error carries the raw RPC result (row) so the caller can still build a usable
+      // sale object — order number, id, totals — for the receipt/completedSale flow even though
+      // the full mapped/reloaded row isn't available. The caller must NOT re-run fn_create_sale.
+      reportLoadError?.("sales", "reload", e.message);
+      const err = new Error("The sale was recorded, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+      err.rpcSucceeded = true;
+      err.staleData = true;
+      err.result = row;
+      throw err;
+    }
     return all.find((s) => s.id === (row?.id || pendingSale.id)) || all.find((s) => s.id === pendingSale.id) || null;
-  }}), [businessId, reload]);
+  }}), [businessId, reload, reportLoadError]);
 
   return [data, persist, ops];
 }
@@ -3574,6 +3626,7 @@ export default function App() {
     auditLog, setAuditLog, logAudit: (action, details) => logAudit(auditLog, setAuditLog, currentUser, action, details),
     tasks, persistTasks, cashRegisters: remoteCashRegisters, setCashRegisters: phase4WriteGuard, cashRegisterOps: remoteCashRegisterOps,
     loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, shifts, setShifts, businessAlerts, setBusinessAlerts,
+    reportLoadError,
   };
 
   const visibleNav = NAV.filter((n) => navAllowed(currentUser, n.id));
@@ -4703,7 +4756,7 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
   );
 }
 
-function SalesView({ dark, sales, persistSales, products, inventory, setInventory, persistCash, cashTx, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId }) {
+function SalesView({ dark, sales, persistSales, products, inventory, setInventory, persistCash, cashTx, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId, reportLoadError }) {
   const [open, setOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
   const [filter, setFilter] = useState("today");
@@ -4753,7 +4806,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
           locations={locations} employees={employees} customers={customers} setCustomers={setCustomers} invTx={invTx} setInvTx={setInvTx} cashRegisters={cashRegisters}
           loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} loyaltyRewards={loyaltyRewards}
           currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast}
-          supabaseSalesOps={supabaseSalesOps} reloadInventory={reloadInventory} reloadLoyalty={reloadLoyalty} businessId={businessId} />
+          supabaseSalesOps={supabaseSalesOps} reloadInventory={reloadInventory} reloadLoyalty={reloadLoyalty} businessId={businessId} reportLoadError={reportLoadError} />
       )}
 
       {viewing && (
@@ -5023,7 +5076,7 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
   );
 }
 
-function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId }) {
+function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId, reportLoadError }) {
   // v1.6.4: the POS customer picker uses the same Supabase-backed collection as Customers.
   // It also performs a direct tenant refresh when the modal opens. Do not gate this refresh on
   // hasSession(): supabaseFetch already attaches the active access token and surfaces any auth error.
@@ -5103,7 +5156,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const [completedSale, setCompletedSale] = useState(null);
   const [printPreview, setPrintPreview] = useState(null); // { title, html } | null
 
-  const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId };
+  const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId, reportLoadError };
   const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog, reloadLoyalty };
   const printCtx = { settings, locations, employees, customers };
 
@@ -5115,10 +5168,30 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     if (result.success) {
       setPaymentPhase("settling");
       try {
-        // result.transactionId is the provider's own reference — "sim_..." from the simulator
-        // today, a real Stripe PaymentIntent id later. Stored regardless of which provider,
-        // since the Payment Receipt needs it for both.
-        const finalizedSale = await finalizeSuccessfulPayment(pendingSaleObj, { stripePaymentIntentId: result.transactionId ?? null }, paymentCtx);
+        // Covers BOTH payment paths that reach here — the card path (handle.promise.then below,
+        // which previously had NO error handling at all — any exception from finalization became
+        // an unhandled promise rejection with zero user feedback) and the cash/zelle/other
+        // synchronous path. A true fn_create_sale failure is shown directly here rather than
+        // relying on submit()'s own catch, since the card path never goes through submit()'s
+        // try/catch at all.
+        let finalizedSale;
+        try {
+          // result.transactionId is the provider's own reference — "sim_..." from the simulator
+          // today, a real Stripe PaymentIntent id later. Stored regardless of which provider,
+          // since the Payment Receipt needs it for both.
+          finalizedSale = await finalizeSuccessfulPayment(pendingSaleObj, { stripePaymentIntentId: result.transactionId ?? null }, paymentCtx);
+        } catch (e) {
+          console.error("Sale finalization failed", e);
+          setError(e?.message || "Sale could not be saved to Supabase.");
+          return;
+        }
+        // staleData (set by finalizeSuccessfulPayment) means fn_create_sale — and/or the
+        // inventory reload right after it — already committed; only a screen refresh afterward
+        // failed. Never treated as a failure: the receipt flow below still runs normally with the
+        // real sale data finalizeSuccessfulPayment was able to reconstruct from the RPC's own result.
+        if (finalizedSale.staleData) {
+          showToast?.(finalizedSale.staleMessage || "Sale was recorded, but the screen could not refresh. Refresh the page.", "good");
+        }
         // Loyalty is committed ONLY here — after the sale is confirmed finalized, using the
         // REAL finalized sale object (not the pre-payment pendingSale). commitLoyaltyForSale is
         // idempotent on sale.id, so even if finalizeSuccessfulPayment above returned an
