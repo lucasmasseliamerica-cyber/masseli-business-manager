@@ -1257,9 +1257,26 @@ async function commitLoyaltyForSale(sale, redeemedReward, ctx) {
   // The database function is idempotent per sale, so retries cannot duplicate the earn entry.
   if (supabaseAuth.hasSession()) {
     const rewardId = redeemedReward?.id || null;
+    // fn_commit_loyalty_for_sale itself is NOT wrapped here — a failure there must keep throwing
+    // normally, so the caller's existing "loyalty points failed" handling is unchanged.
     await supabaseRest.rpc("fn_commit_loyalty_for_sale", { p_sale_id: sale.id, p_redeemed_reward_id: rewardId });
-    if (reloadLoyalty) await reloadLoyalty();
-    return { success: true, earned: calculateLoyaltyPointsForSale(sale) };
+    const earned = calculateLoyaltyPointsForSale(sale);
+    try {
+      if (reloadLoyalty) await reloadLoyalty();
+    } catch (e) {
+      // The points are already committed on the server at this point — only the loyalty screen
+      // refresh failed. Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2.
+      // The thrown error is tagged so the caller (NewSaleModal/handlePaymentResult) can tell this
+      // apart from a real loyalty-commit failure and avoid showing a false "points failed"
+      // message — the sale and its points are both real, only this screen may be stale.
+      ctx.reportLoadError?.("loyalty", "reload", e.message);
+      const err = new Error(`Sale and ${earned} loyalty point${earned === 1 ? "" : "s"} were saved, but the loyalty screen could not refresh. Refresh the page to see the latest balance.`);
+      err.rpcSucceeded = true;
+      err.staleData = true;
+      err.earned = earned;
+      throw err;
+    }
+    return { success: true, earned };
   }
 
   let next = loyaltyTransactions || [];
@@ -1304,8 +1321,24 @@ async function reverseLoyaltyForSale(sale, ctx) {
   // originalEarn was undefined, `changed` stayed false, and the RPC was never called — the
   // reversal silently never happened even though the cancellation itself succeeded.
   if (supabaseAuth.hasSession()) {
+    // fn_reverse_loyalty_for_sale itself is NOT wrapped here — a failure there must keep throwing
+    // normally, so the caller's existing failure handling (the businessAlert in doCancel) is
+    // unchanged.
     await supabaseRest.rpc("fn_reverse_loyalty_for_sale", { p_sale_id: sale.id });
-    if (reloadLoyalty) await reloadLoyalty();
+    try {
+      if (reloadLoyalty) await reloadLoyalty();
+    } catch (e) {
+      // The reversal is already committed on the server at this point — only the loyalty screen
+      // refresh failed. Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2.
+      // The thrown error is tagged so the caller (SaleDetailModal.doCancel) can tell this apart
+      // from a real reversal failure and avoid showing a false "reversal failed" alert — the
+      // points really were reversed, only this screen may be stale.
+      ctx.reportLoadError?.("loyalty", "reload", e.message);
+      const err = new Error("Loyalty points were reversed, but the loyalty screen could not refresh. Refresh the page to see the latest balance.");
+      err.rpcSucceeded = true;
+      err.staleData = true;
+      throw err;
+    }
     return { success: true };
   }
 
@@ -4864,13 +4897,13 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
           employees={employees} customers={customers} settings={settings}
           loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} reloadLoyalty={reloadLoyalty}
           businessAlerts={businessAlerts} setBusinessAlerts={setBusinessAlerts}
-          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
+          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} reportLoadError={reportLoadError} />
       )}
     </div>
   );
 }
 
-function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, customers, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
+function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, customers, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [advancing, setAdvancing] = useState(false);
@@ -4995,7 +5028,7 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       // only a console.error, so it can actually be found and acted on.
       const loyaltyAlertKey = `loyalty_reversal_failed:${sale.id}`;
       try {
-        await reverseLoyaltyForSale(sale, { loyaltyTransactions, setLoyaltyTransactions, currentUser, reloadLoyalty });
+        await reverseLoyaltyForSale(sale, { loyaltyTransactions, setLoyaltyTransactions, currentUser, reloadLoyalty, reportLoadError });
         // A later successful reversal (e.g. this same cancellation retried, or a manual retry)
         // resolves any alert raised by an earlier failed attempt — small, reuses the exact same
         // resolve semantics reconcileAlerts already uses elsewhere (status/resolvedAt).
@@ -5003,19 +5036,31 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
           await setBusinessAlerts(businessAlerts.map((a) => (a.key === loyaltyAlertKey && a.status === "open" ? { ...a, status: "resolved", resolvedAt: nowISO() } : a)));
         }
       } catch (e) {
-        console.error("loyalty reversal failed after sale cancellation — cancellation itself is unaffected", e);
-        if (businessAlerts && setBusinessAlerts) {
-          const existingAlert = businessAlerts.find((a) => a.key === loyaltyAlertKey);
-          if (!existingAlert || existingAlert.status !== "open") {
-            const now = nowISO();
-            const alertEntry = existingAlert
-              ? { ...existingAlert, status: "open", resolvedAt: null, createdAt: now }
-              : { id: uid("alert"), key: loyaltyAlertKey, type: "loyalty_reversal_failed", severity: "warning",
-                  title: `Loyalty reversal failed for Order #${sale.orderNo}`,
-                  message: `The sale was cancelled successfully, but reversing its loyalty points failed and needs manual review.`,
-                  entityType: "sale", entityId: sale.id, locationId: sale.locationId || null, financial: false,
-                  status: "open", createdAt: now, resolvedAt: null, dismissedAt: null };
-            await setBusinessAlerts(existingAlert ? businessAlerts.map((a) => (a.key === loyaltyAlertKey ? alertEntry : a)) : [alertEntry, ...businessAlerts]);
+        // rpcSucceeded (set by reverseLoyaltyForSale) means fn_reverse_loyalty_for_sale already
+        // committed — the points really were reversed, only the loyalty screen refresh failed.
+        // This is NOT a reversal failure: no businessAlert is raised (that would wrongly suggest
+        // manual review is needed), and any earlier open alert is resolved exactly as the success
+        // path above does, since the reversal did genuinely happen.
+        if (e?.rpcSucceeded) {
+          console.warn("loyalty reversal succeeded but its reload failed — cancellation and reversal are both real", e);
+          if (businessAlerts && businessAlerts.some((a) => a.key === loyaltyAlertKey && a.status === "open")) {
+            await setBusinessAlerts(businessAlerts.map((a) => (a.key === loyaltyAlertKey && a.status === "open" ? { ...a, status: "resolved", resolvedAt: nowISO() } : a)));
+          }
+        } else {
+          console.error("loyalty reversal failed after sale cancellation — cancellation itself is unaffected", e);
+          if (businessAlerts && setBusinessAlerts) {
+            const existingAlert = businessAlerts.find((a) => a.key === loyaltyAlertKey);
+            if (!existingAlert || existingAlert.status !== "open") {
+              const now = nowISO();
+              const alertEntry = existingAlert
+                ? { ...existingAlert, status: "open", resolvedAt: null, createdAt: now }
+                : { id: uid("alert"), key: loyaltyAlertKey, type: "loyalty_reversal_failed", severity: "warning",
+                    title: `Loyalty reversal failed for Order #${sale.orderNo}`,
+                    message: `The sale was cancelled successfully, but reversing its loyalty points failed and needs manual review.`,
+                    entityType: "sale", entityId: sale.id, locationId: sale.locationId || null, financial: false,
+                    status: "open", createdAt: now, resolvedAt: null, dismissedAt: null };
+              await setBusinessAlerts(existingAlert ? businessAlerts.map((a) => (a.key === loyaltyAlertKey ? alertEntry : a)) : [alertEntry, ...businessAlerts]);
+            }
           }
         }
       }
@@ -5207,7 +5252,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const [printPreview, setPrintPreview] = useState(null); // { title, html } | null
 
   const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId, reportLoadError };
-  const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog, reloadLoyalty };
+  const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog, reloadLoyalty, reportLoadError };
   const printCtx = { settings, locations, employees, customers };
 
   // Routes a resolved PaymentResult (from any adapter — simulator today, Stripe Terminal later)
@@ -5252,8 +5297,17 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         try {
           await commitLoyaltyForSale(finalizedSale, pendingSaleObj.redeemedReward || null, loyaltyCtx);
         } catch (e) {
-          console.error("loyalty commit failed after sale finalized — sale itself is unaffected", e);
-          showToast?.(`Sale saved, but loyalty points failed: ${e?.message || "Unknown loyalty error"}`, "error");
+          // rpcSucceeded (set by commitLoyaltyForSale) means fn_commit_loyalty_for_sale already
+          // committed — the sale AND its points are both real, only the loyalty screen refresh
+          // failed. This must never be worded as "points failed" — that would wrongly suggest the
+          // points need a manual fix when they don't.
+          if (e?.rpcSucceeded) {
+            console.warn("loyalty commit succeeded but its reload failed — sale and points are both real", e);
+            showToast?.(e.message, "good");
+          } else {
+            console.error("loyalty commit failed after sale finalized — sale itself is unaffected", e);
+            showToast?.(`Sale saved, but loyalty points failed: ${e?.message || "Unknown loyalty error"}`, "error");
+          }
         }
         setCompletedSale(finalizedSale);
         setPendingCardSale(null);
@@ -7569,7 +7623,7 @@ function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUs
   );
 }
 
-function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
+function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError }) {
   const customer = (customers || []).find((c) => c.id === customerId);
   const [viewingSale, setViewingSale] = useState(null);
   const [adjustType, setAdjustType] = useState("manual_add");
@@ -7711,13 +7765,13 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
           employees={employees} customers={customers} settings={settings}
           loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} reloadLoyalty={reloadLoyalty}
           businessAlerts={businessAlerts} setBusinessAlerts={setBusinessAlerts}
-          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
+          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} reportLoadError={reportLoadError} />
       )}
     </Modal>
   );
 }
 
-function CustomersView({ dark, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast }) {
+function CustomersView({ dark, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError }) {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -7734,7 +7788,7 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
   const newThisMonth = (customers || []).filter((c) => { if (!c.createdAt) return false; const d = new Date(c.createdAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
   const totalPointsOutstanding = (customers || []).reduce((a, c) => a + getLoyaltyBalance(c.id, loyaltyTransactions), 0);
 
-  const passthroughCtx = { products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast };
+  const passthroughCtx = { products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError };
 
   return (
     <div>
