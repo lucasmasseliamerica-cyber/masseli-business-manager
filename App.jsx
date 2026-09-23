@@ -2284,6 +2284,11 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
     const before = previousRef.current || [];
     const nextIds = new Set(normalized.map((p) => p.id));
 
+    // Every write below (products upsert, deactivation, and the per-product recipe select/
+    // upsert/delete loop) is NOT wrapped in a try/catch — a failure at any of these points must
+    // keep throwing normally. These are several independent REST calls, not one atomic RPC, so a
+    // failure here means the database may be left partially updated; the caller must treat this
+    // as a real, possibly-partial failure, never a success.
     if (normalized.length) {
       await supabaseRest.upsert("products", normalized.map((p) => ({
         id: p.id, business_id: businessId, name: String(p.name || "").trim(), sku: p.sku || null,
@@ -2305,8 +2310,21 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
       if (rows.length) await supabaseRest.upsert("product_recipes", rows, "id");
       for (const r of current || []) if (!wanted.has(r.inventory_item_id)) await supabaseRest.deleteOne("product_recipes", r.id);
     }
-    return reload();
-  }, [businessId, reload]);
+    try {
+      return await reload();
+    } catch (e) {
+      // Every write above already succeeded at this point — only this final refresh failed.
+      // Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2, and the same
+      // rpcSucceeded/staleData convention already used 21 times elsewhere, even though these are
+      // plain REST writes rather than a single RPC — the same "saved, but the screen could not
+      // refresh" semantics apply either way. Never re-runs any of the writes above.
+      reportLoadError?.("products", "reload", e.message);
+      const err = new Error("The product was saved, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+      err.rpcSucceeded = true;
+      err.staleData = true;
+      throw err;
+    }
+  }, [businessId, reload, reportLoadError]);
 
   return [data, persist, reload];
 }
@@ -6982,17 +7000,51 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       await logAudit(auditLog, setAuditLog, currentUser, product ? "Product Updated" : "Product Created", `${payload.name} · ${fmtMoney(payload.price)} · cost ${fmtMoney(cost)}`);
       showToast(product ? "Product updated" : "Product created");
       onClose();
+    } catch (e) {
+      // rpcSucceeded (set by useSupabaseProducts.persist) means every write already succeeded —
+      // only the final screen refresh failed. Never worded as a failure, and the form still
+      // closes exactly as on a normal success, since the save is real.
+      if (e?.rpcSucceeded) {
+        showToast(e.message, "good");
+        onClose();
+      } else {
+        // A real failure here could mean nothing was written yet, OR that persist's own
+        // multi-step write sequence (products upsert, deactivation, then a recipe select/upsert/
+        // delete loop per product) stopped partway through — these are independent REST calls,
+        // not one atomic RPC, so this component cannot know which. The form stays open, and the
+        // message says so plainly rather than implying a clean, all-or-nothing failure.
+        setError((e?.message || "Could not save this product.") + " Some of this change may have already been saved — refresh and check the catalog before trying again.");
+      }
     } finally {
       setSubmitting(false);
     }
   };
 
   const remove = async () => {
+    if (submitting) return;
     if (!can("manageRecipesAndCosts")) { showToast("You don't have permission to delete products.", "danger"); return; }
-    await setProducts(products.filter((p) => p.id !== product.id));
-    await logAudit(auditLog, setAuditLog, currentUser, "Product Deleted", product.name);
-    showToast("Product deleted", "danger");
-    onClose();
+    setSubmitting(true);
+    try {
+      await setProducts(products.filter((p) => p.id !== product.id));
+      await logAudit(auditLog, setAuditLog, currentUser, "Product Deleted", product.name);
+      showToast("Product deleted", "danger");
+      onClose();
+    } catch (e) {
+      // rpcSucceeded (set by useSupabaseProducts.persist) means every write already succeeded —
+      // only the final screen refresh failed. Never worded as a failure, and the modal still
+      // closes exactly as on a normal success, since the deletion is real.
+      if (e?.rpcSucceeded) {
+        showToast(e.message, "good");
+        onClose();
+      } else {
+        // Same reasoning as save() above: these are independent REST calls, not one atomic RPC,
+        // so a real failure here could mean nothing changed, or that the write sequence stopped
+        // partway through. The modal stays open rather than implying a clean failure.
+        showToast((e?.message || "Could not delete this product.") + " It may have partially changed — refresh and check the catalog before trying again.", "danger");
+      }
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
