@@ -906,7 +906,17 @@ async function advanceOrderStatus(saleId, sales, persistSales) {
   const patch = { fulfillmentStatus: to };
   if (timestampField && !latest[timestampField]) patch[timestampField] = now;
   const updated = { ...latest, ...patch };
-  await persistSales(sales.map((s) => (s.id === saleId ? updated : s)));
+  try {
+    await persistSales(sales.map((s) => (s.id === saleId ? updated : s)));
+  } catch (e) {
+    // rpcSucceeded (set by useSupabaseSales.persist) means fn_advance_sale_fulfillment itself
+    // already committed — the order's status really did advance to `to` on the server. This must
+    // never be reported as { success: false }, or the caller could be misled into advancing the
+    // same order again. `updated` is already the correct locally-computed next state (status +
+    // any timestamp) — no RPC-returned data is needed to identify the sale and its new status here.
+    if (e?.rpcSucceeded) return { success: true, sale: updated, staleData: true, message: e.message };
+    return { success: false, error: e?.message || "Could not update this order's status." };
+  }
   return { success: true, sale: updated };
 }
 
@@ -2464,9 +2474,8 @@ function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError
 
   const persist = useCallback(async (next) => {
     const before = data || [];
-    let reversedAny = false; // tracks whether fn_reverse_sale actually ran during this call —
-    // fulfillment (fn_advance_sale_fulfillment) is explicitly out of scope for this fix and its
-    // reload behavior below is left completely unchanged.
+    let reversedAny = false; // tracks whether fn_reverse_sale actually ran during this call
+    let advancedAny = false; // tracks whether fn_advance_sale_fulfillment actually ran during this call
     for (const n of next || []) {
       const old = before.find((x) => x.id === n.id);
       if (!old) continue; // creation is exclusively fn_create_sale
@@ -2476,25 +2485,43 @@ function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError
         await supabaseRest.rpc("fn_reverse_sale", { p_sale_id: n.id });
         reversedAny = true;
       } else if (old.fulfillmentStatus !== n.fulfillmentStatus) {
+        // fn_advance_sale_fulfillment itself is NOT wrapped here — a failure there must keep
+        // throwing normally, so the caller's existing "advance failed" handling is unchanged.
         await supabaseRest.rpc("fn_advance_sale_fulfillment", { p_sale_id: n.id });
+        advancedAny = true;
       }
     }
-    if (!reversedAny) return reload(); // fulfillment-only (or no-op) path — behavior unchanged
-    try {
-      return await reload();
-    } catch (e) {
-      // The cancellation is already confirmed on the server at this point — only the screen
-      // refresh failed. Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2.
-      // The thrown error is tagged so the caller can tell this apart from a real cancellation
-      // failure and avoid showing a false "cancel failed" message that could invite a duplicate
-      // reversal — and, critically, so the caller can still proceed to attempt the separate
-      // loyalty reversal RPC below it, rather than this exception blocking that entirely.
-      reportLoadError?.("sales", "reload", e.message);
-      const err = new Error("The sale was cancelled, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
-      err.rpcSucceeded = true;
-      err.staleData = true;
-      throw err;
+    if (reversedAny) {
+      try {
+        return await reload();
+      } catch (e) {
+        // The cancellation is already confirmed on the server at this point — only the screen
+        // refresh failed. Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2.
+        // The thrown error is tagged so the caller can tell this apart from a real cancellation
+        // failure and avoid showing a false "cancel failed" message that could invite a duplicate
+        // reversal — and, critically, so the caller can still proceed to attempt the separate
+        // loyalty reversal RPC below it, rather than this exception blocking that entirely.
+        reportLoadError?.("sales", "reload", e.message);
+        const err = new Error("The sale was cancelled, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        throw err;
+      }
     }
+    if (advancedAny) {
+      try {
+        return await reload();
+      } catch (e) {
+        // Same pattern as the cancellation branch above: fn_advance_sale_fulfillment already
+        // committed the new status on the server — only the screen refresh failed.
+        reportLoadError?.("sales", "reload", e.message);
+        const err = new Error("The order status was updated, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        throw err;
+      }
+    }
+    return reload(); // no-op path — unchanged
   }, [data, reload, reportLoadError]);
 
   const ops = useMemo(() => ({ remote: true, reload, async create(pendingSale) {
@@ -4721,7 +4748,9 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
     try {
       const r = await advanceOrderStatus(saleId, sales, persistSales);
       if (!r.success) { showToast(r.error, "danger"); return; }
-      showToast(`Order #${r.sale.orderNo} → ${ORDER_STATUS_META[r.sale.fulfillmentStatus]?.label || r.sale.fulfillmentStatus}`);
+      // staleData (see advanceOrderStatus) means the status change already committed on the
+      // server — only the screen refresh failed. Never worded as a failure.
+      showToast(r.staleData ? r.message : `Order #${r.sale.orderNo} → ${ORDER_STATUS_META[r.sale.fulfillmentStatus]?.label || r.sale.fulfillmentStatus}`, r.staleData ? "good" : undefined);
     } finally {
       setAdvancingId(null);
     }
@@ -4849,7 +4878,9 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
     try {
       const r = await advanceOrderStatus(sale.id, sales, persistSales);
       if (!r.success) { showToast(r.error, "danger"); onClose(); return; }
-      showToast(`Order #${sale.orderNo} → ${ORDER_STATUS_META[r.sale.fulfillmentStatus]?.label || r.sale.fulfillmentStatus}`);
+      // staleData (see advanceOrderStatus) means the status change already committed on the
+      // server — only the screen refresh failed. Never worded as a failure.
+      showToast(r.staleData ? r.message : `Order #${sale.orderNo} → ${ORDER_STATUS_META[r.sale.fulfillmentStatus]?.label || r.sale.fulfillmentStatus}`, r.staleData ? "good" : undefined);
       onClose();
     } finally {
       setAdvancing(false);
