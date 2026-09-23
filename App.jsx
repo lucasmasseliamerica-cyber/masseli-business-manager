@@ -2919,8 +2919,27 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
       return row;
     },
     async cancel(poId) {
+      // fn_cancel_purchase_order itself is NOT wrapped here — a failure there must keep throwing
+      // normally, so the caller's existing "cancel failed" handling (including its own error
+      // message extraction) is unchanged.
       const row = await supabaseRest.rpc("fn_cancel_purchase_order", { p_purchase_order_id: poId });
-      await refreshAll(); return row;
+      try {
+        await refreshAll();
+      } catch (e) {
+        // The cancellation is already confirmed on the server at this point — only the screen
+        // refresh failed. refreshAll() with no args only reloads this hook's own "purchases" data,
+        // so that is the one key reported, reusing the exact loadErrors/DataLoadBanner mechanism
+        // from subfases 1-2 rather than inventing a second error channel. The thrown error is
+        // tagged so the caller can tell this apart from a real cancellation failure and avoid
+        // showing a false "could not cancel" message that could invite a duplicate cancellation.
+        reportLoadError?.("purchases", "reload", e.message);
+        const err = new Error("The purchase order was cancelled, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = row;
+        throw err;
+      }
+      return row;
     },
   }), [businessId, reload, refreshAll]);
   return [data, ops];
@@ -6575,6 +6594,16 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
                 await purchaseOps.cancel(po.id);
                 showToast(`${po.poNumber} cancelled`, "danger"); setCancelling(false); onClose(); return;
               } catch (e) {
+                // rpcSucceeded (set by useSupabasePurchases.cancel) means fn_cancel_purchase_order
+                // itself already committed — only the subsequent screen refresh failed. This must
+                // never be shown as "could not cancel", or the user could be misled into
+                // attempting to cancel the same, already-cancelled purchase order again.
+                if (e?.rpcSucceeded) {
+                  showToast(e.message, "good");
+                  setCancelling(false);
+                  onClose();
+                  return;
+                }
                 // ConfirmDialog's own run() only has try/finally (no catch) — this component must
                 // catch fn_cancel_purchase_order's rejection itself, or it becomes an uncaught
                 // promise rejection with no visible feedback, the same class of failure already
