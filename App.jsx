@@ -1300,7 +1300,21 @@ async function manualLoyaltyAdjustment({ customerId, type, points, reason }, ctx
   }
   const entry = { id: uid("loy"), customerId, type, points: amt, reason: reason.trim(), saleId: null,
     createdAt: nowISO(), createdBy: currentUser?.id, createdByName: currentUser?.name || "Unknown" };
-  await setLoyaltyTransactions([entry, ...(loyaltyTransactions || [])]);
+  try {
+    await setLoyaltyTransactions([entry, ...(loyaltyTransactions || [])]);
+  } catch (e) {
+    // rpcSucceeded (set by useSupabaseLoyalty.persist) means fn_manual_loyalty_adjustment itself
+    // already committed — the points really were adjusted. This must never be reported as
+    // { success: false }, or the caller (CustomerDetailModal.doAdjust) would show a false
+    // "adjustment failed" message that could mislead the user into re-submitting the same
+    // adjustment and duplicating it. The audit log entry is still written here — the real-world
+    // action did happen, only the on-screen loyalty ledger failed to refresh.
+    if (e?.rpcSucceeded) {
+      await logAudit(auditLog, setAuditLog, currentUser, type === "manual_add" ? "Loyalty Points Added" : "Loyalty Points Removed", `${amt} pts · ${reason.trim()}`);
+      return { success: true, entry, staleData: true, message: e.message };
+    }
+    return { success: false, error: e?.message || "Could not save this adjustment." };
+  }
   await logAudit(auditLog, setAuditLog, currentUser, type === "manual_add" ? "Loyalty Points Added" : "Loyalty Points Removed", `${amt} pts · ${reason.trim()}`);
   return { success: true, entry };
 }
@@ -2519,11 +2533,37 @@ function useSupabaseLoyalty(businessId, reportLoadError, clearLoadError) {
       return reload();
     }
 
-    for (const row of added.filter((x) => x.type === "manual_add" || x.type === "manual_remove")) {
-      await supabaseRest.rpc("fn_manual_loyalty_adjustment", {
-        p_business_id: businessId, p_customer_id: row.customerId, p_type: row.type,
-        p_points: Number(row.points), p_reason: row.reason,
-      });
+    const manualRows = added.filter((x) => x.type === "manual_add" || x.type === "manual_remove");
+    if (manualRows.length) {
+      let lastResult = null;
+      for (const row of manualRows) {
+        // fn_manual_loyalty_adjustment itself is NOT wrapped here — a failure there must keep
+        // throwing normally, so the caller's existing "adjustment failed" handling is unchanged.
+        // If this loop runs more than one row (not exercised by the current single-entry
+        // manualLoyaltyAdjustment call site, but the loop structure itself allows it), an earlier
+        // row in the loop that already succeeded stays committed on the server regardless of what
+        // happens to a later row or to the reload below — this function only ever reports on the
+        // reload step, never re-runs an RPC that already committed.
+        lastResult = await supabaseRest.rpc("fn_manual_loyalty_adjustment", {
+          p_business_id: businessId, p_customer_id: row.customerId, p_type: row.type,
+          p_points: Number(row.points), p_reason: row.reason,
+        });
+      }
+      try {
+        return await reload();
+      } catch (e) {
+        // Every manual adjustment RPC above already committed on the server — only the screen
+        // refresh failed. Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2.
+        // The thrown error is tagged so the caller can tell this apart from a real adjustment
+        // failure and avoid showing a false "adjustment failed" message that could invite a
+        // duplicate points adjustment.
+        reportLoadError?.("loyalty", "reload", e.message);
+        const err = new Error("The points were adjusted, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
+        err.rpcSucceeded = true;
+        err.staleData = true;
+        err.result = lastResult;
+        throw err;
+      }
     }
     return reload();
   }, [businessId, transactions, rewards, reload]);
@@ -7422,7 +7462,10 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
     try {
       const r = await manualLoyaltyAdjustment({ customerId: customer.id, type: adjustType, points: adjustPoints, reason: adjustReason }, { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog });
       if (!r.success) { setError(r.error); return; }
-      showToast(`${adjustType === "manual_add" ? "Added" : "Removed"} ${adjustPoints} points`);
+      // rpcSucceeded/staleData (see manualLoyaltyAdjustment) means fn_manual_loyalty_adjustment
+      // already committed and only the screen refresh failed — never worded as a failure, and the
+      // form still clears below exactly as on a normal success, since the adjustment is real.
+      showToast(r.staleData ? r.message : `${adjustType === "manual_add" ? "Added" : "Removed"} ${adjustPoints} points`, r.staleData ? "good" : undefined);
       setAdjustPoints(""); setAdjustReason("");
     } finally {
       setSubmitting(false);
