@@ -2278,50 +2278,63 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
 
   useEffect(() => { reload().catch((e) => { console.error("Supabase products load failed", e); reportLoadError?.("products", "initial", e.message); }); }, [reload, reportLoadError]);
 
-  const persist = useCallback(async (next) => {
+  const persist = useCallback(async (product, operation = "upsert") => {
     if (!businessId) throw new Error("No authenticated business is available.");
-    const normalized = (next || []).map((p) => ({ ...p, id: isUuid(p.id) ? p.id : newDbId() }));
-    const before = previousRef.current || [];
-    const nextIds = new Set(normalized.map((p) => p.id));
+    if (operation !== "upsert" && operation !== "deactivate") throw new Error(`Unknown product operation: ${operation}`);
+    const productId = isUuid(product?.id) ? product.id : newDbId();
 
-    // Every write below (products upsert, deactivation, and the per-product recipe select/
-    // upsert/delete loop) is NOT wrapped in a try/catch — a failure at any of these points must
-    // keep throwing normally. These are several independent REST calls, not one atomic RPC, so a
-    // failure here means the database may be left partially updated; the caller must treat this
-    // as a real, possibly-partial failure, never a success.
-    if (normalized.length) {
-      await supabaseRest.upsert("products", normalized.map((p) => ({
-        id: p.id, business_id: businessId, name: String(p.name || "").trim(), sku: p.sku || null,
-        category: p.category || null, price: Number(p.price || 0), active: p.active !== false,
-        description: p.description || null, image_url: p.image || p.imageUrl || null, updated_at: nowISO(),
-      })), "id");
+    // fn_save_product itself is NOT wrapped here — a failure there must keep throwing normally,
+    // so the caller's existing "save failed" handling is unchanged. This single RPC call replaces
+    // the previous multi-step REST sequence (products upsert, per-removed-product deactivation,
+    // and a per-product recipe select/upsert/delete loop) entirely — that sequence is fully
+    // superseded now that the server does the same work atomically, with real rollback on any
+    // failure. p_operation:'deactivate' sends every other field as null; the RPC never reads them
+    // in that branch, so this only ever touches active/updated_at server-side, exactly as before.
+    let args;
+    if (operation === "deactivate") {
+      args = { p_business_id: businessId, p_product_id: productId, p_operation: "deactivate",
+        p_name: null, p_sku: null, p_category: null, p_price: null, p_active: null,
+        p_description: null, p_image_url: null, p_recipe: null };
+    } else {
+      // The form always carries the product's full desired recipe (populated from the existing
+      // recipe on open, mutated via add/update/remove ingredient) — there is no "don't touch the
+      // recipe" mode in the current UI, so this is never sent as null from save(). An empty array
+      // here is a real, deliberate "clear every ingredient", not "leave as-is".
+      //
+      // Every row is validated explicitly and REJECTED (throws) rather than silently filtered out
+      // — ProductModal.save() already validates this before calling persist(), so this is defense
+      // in depth for any future caller, not the primary check. A product must never be saved with
+      // fewer ingredients than what was actually requested, without the caller finding out why.
+      const recipeRows = product.recipe || [];
+      const seenIngredientIds = new Set();
+      for (const r of recipeRows) {
+        if (!isUuid(r.itemId)) throw new Error("Recipe contains an ingredient with an invalid or missing inventory item.");
+        const qtyNum = Number(r.qty);
+        if (!Number.isFinite(qtyNum) || qtyNum <= 0) throw new Error("Recipe contains an ingredient with an invalid quantity — it must be a finite number greater than zero.");
+        if (seenIngredientIds.has(r.itemId)) throw new Error("Recipe contains the same ingredient more than once.");
+        seenIngredientIds.add(r.itemId);
+      }
+      args = { p_business_id: businessId, p_product_id: productId, p_operation: "upsert",
+        p_name: String(product.name || "").trim(), p_sku: product.sku || null, p_category: product.category || null,
+        p_price: (() => { const n = Number(product.price); if (!Number.isFinite(n) || n < 0) throw new Error("Selling price must be a finite number, zero or greater."); return n; })(), p_active: product.active !== false,
+        p_description: product.description || null, p_image_url: product.image || product.imageUrl || null,
+        p_recipe: recipeRows.map((r) => ({ inventory_item_id: r.itemId, qty_per_unit: Number(r.qty) })) };
     }
-    // Product removal in the current UI is intentionally a soft-delete in the database so historical
-    // sales and future references stay valid.
-    for (const old of before) if (!nextIds.has(old.id)) await supabaseRest.updateOne("products", old.id, { active: false, updated_at: nowISO() });
 
-    for (const p of normalized) {
-      const current = await supabaseRest.select("product_recipes", `select=*&product_id=eq.${p.id}`);
-      const wanted = new Map((p.recipe || []).filter((r) => isUuid(r.itemId) && Number(r.qty) > 0).map((r) => [r.itemId, Number(r.qty)]));
-      const currentByItem = new Map((current || []).map((r) => [r.inventory_item_id, r]));
-      const rows = [...wanted.entries()].map(([itemId, qty]) => ({
-        id: currentByItem.get(itemId)?.id || newDbId(), product_id: p.id, inventory_item_id: itemId, qty_per_unit: qty,
-      }));
-      if (rows.length) await supabaseRest.upsert("product_recipes", rows, "id");
-      for (const r of current || []) if (!wanted.has(r.inventory_item_id)) await supabaseRest.deleteOne("product_recipes", r.id);
-    }
+    const row = await supabaseRest.rpc("fn_save_product", args);
     try {
       return await reload();
     } catch (e) {
-      // Every write above already succeeded at this point — only this final refresh failed.
-      // Reusing the exact loadErrors/DataLoadBanner mechanism from subfases 1-2, and the same
-      // rpcSucceeded/staleData convention already used 21 times elsewhere, even though these are
-      // plain REST writes rather than a single RPC — the same "saved, but the screen could not
-      // refresh" semantics apply either way. Never re-runs any of the writes above.
+      // The write above already succeeded at this point — fn_save_product is a single atomic RPC,
+      // so "succeeded" here is unambiguous (unlike the old multi-step REST sequence, where a
+      // failure partway through left genuine doubt). Only this final refresh failed. Reusing the
+      // exact loadErrors/DataLoadBanner mechanism from subfases 1-2, and the same rpcSucceeded/
+      // staleData convention already used elsewhere. Never re-runs the RPC.
       reportLoadError?.("products", "reload", e.message);
       const err = new Error("The product was saved, but the screen could not refresh. Displayed data may be outdated. Refresh the page.");
       err.rpcSucceeded = true;
       err.staleData = true;
+      err.result = row;
       throw err;
     }
   }, [businessId, reload, reportLoadError]);
@@ -6990,13 +7003,31 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     setError("");
     if (!can("manageRecipesAndCosts")) { setError("You don't have permission to edit products."); return; }
     if (!name.trim()) { setError("Product name is required."); return; }
-    if (Number(price) < 0) { setError("Selling price can't be negative."); return; }
-    if (recipe.some((r) => !r.qty || r.qty <= 0)) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
+    const priceNum = Number(price);
+    if (price === "" || !Number.isFinite(priceNum) || priceNum < 0) { setError("Selling price must be a valid number, zero or greater."); return; }
+
+    // Every recipe row is validated explicitly here, before anything is sent anywhere. An
+    // ingredient that doesn't resolve to a real inventory item, or has an invalid quantity, is
+    // rejected with a clear message and the save is blocked — it must never be silently dropped
+    // from the payload, which would leave the product saved with fewer ingredients than the form
+    // actually shows.
+    for (const r of recipe) {
+      if (!r.itemId || !inventory.some((i) => i.id === r.itemId)) { setError("Every recipe ingredient must reference a valid inventory item."); return; }
+      const qtyNum = Number(r.qty);
+      if (r.qty === "" || r.qty === null || r.qty === undefined || !Number.isFinite(qtyNum) || qtyNum <= 0) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
+    }
+    // Duplicate ingredients are rejected here too — fn_save_product would also reject this
+    // server-side, but catching it here gives an immediate, clear message before any RPC call.
+    const seenIngredientIds = new Set();
+    for (const r of recipe) {
+      if (seenIngredientIds.has(r.itemId)) { setError("The recipe lists the same ingredient more than once — remove the duplicate before saving."); return; }
+      seenIngredientIds.add(r.itemId);
+    }
+
     setSubmitting(true);
     try {
-      const payload = { id: product?.id || newDbId(), name, sku, category, price: round2(Number(price)), active, description, recipe, image: product?.image || "" };
-      const next = product ? products.map((p) => (p.id === product.id ? payload : p)) : [payload, ...products];
-      await setProducts(next);
+      const payload = { id: product?.id || newDbId(), name, sku, category, price: round2(priceNum), active, description, recipe, image: product?.image || "" };
+      await setProducts(payload, "upsert");
       await logAudit(auditLog, setAuditLog, currentUser, product ? "Product Updated" : "Product Created", `${payload.name} · ${fmtMoney(payload.price)} · cost ${fmtMoney(cost)}`);
       showToast(product ? "Product updated" : "Product created");
       onClose();
@@ -7007,40 +7038,45 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       if (e?.rpcSucceeded) {
         showToast(e.message, "good");
         onClose();
+        return true;
       } else {
-        // A real failure here could mean nothing was written yet, OR that persist's own
-        // multi-step write sequence (products upsert, deactivation, then a recipe select/upsert/
-        // delete loop per product) stopped partway through — these are independent REST calls,
-        // not one atomic RPC, so this component cannot know which. The form stays open, and the
-        // message says so plainly rather than implying a clean, all-or-nothing failure.
-        setError((e?.message || "Could not save this product.") + " Some of this change may have already been saved — refresh and check the catalog before trying again.");
+        // fn_save_product is a single atomic RPC — a real failure here means nothing was written
+        // at all (the server rolls back the whole call), not a partial save. Safe to say so
+        // plainly, and safe for the user to simply retry once the underlying issue is fixed.
+        setError(e?.message || "Could not save this product. Nothing was changed — you can try again.");
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  const remove = async () => {
+  // "Delete" in this UI has always meant a LOGICAL deactivation, never a physical delete — the
+  // product row (and its recipe, and every past sale line-item snapshot that references it) is
+  // preserved. Named and worded accordingly throughout, instead of using delete/remove language
+  // that would incorrectly suggest the record itself is destroyed.
+  const deactivateProduct = async () => {
     if (submitting) return;
-    if (!can("manageRecipesAndCosts")) { showToast("You don't have permission to delete products.", "danger"); return; }
+    if (!can("manageRecipesAndCosts")) { showToast("You don't have permission to deactivate products.", "danger"); return; }
     setSubmitting(true);
     try {
-      await setProducts(products.filter((p) => p.id !== product.id));
-      await logAudit(auditLog, setAuditLog, currentUser, "Product Deleted", product.name);
-      showToast("Product deleted", "danger");
+      await setProducts(product, "deactivate");
+      await logAudit(auditLog, setAuditLog, currentUser, "Product Deactivated", product.name);
+      showToast("Product deactivated", "danger");
       onClose();
+      return true;
     } catch (e) {
       // rpcSucceeded (set by useSupabaseProducts.persist) means every write already succeeded —
       // only the final screen refresh failed. Never worded as a failure, and the modal still
-      // closes exactly as on a normal success, since the deletion is real.
+      // closes exactly as on a normal success, since the deactivation is real.
       if (e?.rpcSucceeded) {
         showToast(e.message, "good");
         onClose();
+        return true;
       } else {
-        // Same reasoning as save() above: these are independent REST calls, not one atomic RPC,
-        // so a real failure here could mean nothing changed, or that the write sequence stopped
-        // partway through. The modal stays open rather than implying a clean failure.
-        showToast((e?.message || "Could not delete this product.") + " It may have partially changed — refresh and check the catalog before trying again.", "danger");
+        // fn_save_product is a single atomic RPC — a real failure here (including the
+        // 'deactivate' call) means nothing changed at all, not a partial state.
+        showToast(e?.message || "Could not deactivate this product. Nothing was changed — you can try again.", "danger");
+        return false;
       }
     } finally {
       setSubmitting(false);
@@ -7096,12 +7132,12 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
       <div className="flex gap-2">
-        {product && <GhostButton dark={dark} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} /> Delete</GhostButton>}
+        {product && <GhostButton dark={dark} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} /> Deactivate</GhostButton>}
         <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Product"}</PrimaryButton>
       </div>
       {confirmingDelete && (
-        <ConfirmDialog dark={dark} title={`Delete ${product?.name}?`} message="This permanently removes the product. It won't affect past sales records, which already store their own line-item snapshot."
-          confirmLabel="Delete Product" onConfirm={async () => { await remove(); setConfirmingDelete(false); }} onCancel={() => setConfirmingDelete(false)} />
+        <ConfirmDialog dark={dark} title={`Deactivate ${product?.name}?`} message="This deactivates the product — it will no longer be available for new sales. Its name, price, and recipe are preserved (not deleted), and past sales records are unaffected."
+          confirmLabel="Deactivate Product" onConfirm={async () => { const ok = await deactivateProduct(); if (ok) setConfirmingDelete(false); }} onCancel={() => setConfirmingDelete(false)} />
       )}
     </Modal>
   );
