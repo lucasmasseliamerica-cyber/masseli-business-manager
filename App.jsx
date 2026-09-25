@@ -2309,14 +2309,13 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
       const seenIngredientIds = new Set();
       for (const r of recipeRows) {
         if (!isUuid(r.itemId)) throw new Error("Recipe contains an ingredient with an invalid or missing inventory item.");
-        const qtyNum = Number(r.qty);
-        if (!Number.isFinite(qtyNum) || qtyNum <= 0) throw new Error("Recipe contains an ingredient with an invalid quantity — it must be a finite number greater than zero.");
+        if (!(Number(r.qty) > 0)) throw new Error("Recipe contains an ingredient with an invalid quantity — it must be greater than zero.");
         if (seenIngredientIds.has(r.itemId)) throw new Error("Recipe contains the same ingredient more than once.");
         seenIngredientIds.add(r.itemId);
       }
       args = { p_business_id: businessId, p_product_id: productId, p_operation: "upsert",
         p_name: String(product.name || "").trim(), p_sku: product.sku || null, p_category: product.category || null,
-        p_price: (() => { const n = Number(product.price); if (!Number.isFinite(n) || n < 0) throw new Error("Selling price must be a finite number, zero or greater."); return n; })(), p_active: product.active !== false,
+        p_price: Number(product.price || 0), p_active: product.active !== false,
         p_description: product.description || null, p_image_url: product.image || product.imageUrl || null,
         p_recipe: recipeRows.map((r) => ({ inventory_item_id: r.itemId, qty_per_unit: Number(r.qty) })) };
     }
@@ -7004,7 +7003,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     if (!can("manageRecipesAndCosts")) { setError("You don't have permission to edit products."); return; }
     if (!name.trim()) { setError("Product name is required."); return; }
     const priceNum = Number(price);
-    if (price === "" || !Number.isFinite(priceNum) || priceNum < 0) { setError("Selling price must be a valid number, zero or greater."); return; }
+    if (price === "" || Number.isNaN(priceNum) || priceNum < 0) { setError("Selling price must be a valid number, zero or greater."); return; }
 
     // Every recipe row is validated explicitly here, before anything is sent anywhere. An
     // ingredient that doesn't resolve to a real inventory item, or has an invalid quantity, is
@@ -7014,7 +7013,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     for (const r of recipe) {
       if (!r.itemId || !inventory.some((i) => i.id === r.itemId)) { setError("Every recipe ingredient must reference a valid inventory item."); return; }
       const qtyNum = Number(r.qty);
-      if (r.qty === "" || r.qty === null || r.qty === undefined || !Number.isFinite(qtyNum) || qtyNum <= 0) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
+      if (r.qty === "" || r.qty === null || r.qty === undefined || Number.isNaN(qtyNum) || qtyNum <= 0) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
     }
     // Duplicate ingredients are rejected here too — fn_save_product would also reject this
     // server-side, but catching it here gives an immediate, clear message before any RPC call.
@@ -7038,7 +7037,6 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       if (e?.rpcSucceeded) {
         showToast(e.message, "good");
         onClose();
-        return true;
       } else {
         // fn_save_product is a single atomic RPC — a real failure here means nothing was written
         // at all (the server rolls back the whole call), not a partial save. Safe to say so
@@ -7063,7 +7061,6 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       await logAudit(auditLog, setAuditLog, currentUser, "Product Deactivated", product.name);
       showToast("Product deactivated", "danger");
       onClose();
-      return true;
     } catch (e) {
       // rpcSucceeded (set by useSupabaseProducts.persist) means every write already succeeded —
       // only the final screen refresh failed. Never worded as a failure, and the modal still
@@ -7071,12 +7068,10 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       if (e?.rpcSucceeded) {
         showToast(e.message, "good");
         onClose();
-        return true;
       } else {
         // fn_save_product is a single atomic RPC — a real failure here (including the
         // 'deactivate' call) means nothing changed at all, not a partial state.
         showToast(e?.message || "Could not deactivate this product. Nothing was changed — you can try again.", "danger");
-        return false;
       }
     } finally {
       setSubmitting(false);
@@ -7137,7 +7132,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       </div>
       {confirmingDelete && (
         <ConfirmDialog dark={dark} title={`Deactivate ${product?.name}?`} message="This deactivates the product — it will no longer be available for new sales. Its name, price, and recipe are preserved (not deleted), and past sales records are unaffected."
-          confirmLabel="Deactivate Product" onConfirm={async () => { const ok = await deactivateProduct(); if (ok) setConfirmingDelete(false); }} onCancel={() => setConfirmingDelete(false)} />
+          confirmLabel="Deactivate Product" onConfirm={async () => { await deactivateProduct(); setConfirmingDelete(false); }} onCancel={() => setConfirmingDelete(false)} />
       )}
     </Modal>
   );
