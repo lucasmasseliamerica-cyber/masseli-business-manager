@@ -2309,13 +2309,14 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
       const seenIngredientIds = new Set();
       for (const r of recipeRows) {
         if (!isUuid(r.itemId)) throw new Error("Recipe contains an ingredient with an invalid or missing inventory item.");
-        if (!(Number(r.qty) > 0)) throw new Error("Recipe contains an ingredient with an invalid quantity — it must be greater than zero.");
+        const qtyNum = Number(r.qty);
+        if (!Number.isFinite(qtyNum) || qtyNum <= 0) throw new Error("Recipe contains an ingredient with an invalid quantity — it must be a finite number greater than zero.");
         if (seenIngredientIds.has(r.itemId)) throw new Error("Recipe contains the same ingredient more than once.");
         seenIngredientIds.add(r.itemId);
       }
       args = { p_business_id: businessId, p_product_id: productId, p_operation: "upsert",
         p_name: String(product.name || "").trim(), p_sku: product.sku || null, p_category: product.category || null,
-        p_price: Number(product.price || 0), p_active: product.active !== false,
+        p_price: (() => { const n = Number(product.price); if (!Number.isFinite(n) || n < 0) throw new Error("Selling price must be a finite number, zero or greater."); return n; })(), p_active: product.active !== false,
         p_description: product.description || null, p_image_url: product.image || product.imageUrl || null,
         p_recipe: recipeRows.map((r) => ({ inventory_item_id: r.itemId, qty_per_unit: Number(r.qty) })) };
     }
@@ -2370,13 +2371,35 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
       };
     });
     const txRows = await supabaseRest.select("inventory_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=500`);
-    setTransactions((txRows || []).map((t) => ({
-      id: t.id, date: t.created_at, itemId: t.inventory_item_id, type: inventoryTxTypeLabel(t.type), qty: Number(t.qty_change || 0),
-      unit: t.unit || "", unitCost: t.unit_cost == null ? null : Number(t.unit_cost), totalCost: t.total_cost == null ? null : Number(t.total_cost),
-      referenceId: t.sale_id || t.purchase_order_id || t.related_transaction_id || "", note: t.note || "", locationId: t.location_id,
-    })));
+
+    // Purchase ledger rows only store purchase_order_id. Resolve the PO -> supplier relationship
+    // here so InventoryHistoryModal can group real Supabase purchases by supplier instead of
+    // falling back to "Unknown supplier".
+    const purchaseOrderIds = [...new Set((txRows || []).map((t) => t.purchase_order_id).filter(Boolean))];
+    let purchaseOrderSupplierById = {};
+    if (purchaseOrderIds.length) {
+      const poRows = await supabaseRest.select(
+        "purchase_orders",
+        `select=id,supplier_id,po_number&id=in.(${purchaseOrderIds.join(",")})`
+      );
+      purchaseOrderSupplierById = Object.fromEntries(
+        (poRows || []).map((po) => [po.id, { supplierId: po.supplier_id || "", poNumber: po.po_number }])
+      );
+    }
+
+    setTransactions((txRows || []).map((t) => {
+      const poMeta = t.purchase_order_id ? purchaseOrderSupplierById[t.purchase_order_id] : null;
+      return {
+        id: t.id, date: t.created_at, itemId: t.inventory_item_id, type: inventoryTxTypeLabel(t.type), qty: Number(t.qty_change || 0),
+        unit: t.unit || "", unitCost: t.unit_cost == null ? null : Number(t.unit_cost), totalCost: t.total_cost == null ? null : Number(t.total_cost),
+        referenceId: t.sale_id || t.purchase_order_id || t.related_transaction_id || "",
+        referenceLabel: poMeta?.poNumber != null ? `PO-${poMeta.poNumber}` : "",
+        supplierId: poMeta?.supplierId || "",
+        note: t.note || "", locationId: t.location_id,
+      };
+    }));
     setData(mapped);
-    // Only reached once ALL THREE queries above (items, stock, transactions) have succeeded —
+    // Only reached once all queries composing this reload (items, stock, transactions, and referenced POs) have succeeded —
     // exactly the "clear only after every query composing this reload succeeded" requirement,
     // since any earlier await throwing would have skipped straight to the catch below instead.
     clearLoadError?.("inventory");
@@ -3774,7 +3797,7 @@ export default function App() {
             {tab === "purchases" && (navAllowed(currentUser, "purchases") ? <PurchasesView {...ctx} inventory={catalogInventory} setInventory={setCatalogInventory} invTx={catalogInvTx} setInvTx={() => {}} /> : <RestrictedView dark={dark} />)}
             {tab === "expenses" && <ExpensesView {...ctx} />}
             {tab === "suppliers" && (navAllowed(currentUser, "suppliers") ? <SuppliersView {...ctx} /> : <RestrictedView dark={dark} />)}
-            {tab === "customers" && <CustomersView {...ctx} />}
+            {tab === "customers" && <CustomersView {...ctx} reloadInventory={reloadCatalogInventory} />}
             {tab === "employees" && (navAllowed(currentUser, "employees") ? <EmployeesView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "reports" && (navAllowed(currentUser, "reports") ? <ReportsView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "settings" && <SettingsView {...ctx} settingsUnavailable={settings === null} onLogout={logout} />}
@@ -4927,13 +4950,13 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
           employees={employees} customers={customers} settings={settings}
           loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} reloadLoyalty={reloadLoyalty}
           businessAlerts={businessAlerts} setBusinessAlerts={setBusinessAlerts}
-          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} reportLoadError={reportLoadError} />
+          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} reportLoadError={reportLoadError} reloadInventory={reloadInventory} />
       )}
     </div>
   );
 }
 
-function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, customers, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError }) {
+function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, customers, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError, reloadInventory }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [advancing, setAdvancing] = useState(false);
@@ -5019,6 +5042,21 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
             } else {
               showToast(e?.message || "Could not cancel this sale.", "danger");
               return;
+            }
+          }
+          // fn_reverse_sale already restored inventory server-side (status, inventory_stock, and
+          // the inventory_transactions ledger row) — but nothing above reloads that data back into
+          // the app. Without this, Inventory → History and on-screen stock quantities stay stale
+          // until the user leaves and re-enters the Inventory tab. Reached whenever the RPC itself
+          // succeeded (normal path, or cancellationStale when only its own reload failed) — never
+          // reached on a genuine cancellation failure (the `return` above already exits first).
+          // Isolated in its own try/catch: a failure here must never be reported as "cancellation
+          // failed" — the sale and its inventory restoration are already committed for real.
+          if (reloadInventory) {
+            try {
+              await reloadInventory();
+            } catch (e) {
+              console.warn("inventory reload after sale cancellation failed — cancellation and inventory restoration are both real", e);
             }
           }
         } else {
@@ -7003,7 +7041,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     if (!can("manageRecipesAndCosts")) { setError("You don't have permission to edit products."); return; }
     if (!name.trim()) { setError("Product name is required."); return; }
     const priceNum = Number(price);
-    if (price === "" || Number.isNaN(priceNum) || priceNum < 0) { setError("Selling price must be a valid number, zero or greater."); return; }
+    if (price === "" || !Number.isFinite(priceNum) || priceNum < 0) { setError("Selling price must be a valid number, zero or greater."); return; }
 
     // Every recipe row is validated explicitly here, before anything is sent anywhere. An
     // ingredient that doesn't resolve to a real inventory item, or has an invalid quantity, is
@@ -7013,7 +7051,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     for (const r of recipe) {
       if (!r.itemId || !inventory.some((i) => i.id === r.itemId)) { setError("Every recipe ingredient must reference a valid inventory item."); return; }
       const qtyNum = Number(r.qty);
-      if (r.qty === "" || r.qty === null || r.qty === undefined || Number.isNaN(qtyNum) || qtyNum <= 0) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
+      if (r.qty === "" || r.qty === null || r.qty === undefined || !Number.isFinite(qtyNum) || qtyNum <= 0) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
     }
     // Duplicate ingredients are rejected here too — fn_save_product would also reject this
     // server-side, but catching it here gives an immediate, clear message before any RPC call.
@@ -7037,6 +7075,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       if (e?.rpcSucceeded) {
         showToast(e.message, "good");
         onClose();
+        return true;
       } else {
         // fn_save_product is a single atomic RPC — a real failure here means nothing was written
         // at all (the server rolls back the whole call), not a partial save. Safe to say so
@@ -7061,6 +7100,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       await logAudit(auditLog, setAuditLog, currentUser, "Product Deactivated", product.name);
       showToast("Product deactivated", "danger");
       onClose();
+      return true;
     } catch (e) {
       // rpcSucceeded (set by useSupabaseProducts.persist) means every write already succeeded —
       // only the final screen refresh failed. Never worded as a failure, and the modal still
@@ -7068,10 +7108,12 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       if (e?.rpcSucceeded) {
         showToast(e.message, "good");
         onClose();
+        return true;
       } else {
         // fn_save_product is a single atomic RPC — a real failure here (including the
         // 'deactivate' call) means nothing changed at all, not a partial state.
         showToast(e?.message || "Could not deactivate this product. Nothing was changed — you can try again.", "danger");
+        return false;
       }
     } finally {
       setSubmitting(false);
@@ -7132,7 +7174,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       </div>
       {confirmingDelete && (
         <ConfirmDialog dark={dark} title={`Deactivate ${product?.name}?`} message="This deactivates the product — it will no longer be available for new sales. Its name, price, and recipe are preserved (not deleted), and past sales records are unaffected."
-          confirmLabel="Deactivate Product" onConfirm={async () => { await deactivateProduct(); setConfirmingDelete(false); }} onCancel={() => setConfirmingDelete(false)} />
+          confirmLabel="Deactivate Product" onConfirm={async () => { const ok = await deactivateProduct(); if (ok) setConfirmingDelete(false); }} onCancel={() => setConfirmingDelete(false)} />
       )}
     </Modal>
   );
@@ -7706,7 +7748,7 @@ function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUs
   );
 }
 
-function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError }) {
+function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError, reloadInventory }) {
   const customer = (customers || []).find((c) => c.id === customerId);
   const [viewingSale, setViewingSale] = useState(null);
   const [adjustType, setAdjustType] = useState("manual_add");
@@ -7848,13 +7890,13 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
           employees={employees} customers={customers} settings={settings}
           loyaltyTransactions={loyaltyTransactions} setLoyaltyTransactions={setLoyaltyTransactions} reloadLoyalty={reloadLoyalty}
           businessAlerts={businessAlerts} setBusinessAlerts={setBusinessAlerts}
-          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} reportLoadError={reportLoadError} />
+          currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} reportLoadError={reportLoadError} reloadInventory={reloadInventory} />
       )}
     </Modal>
   );
 }
 
-function CustomersView({ dark, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError }) {
+function CustomersView({ dark, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError, reloadInventory }) {
   const [query, setQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -7871,7 +7913,7 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
   const newThisMonth = (customers || []).filter((c) => { if (!c.createdAt) return false; const d = new Date(c.createdAt); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); }).length;
   const totalPointsOutstanding = (customers || []).reduce((a, c) => a + getLoyaltyBalance(c.id, loyaltyTransactions), 0);
 
-  const passthroughCtx = { products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError };
+  const passthroughCtx = { products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError, reloadInventory };
 
   return (
     <div>
