@@ -8445,7 +8445,7 @@ function EmployeesView({ dark, employees, setEmployees, locations, tasks, persis
             renderTitle={(e) => e.name} renderSub={(e) => `${e.role}${showRate ? ` · ${fmtMoney(e.hourlyRate)}/hr` : ""} · ${e.location}${e.active === false ? " · Inactive" : ""}`}
             fields={[
               { key: "name", label: "Name" }, { key: "role", label: "Job Title" }, { key: "hourlyRate", label: "Hourly Rate ($)", type: "number" },
-              { key: "location", label: "Location", type: "select", options: locations.map((l) => l.name) },
+              { key: "location", label: "Location", type: "select", options: locations.filter((l) => l.active !== false).map((l) => l.name) },
               { key: "managerId", label: "Reports To", type: "select", options: [{ value: "", label: "— No manager (reports to Owner) —" }, ...employees.map((e) => ({ value: e.id, label: e.name }))] },
               { key: "active", label: "Active", type: "checkbox", default: true }, { key: "notes", label: "Notes", type: "textarea" },
             ]} />
