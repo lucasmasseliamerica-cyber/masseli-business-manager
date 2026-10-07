@@ -57,7 +57,7 @@ const todayStr = () => localDateStr(businessNow());
 // A calendar day offset from today by n days (local), e.g. dateStrOffset(-1) = yesterday.
 const dateStrOffset = (n) => { const d = businessNow(); d.setDate(d.getDate() + n); return localDateStr(d); };
 // Does this ISO timestamp fall on the given local calendar day ("YYYY-MM-DD")?
-const isSameDay = (iso, ymd) => { if (!iso) return false; return localDateStr(new Date(iso)) === ymd; };
+const isSameDay = (iso, ymd) => { if (!iso) return false; return localDateStr(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)) === ymd; };
 // Parses a bare "YYYY-MM-DD" as a local calendar date — `new Date("2026-08-14")` would instead
 // parse it as UTC midnight, which renders as the *previous* day in any timezone behind UTC.
 const parseLocalDate = (ymd) => { const [y, m, d] = ymd.split("-").map(Number); return new Date(y, m - 1, d); };
@@ -75,7 +75,7 @@ const fmtMoney = (n) => `${CURRENCY_SYMBOLS[_activeCurrency] || _activeCurrency 
 const fmtPct = (n) => `${(Number(n) || 0).toFixed(1)}%`;
 // For full ISO timestamps (sale.date, po.orderDate, etc) — these already carry real time+zone
 // info, so parsing with `new Date(iso)` is correct and has none of the bare-date pitfall above.
-const dateStr = (iso) => new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const dateStr = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 // For bare "YYYY-MM-DD" values only (task due dates, birthdays) — uses parseLocalDate above.
 const dateStrLocal = (ymd) => (!ymd ? "" : parseLocalDate(ymd).toLocaleDateString("en-US", { month: "short", day: "numeric" }));
 const timeStr = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -344,7 +344,7 @@ const poLineTotal = (line) => round2(line.qty * line.unitCost);
 const poSubtotal = (po) => round2(po.items.reduce((a, l) => a + poLineTotal(l), 0));
 const poGrandTotal = (po) => round2(poSubtotal(po) - (po.discount || 0) + (po.tax || 0));
 const poReceivedValue = (po) => round2(po.items.reduce((a, l) => a + l.receivedQty * l.unitCost, 0));
-const poAmountDue = (po) => po.status === "Reversed" ? 0 : round2(poGrandTotal(po) - (po.amountPaid || 0));
+const poAmountDue = (po) => (po.status === "Reversed" || po.status === "Cancelled") ? 0 : round2(poGrandTotal(po) - (po.amountPaid || 0));
 
 /* ============================== BUSINESS LOGIC ============================== */
 function computeProductCost(product, inventory) {
@@ -433,6 +433,7 @@ const STOCK_STATUS_TONE = { OUT_OF_STOCK: "danger", CRITICAL: "danger", LOW: "wa
 const STOCK_STATUS_LABEL = { OUT_OF_STOCK: "OUT OF STOCK", CRITICAL: "CRITICAL", LOW: "LOW STOCK", NORMAL: "NORMAL" };
 // Suggested Order Quantity = Maximum Stock - Current Stock (never negative).
 const suggestedOrderQty = (item) => clamp0(round2((item.maxQty || 0) - item.qty));
+const inventoryLocationRows = (items) => (items || []).flatMap((i) => i.stocks?.length ? i.stocks.map((s) => ({ ...i, qty: s.qty, costPerUnit: s.costPerUnit, locationId: s.locationId, location: "" })) : [i]);
 
 /* ============================== INVENTORY INTELLIGENCE (Phase F) ==============================
  * Built entirely on top of what already existed: stockStatus, STOCK_STATUS_* labels, and
@@ -443,14 +444,20 @@ const suggestedOrderQty = (item) => clamp0(round2((item.maxQty || 0) - item.qty)
  * fabricated data.
  * ============================================================================== */
 
-// Real consumption only — reads invTx entries of type "Sale" for this item within the window
-// (Sale entries are always negative qty, confirmed from InventoryService.saleLedgerEntries).
-// Returns null for daysRemaining when there's no usage to divide by, rather than fabricating a
-// number — an explicit "no data" is more honest than a fake estimate.
+// Real consumption is net fulfilled sales: Sale movements minus inventory restored by cancelled-sale
+// reversals inside the same window. Purchase reversals are intentionally excluded because purchases
+// were never consumption. Returns null for daysRemaining when there's no usage to divide by rather
+// than fabricating a number — an explicit "no data" is more honest than a fake estimate.
 function calculateConsumptionAnalytics(item, invTx, days = 30) {
   const cutoff = Date.now() - days * 86400000;
-  const salesInWindow = (invTx || []).filter((t) => t.itemId === item.id && t.type === "Sale" && new Date(t.date).getTime() >= cutoff);
-  const consumedQty = round2(salesInWindow.reduce((a, t) => a + Math.abs(t.qty), 0));
+  const itemMoves = (invTx || []).filter((t) => t.itemId === item.id && new Date(t.date).getTime() >= cutoff);
+  const saleQty = round2(itemMoves.filter((t) => t.type === "Sale").reduce((a, t) => a + Math.abs(t.qty), 0));
+  // Cancelled-sale reversals restore inventory and must also undo the corresponding consumption.
+  // Purchase reversals are not counted because purchases were never consumption in the first place.
+  const restoredSaleQty = round2(itemMoves
+    .filter((t) => t.type === "Reversal" && /cancelled sale/i.test(t.note || ""))
+    .reduce((a, t) => a + Math.abs(t.qty), 0));
+  const consumedQty = clamp0(round2(saleQty - restoredSaleQty));
   const avgDailyUsage = consumedQty > 0 ? round2(consumedQty / days) : 0;
   const daysRemaining = avgDailyUsage > 0 ? Math.floor(item.qty / avgDailyUsage) : null;
   return { consumedQty, avgDailyUsage, daysRemaining, days };
@@ -464,6 +471,7 @@ const STOCK_URGENCY = { OUT_OF_STOCK: 0, CRITICAL: 1, LOW: 2, NORMAL: 3 };
 // are included (NORMAL items are deliberately excluded, per the spec).
 function getPurchaseRecommendations({ inventory, suppliers, invTx }) {
   return (inventory || [])
+    .filter((item) => item.active !== false)
     .map((item) => {
       const status = stockStatus(item);
       const analytics = calculateConsumptionAnalytics(item, invTx, 30);
@@ -1201,7 +1209,11 @@ async function updateCustomer(customerId, patch, ctx) {
   const { customers, setCustomers, currentUser, auditLog, setAuditLog } = ctx;
   const existing = customers.find((c) => c.id === customerId);
   if (!existing) return { success: false, error: "Customer not found." };
-  const updated = { ...existing, ...patch, updatedAt: nowISO() };
+  const name = (patch.name ?? existing.name ?? "").trim();
+  const email = (patch.email ?? existing.email ?? "").trim();
+  if (!name) return { success: false, error: "Enter a name." };
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { success: false, error: "Enter a valid email address." };
+  const updated = { ...existing, name, phone: (patch.phone ?? existing.phone ?? "").trim(), email, birthday: patch.birthday ?? existing.birthday, notes: patch.notes ?? existing.notes, updatedAt: nowISO() };
   await setCustomers(customers.map((c) => (c.id === customerId ? updated : c)));
   await logAudit(auditLog, setAuditLog, currentUser, "Customer Updated", updated.name);
   return { success: true, customer: updated };
@@ -1668,61 +1680,6 @@ const printingService = {
   },
 };
 
-/* ============================== DATA STORE BOUNDARY ==============================
- * Every piece of legacy local persistence in this app goes through window.localStorage,
- * a real browser API available in every production environment (unlike the platform-only
- * window.storage API this used to depend on — see the Phase "storage error" fix). This
- * object is the ONE place that touches it directly. Nothing else in the app should call
- * window.localStorage.getItem/setItem/removeItem for these collections again — everything
- * else goes through dataStore.get/set/update/remove instead.
- *
- * Why this matters: when this app eventually moves to a real backend/database, only
- * this object needs to change (e.g. swap the bodies below for fetch() calls to an API).
- * Every component, hook, and service that currently calls dataStore.* keeps working
- * unmodified, because the shape of get/set/update/remove doesn't change — only what's
- * behind it does. This is intentionally a thin wrapper, not a new abstraction layer with
- * its own behavior — same JSON serialization, same "personal" (non-shared) scope, same
- * error handling as before the refactor.
- * ============================================================================== */
-const dataStore = {
-  async get(key) {
-    try {
-      const raw = window.localStorage.getItem(key);
-      return raw === null ? null : JSON.parse(raw);
-    } catch (e) {
-      return null;
-    }
-  },
-  async set(key, value) {
-    try {
-      window.localStorage.setItem(key, JSON.stringify(value));
-      return true;
-    } catch (e) {
-      console.error("storage error", e);
-      return false;
-    }
-  },
-  // Read-modify-write convenience for the common "load current, apply an updater, save" pattern.
-  async update(key, updater, fallbackIfMissing) {
-    const current = (await dataStore.get(key)) ?? fallbackIfMissing;
-    const next = updater(current);
-    await dataStore.set(key, next);
-    return next;
-  },
-  // No collection in this app currently deletes a whole key outright (soft-delete/deactivate is
-  // used everywhere instead — see the Suppliers/Locations/Users patterns), but the boundary
-  // includes it for completeness since a future backend will need a real DELETE operation.
-  async remove(key) {
-    try {
-      window.localStorage.removeItem(key);
-      return true;
-    } catch (e) {
-      console.error("storage error", e);
-      return false;
-    }
-  },
-};
-
 /* ============================== AUTH SERVICE BOUNDARY ==============================
  * NEXALVO production authentication. Credentials are verified by Supabase Auth; the
  * authenticated UUID is then resolved against public.users, which is the tenant/role
@@ -1750,10 +1707,8 @@ const authService = {
   async trySupabaseSignIn(email, password) { return supabaseAuth.signInWithPassword(email, password); },
 };
 
-/* ============================== SUPABASE CONNECTION LAYER (TEST MODE) ==============================
- * Phase 4C Step 8/9: the real backend layer behind dataStore, gated to TEST MODE only — nothing
- * here is wired into the live app's core Sales/Inventory/CashFlow/Expenses/Purchases flows.
- *
+/* ============================== SUPABASE CONNECTION LAYER ==============================
+ * Production backend layer. Authenticated application data is Supabase-authoritative; RLS and\r\n * server RPCs enforce tenant and permission boundaries.\r\n *
  * Built on plain fetch() against Supabase's auto-generated REST (PostgREST) and Auth APIs,
  * NOT the @supabase/supabase-js SDK — that package isn't in this artifact environment's
  * importable library set, so this talks to the same underlying HTTP API the SDK itself wraps.
@@ -1782,6 +1737,31 @@ function persistSupabaseSession(session) {
     if (session) window.localStorage.setItem(SUPABASE_SESSION_KEY, JSON.stringify(session));
     else window.localStorage.removeItem(SUPABASE_SESSION_KEY);
   } catch {}
+}
+
+// ============================== PASSWORD RECOVERY (NEXALVO-TEST) ==============================
+// Supabase's built-in "Reset Password" email link redirects back to this app's own URL with the
+// recovery tokens in the URL HASH fragment (the implicit flow, which is what Supabase's default
+// recovery email template uses — this app has no PKCE code-exchange step implemented anywhere,
+// so that's the flow this parses): e.g.
+//   http://localhost:5173/#access_token=...&refresh_token=...&expires_in=3600&type=recovery
+// An expired or already-used link instead redirects back with an error in the same hash, e.g.
+//   http://localhost:5173/#error=access_denied&error_code=otp_expired&error_description=...
+// This is parsed ONCE, synchronously, before the hash is stripped from the address bar (see the
+// effect in App()) — nothing here is persisted to localStorage or treated as a normal login
+// session; it only ever lives in React state for the lifetime of the "set new password" screen.
+function parseSupabaseAuthHash() {
+  const raw = window.location.hash;
+  if (!raw || raw.length < 2) return null;
+  const params = new URLSearchParams(raw.slice(1));
+  const errorDescription = params.get("error_description") || params.get("error");
+  if (errorDescription) {
+    return { error: errorDescription };
+  }
+  if (!["recovery", "invite"].includes(params.get("type"))) return null;
+  const accessToken = params.get("access_token");
+  if (!accessToken) return null;
+  return { accessToken, refreshToken: params.get("refresh_token") || null };
 }
 
 // Real Supabase JWT session. It is persisted locally and refreshed from the refresh token so a
@@ -1925,6 +1905,13 @@ async function supabaseFetch(path, options = {}) {
 // method here throws on failure with the real Supabase error body attached — nothing is
 // swallowed here; callers (the test panel) are responsible for catching and displaying it
 // (item 11 — see runCrudTest below, which never lets a failure look like a silent success).
+let _unconfirmedRpcWrite = null;
+function postgrestFilterValue(value) {
+  const quote = String.fromCharCode(34);
+  const slash = String.fromCharCode(92);
+  return quote + String(value).split(slash).join(slash + slash).split(quote).join(slash + quote) + quote;
+}
+
 const supabaseRest = {
   // Reachability check only — does NOT assert any table has data (RLS will legitimately return
   // an empty result for an unauthenticated caller; see the report for what that means here).
@@ -1961,12 +1948,18 @@ const supabaseRest = {
     if (!res.ok) throw new Error(`insert ${table} failed (${res.status}): ${JSON.stringify(body)}`);
     return Array.isArray(body) ? body[0] : body;
   },
-  async updateOne(table, id, patch) {
-    const res = await supabaseFetch(`/rest/v1/${table}?id=eq.${id}`, {
+  async updateOne(table, id, patch, expected = null) {
+    const filters = expected ? `&and=${encodeURIComponent(`(${Object.entries(expected).map(([key, value]) => `${key}.${value === null ? "is.null" : `eq.${postgrestFilterValue(value)}`}`).join(",")})`)}` : "";
+    const res = await supabaseFetch(`/rest/v1/${table}?id=eq.${id}${filters}`, {
       method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch),
     });
     const body = await res.json().catch(() => null);
     if (!res.ok) throw new Error(`update ${table} failed (${res.status}): ${JSON.stringify(body)}`);
+    if (expected && (!Array.isArray(body) || !body.length)) {
+      const error = new Error("This record changed in another session. Reload before saving your changes.");
+      error.code = "STALE_EDIT";
+      throw error;
+    }
     return Array.isArray(body) ? body[0] : body;
   },
   async deleteOne(table, id) {
@@ -1978,7 +1971,15 @@ const supabaseRest = {
   // Provided for completeness (the eventual InventoryService cutover will need this), not called
   // by any live write path yet — that rerouting is explicitly deferred, see Finding F.
   async rpc(fnName, args = {}) {
-    const res = await supabaseFetch(`/rest/v1/rpc/${fnName}`, { method: "POST", body: JSON.stringify(args) });
+    const harmless = ["current_business_id", "user_can", "fn_user_controls_employee", "fn_write_audit", "fn_reconcile_business_alerts"].includes(fnName);
+    if (_unconfirmedRpcWrite && !harmless) { const error = new Error("A previous operation could not be confirmed. Refresh and check the history before making another change."); error.commitUncertain = true; throw error; }
+    let res;
+    try { res = await supabaseFetch("/rest/v1/rpc/" + fnName, { method: "POST", body: JSON.stringify(args) }); }
+    catch (cause) {
+      if (!harmless && fnName !== "fn_create_sale") _unconfirmedRpcWrite = { fnName, at: Date.now() };
+      const error = new Error(fnName === "fn_create_sale" ? "Connection interrupted. The sale may already have been saved. Retry saving this same sale without taking another payment." : "Connection interrupted. This operation may already have been saved. Refresh and check the history before trying again.");
+      error.commitUncertain = true; error.cause = cause; throw error;
+    }
     const body = await res.json().catch(() => null);
     if (!res.ok) throw new Error(`rpc ${fnName} failed (${res.status}): ${JSON.stringify(body)}`);
     return body;
@@ -2049,7 +2050,77 @@ const supabaseAuth = {
   signOut() { persistSupabaseSession(null); },
   hasSession() { return !!_supabaseSession; },
   getSession() { return _supabaseSession; },
+  // Used ONLY by the password-recovery screen, with the short-lived recovery access_token from
+  // the Supabase email link — never with the app's normal persisted session. This is the official
+  // Supabase Auth REST endpoint for updating the current (bearer-authenticated) user, the same one
+  // the supabase-js SDK's updateUser({ password }) calls under the hood. Never logs the token.
+  async updateUserPassword(accessToken, newPassword) {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: "PUT",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ password: newPassword }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new Error(body?.error_description || body?.msg || body?.error || "Could not update your password. The link may have expired — request a new one.");
+    }
+    return body;
+  },
 };
+
+async function callSupabaseFunction(functionName, payload = {}) {
+  const session = await supabaseAuth.restoreSession();
+  if (!session?.accessToken) throw new Error("Your session has expired. Sign in again.");
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${session.accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.error || `${functionName} failed (${res.status})`);
+  return body;
+}
+
+function useSupabaseUsers(businessId, reportLoadError, clearLoadError) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const rows = await supabaseRest.select("users", `select=id,business_id,employee_id,name,username,role,permission_overrides,active,created_at,updated_at&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.asc`);
+    const mapped = (rows || []).map(appUserFromDb);
+    setData(mapped); clearLoadError?.("users"); return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase users load failed", e); reportLoadError?.("users","initial",e.message); }); }, [reload, reportLoadError]);
+
+  const persist = useCallback(async (next) => {
+    const before = data || []; const after = next || [];
+    for (const row of after) {
+      const old = before.find((x) => x.id === row.id);
+      if (!old) throw new Error("New staff accounts must be invited by email.");
+      const changed = ["name","username","role","employeeId","active"].some((k) => (old?.[k] ?? "") !== (row?.[k] ?? ""))
+        || JSON.stringify(old.permissions || {}) !== JSON.stringify(row.permissions || {});
+      if (changed) await callSupabaseFunction("manage-staff-user", {
+        operation:"update", user_id:row.id, name:row.name, username:row.username, role:row.role,
+        employee_id:row.employeeId || null, active:row.active !== false, permission_overrides:row.role === "OWNER" ? {} : (row.permissions || {}),
+      });
+    }
+    return reload();
+  }, [data, reload]);
+
+  const invite = useCallback(async (row) => {
+    await callSupabaseFunction("manage-staff-user", {
+      operation:"invite", email:row.email, name:row.name, username:row.username, role:row.role,
+      employee_id:row.employeeId || null, active:row.active !== false, permission_overrides:row.role === "OWNER" ? {} : (row.permissions || {}),
+      redirect_to: window.location.origin,
+    });
+    return reload();
+  }, [reload]);
+
+  return [data, persist, reload, invite];
+}
 
 function appUserFromDb(row) {
   return {
@@ -2075,51 +2146,22 @@ async function loadAuthenticatedProfile(userId) {
   return appUserFromDb(row);
 }
 
-/* ============================== STORAGE HOOK ============================== */
-function useCollection(key, seedFn) {
-  const [data, setData] = useState(null); // null = loading
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const existing = await dataStore.get(key);
-      if (existing !== null) {
-        if (!cancelled) setData(existing);
-        return;
-      }
-      const seeded = seedFn();
-      await dataStore.set(key, seeded);
-      if (!cancelled) setData(seeded);
-    })();
-    return () => { cancelled = true; };
-  }, [key]);
 
-  const persist = useCallback(async (next) => {
-    setData(next);
-    await dataStore.set(key, next);
-  }, [key]);
-
-  return [data, persist];
-}
-
-
-/* ============================== SUPABASE DATA — PHASE 1 ==============================
- * These collections are now tenant-scoped PostgreSQL data, protected by RLS.
- * Transactional modules (sales/inventory/cash/purchases/etc.) intentionally remain on the
- * legacy dataStore until their RPC-backed migration phases, so we never bypass the server-side
- * business rules already installed for them.
- * ============================================================================== */
+/* ============================== SUPABASE DATA ==============================\r\n * Tenant-scoped PostgreSQL collections protected by RLS. Transactional mutations use server RPCs.\r\n * ============================================================================== */
 const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || ""));
 const newDbId = () => crypto.randomUUID();
 
 function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate" } = {}, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const previousRef = useRef([]);
+  const writeBlockedRef = useRef(false);
 
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); previousRef.current = []; return []; }
     const rows = await supabaseRest.select(table, `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
     const mapped = (rows || []).map(fromDb);
     previousRef.current = mapped;
+    writeBlockedRef.current = false;
     setData(mapped);
     clearLoadError?.(table); // only reached once the select above has actually succeeded
     return mapped;
@@ -2134,6 +2176,7 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
         if (cancelled) return;
         const mapped = (rows || []).map(fromDb);
         previousRef.current = mapped;
+    writeBlockedRef.current = false;
         setData(mapped);
         clearLoadError?.(table);
       } catch (e) {
@@ -2149,20 +2192,48 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
 
   const persist = useCallback(async (next) => {
     if (!businessId) throw new Error("No authenticated business is available.");
+    if (writeBlockedRef.current) throw new Error("Reload the data before saving again. The previous save may already have been recorded.");
     const normalized = (next || []).map((item) => ({ ...item, id: isUuid(item.id) ? item.id : newDbId() }));
     const before = previousRef.current || [];
     const nextIds = new Set(normalized.map((x) => x.id));
     const missingRows = before.filter((x) => !nextIds.has(x.id));
 
-    if (normalized.length) {
-      await supabaseRest.upsert(table, normalized.map((item) => toDb(item, businessId)), "id");
+    const oldById = new Map(before.map((item) => [item.id, item]));
+    const inserts = [];
+    const updates = [];
+    for (const item of normalized) {
+      const old = oldById.get(item.id);
+      const row = toDb(item, businessId);
+      if (!old) { inserts.push(row); continue; }
+      const oldRow = toDb(old, businessId);
+      const patch = {};
+      for (const key of Object.keys(row)) {
+        if (key !== "id" && key !== "business_id" && key !== "updated_at" && JSON.stringify(row[key]) !== JSON.stringify(oldRow[key])) patch[key] = row[key];
+      }
+      if (Object.keys(patch).length) updates.push({ id: item.id, expected: Object.fromEntries(Object.keys(patch).map((key) => [key, oldRow[key]])), patch: { ...patch, updated_at: nowISO() } });
     }
+    const hasWrites = inserts.length + updates.length + missingRows.length > 0;
+    if (hasWrites) writeBlockedRef.current = true;
+    try {
+    if (inserts.length) await supabaseRest.upsert(table, inserts, "id");
+    for (const row of updates) await supabaseRest.updateOne(table, row.id, row.patch, row.expected);
     for (const row of missingRows) {
       if (missing === "delete") await supabaseRest.deleteOne(table, row.id);
       else if (missing === "deactivate") await supabaseRest.updateOne(table, row.id, { active: false, updated_at: nowISO() });
     }
-    return reload();
-  }, [table, businessId, toDb, missing, reload]);
+    } catch (e) {
+      reportLoadError?.(table, "reload", "Reload to verify the previous save before trying again.");
+      throw e;
+    }
+    try { return await reload(); } catch (e) {
+      reportLoadError?.(table, "reload", e.message);
+      if (!hasWrites) throw e;
+      const error = new Error("Changes were saved, but the screen could not refresh. Reload before saving again.");
+      error.rpcSucceeded = true;
+      error.staleData = true;
+      throw error;
+    }
+  }, [table, businessId, toDb, missing, reload, reportLoadError]);
 
   return [data, persist, reload];
 }
@@ -2179,7 +2250,7 @@ function useSupabaseEmployees(businessId, locations, reportLoadError, clearLoadE
   const byName = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.name, l.id])), [locations]);
   const defaultLocationId = useMemo(() => (locations || []).find((l) => l.active !== false)?.id || "", [locations]);
   const fromDb = useCallback((r) => ({ id: r.id, name: r.name, role: r.job_title || "", hourlyRate: Number(r.hourly_rate || 0), locationId: r.location_id || "", location: byId[r.location_id] || "", managerId: r.manager_id || "", active: r.active !== false, notes: r.notes || "" }), [byId]);
-  const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: x.locationId || byName[x.location] || defaultLocationId || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName, defaultLocationId]);
+  const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: (x.location ? byName[x.location] : null) || x.locationId || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName, defaultLocationId]);
   return useSupabaseArrayCollection("employees", businessId, fromDb, toDb, { missing: "deactivate" }, reportLoadError, clearLoadError);
 }
 
@@ -2364,6 +2435,7 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
       const st = stockByItem.get(i.id);
       return {
         id: i.id, name: i.name, sku: i.sku || "", category: i.category || "", unit: i.unit,
+        stocks: (stock || []).filter((x) => x.inventory_item_id === i.id).map((x) => ({ locationId: x.location_id, qty: Number(x.qty || 0), costPerUnit: Number(x.avg_cost_per_unit || 0) })),
         qty: Number(st?.qty || 0), minQty: Number(i.min_qty || 0), maxQty: Number(i.max_qty || 0),
         costPerUnit: Number(st?.avg_cost_per_unit || 0), supplierId: i.supplier_id || "",
         locationId: st?.location_id || "", location: locationById[st?.location_id] || "",
@@ -2371,35 +2443,13 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
       };
     });
     const txRows = await supabaseRest.select("inventory_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=500`);
-
-    // Purchase ledger rows only store purchase_order_id. Resolve the PO -> supplier relationship
-    // here so InventoryHistoryModal can group real Supabase purchases by supplier instead of
-    // falling back to "Unknown supplier".
-    const purchaseOrderIds = [...new Set((txRows || []).map((t) => t.purchase_order_id).filter(Boolean))];
-    let purchaseOrderSupplierById = {};
-    if (purchaseOrderIds.length) {
-      const poRows = await supabaseRest.select(
-        "purchase_orders",
-        `select=id,supplier_id,po_number&id=in.(${purchaseOrderIds.join(",")})`
-      );
-      purchaseOrderSupplierById = Object.fromEntries(
-        (poRows || []).map((po) => [po.id, { supplierId: po.supplier_id || "", poNumber: po.po_number }])
-      );
-    }
-
-    setTransactions((txRows || []).map((t) => {
-      const poMeta = t.purchase_order_id ? purchaseOrderSupplierById[t.purchase_order_id] : null;
-      return {
-        id: t.id, date: t.created_at, itemId: t.inventory_item_id, type: inventoryTxTypeLabel(t.type), qty: Number(t.qty_change || 0),
-        unit: t.unit || "", unitCost: t.unit_cost == null ? null : Number(t.unit_cost), totalCost: t.total_cost == null ? null : Number(t.total_cost),
-        referenceId: t.sale_id || t.purchase_order_id || t.related_transaction_id || "",
-        referenceLabel: poMeta?.poNumber != null ? `PO-${poMeta.poNumber}` : "",
-        supplierId: poMeta?.supplierId || "",
-        note: t.note || "", locationId: t.location_id,
-      };
-    }));
+    setTransactions((txRows || []).map((t) => ({
+      id: t.id, date: t.created_at, itemId: t.inventory_item_id, type: inventoryTxTypeLabel(t.type), qty: Number(t.qty_change || 0),
+      unit: t.unit || "", unitCost: t.unit_cost == null ? null : Number(t.unit_cost), totalCost: t.total_cost == null ? null : Number(t.total_cost),
+      referenceId: t.sale_id || t.purchase_order_id || t.related_transaction_id || "", purchaseOrderId: t.purchase_order_id || "", note: t.note || "", locationId: t.location_id,
+    })));
     setData(mapped);
-    // Only reached once all queries composing this reload (items, stock, transactions, and referenced POs) have succeeded —
+    // Only reached once ALL THREE queries above (items, stock, transactions) have succeeded —
     // exactly the "clear only after every query composing this reload succeeded" requirement,
     // since any earlier await throwing would have skipped straight to the catch below instead.
     clearLoadError?.("inventory");
@@ -2496,6 +2546,15 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
         err.staleData = true;
         err.result = row;
         throw err;
+      }
+    },
+    async transfer(item, fromLocationId, toLocationId, qty, notes = "") {
+      const row = await supabaseRest.rpc("fn_transfer_inventory", { p_business_id: businessId, p_inventory_item_id: item.id, p_from_location_id: fromLocationId, p_to_location_id: toLocationId, p_qty: Number(qty), p_notes: notes || null });
+      try { return await reload(); }
+      catch (e) {
+        reportLoadError?.("inventory", "reload", e.message);
+        const err = new Error("The transfer was recorded, but the screen could not refresh. Refresh the page.");
+        err.rpcSucceeded = true; err.staleData = true; err.result = row; throw err;
       }
     },
     async waste(item, qty, reason, notes = "") {
@@ -3115,6 +3174,111 @@ function useSupabaseCashRegisters(businessId, reloadCashFlow, reportLoadError, c
   return [data, ops];
 }
 
+/* ============================== SUPABASE DATA — PHASE 6: TASKS / SHIFTS / ALERTS / AUDIT ============================== */
+function useSupabaseAudit(businessId, reportLoadError, clearLoadError) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const rows = await supabaseRest.select("audit_logs", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=occurred_at.desc&limit=1000`);
+    const mapped = (rows || []).map((r) => ({ id:r.id, date:r.occurred_at, userId:r.user_id || "", userName:r.user_name_snapshot || "Unknown", role:r.role_snapshot || "", action:r.action, details:r.details || "" }));
+    setData(mapped); clearLoadError?.("auditLog"); return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase audit load failed", e); reportLoadError?.("auditLog","initial",e.message); }); }, [reload, reportLoadError]);
+  const persist = useCallback(async (next) => {
+    const currentIds = new Set((data || []).map((x) => x.id));
+    const added = (next || []).filter((x) => !currentIds.has(x.id));
+    for (const row of added) {
+      await supabaseRest.rpc("fn_write_audit", { p_action: row.action, p_details: row.details || "" });
+    }
+    return reload();
+  }, [businessId, data, reload]);
+  return [data, persist, reload];
+}
+
+function useSupabaseTasks(businessId, reportLoadError, clearLoadError) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const [tasksRows, activityRows, userRows] = await Promise.all([
+      supabaseRest.select("tasks", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`),
+      supabaseRest.select("task_activity", "select=*&order=occurred_at.desc&limit=2000"),
+      supabaseRest.select("users", `select=id,name&business_id=eq.${encodeURIComponent(businessId)}`),
+    ]);
+    const userNames = Object.fromEntries((userRows || []).map((u) => [u.id,u.name]));
+    const activityByTask = new Map();
+    for (const a of activityRows || []) {
+      if (!activityByTask.has(a.task_id)) activityByTask.set(a.task_id, []);
+      activityByTask.get(a.task_id).push({ id:a.id, date:a.occurred_at, userId:a.user_id || "", userName:userNames[a.user_id] || "Unknown", action:a.action });
+    }
+    const mapped = (tasksRows || []).map((t) => ({ id:t.id, title:t.title, assignedTo:t.assigned_to || "", dueDate:t.due_date || "", priority:t.priority || "Medium", status:t.status, notes:t.notes || "", completedAt:t.completed_at || null, completedBy:t.completed_by || null, createdAt:t.created_at, activity:activityByTask.get(t.id) || [] }));
+    setData(mapped); clearLoadError?.("tasks"); return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(() => { reload().catch((e) => { console.error("Supabase tasks load failed", e); reportLoadError?.("tasks","initial",e.message); }); }, [reload, reportLoadError]);
+  const persist = useCallback(async (next) => {
+    const before = data || []; const nextRows = next || [];
+    const nextIds = new Set(nextRows.map((x) => x.id));
+    for (const old of before) if (!nextIds.has(old.id)) await supabaseRest.rpc("fn_save_task",{p_business_id:businessId,p_task_id:old.id,p_operation:"delete",p_title:null,p_assigned_to:null,p_due_date:null,p_priority:null,p_notes:null});
+    for (const row of nextRows) {
+      const old = before.find((x) => x.id === row.id);
+      const taskId = isUuid(row.id) ? row.id : newDbId();
+      const detailsChanged = !old || ["title","assignedTo","dueDate","priority","notes"].some((k) => (old?.[k] ?? "") !== (row?.[k] ?? ""));
+      if (detailsChanged) await supabaseRest.rpc("fn_save_task",{p_business_id:businessId,p_task_id:taskId,p_operation:"upsert",p_title:row.title,p_assigned_to:row.assignedTo || null,p_due_date:row.dueDate || null,p_priority:row.priority || "Medium",p_notes:row.notes || null});
+      if (old && old.status !== row.status) await supabaseRest.rpc("fn_toggle_task_status",{p_task_id:old.id,p_status:row.status});
+    }
+    return reload();
+  }, [businessId, data, reload]);
+  return [data, persist, reload];
+}
+
+function useSupabaseShifts(businessId, reportLoadError, clearLoadError) {
+  const [data, setData] = useState(null);
+  const reload = useCallback(async () => {
+    if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
+    const [shiftRows, breakRows] = await Promise.all([
+      supabaseRest.select("shifts", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=clock_in_at.desc&limit=1000`),
+      supabaseRest.select("shift_breaks", "select=*&order=started_at.asc&limit=3000"),
+    ]);
+    const breaksByShift = new Map();
+    for (const b of breakRows || []) { if (!breaksByShift.has(b.shift_id)) breaksByShift.set(b.shift_id,[]); breaksByShift.get(b.shift_id).push({id:b.id,startedAt:b.started_at,endedAt:b.ended_at}); }
+    const mapped=(shiftRows||[]).map((s)=>({id:s.id,employeeId:s.employee_id,locationId:s.location_id||"",clockInAt:s.clock_in_at,clockOutAt:s.clock_out_at,status:s.status,breaks:breaksByShift.get(s.id)||[],notes:s.notes||"",createdAt:s.created_at,updatedAt:s.updated_at}));
+    setData(mapped); clearLoadError?.("shifts"); return mapped;
+  }, [businessId, clearLoadError]);
+  useEffect(()=>{reload().catch((e)=>{console.error("Supabase shifts load failed",e);reportLoadError?.("shifts","initial",e.message);});},[reload,reportLoadError]);
+  const persist=useCallback(async(next)=>{
+    const before=data||[]; const after=next||[];
+    for(const row of after){
+      const old=before.find((x)=>x.id===row.id);
+      if(!old){ await supabaseRest.rpc("fn_clock_in",{p_business_id:businessId,p_employee_id:row.employeeId,p_location_id:row.locationId||null,p_notes:row.notes||null}); continue; }
+      if(old.status==="open" && row.status==="closed"){ await supabaseRest.rpc("fn_clock_out",{p_employee_id:row.employeeId}); continue; }
+      const oldActive=(old.breaks||[]).find((b)=>!b.endedAt); const newActive=(row.breaks||[]).find((b)=>!b.endedAt);
+      if((row.breaks||[]).length>(old.breaks||[]).length && newActive) await supabaseRest.rpc("fn_start_break",{p_employee_id:row.employeeId});
+      else if(oldActive && !newActive) await supabaseRest.rpc("fn_end_break",{p_employee_id:row.employeeId});
+    }
+    return reload();
+  },[businessId,data,reload]);
+  return [data,persist,reload];
+}
+
+function useSupabaseAlerts(businessId, reportLoadError, clearLoadError) {
+  const [data,setData]=useState(null);
+  const reload=useCallback(async()=>{
+    if(!businessId||!supabaseAuth.hasSession()){setData([]);return[];}
+    const rows=await supabaseRest.select("business_alerts",`select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=1000`);
+    const mapped=(rows||[]).map((a)=>({id:a.id,key:a.key,type:a.type,severity:a.severity,title:a.title,message:a.message||"",entityType:a.entity_type||"",entityId:a.entity_id||"",locationId:a.location_id||"",financial:!!a.financial,status:a.status,createdAt:a.created_at,resolvedAt:a.resolved_at,dismissedAt:a.dismissed_at}));
+    setData(mapped);clearLoadError?.("businessAlerts");return mapped;
+  },[businessId,clearLoadError]);
+  useEffect(()=>{reload().catch((e)=>{console.error("Supabase alerts load failed",e);reportLoadError?.("businessAlerts","initial",e.message);});},[reload,reportLoadError]);
+  const persist=useCallback(async(next)=>{
+    const before=data||[]; const after=next||[];
+    const dismissed=after.find((a)=>a.status==="dismissed" && before.find((b)=>b.id===a.id)?.status!=="dismissed");
+    if(dismissed) await supabaseRest.rpc("fn_dismiss_alert",{p_alert_id:dismissed.id});
+    const candidates=after.filter((a)=>a.status==="open").map((a)=>({key:a.key,type:a.type,severity:a.severity,title:a.title,message:a.message||"",entity_type:a.entityType||null,entity_id:a.entityId||null,location_id:a.locationId||null,financial:!!a.financial}));
+    await supabaseRest.rpc("fn_reconcile_business_alerts",{p_business_id:businessId,p_candidates:candidates});
+    return reload();
+  },[businessId,data,reload]);
+  return [data,persist,reload];
+}
+
 /* ============================== SMALL UI PRIMITIVES ============================== */
 function useTheme() {
   const [dark, setDark] = useState(true);
@@ -3299,9 +3463,9 @@ const inputStyle = (dark) => ({
   fontSize: "14px",
 });
 
-const Input = (props) => <input {...props} style={{ ...inputStyle(props.dark), ...(props.style || {}) }} />;
+const Input = ({ dark, style, ...props }) => <input {...props} style={{ ...inputStyle(dark), ...(style || {}) }} />;
 const Select = ({ dark, children, ...props }) => <select {...props} style={inputStyle(dark)}>{children}</select>;
-const TextArea = (props) => <textarea {...props} style={{ ...inputStyle(props.dark), minHeight: 70, ...(props.style || {}) }} />;
+const TextArea = ({ dark, style, ...props }) => <textarea {...props} style={{ ...inputStyle(dark), minHeight: 70, ...(style || {}) }} />;
 
 function PrimaryButton({ children, onClick, full, style, disabled, type = "button" }) {
   return (
@@ -3457,6 +3621,20 @@ export default function App() {
   const [currentUserId, setCurrentUserId] = useState(undefined); // undefined = checking session, null = signed out
   const [authProfile, setAuthProfile] = useState(null);
   const [authStartupError, setAuthStartupError] = useState("");
+
+  // Password recovery: captured synchronously on first render, before anything else can touch
+  // window.location.hash. This takes over the screen (see the early return below, before the
+  // loading gate) and is completely separate from the normal session-restore effect right after
+  // it — a recovery link must never be treated as "the user is now logged in".
+  const [passwordRecovery, setPasswordRecovery] = useState(() => parseSupabaseAuthHash());
+  useEffect(() => {
+    // Strip the recovery hash from the address bar immediately — the tokens live only in
+    // `passwordRecovery` React state from here on, never lingering in the visible URL/history.
+    if (passwordRecovery && window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }
+  }, [passwordRecovery]);
+
   useEffect(() => {
     let cancelled = false;
     // Phase 6.1: registers the one hook non-React session code (refreshSupabaseSession, on a
@@ -3497,16 +3675,16 @@ export default function App() {
   }, []);
   const businessId = authProfile?.businessId || null;
 
-  // Phase 1: master/business data is now real tenant-scoped Supabase data.
-  // Transactional modules stay on the legacy store until their RPC migration phase.
+  // Master/business data and transactional modules are tenant-scoped Supabase data.
+  // Mutations that affect ledgers or permissions use server RPCs; simple master data remains RLS-protected.
   const [locations, setLocations] = useSupabaseArrayCollection("locations", businessId, fromLocationDb, toLocationDb, { missing: "delete" }, reportLoadError, clearLoadError);
   const [suppliers, setSuppliers] = useSupabaseArrayCollection("suppliers", businessId, fromSupplierDb, toSupplierDb, { missing: "delete" }, reportLoadError, clearLoadError);
   const [customers, setCustomers] = useSupabaseArrayCollection("customers", businessId, fromCustomerDb, toCustomerDb, { missing: "deactivate" }, reportLoadError, clearLoadError);
   const [employees, setEmployees] = useSupabaseEmployees(businessId, locations, reportLoadError, clearLoadError);
   const [settings, setSettings] = useSupabaseBusinessSettings(businessId, reportLoadError, clearLoadError);
 
-  // Phase 2 adds real Supabase catalog screens while the legacy transactional shadow remains
-  // isolated for POS/Purchases until their atomic RPC cutover (Phase 3).
+  // Supabase catalog is authoritative across all user-facing modules. Legacy seed state below is
+  // retained only as isolated fallback scaffolding and is never used as the live transactional source.
   const [catalogProducts, setCatalogProducts] = useSupabaseProducts(businessId, reportLoadError, clearLoadError);
   const [catalogInventory, setCatalogInventory, catalogInvTx, catalogInventoryOps, reloadCatalogInventory] = useSupabaseInventory(businessId, locations, reportLoadError, clearLoadError);
   const [remoteSales, persistRemoteSales, remoteSalesOps] = useSupabaseSales(businessId, locations, reportLoadError, clearLoadError);
@@ -3515,186 +3693,17 @@ export default function App() {
   const [remoteExpenses, remoteExpenseOps] = useSupabaseExpenses(businessId, reloadRemoteCashTx, reportLoadError, clearLoadError);
   const [remotePurchaseOrders, remotePurchaseOps] = useSupabasePurchases(businessId, reloadCatalogInventory, reloadRemoteCashTx, reportLoadError, clearLoadError);
   const [remoteCashRegisters, remoteCashRegisterOps] = useSupabaseCashRegisters(businessId, reloadRemoteCashTx, reportLoadError, clearLoadError);
-
-  // Legacy transaction shadow — intentionally NOT used by the Products/Inventory tabs anymore.
-  const [products, setProducts] = useCollection("products", seedProducts);
-  const [inventory, setInventory] = useCollection("inventory", seedInventory);
-  if (settings?.currency) setActiveCurrency(settings.currency);
-  const [tasks, persistTasks] = useCollection("tasks", seedTasks);
-  const [cashRegisters, setCashRegisters] = useCollection("cashRegisters", () => []);
-  // Phase 5: loyalty ledger + rewards are now tenant-scoped Supabase data. The compatibility
-  // setter translates the existing UI actions into the hardened loyalty RPCs.
   const [loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty] = useSupabaseLoyalty(businessId, reportLoadError, clearLoadError);
-  const [shifts, setShifts] = useCollection("shifts", () => []);
-  const [businessAlerts, setBusinessAlerts] = useCollection("businessAlerts", () => []);
-  const [users, setUsers] = useCollection("users", seedUsers);
-  const [auditLog, setAuditLog] = useCollection("auditLog", () => []);
+  const [auditLog, setAuditLog] = useSupabaseAudit(businessId, reportLoadError, clearLoadError);
+  const [tasks, persistTasks] = useSupabaseTasks(businessId, reportLoadError, clearLoadError);
+  const [shifts, setShifts] = useSupabaseShifts(businessId, reportLoadError, clearLoadError);
+  const [businessAlerts, setBusinessAlerts] = useSupabaseAlerts(businessId, reportLoadError, clearLoadError);
+  const [users, setUsers, reloadUsers, inviteUser] = useSupabaseUsers(businessId, reportLoadError, clearLoadError);
 
-  // sales, cashTx, and expenses are cross-dependent (need products/inventory for recipe-based seeding),
-  // so they're seeded together, once, in a single consistent pass. cashTx is the single source of truth
-  // for all cash totals — every expense (seeded or user-added) always has a matching cashTx entry, so
-  // nothing is ever double-counted or missing from the ledger.
-  const [sales, setSales] = useState(null);
-  const [cashTx, setCashTx] = useState(null);
-  const [expenses, setExpenses] = useState(null);
-  const [wasteTx, setWasteTx] = useState(null);
-  const [invTx, setInvTx] = useCollection("inventoryTransactions", () => []);
-  const [purchaseOrders, setPurchaseOrders] = useState(null);
-
-  const productsReady = products !== null;
-  const inventoryReady = inventory !== null;
-  const invTxReady = invTx !== null;
-
-  useEffect(() => {
-    if (!productsReady || !inventoryReady || !invTxReady) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [sData0, cData0, eData0, pData0] = await Promise.all([
-          dataStore.get("sales"),
-          dataStore.get("cashTransactions"),
-          dataStore.get("expenses"),
-          dataStore.get("purchaseOrders"),
-        ]);
-        let sData = sData0;
-        let cData = cData0;
-        let eData = eData0;
-        let pData = pData0;
-        let invData = inventory;
-        let invTxData = invTx;
-
-        if (!sData || !cData) {
-          const { sales: sSeed, cash: cSeed } = seedSalesAndCash(products, inventory);
-          sData = sData || sSeed;
-          cData = cData || cSeed;
-        }
-        if (!eData) {
-          const eSeed = seedExpenses();
-          const eCash = eSeed.map((e) => ({
-            id: uid("cash"), date: e.date, type: "expense", category: e.category, amount: e.amount,
-            paymentMethod: e.paymentMethod, description: e.description || e.vendor, relatedExpenseId: e.id, sample: true,
-          }));
-          eData = eSeed;
-          cData = [...(cData || []), ...eCash];
-        }
-        if (!pData) {
-          // Seed purchase orders, then replay receiving for the lines already marked received —
-          // exactly the same weighted-average-cost path a real "Receive" action uses.
-          pData = seedPurchaseOrders();
-          for (const po of pData) {
-            const receiveLines = po.items.filter((l) => l.receivedQty > 0).map((l) => ({ itemId: l.itemId, qty: l.receivedQty, unitCost: l.unitCost }));
-            if (receiveLines.length) {
-              const { nextInventory, txEntries } = applyPurchaseReceipt(invData, receiveLines, { date: po.orderDate, referenceId: po.id, referenceLabel: po.poNumber, supplierId: po.supplierId, note: `Received against ${po.poNumber}` });
-              invData = nextInventory;
-              invTxData = [...txEntries, ...invTxData];
-            }
-            if (po.status === "Received") {
-              const total = poGrandTotal(po);
-              po.amountPaid = total;
-              cData = [{ id: uid("cash"), date: po.orderDate, type: "expense", category: "Supplier Payment", amount: total, paymentMethod: po.paymentMethod, description: `Payment for ${po.poNumber}`, relatedPOId: po.id, sample: true }, ...(cData || [])];
-            }
-          }
-        }
-
-        // React state is populated here, BEFORE persistence is even attempted — this is the
-        // core fix for the startup deadlock. Local in-memory state is the source of truth for
-        // the running session; persistence below is strictly best-effort and can never block or
-        // undo it, no matter how it goes.
-        if (!cancelled) {
-          setSales(sData); setCashTx(cData); setExpenses(eData); setPurchaseOrders(pData);
-          if (invData !== inventory) setInventory(invData);
-          if (invTxData !== invTx) setInvTx(invTxData);
-        }
-
-        // Persistence is fire-and-forget from the UI's perspective (note: no `await` on this
-        // below — the effect does not wait for it) and fully decoupled: one write failing or
-        // timing out can never affect the others or revert the state set above.
-        //
-        // Writes are sequential (not all 6 fired at once) rather than parallel: the platform's
-        // storage API rejected 2 of 6 simultaneous writes immediately and left the other 4
-        // hanging until they hit the timeout below — a classic concurrent-write-contention
-        // pattern. Sequencing them reduces load on that API; each write still can't block
-        // startup, since this whole block already runs after the UI has been unblocked above.
-        (async () => {
-          const writes = [
-            ["sales", sData], ["cashTransactions", cData], ["expenses", eData],
-            ["purchaseOrders", pData], ["inventory", invData], ["inventoryTransactions", invTxData],
-          ];
-          for (const [key, value] of writes) {
-            try {
-              await withTimeout(dataStore.set(key, value), 8000, key);
-            } catch (err) {
-              console.error(`background persistence failed for "${key}" — in-memory state is unaffected`, err);
-            }
-          }
-        })();
-      } catch (e) {
-        // Generation failure fallback (seedSalesAndCash/seedExpenses/seedPurchaseOrders/
-        // applyPurchaseReceipt throwing) — persistence is fully decoupled above and can never
-        // reach this catch. The nested try/catch below guarantees the four setters always
-        // eventually fire, even if the fallback generation itself fails.
-        try {
-          const { sales: sSeed, cash: cSeed } = seedSalesAndCash(products, inventory);
-          const eSeed = seedExpenses();
-          if (!cancelled) { setSales(sSeed); setCashTx(cSeed); setExpenses(eSeed); setPurchaseOrders(seedPurchaseOrders()); }
-        } catch (e2) {
-          if (!cancelled) { setSales([]); setCashTx([]); setExpenses([]); setPurchaseOrders([]); }
-        }
-      }
-    })();
-    (async () => {
-      const w = await dataStore.get("wasteTransactions");
-      if (w !== null) {
-        if (!cancelled) setWasteTx(w);
-      } else {
-        await dataStore.set("wasteTransactions", []);
-        if (!cancelled) setWasteTx([]);
-      }
-    })();
-    return () => { cancelled = true; };
-    // Intentionally depends on readiness flags only (not the array references), so this
-    // seeding pass runs exactly once and never re-fires (and re-fetches/overwrites state)
-    // every time a sale or purchase mutates `inventory`/`invTx`.
-  }, [productsReady, inventoryReady, invTxReady]);
-
-  // One-time, additive, non-destructive backfill: historical inventory/sales records created
-  // before locationId existed only have a `location` NAME string. This adds a matching `locationId`
-  // wherever the name confidently matches a real location record — it never removes or rewrites
-  // the original `location` string, so nothing is lost if the match is later found to be wrong.
-  // Guarded by a flag on settings so it only ever runs once. Depends on boolean readiness flags
-  // (not the raw collection references) for the same reason the seeding effect above does: so this
-  // doesn't re-fire — and risk racing a real-time write — every time a sale or inventory item
-  // changes for the rest of the app's lifetime, only during the initial load window.
-  const salesReady = sales !== null;
-  const locationsReady = locations !== null;
-  const settingsReady = settings !== null;
-  const migrationDone = !!settings?._locationMigrationV1;
-  useEffect(() => {
-    if (!inventoryReady || !salesReady || !locationsReady || !settingsReady || migrationDone) return;
-    if (locations.length === 0) return;
-    (async () => {
-      const byName = Object.fromEntries(locations.map((l) => [l.name, l.id]));
-      let invChanged = false;
-      const nextInventory = inventory.map((i) => {
-        if (!i.locationId && i.location && byName[i.location]) { invChanged = true; return { ...i, locationId: byName[i.location] }; }
-        return i;
-      });
-      let salesChanged = false;
-      const nextSales = sales.map((s) => {
-        if (!s.locationId && s.location && byName[s.location]) { salesChanged = true; return { ...s, locationId: byName[s.location] }; }
-        return s;
-      });
-      if (invChanged) await setInventory(nextInventory);
-      if (salesChanged) await persistSales(nextSales);
-      await setSettings({ ...settings, _locationMigrationV1: true });
-    })();
-  }, [inventoryReady, salesReady, locationsReady, settingsReady, migrationDone]);
-
-  const persistSales = useCallback(async (next) => { setSales(next); await dataStore.set("sales", next); }, []);
-  const persistCash = useCallback(async (next) => { setCashTx(next); await dataStore.set("cashTransactions", next); }, []);
-  const persistExpenses = useCallback(async (next) => { setExpenses(next); await dataStore.set("expenses", next); }, []);
-  const persistWaste = useCallback(async (next) => { setWasteTx(next); await dataStore.set("wasteTransactions", next); }, []);
-  const persistPO = useCallback(async (next) => { setPurchaseOrders(next); await dataStore.set("purchaseOrders", next); }, []);
+  // All authenticated user-facing data is Supabase-authoritative. The former local transactional
+  // shadow (products/inventory/sales/cash/expenses/waste/purchases + startup seeding/migration)
+  // was removed after verifying that the live UI is wired exclusively to the Supabase collections
+  // below. This prevents silent localStorage writes from diverging from the server.
 
   const showToast = (msg, tone = "good") => { setToast({ msg, tone }); setTimeout(() => setToast(null), 2600); };
 
@@ -3705,17 +3714,19 @@ export default function App() {
   // its error banner) — it just never resolves it by silently pretending to be `[]`.
   // Achado #6 subfase 2 adds `settings` to this same list (see useSupabaseBusinessSettings above)
   // — an error there also resolves the loading gate now, instead of fabricating seedSettings() as
-  // if it were the tenant's real configuration. Every other local/legacy useCollection-backed slot
-  // remains explicitly OUT OF SCOPE and keeps its original, unconditional `=== null` check.
+  // if it were the tenant's real configuration. All user-facing data slots below are now tracked
+  // through their Supabase load/error keys; legacy fallback state no longer gates startup.
   const supabasePending = [
     [catalogProducts, "products"], [catalogInventory, "inventory"], [remoteSales, "sales"],
     [remoteCashTx, "cashFlow"], [remoteExpenses, "expenses"], [remotePurchaseOrders, "purchases"],
     [remoteCashRegisters, "cashRegisters"], [suppliers, "suppliers"], [customers, "customers"],
     [employees, "employees"], [locations, "locations"], [loyaltyTransactions, "loyalty"], [loyaltyRewards, "loyalty"],
+    [tasks, "tasks"], [shifts, "shifts"], [businessAlerts, "businessAlerts"], [auditLog, "auditLog"], [users, "users"],
     [settings, "settings"],
   ].some(([value, key]) => value === null && !loadErrors[key]);
-  const legacyPending = [products, inventory, sales, cashTx, expenses, wasteTx, invTx, purchaseOrders, users, auditLog, tasks, cashRegisters, shifts, businessAlerts].some((x) => x === null);
-  const loading = supabasePending || legacyPending || currentUserId === undefined;
+  // All user-facing modules are Supabase-authoritative now. Legacy seed/shadow state may still
+  // initialize in the background for fallback code, but it must never gate or crash authenticated startup.
+  const loading = supabasePending || currentUserId === undefined;
 
   // Achado #6 subfase 2: `settings` itself (used for write decisions — see settingsReady below,
   // and SettingsView's settingsUnavailable prop) is allowed to stay null when loading a real
@@ -3727,6 +3738,14 @@ export default function App() {
   const displaySettings = settings || seedSettings();
 
   const bg = dark ? `radial-gradient(1200px 600px at 100% -10%, ${C.purple700}55, transparent), linear-gradient(180deg, ${C.black}, ${C.purple900})` : C.bgLight;
+
+  // A password-recovery link takes over the screen immediately — before the loading gate below,
+  // since this needs none of the app's Supabase data, and must never show the normal dashboard
+  // or login form while a recovery token is waiting to be used. `requireNewPassword` closing the
+  // loop (clearing passwordRecovery) is the only way back to the normal app from here.
+  if (passwordRecovery) {
+    return <SetNewPasswordScreen dark={dark} bg={bg} recovery={passwordRecovery} onDone={() => setPasswordRecovery(null)} />;
+  }
 
   if (loading) {
     return (
@@ -3748,13 +3767,13 @@ export default function App() {
 
   const phase4WriteGuard = async () => { throw new Error("This Phase 4 ledger is Supabase-managed. Use its server RPC operation instead of legacy local persistence."); };
   const ctx = {
-    dark, settings: displaySettings, setSettings, products, setProducts, inventory, setInventory,
+    dark, settings: displaySettings, setSettings, products: catalogProducts, setProducts: setCatalogProducts, inventory: catalogInventory, setInventory: setCatalogInventory,
     sales: remoteSales, persistSales: persistRemoteSales, cashTx: remoteCashTx, persistCash: phase4WriteGuard,
     expenses: remoteExpenses, setExpenses: phase4WriteGuard, expenseOps: remoteExpenseOps,
     suppliers, setSuppliers, customers, setCustomers, employees, setEmployees,
-    locations, setLocations, wasteTx, persistWaste, invTx: catalogInvTx, setInvTx: () => {},
+    locations, setLocations, wasteTx: [], persistWaste: phase4WriteGuard, invTx: catalogInvTx, setInvTx: () => {},
     purchaseOrders: remotePurchaseOrders, persistPO: phase4WriteGuard, purchaseOps: remotePurchaseOps,
-    showToast, users: effectiveUsers, setUsers, currentUser, can: (perm) => can(currentUser, perm),
+    showToast, users: effectiveUsers, setUsers, inviteUser, reloadUsers, currentUser, can: (perm) => can(currentUser, perm),
     auditLog, setAuditLog, logAudit: (action, details) => logAudit(auditLog, setAuditLog, currentUser, action, details),
     tasks, persistTasks, cashRegisters: remoteCashRegisters, setCashRegisters: phase4WriteGuard, cashRegisterOps: remoteCashRegisterOps,
     loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, reloadLoyalty, shifts, setShifts, businessAlerts, setBusinessAlerts,
@@ -3964,6 +3983,88 @@ function LoginScreen({ dark, onLogin, bg, startupError = "" }) {
             <Lock size={16} /> {submitting ? "Signing in…" : "Sign In"}
           </button>
         </form>
+        <div className="text-[11px] text-center mt-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Secure authentication powered by Supabase</div>
+      </div>
+    </div>
+  );
+}
+
+// NEXALVO-TEST only, per the current task — this screen is reached exclusively via the
+// password-recovery early-return in App() (see parseSupabaseAuthHash/passwordRecovery above),
+// never through normal navigation. `recovery` is either { accessToken, refreshToken } from a
+// valid, unused recovery link, or { error } when Supabase's own redirect already reported the
+// link as invalid/expired (e.g. otp_expired) — never both.
+function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(recovery?.error || "");
+  const [done, setDone] = useState(false);
+  const hasValidLink = !!recovery?.accessToken;
+
+  const submit = async (event) => {
+    event?.preventDefault?.();
+    if (submitting || !hasValidLink) return;
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password !== confirmPassword) { setError("Passwords don't match."); return; }
+    setSubmitting(true);
+    setError("");
+    try {
+      // The official Supabase Auth REST endpoint for updating the bearer-authenticated user —
+      // the recovery access_token from the email link is used ONLY for this one request, never
+      // persisted, never logged, and never treated as a normal app session.
+      await supabaseAuth.updateUserPassword(recovery.accessToken, password);
+      setDone(true);
+    } catch (e) {
+      setError(e.message || "Could not update your password. The link may have expired — request a new one.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center p-4" style={{ background: bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div className="w-full max-w-sm rounded-3xl p-6 shadow-2xl" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
+        <div className="flex flex-col items-center gap-2 mb-7">
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl" style={{ background: `linear-gradient(135deg, ${C.purple500}, ${C.purple700})`, color: C.lime, border: `2px solid ${C.lime}` }}>N</div>
+          <div className="font-black text-xl tracking-[0.16em]" style={{ color: dark ? C.white : C.black }}>NEXALVO</div>
+          <div className="text-xs font-semibold" style={{ color: C.yellow }}>{done ? "PASSWORD UPDATED" : "SET A NEW PASSWORD"}</div>
+        </div>
+
+        {done ? (
+          <>
+            <div className="text-sm text-center mb-5" style={{ color: dark ? C.white : C.black }}>Your password has been updated. Sign in with your new password.</div>
+            <button type="button" onClick={onDone} className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full" style={{ background: C.lime, color: C.black }}>
+              <Lock size={16} /> Back to Sign In
+            </button>
+          </>
+        ) : !hasValidLink ? (
+          <>
+            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error || "This password reset link is invalid or has expired."}</div>}
+            <div className="text-xs text-center mb-5" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Request a new reset link from the sign-in screen and try again.</div>
+            <button type="button" onClick={onDone} className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full" style={{ background: C.lime, color: C.black }}>
+              <Lock size={16} /> Back to Sign In
+            </button>
+          </>
+        ) : (
+          <form onSubmit={submit}>
+            <Field dark={dark} label="New password">
+              <Input dark={dark} type="password" autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••••" autoFocus />
+            </Field>
+            <Field dark={dark} label="Confirm new password">
+              <Input dark={dark} type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }} placeholder="••••••••" />
+            </Field>
+            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full"
+              style={{ background: submitting ? "#555" : C.lime, color: C.black, opacity: submitting ? 0.6 : 1 }}
+            >
+              <Lock size={16} /> {submitting ? "Saving…" : "Set New Password"}
+            </button>
+          </form>
+        )}
         <div className="text-[11px] text-center mt-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Secure authentication powered by Supabase</div>
       </div>
     </div>
@@ -4320,10 +4421,10 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
   // 60s while the Dashboard is open — bounded, not excessive, same interval pattern already used
   // by MyShiftCard/OrdersView.
   useEffect(() => {
-    if (!businessAlerts) return;
+    if (!businessAlerts || !can("manageSettings")) return;
     const run = () => {
       const candidates = evaluateAllAlerts({ inventory, invTx, cashRegisters, sales, purchaseOrders, employees, shifts, customers, loyaltyTransactions }, Date.now());
-      reconcileAlerts(candidates, { businessAlerts, setBusinessAlerts, currentUser, auditLog, setAuditLog });
+      reconcileAlerts(candidates, { businessAlerts, setBusinessAlerts, currentUser, auditLog, setAuditLog }).catch((error) => { console.error("Alert reconciliation failed", error); showToast?.("Alerts could not be refreshed. Reload to try again.", "error"); });
     };
     run();
     const id = setInterval(run, 60000);
@@ -4366,13 +4467,13 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
     return Object.values(map).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
   }, [activeSales]);
 
-  const lowStock = inventory.filter((i) => stockStatus(i) !== "NORMAL").sort((a, b) => a.qty / (a.minQty || 1) - b.qty / (b.minQty || 1));
+  const lowStock = inventory.filter((i) => i.active !== false && stockStatus(i) !== "NORMAL").sort((a, b) => a.qty / (a.minQty || 1) - b.qty / (b.minQty || 1));
   const stockCounts = {
     OUT_OF_STOCK: lowStock.filter((i) => stockStatus(i) === "OUT_OF_STOCK").length,
     CRITICAL: lowStock.filter((i) => stockStatus(i) === "CRITICAL").length,
     LOW: lowStock.filter((i) => stockStatus(i) === "LOW").length,
   };
-  const expiringStock = inventory.filter((i) => expiryStatus(i)).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
+  const expiringStock = inventory.filter((i) => i.active !== false && expiryStatus(i)).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
 
   // Phase (Waste fix): in Supabase mode, wasteTx is legacy localStorage-only and never reflects
   // real fn_record_waste writes (confirmed: inventoryOps.waste never calls persistWaste). The
@@ -5215,6 +5316,8 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
       const r = await createCustomer({ name, phone, email }, { customers, setCustomers, currentUser, auditLog, setAuditLog });
       if (!r.success) { setError(r.error); return; }
       onCreated(r.customer);
+    } catch (e) {
+      setError(e?.message || "Unable to save customer.");
     } finally {
       setSubmitting(false);
     }
@@ -5227,7 +5330,7 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
       <Input dark={dark} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" style={{ marginBottom: 6 }} />
       {duplicate && (
         <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A2E0F", color: "#FFD166" }}>
-          Possible existing customer: {duplicate.customer.name} (matched by {duplicate.matchType}). You can still create a new one if this is a different person.
+          Possible existing customer: {duplicate.customer.name} (matched by {duplicate.matchType}). Check the existing record. Phone numbers and email addresses must be unique; different people can share a name.
         </div>
       )}
       {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
@@ -5312,6 +5415,8 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   // three outcome buttons safe with no extra bookkeeping.
   const [pendingCardSale, setPendingCardSale] = useState(null);
   const [paymentPhase, setPaymentPhase] = useState("idle");
+  const confirmedPaymentRef = useRef(null);
+  const [saveRetry, setSaveRetry] = useState(false);
   const [paymentHandle, setPaymentHandle] = useState(null);
   // The finalized sale object once payment succeeds — drives the post-sale "Payment Successful"
   // print screen below. Printing from that screen is strictly read-only against this object;
@@ -5345,6 +5450,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           finalizedSale = await finalizeSuccessfulPayment(pendingSaleObj, { stripePaymentIntentId: result.transactionId ?? null }, paymentCtx);
         } catch (e) {
           console.error("Sale finalization failed", e);
+          if (e?.commitUncertain) { confirmedPaymentRef.current = { pendingSaleObj, result }; setSaveRetry(true); }
           setError(e?.message || "Sale could not be saved to Supabase.");
           return;
         }
@@ -5352,6 +5458,8 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         // inventory reload right after it — already committed; only a screen refresh afterward
         // failed. Never treated as a failure: the receipt flow below still runs normally with the
         // real sale data finalizeSuccessfulPayment was able to reconstruct from the RPC's own result.
+        confirmedPaymentRef.current = null;
+        setSaveRetry(false);
         if (finalizedSale.staleData) {
           showToast?.(finalizedSale.staleMessage || "Sale was recorded, but the screen could not refresh. Refresh the page.", "good");
         }
@@ -5408,6 +5516,9 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     setError("");
     if (!can("manageSales")) { setError("You don't have permission to create sales."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.product)) { setError("Add at least one product."); return; }
+    if (lineData.some((l) => !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Each sale item must have a quantity greater than zero."); return; }
+    if (new Set(lineData.map((l) => l.productId)).size !== lineData.length) { setError("The same product can't appear more than once on a sale."); return; }
+    if (totalDiscount < 0 || total < 0) { setError("Discount can't make the sale total negative."); return; }
     // Cash payments require an active register at this location — this only applies to genuine
     // physical-cash sales. Card (including the future Stripe Terminal flow) and Zelle/Other are
     // never blocked by the register's state.
@@ -5426,8 +5537,11 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     if (!settings.allowNegativeInventory) {
       for (const [itemId, needed] of Object.entries(deductions)) {
         const inv = inventory.find((i) => i.id === itemId);
-        if (inv && inv.qty - needed < 0) {
-          setError(`Not enough stock: ${inv.name} (have ${inv.qty} ${inv.unit}, need ${round2(needed)}).`);
+        const availableQty = Array.isArray(inv?.stocks)
+          ? Number(inv.stocks.find((stock) => stock.locationId === locationId)?.qty || 0)
+          : Number(inv?.qty || 0);
+        if (inv && availableQty - needed < 0) {
+          setError(`Not enough stock: ${inv.name} (have ${availableQty} ${inv.unit}, need ${round2(needed)}).`);
           return;
         }
       }
@@ -5491,6 +5605,8 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     const prepared = prepareFn(completedSale, printCtx);
     setPrintPreview({ title: prepared?.title || fallbackTitle, html: prepared?.html });
   };
+
+  if (saveRetry && !completedSale) return <Modal title="Confirm Sale Save" onClose={onClose} dark={dark}><div className="text-sm mb-3">{error}</div><div className="text-sm mb-3">Payment already succeeded. Retry saving this same sale without taking another payment. Check Sales history before starting another sale.</div><PrimaryButton full disabled={paymentPhase !== "idle"} onClick={() => { const attempt = confirmedPaymentRef.current; if (attempt && paymentPhase === "idle") handlePaymentResult(attempt.pendingSaleObj, attempt.result); }}>Retry Saving Same Sale</PrimaryButton></Modal>;
 
   return (
     <Modal title="New Sale" onClose={onClose} dark={dark} wide>
@@ -5722,9 +5838,9 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
   const [selected, setSelected] = useState(null);
   const [quickPO, setQuickPO] = useState(null); // pre-filled item for a quick "Create Purchase" flow
 
-  const withStatus = inventory.map((i) => ({ ...i, _status: stockStatus(i), _expiry: expiryStatus(i) }));
+  const withStatus = inventory.filter((i) => i.active !== false).map((i) => ({ ...i, _status: stockStatus(i), _expiry: expiryStatus(i) }));
   const filtered = tabMode === "low" ? withStatus.filter((i) => i._status !== "NORMAL" || i._expiry) : withStatus;
-  const totalValue = round2(inventory.reduce((a, i) => a + i.qty * i.costPerUnit, 0));
+  const totalValue = round2(inventoryLocationRows(inventory).reduce((a, i) => a + i.qty * i.costPerUnit, 0));
   const reorderList = withStatus.filter((i) => i._status !== "NORMAL" && suggestedOrderQty(i) > 0);
   const expiringList = withStatus.filter((i) => i._expiry).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
 
@@ -5733,7 +5849,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
   const exportCSV = () => {
     downloadCSV("masseli-inventory-valuation.csv",
       ["Name", "SKU", "Category", "Quantity", "Unit", "Cost/Unit", "Total Value", "Min Stock", "Max Stock", "Status", "Location"],
-      inventory.map((i) => [i.name, i.sku || "", i.category, i.qty, i.unit, i.costPerUnit, round2(i.qty * i.costPerUnit), i.minQty, i.maxQty, STOCK_STATUS_LABEL[stockStatus(i)], locationLabel(i, locations)])
+      inventoryLocationRows(inventory).map((i) => [i.name, i.sku || "", i.category, i.qty, i.unit, i.costPerUnit, round2(i.qty * i.costPerUnit), i.minQty, i.maxQty, STOCK_STATUS_LABEL[stockStatus(i)], locationLabel(i, locations)])
     );
     showToast("CSV exported");
   };
@@ -5792,7 +5908,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
               <div className="min-w-0" onClick={() => openAction("history", i)}>
                 <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                  {i.category} · {i.qty} {i.unit}{can("viewFinancials") ? ` · avg ${fmtMoney(i.costPerUnit)}/${i.unit}` : ""}
+                  {i.category} · {i.qty} {i.unit}{i.location ? " · " + i.location : ""}{can("viewFinancials") ? ` · avg ${fmtMoney(i.costPerUnit)}/${i.unit}` : ""}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -5804,20 +5920,23 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
               {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("receive", i)}><PackagePlus size={13} /> Receive</GhostButton>}
               {can("adjustInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("adjust", i)}><Edit2 size={13} /> Adjust</GhostButton>}
               {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("waste", i)}><PackageMinus size={13} /> Waste</GhostButton>}
+              {can("adjustInventory") && inventoryOps?.transfer && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("transfer", i)}>Transfer</GhostButton>}
               <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("history", i)}>History</GhostButton>
             </div>
           </div>
         ))}
       </Card>
 
-      {modal && modal !== "new" && modal !== "history" && selected && (
+      {modal && modal !== "new" && modal !== "history" && modal !== "transfer" && selected && (
         <StockActionModal mode={modal} item={selected} inventory={inventory} setInventory={setInventory} dark={dark}
-          onClose={() => setModal(null)} suppliers={suppliers} showToast={showToast} wasteTx={wasteTx} persistWaste={persistWaste}
+          onClose={() => setModal(null)} suppliers={suppliers} locations={locations} showToast={showToast} wasteTx={wasteTx} persistWaste={persistWaste}
           invTx={invTx} setInvTx={setInvTx} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} inventoryOps={inventoryOps} />
       )}
 
+      {modal === "transfer" && selected && <InventoryTransferModal dark={dark} item={inventory.find((i) => i.id === selected.id) || selected} locations={locations} inventoryOps={inventoryOps} can={can} showToast={showToast} onClose={() => setModal(null)} />}
+
       {modal === "history" && selected && (
-        <InventoryHistoryModal dark={dark} item={selected} invTx={invTx} suppliers={suppliers} onClose={() => setModal(null)} can={can} />
+        <InventoryHistoryModal dark={dark} item={selected} invTx={invTx} suppliers={suppliers} purchaseOrders={purchaseOrders} onClose={() => setModal(null)} can={can} />
       )}
 
       {modal === "new" && (
@@ -5936,15 +6055,58 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
   );
 }
 
-function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, showToast, wasteTx, persistWaste, invTx, setInvTx, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
-  const [itemId, setItemId] = useState(item.id);
-  const [qty, setQty] = useState(1);
-  const [reason, setReason] = useState("Physical Count");
+
+function InventoryTransferModal({ dark, item, locations, inventoryOps, can, showToast, onClose }) {
+  const activeLocations = (locations || []).filter((l) => l.active !== false);
+  const [fromId, setFromId] = useState(item.locationId || activeLocations[0]?.id || "");
+  const [toId, setToId] = useState(activeLocations.find((l) => l.id !== item.locationId)?.id || "");
+  const [qty, setQty] = useState("");
   const [notes, setNotes] = useState("");
-  const [newQty, setNewQty] = useState(item.qty);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const current = inventory.find((i) => i.id === itemId) || item;
+  const available = (item.stocks || []).find((s) => s.locationId === fromId)?.qty || 0;
+  const submit = async () => {
+    if (submitting) return;
+    setError("");
+    if (!can("adjustInventory")) { setError("You don't have permission to transfer stock."); return; }
+    if (!fromId || !toId || fromId === toId) { setError("Select different source and destination locations."); return; }
+    const amount = Number(qty);
+    if (!Number.isFinite(amount) || amount <= 0) { setError("Enter a quantity greater than zero."); return; }
+    if (amount > available) { setError("Transfer quantity exceeds stock at the source location."); return; }
+    setSubmitting(true);
+    try {
+      await inventoryOps.transfer(item, fromId, toId, amount, notes);
+      showToast("Stock transferred"); onClose();
+    } catch (e) {
+      if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
+      else setError(e.message || "Unable to transfer stock.");
+    } finally { setSubmitting(false); }
+  };
+  return <Modal title="Transfer Stock" dark={dark} onClose={onClose}>
+    <div className="text-sm font-bold mb-3">{item.name}</div>
+    <Field dark={dark} label="From Location"><Select dark={dark} value={fromId} onChange={(e) => setFromId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
+    <Field dark={dark} label="To Location"><Select dark={dark} value={toId} onChange={(e) => setToId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
+    <Field dark={dark} label={"Quantity (" + item.unit + ") - available " + available}><Input dark={dark} type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
+    <Field dark={dark} label="Notes"><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+    {error && <div role="alert" className="text-sm mb-3" style={{ color: "#FF6B85" }}>{error}</div>}
+    <PrimaryButton full disabled={submitting} onClick={submit}>{submitting ? "Transferring?" : "Transfer Stock"}</PrimaryButton>
+  </Modal>;
+}
+
+function StockActionModal({ mode, item, inventory, setInventory, locations = [], dark, onClose, showToast, wasteTx, persistWaste, invTx, setInvTx, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
+  const [itemId, setItemId] = useState(item.id);
+  const activeLocations = locations.filter((l) => l.active !== false);
+  const [locationId, setLocationId] = useState(activeLocations.some((l) => l.id === item.locationId) ? item.locationId : activeLocations[0]?.id || "");
+  const [qty, setQty] = useState(1);
+  const [reason, setReason] = useState(mode === "waste" ? "Expired" : "Physical Count");
+  const [notes, setNotes] = useState("");
+  const [newQty, setNewQty] = useState(inventoryOps?.remote ? item.stocks?.find((s) => s.locationId === locationId)?.qty ?? 0 : item.qty);
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const currentBase = inventory.find((i) => i.id === itemId) || item;
+  const selectedStock = currentBase.stocks?.find((s) => s.locationId === locationId);
+  const current = inventoryOps?.remote ? { ...currentBase, locationId, location: locations.find((l) => l.id === locationId)?.name || "", qty: selectedStock?.qty ?? 0, costPerUnit: selectedStock?.costPerUnit ?? currentBase.costPerUnit } : currentBase;
   const diff = round2(Number(newQty) - current.qty);
 
   // Operation identity is now a PURE function of what the user is asking for (mode + item + the
@@ -5965,15 +6127,16 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
   const requiredPermission = mode === "adjust" ? "adjustInventory" : "manageInventory";
 
   const submit = async () => {
-    if (submitting) return;
+    if (submitting || uncertain) return;
     setError("");
     if (!can(requiredPermission)) { setError(mode === "adjust" ? "You don't have permission to adjust stock counts." : "You don't have permission to manage inventory."); return; }
     setSubmitting(true);
     try {
       if (inventoryOps?.remote) {
+        if (!activeLocations.some((l) => l.id === locationId)) { setError("Select an active location."); return; }
         if (mode === "receive") {
           const addQty = Number(qty);
-          if (!addQty || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+          if (!Number.isFinite(addQty) || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
           try {
             await inventoryOps.receive(current, addQty, notes);
             await logAudit(auditLog, setAuditLog, currentUser, "Stock Received (manual)", `${current.name} +${addQty} ${current.unit}`);
@@ -5983,7 +6146,7 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
             // itself already committed — real stock was added. This must never be shown as
             // "receive failed", or the user could be misled into receiving the same stock again.
             if (e?.rpcSucceeded) { showToast(e.message, "good"); }
-            else { setError(e?.message || "Could not receive this stock."); return; }
+            else { setUncertain(!!e?.commitUncertain); setError(e?.message || "Could not receive this stock."); return; }
           }
         } else if (mode === "adjust") {
           // Validated explicitly instead of silently clamping — clamp0(round2(Number(newQty)))
@@ -5993,7 +6156,7 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
           // (a physical count can genuinely find nothing on the shelf) — only NaN/blank and
           // negative values are rejected here, before the RPC is ever called.
           const parsedQty = Number(newQty);
-          if (newQty === "" || Number.isNaN(parsedQty)) { setError("Enter a valid counted quantity."); return; }
+          if (newQty === "" || !Number.isFinite(parsedQty)) { setError("Enter a valid counted quantity."); return; }
           if (parsedQty < 0) { setError("Counted quantity cannot be negative."); return; }
           const nq = round2(parsedQty);
           if (nq === current.qty) { showToast("No change to save"); onClose(); return; }
@@ -6006,11 +6169,11 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
             // itself already committed — the count is real. This must never be shown as "adjust
             // failed", or the user could be misled into re-adjusting to the same count again.
             if (e?.rpcSucceeded) { showToast(e.message, "good"); }
-            else { setError(e?.message || "Could not save this count."); return; }
+            else { setUncertain(!!e?.commitUncertain); setError(e?.message || "Could not save this count."); return; }
           }
         } else if (mode === "waste") {
           const wasteQty = Number(qty);
-          if (!wasteQty || wasteQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+          if (!Number.isFinite(wasteQty) || wasteQty <= 0) { setError("Enter a quantity greater than zero."); return; }
           if (wasteQty > current.qty) { setError(`Only ${current.qty} ${current.unit} in stock — can't waste more than that.`); return; }
           try {
             await inventoryOps.waste(current, wasteQty, reason, notes);
@@ -6021,7 +6184,7 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
             // already committed — real waste was recorded. This must never be shown as "waste
             // failed", or the user could be misled into logging the same waste again.
             if (e?.rpcSucceeded) { showToast(e.message, "good"); }
-            else { setError(e?.message || "Could not record this waste."); return; }
+            else { setUncertain(!!e?.commitUncertain); setError(e?.message || "Could not record this waste."); return; }
           }
         }
         onClose();
@@ -6105,10 +6268,11 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
   return (
     <Modal title={titleMap[mode]} onClose={onClose} dark={dark}>
       <Field dark={dark} label="Item">
-        <Select dark={dark} value={itemId} onChange={(e) => { setItemId(e.target.value); const it = inventory.find((i) => i.id === e.target.value); setNewQty(it.qty); }}>
-          {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.qty} {i.unit})</option>)}
+        <Select dark={dark} value={itemId} onChange={(e) => { setItemId(e.target.value); const it = inventory.find((i) => i.id === e.target.value); setNewQty(inventoryOps?.remote ? it.stocks?.find((s) => s.locationId === locationId)?.qty ?? 0 : it.qty); }}>
+          {inventory.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
         </Select>
       </Field>
+      {inventoryOps?.remote && <Field dark={dark} label="Location"><Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setNewQty(currentBase.stocks?.find((s) => s.locationId === e.target.value)?.qty ?? 0); }}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><div className="text-xs mt-1">Available: {current.qty} {current.unit}</div></Field>}
       {mode !== "adjust" ? (
         <Field dark={dark} label={`Quantity (${current.unit})`}>
           <Input dark={dark} type="number" min="0.01" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} />
@@ -6137,29 +6301,44 @@ function StockActionModal({ mode, item, inventory, setInventory, dark, onClose, 
         <TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save"}</PrimaryButton>
     </Modal>
   );
 }
 
-function InventoryHistoryModal({ dark, item, invTx, suppliers, onClose, can }) {
+function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, onClose, can }) {
   const showCosts = !can || can("viewFinancials");
   const purchases = (invTx || []).filter((t) => t.itemId === item.id && t.type === "Purchase").sort((a, b) => new Date(b.date) - new Date(a.date));
   const allMoves = (invTx || []).filter((t) => t.itemId === item.id).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
-  const costs = purchases.map((p) => p.unitCost);
-  const avg = costs.length ? round2(costs.reduce((a, c) => a + c, 0) / costs.length) : item.costPerUnit;
-  const last = purchases[0]?.unitCost ?? item.costPerUnit;
+
+  // Historical ledger stays immutable, but purchase-price analytics must not treat a reversed or
+  // cancelled PO as an active commercial purchase. Purchases without a resolvable PO are kept so
+  // legitimate legacy/manual purchase rows are not silently discarded.
+  const validPurchases = purchases.filter((p) => {
+    const po = (purchaseOrders || []).find((o) => o.id === p.purchaseOrderId);
+    return !po || !["Reversed", "Cancelled"].includes(po.status);
+  });
+  const costs = validPurchases.map((p) => p.unitCost).filter((c) => Number.isFinite(c));
+
+  // The current weighted-average inventory cost is the ledger-derived inventory_stock.avg_cost_per_unit
+  // already mapped to item.costPerUnit. Do not replace it with a simple average of purchase prices.
+  const avg = item.costPerUnit;
+  const last = validPurchases.find((p) => Number.isFinite(p.unitCost))?.unitCost ?? item.costPerUnit;
   const highest = costs.length ? Math.max(...costs) : item.costPerUnit;
   const lowest = costs.length ? Math.min(...costs) : item.costPerUnit;
 
+  // Supplier comparison is commercial analytics, not the immutable audit ledger: exclude reversed/
+  // cancelled POs here while Recent Transactions below continues to show every Purchase + Reversal.
+  // inventory_transactions has no supplier_id of its own, so resolve supplier through the PO.
   const bySupplier = {};
-  purchases.forEach((p) => {
-    const key = p.supplierId || "unknown";
+  validPurchases.forEach((p) => {
+    const po = (purchaseOrders || []).find((o) => o.id === p.purchaseOrderId);
+    const key = po?.supplierId || "unknown";
     if (!bySupplier[key]) bySupplier[key] = { total: 0, count: 0 };
     bySupplier[key].total += p.unitCost; bySupplier[key].count += 1;
   });
   const supplierRows = Object.entries(bySupplier).map(([sid, v]) => ({
-    name: suppliers.find((s) => s.id === sid)?.name || "Unknown supplier", avg: round2(v.total / v.count), count: v.count,
+    name: (suppliers || []).find((s) => s.id === sid)?.name || "Unknown supplier", avg: round2(v.total / v.count), count: v.count,
   })).sort((a, b) => a.avg - b.avg);
 
   const analytics7 = calculateConsumptionAnalytics(item, invTx, 7);
@@ -6308,7 +6487,12 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
               title={`${po.poNumber} · ${supplier?.name || "Unknown supplier"}`}
               subtitle={`${dateStr(po.orderDate)} · ${po.items.length} item${po.items.length === 1 ? "" : "s"}`}
               badge={<Badge dark={dark} tone={PO_STATUS_TONE[po.status]}>{po.status.toUpperCase()}</Badge>}
-              right={fmtMoney(poGrandTotal(po))} rightSub={due > 0.005 ? `${fmtMoney(due)} due` : "Paid"} />
+              right={fmtMoney(poGrandTotal(po))} rightSub={
+                po.status === "Reversed" ? "Reversed"
+                  : po.status === "Cancelled" ? "Cancelled"
+                  : due > 0.005 ? `${fmtMoney(due)} due`
+                  : "Paid"
+              } />
           );
         })}
       </Card>
@@ -6359,7 +6543,9 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     if (!supplierId) { setError("Select a supplier."); return; }
     if (!locationId) { setError("Select a location."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.item || !l.qty || l.qty <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
-    if (lineData.some((l) => l.unitCost < 0)) { setError("Unit cost can't be negative."); return; }
+    if (lineData.some((l) => String(l.unitCost).trim() === "" || !Number.isFinite(Number(l.unitCost)) || Number(l.unitCost) < 0)) { setError("Unit cost must be a valid number greater than or equal to zero."); return; }
+    if (new Set(lineData.map((l) => l.itemId)).size !== lineData.length) { setError("The same inventory item can't appear more than once on a purchase order."); return; }
+    if (grandTotal < 0) { setError("Discount can't make the purchase order total negative."); return; }
     setSubmitting(true);
     try {
       if (purchaseOps?.remote) {
@@ -6427,7 +6613,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
               </Select>
             </div>
             <div className="w-20"><Input dark={dark} type="number" min="0.01" step="0.01" value={it.qty} onChange={(e) => updateItem(idx, { qty: Math.max(0, Number(e.target.value)) })} /></div>
-            <div className="w-24"><Input dark={dark} type="number" min="0" step="0.01" value={it.unitCost} onChange={(e) => updateItem(idx, { unitCost: Math.max(0, Number(e.target.value)) })} /></div>
+            <div className="w-24"><Input dark={dark} type="number" min="0" step="0.01" value={it.unitCost} onChange={(e) => updateItem(idx, { unitCost: e.target.value })} /></div>
             <div className="w-16 text-xs text-right font-semibold pb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{invItem ? fmtMoney(it.qty * it.unitCost) : ""}</div>
             {items.length > 1 && (
               <button onClick={() => removeItem(idx)} className="mb-0 w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#3A0F1E" }}>
@@ -7305,9 +7491,10 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
 
   const submit = async () => {
-    if (submitting) return;
+    if (submitting || uncertain) return;
     if (!can("manageExpenses")) { setError("You don't have permission to add expenses."); return; }
     const amt = Number(amount);
     if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
@@ -7324,7 +7511,7 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
           // already committed — a real expense now exists. This must never be shown as "create
           // failed", or the user could be misled into adding a duplicate expense.
           if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
-          else { setError(e?.message || "Could not save this expense."); }
+          else { setUncertain(!!e?.commitUncertain); setError(e?.message || "Could not save this expense."); }
         }
         return;
       }
@@ -7358,7 +7545,7 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       </div>
       <Field dark={dark} label="Description"><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save Expense"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save Expense"}</PrimaryButton>
     </Modal>
   );
 }
@@ -7370,7 +7557,7 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
   const [form, setForm] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  const openNew = () => { if (!canEdit) return; setEditing(null); setForm(Object.fromEntries(fields.map((f) => [f.key, f.default ?? ""]))); setModal(true); };
+  const openNew = () => { if (!canEdit) return; setEditing(null); setForm(Object.fromEntries(fields.map((f) => [f.key, f.default ?? (f.type === "select" ? (typeof f.options[0] === "object" ? f.options[0].value : f.options[0]) ?? "" : "")]))); setModal(true); };
   const openEdit = (item) => { setEditing(item); setForm(item); setModal(true); };
 
   const save = async () => {
@@ -7378,14 +7565,18 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
     if (!canEdit) { showToast("You don't have permission to make this change.", "danger"); return; }
     const name = form[fields[0].key];
     if (!name || !String(name).trim()) { showToast("Name is required", "danger"); return; }
+    if (title === "Employees" && (!Number.isFinite(Number(form.hourlyRate)) || Number(form.hourlyRate) < 0)) { showToast("Hourly rate must be a non-negative number.", "danger"); return; }
+    if (title === "Employees" && editing && form.managerId === editing.id) { showToast("An employee cannot report to themselves.", "danger"); return; }
     setSubmitting(true);
     try {
-      const payload = { ...form, id: editing?.id || newDbId() };
+      const payload = { ...form, [fields[0].key]: String(name).trim(), id: editing?.id || newDbId() };
       const next = editing ? items.map((i) => (i.id === editing.id ? payload : i)) : [payload, ...items];
       await setItems(next);
       if (auditAction && auditLog !== undefined) await logAudit(auditLog, setAuditLog, currentUser, `${auditAction} ${editing ? "Updated" : "Added"}`, name);
       showToast(editing ? `${title.slice(0, -1)} updated` : `${title.slice(0, -1)} added`);
       setModal(false);
+    } catch (e) {
+      showToast(e?.message || "Unable to save this record.", "danger");
     } finally {
       setSubmitting(false);
     }
@@ -7446,14 +7637,16 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
   // A location "has history" if anything currently references it by id OR by its legacy name
   // string (pre-migration records) — either way it's not safe to hard-delete.
   const hasHistory = (loc) =>
-    inventory.some((i) => i.locationId === loc.id || i.location === loc.name) ||
+    inventory.some((i) => i.locationId === loc.id || i.location === loc.name || i.stocks?.some((stock) => stock.locationId === loc.id)) ||
     sales.some((s) => s.locationId === loc.id || s.location === loc.name) ||
     employees.some((e) => e.location === loc.name);
 
   const save = async (form) => {
     if (!canEdit) { showToast("You don't have permission to manage locations.", "danger"); return false; }
     if (!form.name?.trim()) { showToast("Location name is required.", "danger"); return false; }
-    const payload = { ...form, id: editing?.id || newDbId(), active: form.active !== false };
+    const normalizedName = form.name.trim().toLowerCase();
+    if (form.active !== false && locations.some((l) => l.id !== editing?.id && l.active !== false && l.name?.trim().toLowerCase() === normalizedName)) { showToast("An active location with this name already exists.", "danger"); return false; }
+    const payload = { ...form, name: form.name.trim(), id: editing?.id || newDbId(), active: form.active !== false };
     const next = editing ? locations.map((l) => (l.id === editing.id ? payload : l)) : [payload, ...locations];
     await setLocations(next);
     await logAudit(auditLog, setAuditLog, currentUser, editing ? "Location Updated" : "Location Added", payload.name);
@@ -7464,16 +7657,23 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
   const remove = async (loc) => {
     if (!canEdit) { showToast("You don't have permission to manage locations.", "danger"); return; }
     if (hasHistory(loc)) { showToast("This location has historical records — deactivate it instead of deleting.", "danger"); return; }
-    await setLocations(locations.filter((l) => l.id !== loc.id));
-    await logAudit(auditLog, setAuditLog, currentUser, "Location Deleted", loc.name);
-    showToast("Location deleted", "danger");
+    try {
+      await setLocations(locations.filter((l) => l.id !== loc.id));
+      await logAudit(auditLog, setAuditLog, currentUser, "Location Deleted", loc.name);
+      showToast("Location deleted", "danger");
+    } catch (e) { showToast(e?.message || "Unable to delete location.", e?.rpcSucceeded ? "good" : "danger"); }
   };
 
   const toggleActive = async (loc) => {
     if (!canEdit) { showToast("You don't have permission to manage locations.", "danger"); return; }
-    await setLocations(locations.map((l) => (l.id === loc.id ? { ...l, active: !(l.active !== false) } : l)));
-    await logAudit(auditLog, setAuditLog, currentUser, loc.active === false ? "Location Reactivated" : "Location Deactivated", loc.name);
-    showToast(loc.active === false ? "Location reactivated" : "Location deactivated", loc.active === false ? "good" : "danger");
+    if (loc.active === false && locations.some((l) => l.id !== loc.id && l.active !== false && l.name?.trim().toLowerCase() === loc.name?.trim().toLowerCase())) {
+      showToast("An active location with this name already exists.", "danger"); return;
+    }
+    try {
+      await setLocations(locations.map((l) => (l.id === loc.id ? { ...l, active: !(l.active !== false) } : l)));
+      await logAudit(auditLog, setAuditLog, currentUser, loc.active === false ? "Location Reactivated" : "Location Deactivated", loc.name);
+      showToast(loc.active === false ? "Location reactivated" : "Location deactivated", loc.active === false ? "good" : "danger");
+    } catch (e) { showToast(e?.message || "Unable to update location.", e?.rpcSucceeded ? "good" : "danger"); }
   };
 
   return (
@@ -7514,13 +7714,17 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
 function LocationFormModal({ dark, location, onClose, onSave }) {
   const [form, setForm] = useState(location || { name: "", type: "Retail", active: true });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const submit = async () => {
     if (submitting) return;
+    setError("");
     setSubmitting(true);
     try {
       const ok = await onSave(form);
       if (ok) onClose();
+    } catch (e) {
+      setError(e?.message || "Unable to save location.");
     } finally {
       setSubmitting(false);
     }
@@ -7538,6 +7742,7 @@ function LocationFormModal({ dark, location, onClose, onSave }) {
         <input type="checkbox" checked={form.active !== false} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
         <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Active</span>
       </div>
+      {error && <div className="text-xs font-semibold mb-3" style={{ color: "#FF6B85" }}>{error}</div>}
       <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save Location"}</PrimaryButton>
     </Modal>
   );
@@ -7549,7 +7754,7 @@ function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentU
   const [viewing, setViewing] = useState(null);
 
   const supplierStats = (s) => {
-    const pos = purchaseOrders.filter((po) => po.supplierId === s.id && po.status !== "Cancelled");
+    const pos = purchaseOrders.filter((po) => po.supplierId === s.id && !["Cancelled", "Reversed"].includes(po.status));
     const total = round2(pos.reduce((a, po) => a + poGrandTotal(po), 0));
     const last = pos.length ? pos.reduce((latest, po) => (new Date(po.orderDate) > new Date(latest) ? po.orderDate : latest), pos[0].orderDate) : null;
     return { poCount: pos.length, total, last };
@@ -7594,14 +7799,17 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
     if (submitting) return;
     if (!can("manageSuppliers")) { setError("You don't have permission to manage suppliers."); return; }
     if (!form.name?.trim()) { setError("Supplier name is required."); return; }
+    if (form.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setError("Enter a valid email address."); return; }
     setSubmitting(true);
     try {
-      const payload = { ...form, id: supplier?.id || newDbId(), active: form.active !== false };
+      const payload = { ...form, name: form.name.trim(), email: (form.email || "").trim(), id: supplier?.id || newDbId(), active: form.active !== false };
       const next = supplier ? suppliers.map((s) => (s.id === supplier.id ? payload : s)) : [payload, ...suppliers];
       await setSuppliers(next);
       await logAudit(auditLog, setAuditLog, currentUser, supplier ? "Supplier Updated" : "Supplier Added", payload.name);
       showToast(supplier ? "Supplier updated" : "Supplier added");
       onClose();
+    } catch (e) {
+      setError(e?.message || "Unable to save supplier.");
     } finally {
       setSubmitting(false);
     }
@@ -7635,7 +7843,7 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
 function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchaseOrders, onClose, onEdit, currentUser, can, auditLog, setAuditLog, showToast }) {
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
   const pos = purchaseOrders.filter((po) => po.supplierId === supplier.id).sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
-  const activePOs = pos.filter((po) => po.status !== "Cancelled");
+  const activePOs = pos.filter((po) => !["Cancelled", "Reversed"].includes(po.status));
   const total = round2(activePOs.reduce((a, po) => a + poGrandTotal(po), 0));
   const last = activePOs[0]?.orderDate;
   const hasHistory = pos.length > 0;
@@ -7708,30 +7916,35 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
     </Modal>
   );
 }
-function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUser, auditLog, setAuditLog, onCreated }) {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [birthday, setBirthday] = useState("");
-  const [notes, setNotes] = useState("");
+function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUser, auditLog, setAuditLog, onCreated, customer = null }) {
+  const [name, setName] = useState(customer?.name || "");
+  const [phone, setPhone] = useState(customer?.phone || "");
+  const [email, setEmail] = useState(customer?.email || "");
+  const [birthday, setBirthday] = useState(customer?.birthday || "");
+  const [notes, setNotes] = useState(customer?.notes || "");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const duplicate = (name || phone || email) ? findDuplicateCustomer(customers, { name, phone, email }) : null;
+  const duplicate = (name || phone || email) ? findDuplicateCustomer(customers.filter((c) => c.id !== customer?.id), { name, phone, email }) : null;
 
   const submit = async () => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const r = await createCustomer({ name, phone, email, birthday, notes }, { customers, setCustomers, currentUser, auditLog, setAuditLog });
+      setError("");
+      const ctx = { customers, setCustomers, currentUser, auditLog, setAuditLog };
+      const values = { name, phone, email, birthday, notes };
+      const r = customer ? await updateCustomer(customer.id, values, ctx) : await createCustomer(values, ctx);
       if (!r.success) { setError(r.error); return; }
       onCreated(r.customer);
+    } catch (e) {
+      setError(e.message || "Unable to save customer.");
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Modal title="New Customer" onClose={onClose} dark={dark}>
+    <Modal title={customer ? "Edit Customer" : "New Customer"} onClose={onClose} dark={dark}>
       <Field dark={dark} label="Name"><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
       <Field dark={dark} label="Phone (optional)"><Input dark={dark} value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
       <Field dark={dark} label="Email (optional)"><Input dark={dark} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
@@ -7739,11 +7952,11 @@ function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUs
       <Field dark={dark} label="Notes (optional)"><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       {duplicate && (
         <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A2E0F", color: "#FFD166" }}>
-          Possible existing customer: {duplicate.customer.name} (matched by {duplicate.matchType}). You can still create a new one if this is a different person.
+          Possible existing customer: {duplicate.customer.name} (matched by {duplicate.matchType}). Check the existing record. Phone numbers and email addresses must be unique; different people can share a name.
         </div>
       )}
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
-      <PrimaryButton full disabled={submitting || !name.trim()} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Create Customer"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || !name.trim()} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : customer ? "Save Changes" : "Create Customer"}</PrimaryButton>
     </Modal>
   );
 }
@@ -7751,6 +7964,7 @@ function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUs
 function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError, reloadInventory }) {
   const customer = (customers || []).find((c) => c.id === customerId);
   const [viewingSale, setViewingSale] = useState(null);
+  const [editing, setEditing] = useState(false);
   const [adjustType, setAdjustType] = useState("manual_add");
   const [adjustPoints, setAdjustPoints] = useState("");
   const [adjustReason, setAdjustReason] = useState("");
@@ -7805,6 +8019,8 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
     }
   };
 
+  if (editing && canManage) return <CustomerCreateModal dark={dark} customer={customer} customers={customers} setCustomers={setCustomers} currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog} onClose={() => setEditing(false)} onCreated={() => { setEditing(false); showToast("Customer updated"); }} />;
+
   const LOYALTY_LABEL = { earn: "Earned", redeem: "Redeemed", manual_add: "Manual Add", manual_remove: "Manual Remove", reversal: "Reversal", restore: "Restored" };
 
   return (
@@ -7818,7 +8034,8 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
         <Row dark={dark} label="Status" value={customer.active !== false ? "Active" : "Archived"} />
         {customer.notes && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Notes: {customer.notes}</div>}
         {canManage && (
-          <div className="mt-3">
+          <div className="mt-3 flex gap-2 flex-wrap">
+            <GhostButton dark={dark} disabled={submitting} onClick={() => setEditing(true)}>Edit Customer</GhostButton>
             {customer.active !== false
               ? <GhostButton dark={dark} disabled={submitting} onClick={doArchive} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}>Archive Customer</GhostButton>
               : <GhostButton dark={dark} disabled={submitting} onClick={doRestore}>Restore Customer</GhostButton>}
@@ -8325,7 +8542,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
 function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, currentUser, can, auditLog, setAuditLog, showToast }) {
   const canManage = can("manageTasks");
   const [title, setTitle] = useState(task?.title || "");
-  const [assignedTo, setAssignedTo] = useState(task?.assignedTo || employees[0]?.id || "");
+  const [assignedTo, setAssignedTo] = useState(task?.assignedTo || employees.find((e) => e.active !== false)?.id || "");
   const [dueDate, setDueDate] = useState(task?.dueDate || dateStrOffset(0));
   const [priority, setPriority] = useState(task?.priority || "Medium");
   const [notes, setNotes] = useState(task?.notes || "");
@@ -8345,7 +8562,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
       const payload = { id: task?.id || uid("task"), title: title.trim(), assignedTo, dueDate, priority, notes, status: task?.status || "pending", createdAt: task?.createdAt || nowISO(), activity };
       const next = task ? tasks.map((t) => (t.id === task.id ? { ...t, ...payload } : t)) : [payload, ...tasks];
       await persistTasks(next);
-      await logAudit(auditLog, setAuditLog, currentUser, task ? "Task Updated" : "Task Created", `${title.trim()} → ${employeeName(assignedTo)}`);
+      // Server RPC writes the immutable task audit/activity entries.
       showToast(task ? "Task updated" : "Task created");
       onClose();
     } finally {
@@ -8356,7 +8573,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
   const remove = async () => {
     if (!canManage) { showToast("You don't have permission to delete tasks.", "danger"); return; }
     await persistTasks(tasks.filter((t) => t.id !== task.id));
-    await logAudit(auditLog, setAuditLog, currentUser, "Task Deleted", task.title);
+    // Server RPC writes the immutable deletion audit entry.
     showToast("Task deleted", "danger");
     onClose();
   };
@@ -8368,7 +8585,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
         <div className="grid grid-cols-2 gap-3">
           <Field dark={dark} label="Assign To">
             <Select dark={dark} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
-              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              {employees.filter((e) => e.active !== false || e.id === task?.assignedTo).map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? " (inactive)" : ""}</option>)}
             </Select>
           </Field>
           <Field dark={dark} label="Due Date"><Input dark={dark} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
@@ -8458,7 +8675,7 @@ function getPreviousRange(range) {
   return { start, end };
 }
 
-const withinRange = (iso, range) => { const t = new Date(iso).getTime(); return t >= range.start.getTime() && t <= range.end.getTime(); };
+const withinRange = (iso, range) => { const t = (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)).getTime(); return t >= range.start.getTime() && t <= range.end.getTime(); };
 
 // The ONE place "valid sale for reporting" is defined — mirrors the exact canonical rule used
 // everywhere else in the app (sales.filter(s => s.status !== "cancelled")), scoped to a range.
@@ -8704,7 +8921,7 @@ async function clockIn({ employeeId, locationId, notes }, ctx) {
     createdAt: now, updatedAt: now,
   };
   await setShifts([shift, ...shifts]);
-  await logAudit(auditLog, setAuditLog, currentUser, "Clocked In", `${employee.name}${locationId ? "" : ""}`);
+  // Server RPC writes the immutable clock-in audit entry.
   return { success: true, shift };
 }
 
@@ -8721,7 +8938,7 @@ async function clockOut({ employeeId }, ctx) {
   const closedShift = { ...open, clockOutAt: now, status: "closed", breaks: closedBreaks, updatedAt: now };
   await setShifts(shifts.map((s) => (s.id === open.id ? closedShift : s)));
   const employee = (employees || []).find((e) => e.id === employeeId);
-  await logAudit(auditLog, setAuditLog, currentUser, "Clocked Out", `${employee?.name || employeeId}`);
+  // Server RPC writes the immutable clock-out audit entry.
   return { success: true, shift: closedShift };
 }
 
@@ -8856,7 +9073,7 @@ const ALERT_SEVERITY_LABEL = { critical: "CRITICAL", warning: "WARNING", info: "
 
 function evaluateInventoryAlerts(inventory, invTx) {
   const alerts = [];
-  for (const item of inventory || []) {
+  for (const item of (inventory || []).filter((i) => i.active !== false)) {
     const status = stockStatus(item);
     if (status === "OUT_OF_STOCK") {
       alerts.push({ key: `inventory:out:${item.id}`, type: "inventory_out_of_stock", severity: "critical",
@@ -8982,14 +9199,14 @@ function evaluateSalesAlerts(sales, now) {
   if (cmp.revenueChangePct !== null && cmp.revenueChangePct <= ALERT_THRESHOLDS.salesDropPct) {
     alerts.push({ key: `sales:drop:${todayKey}`, type: "sales_drop", severity: "warning",
       title: "Sales significantly down vs. yesterday", message: `${cmp.revenueChangePct}% vs. the same point yesterday.`,
-      entityType: "sales", entityId: todayKey, locationId: null, financial: true });
+      entityType: "sales", entityId: null, locationId: null, financial: true });
   }
   const todaySales = (sales || []).filter((s) => withinRange(s.date, todayRange));
   const cancelledToday = todaySales.filter((s) => s.status === "cancelled").length;
   if (todaySales.length >= 5 && cancelledToday / todaySales.length >= 0.25) {
     alerts.push({ key: `sales:highcancel:${todayKey}`, type: "sales_high_cancellation", severity: "warning",
       title: "Unusually high cancellation rate today", message: `${cancelledToday} of ${todaySales.length} orders cancelled today.`,
-      entityType: "sales", entityId: todayKey, locationId: null, financial: false });
+      entityType: "sales", entityId: null, locationId: null, financial: false });
   }
   return alerts;
 }
@@ -9082,7 +9299,7 @@ async function dismissAlert(alertId, ctx) {
   if (alert.status === "dismissed") return { success: true, alert }; // idempotent
   const updated = { ...alert, status: "dismissed", dismissedAt: nowISO() };
   await setBusinessAlerts(businessAlerts.map((a) => (a.id === alertId ? updated : a)));
-  await logAudit(auditLog, setAuditLog, currentUser, "Alert Dismissed", alert.title);
+  // Server RPC writes the immutable alert-dismiss audit entry.
   return { success: true, alert: updated };
 }
 
@@ -9107,7 +9324,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
   const opEx = round2(rExpenses.reduce((a, e) => a + e.amount, 0));
   const netProfit = round2(grossProfit - opEx);
   const netMargin = revenue ? round2((netProfit / revenue) * 100) : 0;
-  const inventoryValue = round2(inventory.reduce((a, i) => a + i.qty * i.costPerUnit, 0));
+  const inventoryValue = round2(inventoryLocationRows(inventory).reduce((a, i) => a + i.qty * i.costPerUnit, 0));
   // Phase (Waste fix): same source-of-truth switch as Dashboard's monthWasteCost — see that
   // comment for the full explanation. Kept identical here so both screens can never disagree.
   const wasteEntries = supabaseAuth.hasSession()
@@ -9440,7 +9657,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
         <Card dark={dark} className="mb-4">
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Purchases by Supplier</div>
           {(() => {
-            const rPOs = purchaseOrders.filter((po) => po.status !== "Cancelled" && withinRange(po.orderDate, range));
+            const rPOs = purchaseOrders.filter((po) => !["Cancelled", "Reversed"].includes(po.status) && withinRange(po.orderDate, range));
             const map = {};
             rPOs.forEach((po) => {
               const name = suppliers.find((s) => s.id === po.supplierId)?.name || "Unknown";
@@ -9470,7 +9687,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 }
 
 /* ============================== SETTINGS ============================== */
-function SettingsView({ dark, settings, setSettings, settingsUnavailable, users, setUsers, employees, locations, setLocations, inventory, sales, currentUser, can, auditLog, setAuditLog, showToast, onLogout }) {
+function SettingsView({ dark, settings, setSettings, settingsUnavailable, users, setUsers, inviteUser, employees, locations, setLocations, inventory, sales, currentUser, can, auditLog, setAuditLog, showToast, onLogout }) {
   const [form, setForm] = useState(settings);
   const [userModal, setUserModal] = useState(null); // 'new' | user object | null
   const [showAudit, setShowAudit] = useState(false);
@@ -9491,6 +9708,8 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
       await setSettings(form);
       await logAudit(auditLog, setAuditLog, currentUser, "Settings Updated", `Tax ${form.taxEnabled ? form.taxRate + "%" : "disabled"} · Negative inventory ${form.allowNegativeInventory ? "allowed" : "blocked"}`);
       showToast("Settings saved");
+    } catch (e) {
+      showToast(e?.message || "Could not save settings.", e?.rpcSucceeded ? "good" : "danger");
     } finally {
       setSubmitting(false);
     }
@@ -9576,7 +9795,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
       )}
 
       {userModal && (
-        <UserFormModal dark={dark} user={userModal === "new" ? null : userModal} users={users} setUsers={setUsers} employees={employees}
+        <UserFormModal dark={dark} user={userModal === "new" ? null : userModal} users={users} setUsers={setUsers} inviteUser={inviteUser} employees={employees}
           currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} onClose={() => setUserModal(null)} />
       )}
       {showAudit && <AuditLogModal dark={dark} auditLog={auditLog} onClose={() => setShowAudit(false)} />}
@@ -9589,15 +9808,13 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
 // button in this panel calls supabaseRest/supabaseAuth directly. There is no code path by which
 // anything here can affect the live app's data loading, login, or startup, regardless of what a
 // user clicks in this panel or what state it's left in.
-// The 4 collections' minimal test-row fields and delete/deactivate capability, verified
-// directly against 01_schema.sql/02_rls.sql before writing this (not assumed): `customers` has
-// neither an `active` column nor a DELETE policy in the schema as deployed — that's a real,
-// disclosed gap in what can be tested for that table specifically, not a bug in this panel.
+// The 4 collections' minimal test-row fields and deactivate capability are exercised directly
+// against the authenticated Supabase tenant. All four tables support active=false cleanup.
 const CRUD_TEST_TABLES = [
   { key: "locations", label: "Locations", makeRow: (bid) => ({ business_id: bid, name: "TEST Location (safe to remove)", type: "Other" }), updatePatch: { type: "Retail" }, cleanup: "deactivate" },
   { key: "suppliers", label: "Suppliers", makeRow: (bid) => ({ business_id: bid, name: "TEST Supplier (safe to remove)", contact_name: "Test Contact" }), updatePatch: { contact_name: "Test Contact (updated)" }, cleanup: "deactivate" },
   { key: "employees", label: "Employees", makeRow: (bid) => ({ business_id: bid, name: "TEST Employee (safe to remove)", job_title: "Tester" }), updatePatch: { job_title: "Tester (updated)" }, cleanup: "deactivate" },
-  { key: "customers", label: "Customers", makeRow: (bid) => ({ business_id: bid, name: "TEST Customer (safe to remove)" }), updatePatch: { notes: "Updated by CRUD test" }, cleanup: "none" },
+  { key: "customers", label: "Customers", makeRow: (bid) => ({ business_id: bid, name: "TEST Customer (safe to remove)" }), updatePatch: { notes: "Updated by CRUD test" }, cleanup: "deactivate" },
 ];
 
 function SupabaseTestPanel({ dark }) {
@@ -9689,11 +9906,11 @@ function SupabaseTestPanel({ dark }) {
     <div className="mt-8 pt-6" style={{ borderTop: `1px dashed ${dark ? C.borderDark : C.borderLight}` }}>
       <div className="flex items-center gap-2 mb-1">
         <ShieldAlert size={16} color={C.yellow} />
-        <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Supabase Connection (Test Mode — Experimental)</div>
+        <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Supabase Connection (Owner QA)</div>
       </div>
       <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        Owner-only. Local storage stays the live data source for Sales, Inventory, Cash Flow, Expenses, Purchases,
-        Waste, and Audit Log regardless of anything below — nothing here can affect that data. No migration has run.
+        Owner-only QA utility. The main application uses tenant-scoped Supabase data and protected RPCs for transactional modules.
+        Rows created here are synthetic test records and are deactivated after the CRUD check.
       </div>
 
       <Card dark={dark} className="mb-3">
@@ -9776,10 +9993,10 @@ function SupabaseTestPanel({ dark }) {
   );
 }
 
-function UserFormModal({ dark, user, users, setUsers, employees, currentUser, auditLog, setAuditLog, showToast, onClose }) {
+function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, currentUser, auditLog, setAuditLog, showToast, onClose }) {
   const [name, setName] = useState(user?.name || "");
   const [username, setUsername] = useState(user?.username || "");
-  const [pin, setPin] = useState(user?.pin || "");
+  const [email, setEmail] = useState("");
   const [role, setRole] = useState(user?.role || "EMPLOYEE");
   const [employeeId, setEmployeeId] = useState(user?.employeeId || "");
   const [active, setActive] = useState(user?.active !== false);
@@ -9799,9 +10016,9 @@ function UserFormModal({ dark, user, users, setUsers, employees, currentUser, au
     setError("");
     if (!name.trim()) { setError("Name is required."); return; }
     if (!username.trim()) { setError("Username is required."); return; }
+    if (!user && (!email.trim() || !email.includes("@"))) { setError("A valid email is required for the staff invitation."); return; }
     const dupe = users.find((u) => u.username.toLowerCase() === username.trim().toLowerCase() && u.id !== user?.id);
     if (dupe) { setError("That username is already in use."); return; }
-    if (!/^\d{4,6}$/.test(String(pin))) { setError("PIN must be 4–6 digits."); return; }
     if (user && user.role === "OWNER" && role !== "OWNER" && otherOwnersActive === 0) { setError("At least one active Owner account must remain."); return; }
     if (employeeId) {
       // A given employee record should resolve to exactly one "me" for task assignment — block
@@ -9811,12 +10028,13 @@ function UserFormModal({ dark, user, users, setUsers, employees, currentUser, au
     }
     setSubmitting(true);
     try {
-      const payload = { id: user?.id || uid("user"), name: name.trim(), username: username.trim(), pin: String(pin), role, employeeId, active, permissions: role === "OWNER" ? {} : permissions };
-      const next = user ? users.map((u) => (u.id === user.id ? payload : u)) : [payload, ...users];
-      await setUsers(next);
-      await logAudit(auditLog, setAuditLog, currentUser, user ? "User Updated" : "User Created", `${payload.name} · ${roleLabel(payload.role)}${employeeId ? ` · linked to ${employees.find((e) => e.id === employeeId)?.name}` : ""}`);
-      showToast(user ? "User updated" : "User created");
+      const payload = { id: user?.id, email: email.trim(), name: name.trim(), username: username.trim(), role, employeeId, active, permissions: role === "OWNER" ? {} : permissions };
+      if (user) await setUsers(users.map((u) => (u.id === user.id ? { ...u, ...payload } : u)));
+      else await inviteUser(payload);
+      showToast(user ? "User updated" : "Invitation sent");
       onClose();
+    } catch (e) {
+      setError(e?.message || "Could not save the staff account. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -9825,7 +10043,6 @@ function UserFormModal({ dark, user, users, setUsers, employees, currentUser, au
   const deactivate = async () => {
     if (user.role === "OWNER" && otherOwnersActive === 0) { showToast("At least one active Owner account must remain.", "danger"); setConfirmingDeactivate(false); return; }
     await setUsers(users.map((u) => (u.id === user.id ? { ...u, active: !(u.active !== false) } : u)));
-    await logAudit(auditLog, setAuditLog, currentUser, user.active === false ? "User Reactivated" : "User Deactivated", user.name);
     showToast(user.active === false ? "User reactivated" : "User deactivated", "danger");
     setConfirmingDeactivate(false);
     onClose();
@@ -9836,7 +10053,7 @@ function UserFormModal({ dark, user, users, setUsers, employees, currentUser, au
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label="Name"><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field dark={dark} label="Username"><Input dark={dark} value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
-        <Field dark={dark} label="PIN (4–6 digits)"><Input dark={dark} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} maxLength={6} /></Field>
+        {!user && <Field dark={dark} label="Email"><Input dark={dark} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>}
         <Field dark={dark} label="Role">
           <Select dark={dark} value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="EMPLOYEE">Employee</option>
