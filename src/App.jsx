@@ -3402,17 +3402,15 @@ function PrintPreviewModal({ dark, title, html, onClose }) {
   };
 
   return (
-    <Modal title={title} onClose={onClose} dark={dark}>
-      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        Print sends this document to your browser's print dialog (choose "Save as PDF" there for a PDF file). Export downloads it as a standalone HTML file you can open or print from outside this app.
-      </div>
+    <Modal title={translateUI(title)} onClose={onClose} dark={dark}>
+      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Print sends this document to your browser's print dialog (choose \"Save as PDF\" there for a PDF file). Export downloads it as a standalone HTML file you can open or print from outside this app.")}</div>
       {printNotice && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{printNotice}</div>}
       <div className="rounded-2xl overflow-hidden mb-4" style={{ border: `1px solid ${dark ? C.borderDark : C.borderLight}`, background: "#fff" }}>
-        <iframe ref={iframeRef} srcDoc={html} title={title} style={{ width: "100%", height: 420, border: "none", display: "block" }} />
+        <iframe ref={iframeRef} srcDoc={html} title={translateUI(title)} style={{ width: "100%", height: 420, border: "none", display: "block" }} />
       </div>
       <div className="flex gap-2 mb-2">
-        <GhostButton dark={dark} style={{ flex: 1 }} onClick={handleExport}>Export Document</GhostButton>
-        <PrimaryButton style={{ flex: 1 }} onClick={handlePrint}>Print</PrimaryButton>
+        <GhostButton dark={dark} style={{ flex: 1 }} onClick={handleExport}>{translateUI("Export Document")}</GhostButton>
+        <PrimaryButton style={{ flex: 1 }} onClick={handlePrint}>{translateUI("Print")}</PrimaryButton>
       </div>
       <GhostButton dark={dark} full onClick={onClose} style={{ width: "100%" }}>{translateUI("Close")}</GhostButton>
     </Modal>
@@ -3433,7 +3431,7 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger = true
         style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
         <div className="flex items-center gap-2 mb-2">
           <AlertTriangle size={18} color={danger ? "#FF6B85" : C.yellow} />
-          <h3 className="text-base font-bold" style={{ color: dark ? C.white : C.black }}>{title}</h3>
+          <h3 className="text-base font-bold" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</h3>
         </div>
         {message && <p className="text-sm mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{message}</p>}
         <div className="flex gap-2">
@@ -3496,19 +3494,21 @@ function GhostButton({ children, onClick, dark, style }) {
 }
 
 function EmptyState({ title, sub, dark }) {
+  const { translateUI } = useLanguage();
   return (
     <div className="text-center py-10">
-      <div className="text-sm font-bold mb-1" style={{ color: dark ? C.white : C.black }}>{title}</div>
+      <div className="text-sm font-bold mb-1" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</div>
       {sub && <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{sub}</div>}
     </div>
   );
 }
 
 function ListRow({ title, subtitle, right, rightSub, badge, dark, onClick }) {
+  const { translateUI } = useLanguage();
   return (
     <div onClick={onClick} className="flex items-center justify-between py-3 border-b last:border-b-0 gap-3" style={{ borderColor: dark ? C.borderDark : C.borderLight, cursor: onClick ? "pointer" : "default" }}>
       <div className="min-w-0">
-        <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{title}</div>
+        <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</div>
         {subtitle && <div className="text-xs truncate" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{subtitle}</div>}
         {badge}
       </div>
@@ -3878,7 +3878,7 @@ function AppBody() {
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-2xl font-semibold text-sm shadow-lg"
           style={{ background: toast.tone === "danger" ? "#FF4D6D" : C.lime, color: C.black }}>
-          {toast.msg}
+          {translateUI(toast.msg)}
         </div>
       )}
     </div>
@@ -4048,14 +4048,14 @@ function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
 
         {done ? (
           <>
-            <div className="text-sm text-center mb-5" style={{ color: dark ? C.white : C.black }}>Your password has been updated. Sign in with your new password.</div>
+            <div className="text-sm text-center mb-5" style={{ color: dark ? C.white : C.black }}>{translateUI("Your password has been updated. Sign in with your new password.")}</div>
             <button type="button" onClick={onDone} className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full" style={{ background: C.lime, color: C.black }}>
               <Lock size={16} />{translateUI("Back to Sign In")}</button>
           </>
         ) : !hasValidLink ? (
           <>
             {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error || "This password reset link is invalid or has expired."}</div>}
-            <div className="text-xs text-center mb-5" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Request a new reset link from the sign-in screen and try again.</div>
+            <div className="text-xs text-center mb-5" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Request a new reset link from the sign-in screen and try again.")}</div>
             <button type="button" onClick={onDone} className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full" style={{ background: C.lime, color: C.black }}>
               <Lock size={16} />{translateUI("Back to Sign In")}</button>
           </>
@@ -4064,10 +4064,10 @@ function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
             <Field dark={dark} label={translateUI("New password")}>
               <Input dark={dark} type="password" autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••••" autoFocus />
             </Field>
-            <Field dark={dark} label="Confirm new password">
+            <Field dark={dark} label={translateUI("Confirm new password")}>
               <Input dark={dark} type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }} placeholder="••••••••" />
             </Field>
-            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
             <button
               type="submit"
               disabled={submitting}
@@ -4090,9 +4090,10 @@ const DIFF_STATUS = (diff) => (diff === 0 ? "BALANCED" : diff > 0 ? "OVER" : "SH
 const DIFF_TONE = { BALANCED: "good", OVER: "warn", SHORT: "danger" };
 // Always paired with text, never color-only, per the UI requirement.
 function DifferenceBadge({ dark, diff }) {
+  const { translateUI } = useLanguage();
   const status = DIFF_STATUS(diff);
   const label = diff === 0 ? "✓ BALANCED" : `${diff > 0 ? "+" : "-"}${fmtMoney(Math.abs(diff))} ${status}`;
-  return <Badge dark={dark} tone={DIFF_TONE[status]}>{label}</Badge>;
+  return <Badge dark={dark} tone={DIFF_TONE[status]}>{translateUI(label)}</Badge>;
 }
 
 function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cashTx, persistCash, cashRegisterOps, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
@@ -4174,75 +4175,75 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
     .sort((a, b) => new Date(b.closedAt) - new Date(a.closedAt));
 
   return (
-    <Modal title="Cash Register" onClose={onClose} dark={dark} wide>
+    <Modal title={translateUI("Cash Register")} onClose={onClose} dark={dark} wide>
       <Field dark={dark} label={translateUI("Location")}>
         <Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setMode("status"); setError(""); }}>
           {activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </Select>
       </Field>
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
 
       {mode === "status" && (
         <div>
           {!register ? (
             <Card dark={dark} className="mb-4">
-              <div className="flex items-center gap-2 mb-2"><Lock size={18} color="#FF6B85" /><span className="font-bold" style={{ color: dark ? C.white : C.black }}>REGISTER CLOSED</span></div>
-              <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>No active register for this location. A cash sale cannot be completed until it's opened.</div>
+              <div className="flex items-center gap-2 mb-2"><Lock size={18} color="#FF6B85" /><span className="font-bold" style={{ color: dark ? C.white : C.black }}>{translateUI("REGISTER CLOSED")}</span></div>
+              <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("No active register for this location. A cash sale cannot be completed until it's opened.")}</div>
               {canManage ? (
-                <PrimaryButton full onClick={() => setMode("open")}><Wallet size={16} /> Open Register</PrimaryButton>
+                <PrimaryButton full onClick={() => setMode("open")}><Wallet size={16} />{" "}{translateUI("Open Register")}</PrimaryButton>
               ) : (
-                <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>You don't have permission to open the register.</div>
+                <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to open the register.")}</div>
               )}
             </Card>
           ) : (
             <Card dark={dark} className="mb-4">
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2"><Wallet size={18} color={C.lime} /><span className="font-bold" style={{ color: dark ? C.white : C.black }}>REGISTER OPEN</span></div>
-                <Badge dark={dark} tone="good">ACTIVE</Badge>
+                <div className="flex items-center gap-2"><Wallet size={18} color={C.lime} /><span className="font-bold" style={{ color: dark ? C.white : C.black }}>{translateUI("REGISTER OPEN")}</span></div>
+                <Badge dark={dark} tone="good">{translateUI("ACTIVE")}</Badge>
               </div>
-              <Row dark={dark} label="Opened by" value={register.openedByName} />
-              <Row dark={dark} label="Opening time" value={`${dateStr(register.openedAt)} ${timeStr(register.openedAt)}`} />
-              <Row dark={dark} label="Opening cash" value={fmtMoney(register.openingCash)} />
+              <Row dark={dark} label={translateUI("Opened by")} value={register.openedByName} />
+              <Row dark={dark} label={translateUI("Opening time")} value={`${dateStr(register.openedAt)} ${timeStr(register.openedAt)}`} />
+              <Row dark={dark} label={translateUI("Opening cash")} value={fmtMoney(register.openingCash)} />
               <div className="my-2" style={{ borderTop: `1px dashed ${dark ? C.borderDark : C.borderLight}` }} />
-              <Row dark={dark} label="Cash sales" value={fmtMoney(breakdown.cashSales)} />
-              <Row dark={dark} label="Cash additions" value={fmtMoney(breakdown.additions)} />
-              <Row dark={dark} label="Cash withdrawals" value={`-${fmtMoney(breakdown.withdrawals)}`} />
-              <Row dark={dark} label="Cash drops" value={`-${fmtMoney(breakdown.drops)}`} />
-              <Row dark={dark} label="Cash expenses" value={`-${fmtMoney(breakdown.expenses)}`} />
-              {breakdown.refunds !== 0 && <Row dark={dark} label="Refunds / reversals" value={fmtMoney(breakdown.refunds)} />}
+              <Row dark={dark} label={translateUI("Cash sales")} value={fmtMoney(breakdown.cashSales)} />
+              <Row dark={dark} label={translateUI("Cash additions")} value={fmtMoney(breakdown.additions)} />
+              <Row dark={dark} label={translateUI("Cash withdrawals")} value={`-${fmtMoney(breakdown.withdrawals)}`} />
+              <Row dark={dark} label={translateUI("Cash drops")} value={`-${fmtMoney(breakdown.drops)}`} />
+              <Row dark={dark} label={translateUI("Cash expenses")} value={`-${fmtMoney(breakdown.expenses)}`} />
+              {breakdown.refunds !== 0 && <Row dark={dark} label={translateUI("Refunds / reversals")} value={fmtMoney(breakdown.refunds)} />}
               <div className="my-2" style={{ borderTop: `1px solid ${dark ? C.borderDark : C.borderLight}` }} />
-              <Row dark={dark} label="Expected cash" value={fmtMoney(expectedNow)} bold />
+              <Row dark={dark} label={translateUI("Expected cash")} value={fmtMoney(expectedNow)} bold />
               <div className="flex gap-2 mt-4">
-                {canManage && <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => setMode("movement")}><Plus size={14} /> Movement</GhostButton>}
-                {canManage && <PrimaryButton style={{ flex: 1 }} onClick={() => setMode("close")}><Lock size={14} /> Close Register</PrimaryButton>}
+                {canManage && <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => setMode("movement")}><Plus size={14} />{" "}{translateUI("Movement")}</GhostButton>}
+                {canManage && <PrimaryButton style={{ flex: 1 }} onClick={() => setMode("close")}><Lock size={14} />{" "}{translateUI("Close Register")}</PrimaryButton>}
               </div>
             </Card>
           )}
-          <GhostButton dark={dark} full onClick={() => setMode("history")} style={{ width: "100%" }}>History</GhostButton>
+          <GhostButton dark={dark} full onClick={() => setMode("history")} style={{ width: "100%" }}>{translateUI("History")}</GhostButton>
         </div>
       )}
 
       {mode === "open" && (
         <div>
-          <Field dark={dark} label="Opening Cash Amount ($)"><Input dark={dark} type="number" step="0.01" min="0" value={openingCash} onChange={(e) => setOpeningCash(e.target.value)} placeholder="0.00" /></Field>
-          <Field dark={dark} label="Notes (optional)"><TextArea dark={dark} value={openNotes} onChange={(e) => setOpenNotes(e.target.value)} /></Field>
+          <Field dark={dark} label={translateUI("Opening Cash Amount ($)")}><Input dark={dark} type="number" step="0.01" min="0" value={openingCash} onChange={(e) => setOpeningCash(e.target.value)} placeholder="0.00" /></Field>
+          <Field dark={dark} label={translateUI("Notes (optional)")}><TextArea dark={dark} value={openNotes} onChange={(e) => setOpenNotes(e.target.value)} /></Field>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => { setMode("status"); setError(""); }}>{translateUI("Cancel")}</GhostButton>
-            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doOpen}><Check size={16} /> {submitting ? "Opening…" : "Open Register"}</PrimaryButton>
+            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doOpen}><Check size={16} /> {submitting ? "Opening…" : translateUI("Open Register")}</PrimaryButton>
           </div>
         </div>
       )}
 
       {mode === "movement" && register && (
         <div>
-          <Field dark={dark} label="Movement Type">
+          <Field dark={dark} label={translateUI("Movement Type")}>
             <Select dark={dark} value={movementType} onChange={(e) => setMovementType(e.target.value)}>
-              {CASH_MOVEMENT_TYPES.map((m) => <option key={m.key} value={m.key}>{m.label}</option>)}
+              {CASH_MOVEMENT_TYPES.map((m) => <option key={m.key} value={m.key}>{translateUI(m.label)}</option>)}
             </Select>
           </Field>
-          <Field dark={dark} label="Amount ($)"><Input dark={dark} type="number" step="0.01" min="0" value={movementAmount} onChange={(e) => setMovementAmount(e.target.value)} placeholder="0.00" /></Field>
-          <Field dark={dark} label="Reason"><Input dark={dark} value={movementReason} onChange={(e) => setMovementReason(e.target.value)} placeholder="e.g. Bank deposit, till top-up…" /></Field>
-          <Field dark={dark} label="Notes (optional)"><TextArea dark={dark} value={movementNotes} onChange={(e) => setMovementNotes(e.target.value)} /></Field>
+          <Field dark={dark} label={translateUI("Amount ($)")}><Input dark={dark} type="number" step="0.01" min="0" value={movementAmount} onChange={(e) => setMovementAmount(e.target.value)} placeholder="0.00" /></Field>
+          <Field dark={dark} label={translateUI("Reason")}><Input dark={dark} value={movementReason} onChange={(e) => setMovementReason(e.target.value)} placeholder={translateUI("e.g. Bank deposit, till top-up…")} /></Field>
+          <Field dark={dark} label={translateUI("Notes (optional)")}><TextArea dark={dark} value={movementNotes} onChange={(e) => setMovementNotes(e.target.value)} /></Field>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => { setMode("status"); setError(""); }}>{translateUI("Cancel")}</GhostButton>
             <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doMovement}><Check size={16} /> {submitting ? "Saving…" : "Record Movement"}</PrimaryButton>
@@ -4253,33 +4254,33 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
       {mode === "close" && register && (
         <div>
           <Card dark={dark} className="mb-3">
-            <Row dark={dark} label="Opening Cash" value={fmtMoney(register.openingCash)} />
-            <Row dark={dark} label="Cash Sales" value={fmtMoney(breakdown.cashSales)} />
-            <Row dark={dark} label="Cash Additions" value={fmtMoney(breakdown.additions)} />
-            <Row dark={dark} label="Cash Withdrawals" value={`-${fmtMoney(breakdown.withdrawals)}`} />
-            <Row dark={dark} label="Cash Drops" value={`-${fmtMoney(breakdown.drops)}`} />
-            <Row dark={dark} label="Cash Expenses" value={`-${fmtMoney(breakdown.expenses)}`} />
-            {breakdown.refunds !== 0 && <Row dark={dark} label="Refunds" value={fmtMoney(breakdown.refunds)} />}
+            <Row dark={dark} label={translateUI("Opening Cash")} value={fmtMoney(register.openingCash)} />
+            <Row dark={dark} label={translateUI("Cash Sales")} value={fmtMoney(breakdown.cashSales)} />
+            <Row dark={dark} label={translateUI("Cash Additions")} value={fmtMoney(breakdown.additions)} />
+            <Row dark={dark} label={translateUI("Cash Withdrawals")} value={`-${fmtMoney(breakdown.withdrawals)}`} />
+            <Row dark={dark} label={translateUI("Cash Drops")} value={`-${fmtMoney(breakdown.drops)}`} />
+            <Row dark={dark} label={translateUI("Cash Expenses")} value={`-${fmtMoney(breakdown.expenses)}`} />
+            {breakdown.refunds !== 0 && <Row dark={dark} label={translateUI("Refunds")} value={fmtMoney(breakdown.refunds)} />}
             <div className="my-2" style={{ borderTop: `1px solid ${dark ? C.borderDark : C.borderLight}` }} />
-            <Row dark={dark} label="Expected Cash" value={fmtMoney(expectedNow)} bold />
+            <Row dark={dark} label={translateUI("Expected Cash")} value={fmtMoney(expectedNow)} bold />
           </Card>
-          <Field dark={dark} label="Actual Physical Cash Count ($)"><Input dark={dark} type="number" step="0.01" min="0" value={actualCash} onChange={(e) => setActualCash(e.target.value)} placeholder="0.00" /></Field>
+          <Field dark={dark} label={translateUI("Actual Physical Cash Count ($)")}><Input dark={dark} type="number" step="0.01" min="0" value={actualCash} onChange={(e) => setActualCash(e.target.value)} placeholder="0.00" /></Field>
           {previewDiff !== null && (
             <div className="mb-3"><DifferenceBadge dark={dark} diff={previewDiff} /></div>
           )}
           {previewDiff !== null && previewDiff !== 0 && (
-            <Field dark={dark} label="Difference Reason (required)">
+            <Field dark={dark} label={translateUI("Difference Reason (required)")}>
               <Select dark={dark} value={differenceReason} onChange={(e) => setDifferenceReason(e.target.value)}>
-                <option value="">Select a reason…</option>
-                <option>Counting mistake</option><option>Missing cash</option><option>Extra cash found</option>
-                <option>Cash drawer adjustment</option><option>Other</option>
+                <option value="">{translateUI("Select a reason…")}</option>
+                <option>{translateUI("Counting mistake")}</option><option>{translateUI("Missing cash")}</option><option>{translateUI("Extra cash found")}</option>
+                <option>{translateUI("Cash drawer adjustment")}</option><option>{translateUI("Other")}</option>
               </Select>
             </Field>
           )}
-          <Field dark={dark} label="Notes (optional)"><TextArea dark={dark} value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} /></Field>
+          <Field dark={dark} label={translateUI("Notes (optional)")}><TextArea dark={dark} value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} /></Field>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => { setMode("status"); setError(""); }}>{translateUI("Cancel")}</GhostButton>
-            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doClose}><Lock size={16} /> {submitting ? "Closing…" : "Close Register"}</PrimaryButton>
+            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doClose}><Lock size={16} /> {submitting ? "Closing…" : translateUI("Close Register")}</PrimaryButton>
           </div>
         </div>
       )}
@@ -4290,57 +4291,57 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
             {[["7", "7 Days"], ["30", "30 Days"], ["all", "All"]].map(([id, label]) => (
               <button key={id} onClick={() => setHistoryFilter(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
                 style={{ background: historyFilter === id ? C.lime : (dark ? C.surfaceDark : C.white), color: historyFilter === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-                {label}
+                {translateUI(label)}
               </button>
             ))}
           </div>
           <Card dark={dark} className="mb-3">
-            {historyList.length === 0 ? <EmptyState dark={dark} title="No closed registers yet" /> : historyList.map((r) => (
+            {historyList.length === 0 ? <EmptyState dark={dark} title={translateUI("No closed registers yet")} /> : historyList.map((r) => (
               <div key={r.id} className="py-3 border-b last:border-b-0 cursor-pointer" style={{ borderColor: dark ? C.borderDark : C.borderLight }} onClick={() => setHistoryDetail(r)}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{dateStr(r.closedAt)} · {r.closedByName}</div>
                   <DifferenceBadge dark={dark} diff={r.difference || 0} />
                 </div>
-                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Expected {fmtMoney(r.expectedCash)} · Actual {fmtMoney(r.actualCash)}</div>
+                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Expected")}{" "}{fmtMoney(r.expectedCash)}{" "}{translateUI("· Actual")}{" "}{fmtMoney(r.actualCash)}</div>
               </div>
             ))}
           </Card>
-          <GhostButton dark={dark} full onClick={() => setMode("status")} style={{ width: "100%" }}>Back</GhostButton>
+          <GhostButton dark={dark} full onClick={() => setMode("status")} style={{ width: "100%" }}>{translateUI("Back")}</GhostButton>
         </div>
       )}
 
       {mode === "history" && historyDetail && (
         <div>
-          <div className="mb-3"><GhostButton dark={dark} onClick={() => setHistoryDetail(null)}>← Back to History</GhostButton></div>
+          <div className="mb-3"><GhostButton dark={dark} onClick={() => setHistoryDetail(null)}>{translateUI("← Back to History")}</GhostButton></div>
           <Card dark={dark} className="mb-3">
-            <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>REGISTER INFORMATION</div>
+            <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("REGISTER INFORMATION")}</div>
             <Row dark={dark} label={translateUI("Location")} value={(locations || []).find((l) => l.id === historyDetail.locationId)?.name || "—"} />
             <Row dark={dark} label={translateUI("Status")} value="CLOSED" />
-            <Row dark={dark} label="Opened by" value={`${historyDetail.openedByName} · ${dateStr(historyDetail.openedAt)} ${timeStr(historyDetail.openedAt)}`} />
-            <Row dark={dark} label="Closed by" value={`${historyDetail.closedByName} · ${dateStr(historyDetail.closedAt)} ${timeStr(historyDetail.closedAt)}`} />
+            <Row dark={dark} label={translateUI("Opened by")} value={`${historyDetail.openedByName} · ${dateStr(historyDetail.openedAt)} ${timeStr(historyDetail.openedAt)}`} />
+            <Row dark={dark} label={translateUI("Closed by")} value={`${historyDetail.closedByName} · ${dateStr(historyDetail.closedAt)} ${timeStr(historyDetail.closedAt)}`} />
           </Card>
           <Card dark={dark} className="mb-3">
             {(() => {
               const bd = cashRegisterBreakdown(historyDetail, cashTx);
               return (<>
-                <Row dark={dark} label="Opening Cash" value={fmtMoney(historyDetail.openingCash)} />
-                <Row dark={dark} label="Cash Sales" value={fmtMoney(bd.cashSales)} />
-                <Row dark={dark} label="Cash Additions" value={fmtMoney(bd.additions)} />
-                <Row dark={dark} label="Cash Withdrawals" value={`-${fmtMoney(bd.withdrawals)}`} />
-                <Row dark={dark} label="Cash Drops" value={`-${fmtMoney(bd.drops)}`} />
-                <Row dark={dark} label="Cash Expenses" value={`-${fmtMoney(bd.expenses)}`} />
-                {bd.refunds !== 0 && <Row dark={dark} label="Refunds" value={fmtMoney(bd.refunds)} />}
+                <Row dark={dark} label={translateUI("Opening Cash")} value={fmtMoney(historyDetail.openingCash)} />
+                <Row dark={dark} label={translateUI("Cash Sales")} value={fmtMoney(bd.cashSales)} />
+                <Row dark={dark} label={translateUI("Cash Additions")} value={fmtMoney(bd.additions)} />
+                <Row dark={dark} label={translateUI("Cash Withdrawals")} value={`-${fmtMoney(bd.withdrawals)}`} />
+                <Row dark={dark} label={translateUI("Cash Drops")} value={`-${fmtMoney(bd.drops)}`} />
+                <Row dark={dark} label={translateUI("Cash Expenses")} value={`-${fmtMoney(bd.expenses)}`} />
+                {bd.refunds !== 0 && <Row dark={dark} label={translateUI("Refunds")} value={fmtMoney(bd.refunds)} />}
                 <div className="my-2" style={{ borderTop: `1px solid ${dark ? C.borderDark : C.borderLight}` }} />
-                <Row dark={dark} label="Expected Cash" value={fmtMoney(historyDetail.expectedCash)} bold />
-                <Row dark={dark} label="Actual Cash" value={fmtMoney(historyDetail.actualCash)} bold />
+                <Row dark={dark} label={translateUI("Expected Cash")} value={fmtMoney(historyDetail.expectedCash)} bold />
+                <Row dark={dark} label={translateUI("Actual Cash")} value={fmtMoney(historyDetail.actualCash)} bold />
                 <div className="mt-2"><DifferenceBadge dark={dark} diff={historyDetail.difference || 0} /></div>
-                {historyDetail.differenceReason && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Reason: {historyDetail.differenceReason}</div>}
-                {historyDetail.notes && <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Notes: {historyDetail.notes}</div>}
+                {historyDetail.differenceReason && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Reason:")}{" "}{historyDetail.differenceReason}</div>}
+                {historyDetail.notes && <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Notes:")}{" "}{historyDetail.notes}</div>}
               </>);
             })()}
           </Card>
           <Card dark={dark}>
-            <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>MOVEMENT HISTORY</div>
+            <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("MOVEMENT HISTORY")}</div>
             {cashRegisterBreakdown(historyDetail, cashTx).movements.map((m) => (
               <div key={m.id} className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-xs" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
                 <div>
@@ -4361,6 +4362,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
 // mutation available here is dismissAlert, which only ever touches businessAlerts (confirmed via
 // dismissAlert's own implementation, which calls setBusinessAlerts and logAudit, nothing else).
 function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFinance, currentUser, auditLog, setAuditLog, showToast }) {
+  const { translateUI } = useLanguage();
   const [filter, setFilter] = useState("open"); // "open" | "resolved" | "dismissed" | "all"
   const [dismissingId, setDismissingId] = useState(null);
   const alertCtx = { businessAlerts, setBusinessAlerts, currentUser, auditLog, setAuditLog };
@@ -4382,18 +4384,18 @@ function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFina
   };
 
   return (
-    <Modal title="Business Alerts" onClose={onClose} dark={dark} wide>
+    <Modal title={translateUI("Business Alerts")} onClose={onClose} dark={dark} wide>
       <div className="flex gap-2 mb-4 flex-wrap">
         {[["open", "Open"], ["resolved", "Resolved"], ["dismissed", "Dismissed"], ["all", "All"]].map(([id, label]) => (
           <button key={id} onClick={() => setFilter(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: filter === id ? C.lime : (dark ? C.surfaceDark : C.white), color: filter === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {label}
+            {translateUI(label)}
           </button>
         ))}
       </div>
 
       {sorted.length === 0 ? (
-        <EmptyState dark={dark} title="No alerts here" sub={filter === "open" ? "Everything is running smoothly." : "Nothing matches this filter."} />
+        <EmptyState dark={dark} title={translateUI("No alerts here")} sub={filter === "open" ? "Everything is running smoothly." : "Nothing matches this filter."} />
       ) : (
         sorted.map((a) => (
           <Card dark={dark} key={a.id} className="mb-2">
@@ -4405,8 +4407,7 @@ function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFina
                 </div>
                 <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{a.title}</div>
                 <div className="text-xs mt-0.5" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{a.message}</div>
-                <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                  Since {dateStr(a.createdAt)} {timeStr(a.createdAt)}
+                <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Since")}{dateStr(a.createdAt)} {timeStr(a.createdAt)}
                   {a.status === "resolved" && a.resolvedAt ? ` · Resolved ${dateStr(a.resolvedAt)} ${timeStr(a.resolvedAt)}` : ""}
                   {a.status === "dismissed" && a.dismissedAt ? ` · Dismissed ${dateStr(a.dismissedAt)} ${timeStr(a.dismissedAt)}` : ""}
                 </div>
@@ -4582,7 +4583,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
                 <Wallet size={18} color={activeRegister ? C.lime : "#FF6B85"} />
                 <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{activeRegister ? translateUI("REGISTER OPEN") : translateUI("REGISTER CLOSED")}</span>
               </div>
-              <Badge dark={dark} tone={activeRegister ? "good" : "danger"}>{activeRegister ? "ACTIVE" : translateUI("CLOSED")}</Badge>
+              <Badge dark={dark} tone={activeRegister ? "good" : "danger"}>{activeRegister ? translateUI("ACTIVE") : translateUI("CLOSED")}</Badge>
             </div>
             {activeRegister && canFinance && (
               <div className="mt-2 grid grid-cols-3 gap-2">
@@ -4690,7 +4691,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={18} color={counts.critical > 0 ? "#FF6B85" : C.yellow} />
-                <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{visibleAlerts.length} active alert{visibleAlerts.length === 1 ? "" : "s"}</span>
+                <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{visibleAlerts.length}{" "}{translateUI("active alert")}{visibleAlerts.length === 1 ? "" : "s"}</span>
               </div>
               <span className="text-xs font-bold" style={{ color: C.lime }}>{translateUI("View All →")}</span>
             </div>
@@ -4712,7 +4713,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
         <Card dark={dark} className="mb-4" style={{ borderColor: "#FF6B85" }}>
           <div className="flex items-center gap-2">
             <AlertTriangle size={18} color="#FF6B85" />
-            <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{opsAlertCount} operational issue{opsAlertCount === 1 ? "" : "s"} need attention</span>
+            <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{opsAlertCount}{" "}{translateUI("operational issue")}{opsAlertCount === 1 ? "" : "s"}{" "}{translateUI("need attention")}</span>
           </div>
           <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
             {[lowStock.length > 0 ? `${lowStock.length} stock alert${lowStock.length === 1 ? "" : "s"}` : null,
@@ -4744,7 +4745,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
               <span>{translateUI("New:")}<span style={{ color: dark ? C.white : C.black }}>{orderCounts.Received}</span></span>
               <span>{translateUI("In Production:")}<span style={{ color: dark ? C.white : C.black }}>{orderCounts.Preparing}</span></span>
               <span>{translateUI("Ready:")}<span style={{ color: dark ? C.white : C.black }}>{orderCounts.Ready}</span></span>
-              {longestWaiting && <span>· Longest wait: <span style={{ color: dark ? C.white : C.black }}>{formatElapsed(longestWaiting.date)}</span></span>}
+              {longestWaiting && <span>{translateUI("· Longest wait:")}{" "}<span style={{ color: dark ? C.white : C.black }}>{formatElapsed(longestWaiting.date)}</span></span>}
             </div>
           )}
           {activeOrders.length === 0 ? <EmptyState dark={dark} title={translateUI("No open orders")} sub={translateUI("Every order is completed.")} /> : activeOrders.slice(0, 6).map((s) => (
@@ -4804,9 +4805,9 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
             </div>
             <div className="flex items-baseline gap-2 mb-1">
               <span className="text-2xl font-extrabold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(thisWeekRevenue)}</span>
-              <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>vs {fmtMoney(prevWeekRevenue)} prior 7 days</span>
+              <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("vs")}{" "}{fmtMoney(prevWeekRevenue)}{" "}{translateUI("prior 7 days")}</span>
             </div>
-            <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{thisWeekOrders} orders this week vs {prevWeekOrders} the week before</div>
+            <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{thisWeekOrders}{" "}{translateUI("orders this week vs")}{" "}{prevWeekOrders}{" "}{translateUI("the week before")}</div>
           </Card>
 
           <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -4897,6 +4898,7 @@ const ORDER_FILTERS = [
 ];
 
 function OrderCard({ dark, sale, customerName, tick, onAdvance, advancingId }) {
+  const { translateUI } = useLanguage();
   const status = sale.status === "cancelled" ? null : (sale.fulfillmentStatus || "Received");
   const meta = status ? ORDER_STATUS_META[status] : null;
   const isAdvancing = advancingId === sale.id;
@@ -4904,19 +4906,19 @@ function OrderCard({ dark, sale, customerName, tick, onAdvance, advancingId }) {
     <Card dark={dark} className="mb-2">
       <div className="flex items-start justify-between mb-1">
         <div>
-          <div className="font-extrabold text-sm" style={{ color: dark ? C.white : C.black }}>Order #{sale.orderNo}</div>
+          <div className="font-extrabold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Order #")}{sale.orderNo}</div>
           <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
             {timeStr(sale.date)} · {sale.channel}{sale.location ? ` · ${sale.location}` : ""}
           </div>
         </div>
         {sale.status === "cancelled" ? (
-          <Badge dark={dark} tone="danger">CANCELLED</Badge>
+          <Badge dark={dark} tone="danger">{translateUI("CANCELLED")}</Badge>
         ) : status === "Completed" ? (
-          <Badge dark={dark} tone="default">COMPLETED</Badge>
+          <Badge dark={dark} tone="default">{translateUI("COMPLETED")}</Badge>
         ) : (
           <div className="text-right">
-            <Badge dark={dark} tone={FULFILLMENT_TONE[status]}>{meta.label}</Badge>
-            <div className="text-xs font-bold mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{formatElapsed(sale.date)} waiting</div>
+            <Badge dark={dark} tone={FULFILLMENT_TONE[status]}>{translateUI(meta.label)}</Badge>
+            <div className="text-xs font-bold mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{formatElapsed(sale.date)}{" "}{translateUI("waiting")}</div>
           </div>
         )}
       </div>
@@ -4924,9 +4926,9 @@ function OrderCard({ dark, sale, customerName, tick, onAdvance, advancingId }) {
         {sale.items.map((it) => `${it.qty}x ${it.name}`).join(", ")}
       </div>
       {customerName && (
-        <div className="text-xs mb-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Customer: {customerName}</div>
+        <div className="text-xs mb-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Customer:")}{" "}{customerName}</div>
       )}
-      {sale.notes && <div className="text-xs mb-1 italic" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Note: {sale.notes}</div>}
+      {sale.notes && <div className="text-xs mb-1 italic" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Note:")}{" "}{sale.notes}</div>}
       {sale.status !== "cancelled" && meta?.action && (
         <PrimaryButton full disabled={isAdvancing} onClick={() => onAdvance(sale.id)} style={{ marginTop: 8 }}>
           <Check size={15} /> {isAdvancing ? "Updating…" : meta.action}
@@ -4937,6 +4939,7 @@ function OrderCard({ dark, sale, customerName, tick, onAdvance, advancingId }) {
 }
 
 function OrdersView({ dark, sales, persistSales, customers, currentUser, can, showToast }) {
+  const { translateUI } = useLanguage();
   const [filter, setFilter] = useState("active");
   const [advancingId, setAdvancingId] = useState(null);
   const [tick, setTick] = useState(0);
@@ -4991,13 +4994,13 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
         {ORDER_FILTERS.map((f) => (
           <button key={f.id} onClick={() => setFilter(f.id)} className="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap"
             style={{ background: filter === f.id ? C.lime : (dark ? C.surfaceDark : C.white), color: filter === f.id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {f.label}{f.id === "active" ? ` (${activeList.length})` : ""}
+            {translateUI(f.label)}{f.id === "active" ? ` (${activeList.length})` : ""}
           </button>
         ))}
       </div>
 
       {list.length === 0 ? (
-        <EmptyState dark={dark} title="No orders here" sub={filter === "active" ? "Every order is caught up." : "Nothing matches this filter."} />
+        <EmptyState dark={dark} title={translateUI("No orders here")} sub={filter === "active" ? "Every order is caught up." : "Nothing matches this filter."} />
       ) : (
         list.map((s) => <OrderCard key={s.id} dark={dark} sale={s} customerName={s.customerId ? (customers || []).find((c) => c.id === s.customerId)?.name : null} tick={tick} onAdvance={doAdvance} advancingId={advancingId} />)
       )}
@@ -5028,24 +5031,24 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
   return (
     <div className="pb-6">
       <SectionHeader dark={dark} title={translateUI("Sales")} sub={`${filtered.length} orders · ${fmtMoney(totalRev)}`}
-        action={can("manageSales") ? <PrimaryButton onClick={() => setOpen(true)}><Plus size={16} /> New Sale</PrimaryButton> : null} />
+        action={can("manageSales") ? <PrimaryButton onClick={() => setOpen(true)}><Plus size={16} />{" "}{translateUI("New Sale")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 items-center flex-wrap">
         {[["today", "Today"], ["week", "7 Days"], ["month", "30 Days"], ["all", "All"]].map(([id, label]) => (
           <button key={id} onClick={() => setFilter(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: filter === id ? C.lime : (dark ? C.surfaceDark : C.white), color: filter === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {label}
+            {translateUI(label)}
           </button>
         ))}
-        {filtered.length > 0 && <GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12, marginLeft: "auto" }} onClick={exportCSV}>Export CSV</GhostButton>}
+        {filtered.length > 0 && <GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12, marginLeft: "auto" }} onClick={exportCSV}>{translateUI("Export CSV")}</GhostButton>}
       </div>
 
       <Card dark={dark}>
-        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No sales yet")} sub="Tap New Sale to record your first order." /> : filtered.map((s) => (
+        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No sales yet")} sub={translateUI("Tap New Sale to record your first order.")} /> : filtered.map((s) => (
           <ListRow key={s.id} dark={dark} onClick={() => setViewing(s)}
             title={`Order #${s.orderNo} · ${s.channel}`}
             subtitle={`${dateStr(s.date)} ${timeStr(s.date)} · ${s.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}`}
-            badge={s.status === "cancelled" ? <Badge dark={dark} tone="danger">{getPaymentStatus(s) === "failed" ? "PAYMENT FAILED" : "CANCELLED"}</Badge> : (s.fulfillmentStatus && s.fulfillmentStatus !== "Completed" ? <Badge dark={dark} tone={FULFILLMENT_TONE[s.fulfillmentStatus]}>{s.fulfillmentStatus.toUpperCase()}</Badge> : null)}
+            badge={s.status === "cancelled" ? <Badge dark={dark} tone="danger">{getPaymentStatus(s) === "failed" ? "PAYMENT FAILED" : translateUI("CANCELLED")}</Badge> : (s.fulfillmentStatus && s.fulfillmentStatus !== "Completed" ? <Badge dark={dark} tone={FULFILLMENT_TONE[s.fulfillmentStatus]}>{s.fulfillmentStatus.toUpperCase()}</Badge> : null)}
             right={fmtMoney(s.total)} rightSub={s.paymentMethod} />
         ))}
       </Card>
@@ -5263,7 +5266,7 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
 
   return (
     <Modal title={`Order #${sale.orderNo}`} onClose={onClose} dark={dark}>
-      {cancelled && <div className="mb-3"><Badge dark={dark} tone="danger">{getPaymentStatus(sale) === "failed" ? "PAYMENT FAILED" : "CANCELLED"} {sale.cancelledAt ? `· ${dateStr(sale.cancelledAt)}` : ""}</Badge></div>}
+      {cancelled && <div className="mb-3"><Badge dark={dark} tone="danger">{getPaymentStatus(sale) === "failed" ? "PAYMENT FAILED" : translateUI("CANCELLED")} {sale.cancelledAt ? `· ${dateStr(sale.cancelledAt)}` : ""}</Badge></div>}
       {!cancelled && <div className="mb-3"><Badge dark={dark} tone={FULFILLMENT_TONE[fulfillment]}>{fulfillment.toUpperCase()}</Badge></div>}
       <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
         {dateStr(sale.date)} {timeStr(sale.date)} · {sale.channel} · {locationLabel(sale, locations)} · {sale.paymentMethod}
@@ -5273,21 +5276,21 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
           <Row key={idx} dark={dark} label={`${it.qty}× ${it.name}`} value={fmtMoney(it.unitPrice * it.qty)} />
         ))}
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label="Subtotal" value={fmtMoney(sale.subtotal)} />
-        <Row dark={dark} label="Discount" value={`-${fmtMoney(sale.discount)}`} />
-        <Row dark={dark} label="Tax" value={fmtMoney(sale.tax)} />
+        <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(sale.subtotal)} />
+        <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(sale.discount)}`} />
+        <Row dark={dark} label={translateUI("Tax")} value={fmtMoney(sale.tax)} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
         <Row dark={dark} label={translateUI("Total")} value={fmtMoney(sale.total)} bold />
       </div>
-      {sale.notes && <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Notes: {sale.notes}</div>}
+      {sale.notes && <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Notes:")}{" "}{sale.notes}</div>}
       {!cancelled && can("manageSales") && (
         <div className="mb-4 pt-4" style={{ borderTop: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-          <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>PRINT / REPRINT</div>
+          <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("PRINT / REPRINT")}</div>
           <div className="flex flex-col gap-2">
-            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, "Customer Receipt")}><Receipt size={15} /> Customer Receipt</GhostButton>
-            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} /> Kitchen Ticket</GhostButton>
+            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, "Customer Receipt")}><Receipt size={15} />{" "}{translateUI("Customer Receipt")}</GhostButton>
+            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} />{" "}{translateUI("Kitchen Ticket")}</GhostButton>
             {CARD_PAYMENT_METHODS.includes(sale.paymentMethod) && (
-              <GhostButton dark={dark} onClick={() => doPrint(printingService.preparePaymentReceipt, "Payment Receipt")}><Wallet size={15} /> Payment Receipt</GhostButton>
+              <GhostButton dark={dark} onClick={() => doPrint(printingService.preparePaymentReceipt, "Payment Receipt")}><Wallet size={15} />{" "}{translateUI("Payment Receipt")}</GhostButton>
             )}
           </div>
         </div>
@@ -5302,14 +5305,13 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       )}
       {!cancelled && can("reverseSales") && (
         <GhostButton dark={dark} full onClick={() => setConfirming(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85", width: "100%" }}>
-          <Undo2 size={15} /> Cancel Sale
-        </GhostButton>
+          <Undo2 size={15} />{translateUI("Cancel Sale")}</GhostButton>
       )}
       {!cancelled && !can("reverseSales") && (
-        <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>You don't have permission to reverse sales.</div>
+        <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to reverse sales.")}</div>
       )}
       {confirming && (
-        <ConfirmDialog dark={dark} title="Cancel this sale?"
+        <ConfirmDialog dark={dark} title={translateUI("Cancel this sale?")}
           message="This restores the ingredients and packaging back to inventory and records a reversing cash entry. The order stays on record marked as cancelled."
           confirmLabel="Cancel Sale" onConfirm={doCancel} onCancel={() => setConfirming(false)} />
       )}
@@ -5343,14 +5345,12 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
   return (
     <div className="rounded-2xl p-3" style={{ background: dark ? C.surfaceDark : C.bgLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
       <Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} placeholder={translateUI("Name")} style={{ marginBottom: 6 }} />
-      <Input dark={dark} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" style={{ marginBottom: 6 }} />
-      <Input dark={dark} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional)" style={{ marginBottom: 6 }} />
+      <Input dark={dark} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder={translateUI("Phone (optional)")} style={{ marginBottom: 6 }} />
+      <Input dark={dark} value={email} onChange={(e) => setEmail(e.target.value)} placeholder={translateUI("Email (optional)")} style={{ marginBottom: 6 }} />
       {duplicate && (
-        <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A2E0F", color: "#FFD166" }}>
-          Possible existing customer: {duplicate.customer.name} (matched by {duplicate.matchType}). Check the existing record. Phone numbers and email addresses must be unique; different people can share a name.
-        </div>
+        <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A2E0F", color: "#FFD166" }}>{translateUI("Possible existing customer:")}{duplicate.customer.name}{" "}{translateUI("(matched by")}{" "}{duplicate.matchType}{translateUI("). Check the existing record. Phone numbers and email addresses must be unique; different people can share a name.")}</div>
       )}
-      {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
         <GhostButton dark={dark} style={{ flex: 1 }} onClick={onCancel}>{translateUI("Cancel")}</GhostButton>
         <PrimaryButton style={{ flex: 1 }} disabled={submitting || !name.trim()} onClick={submit}>{submitting ? "Saving…" : "Create"}</PrimaryButton>
@@ -5624,10 +5624,10 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     setPrintPreview({ title: prepared?.title || fallbackTitle, html: prepared?.html });
   };
 
-  if (saveRetry && !completedSale) return <Modal title="Confirm Sale Save" onClose={onClose} dark={dark}><div className="text-sm mb-3">{error}</div><div className="text-sm mb-3">Payment already succeeded. Retry saving this same sale without taking another payment. Check Sales history before starting another sale.</div><PrimaryButton full disabled={paymentPhase !== "idle"} onClick={() => { const attempt = confirmedPaymentRef.current; if (attempt && paymentPhase === "idle") handlePaymentResult(attempt.pendingSaleObj, attempt.result); }}>Retry Saving Same Sale</PrimaryButton></Modal>;
+  if (saveRetry && !completedSale) return <Modal title={translateUI("Confirm Sale Save")} onClose={onClose} dark={dark}><div className="text-sm mb-3">{translateUI(error)}</div><div className="text-sm mb-3">{translateUI("Payment already succeeded. Retry saving this same sale without taking another payment. Check Sales history before starting another sale.")}</div><PrimaryButton full disabled={paymentPhase !== "idle"} onClick={() => { const attempt = confirmedPaymentRef.current; if (attempt && paymentPhase === "idle") handlePaymentResult(attempt.pendingSaleObj, attempt.result); }}>{translateUI("Retry Saving Same Sale")}</PrimaryButton></Modal>;
 
   return (
-    <Modal title="New Sale" onClose={onClose} dark={dark} wide>
+    <Modal title={translateUI("New Sale")} onClose={onClose} dark={dark} wide>
       {completedSale ? (
         // Post-sale print screen. Every button here calls printingService directly against the
         // already-finalized `completedSale` object — read-only. Nothing here can call
@@ -5639,20 +5639,19 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ background: C.lime }}>
               <Check size={28} color={C.black} />
             </div>
-            <div className="font-extrabold text-lg" style={{ color: dark ? C.white : C.black }}>Payment Successful</div>
-            <div className="text-sm text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-              Order #{completedSale.orderNo} · {fmtMoney(completedSale.total)} · {completedSale.paymentMethod}
+            <div className="font-extrabold text-lg" style={{ color: dark ? C.white : C.black }}>{translateUI("Payment Successful")}</div>
+            <div className="text-sm text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Order #")}{completedSale.orderNo} · {fmtMoney(completedSale.total)} · {completedSale.paymentMethod}
             </div>
           </div>
-          <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>PRINT OPTIONS</div>
+          <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("PRINT OPTIONS")}</div>
           <div className="flex flex-col gap-2 mb-4">
-            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, "Customer Receipt")}><Receipt size={15} /> Customer Receipt</GhostButton>
-            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} /> Kitchen Ticket</GhostButton>
+            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, "Customer Receipt")}><Receipt size={15} />{" "}{translateUI("Customer Receipt")}</GhostButton>
+            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} />{" "}{translateUI("Kitchen Ticket")}</GhostButton>
             {CARD_PAYMENT_METHODS.includes(completedSale.paymentMethod) && (
-              <GhostButton dark={dark} onClick={() => doPrint(printingService.preparePaymentReceipt, "Payment Receipt")}><Wallet size={15} /> Payment Receipt</GhostButton>
+              <GhostButton dark={dark} onClick={() => doPrint(printingService.preparePaymentReceipt, "Payment Receipt")}><Wallet size={15} />{" "}{translateUI("Payment Receipt")}</GhostButton>
             )}
           </div>
-          <PrimaryButton full onClick={onClose}>Done</PrimaryButton>
+          <PrimaryButton full onClick={onClose}>{translateUI("Done")}</PrimaryButton>
           {printPreview && (
             <PrintPreviewModal dark={dark} title={printPreview.title} html={printPreview.html} onClose={() => setPrintPreview(null)} />
           )}
@@ -5664,8 +5663,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         // PaymentIntent or claims a real payment processor approved anything.
         <div>
           <div className="mb-3"><Badge dark={dark} tone="warn">{paymentPhase === "connecting" ? "CONNECTING…" : paymentPhase === "settling" ? "FINALIZING…" : "PAYMENT SIMULATOR"}</Badge></div>
-          <div className="text-sm mb-2 font-semibold" style={{ color: dark ? C.white : C.black }}>
-            Card payment of {fmtMoney(pendingCardSale.total)} for Order #{pendingCardSale.orderNo}
+          <div className="text-sm mb-2 font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Card payment of")}{fmtMoney(pendingCardSale.total)}{" "}{translateUI("for Order #")}{pendingCardSale.orderNo}
           </div>
           <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
             {paymentPhase === "connecting"
@@ -5674,12 +5672,9 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           </div>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.cancel()}>{translateUI("Cancel")}</GhostButton>
-            <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.decline("The card was declined.")}>
-              Decline
-            </GhostButton>
+            <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.decline("The card was declined.")}>{translateUI("Decline")}</GhostButton>
             <PrimaryButton style={{ flex: 1 }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.approve()}>
-              <Check size={16} /> Approve
-            </PrimaryButton>
+              <Check size={16} />{translateUI("Approve")}</PrimaryButton>
           </div>
         </div>
       ) : (
@@ -5705,15 +5700,15 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           )}
         </div>
       ))}
-      <button onClick={addItem} className="text-xs font-bold mb-4" style={{ color: C.lime }}>+ Add another product</button>
+      <button onClick={addItem} className="text-xs font-bold mb-4" style={{ color: C.lime }}>{translateUI("+ Add another product")}</button>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field dark={dark} label="Payment Method">
+        <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
             {settings.paymentMethods.map((m) => <option key={m}>{m}</option>)}
           </Select>
         </Field>
-        <Field dark={dark} label="Sales Channel">
+        <Field dark={dark} label={translateUI("Sales Channel")}>
           <Select dark={dark} value={channel} onChange={(e) => setChannel(e.target.value)}>
             {settings.channels.map((c) => <option key={c}>{c}</option>)}
           </Select>
@@ -5729,17 +5724,17 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
             {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </Select>
         </Field>
-        <Field dark={dark} label="Customer">
+        <Field dark={dark} label={translateUI("Customer")}>
           {!showCustomerCreate ? (
             <>
               <div className="flex gap-2">
                 <Select dark={dark} value={customerId} onChange={(e) => { setCustomerId(e.target.value); setSelectedRewardId(""); }} style={{ flex: 1 }}>
-                  <option value="">Walk-in</option>
+                  <option value="">{translateUI("Walk-in")}</option>
                   {(posCustomers || []).filter((c) => c.active !== false).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </Select>
-                <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>+ New</GhostButton>
+                <GhostButton dark={dark} onClick={() => { setShowCustomerCreate(true); setCustomerQuery(""); }} style={{ padding: "0 14px" }}>{translateUI("+ New")}</GhostButton>
               </div>
-              {customerLoadError && <div className="text-xs mt-1" style={{ color: "#FF6B85" }}>Customer load error: {customerLoadError}</div>}
+              {customerLoadError && <div className="text-xs mt-1" style={{ color: "#FF6B85" }}>{translateUI("Customer load error:")}{" "}{customerLoadError}</div>}
             </>
           ) : (
             <NewSaleCustomerCreate dark={dark} customers={customers} setCustomers={setCustomers} currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog}
@@ -5750,22 +5745,22 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         {selectedCustomer && (
           <Card dark={dark} className="mb-3" style={{ padding: 10 }}>
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Loyalty balance</span>
-              <span className="text-sm font-extrabold" style={{ color: dark ? C.white : C.black }}>{loyaltyBalance} pts</span>
+              <span className="text-xs font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Loyalty balance")}</span>
+              <span className="text-sm font-extrabold" style={{ color: dark ? C.white : C.black }}>{loyaltyBalance}{" "}{translateUI("pts")}</span>
             </div>
             {availableRewards.length > 0 && (
               <div className="mt-2">
                 <Select dark={dark} value={selectedRewardId} onChange={(e) => setSelectedRewardId(e.target.value)}>
-                  <option value="">No reward applied</option>
-                  {availableRewards.map((r) => <option key={r.id} value={r.id}>{r.name} — {r.requiredPoints} pts → {fmtMoney(r.discountValue)} off</option>)}
+                  <option value="">{translateUI("No reward applied")}</option>
+                  {availableRewards.map((r) => <option key={r.id} value={r.id}>{r.name} — {r.requiredPoints}{" "}{translateUI("pts →")}{" "}{fmtMoney(r.discountValue)}{" "}{translateUI("off")}</option>)}
                 </Select>
-                {selectedReward && <div className="text-xs mt-1" style={{ color: C.lime }}>−{fmtMoney(rewardDiscountAmt)} reward discount applied</div>}
+                {selectedReward && <div className="text-xs mt-1" style={{ color: C.lime }}>−{fmtMoney(rewardDiscountAmt)}{" "}{translateUI("reward discount applied")}</div>}
               </div>
             )}
-            {availableRewards.length === 0 && <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>No rewards available yet.</div>}
+            {availableRewards.length === 0 && <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("No rewards available yet.")}</div>}
           </Card>
         )}
-        <Field dark={dark} label="Discount ($)">
+        <Field dark={dark} label={translateUI("Discount ($)")}>
           <Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} />
         </Field>
       </div>
@@ -5774,15 +5769,15 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       </Field>
 
       <div className="rounded-2xl p-3 mb-4" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
-        <Row dark={dark} label="Subtotal" value={fmtMoney(subtotal)} />
-        <Row dark={dark} label="Discount" value={`-${fmtMoney(discount)}`} />
-        {rewardDiscountAmt > 0 && <Row dark={dark} label="Reward Discount" value={`-${fmtMoney(rewardDiscountAmt)}`} />}
+        <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(subtotal)} />
+        <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(discount)}`} />
+        {rewardDiscountAmt > 0 && <Row dark={dark} label={translateUI("Reward Discount")} value={`-${fmtMoney(rewardDiscountAmt)}`} />}
         <Row dark={dark} label={`Tax (${settings.taxEnabled ? settings.taxRate + "%" : "disabled"})`} value={fmtMoney(taxAmt)} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
         <Row dark={dark} label={translateUI("Total")} value={fmtMoney(total)} bold />
       </div>
 
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting} onClick={submit}>
         <Check size={16} /> {submitting ? "Saving…" : CARD_PAYMENT_METHODS.includes(paymentMethod) ? `Charge Card — ${fmtMoney(total)}` : `Complete Sale — ${fmtMoney(total)}`}
       </PrimaryButton>
@@ -5793,9 +5788,10 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
 }
 
 function Row({ dark, label, value, bold }) {
+  const { translateUI } = useLanguage();
   return (
     <div className="flex justify-between py-0.5">
-      <span className={`text-xs ${bold ? "font-extrabold" : "font-medium"}`} style={{ color: bold ? (dark ? C.white : C.black) : (dark ? C.textMutedDark : C.textMutedLight) }}>{label}</span>
+      <span className={`text-xs ${bold ? "font-extrabold" : "font-medium"}`} style={{ color: bold ? (dark ? C.white : C.black) : (dark ? C.textMutedDark : C.textMutedLight) }}>{translateUI(label)}</span>
       <span className={`text-xs ${bold ? "font-extrabold text-sm" : "font-semibold"}`} style={{ color: dark ? C.white : C.black }}>{value}</span>
     </div>
   );
@@ -5823,23 +5819,23 @@ function CashFlowView({ dark, cashTx, showToast }) {
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Cash Flow")} sub="Income & expense ledger" />
+      <SectionHeader dark={dark} title={translateUI("Cash Flow")} sub={translateUI("Income & expense ledger")} />
       <div className="flex gap-2 mb-4 items-center flex-wrap">
         {[["today", "Today"], ["week", "7 Days"], ["month", "30 Days"], ["all", "All"]].map(([id, label]) => (
           <button key={id} onClick={() => setFilter(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: filter === id ? C.lime : (dark ? C.surfaceDark : C.white), color: filter === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {label}
+            {translateUI(label)}
           </button>
         ))}
-        {merged.length > 0 && <GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12, marginLeft: "auto" }} onClick={exportCSV}>Export CSV</GhostButton>}
+        {merged.length > 0 && <GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12, marginLeft: "auto" }} onClick={exportCSV}>{translateUI("Export CSV")}</GhostButton>}
       </div>
       <div className="grid grid-cols-3 gap-3 mb-4">
-        <StatCard dark={dark} label="Income" value={fmtMoney(totalIncome)} icon={ArrowUpRight} accent={C.lime} />
+        <StatCard dark={dark} label={translateUI("Income")} value={fmtMoney(totalIncome)} icon={ArrowUpRight} accent={C.lime} />
         <StatCard dark={dark} label={translateUI("Expenses")} value={fmtMoney(totalExpense)} icon={ArrowDownRight} accent={"#FF6B85"} />
-        <StatCard dark={dark} label="Net Flow" value={fmtMoney(net)} icon={Wallet} accent={net >= 0 ? C.lime : "#FF6B85"} />
+        <StatCard dark={dark} label={translateUI("Net Flow")} value={fmtMoney(net)} icon={Wallet} accent={net >= 0 ? C.lime : "#FF6B85"} />
       </div>
       <Card dark={dark}>
-        {merged.length === 0 ? <EmptyState dark={dark} title="No transactions" sub="Sales income and expenses will show up here." /> : merged.map((t) => (
+        {merged.length === 0 ? <EmptyState dark={dark} title={translateUI("No transactions")} sub={translateUI("Sales income and expenses will show up here.")} /> : merged.map((t) => (
           <ListRow key={t.id} dark={dark} title={t.category} subtitle={`${dateStr(t.date)} · ${t.description || ""}`}
             right={<span style={{ color: t.type === "income" ? C.lime : "#FF6B85" }}>{t.type === "income" ? "+" : "-"}{fmtMoney(t.amount)}</span>} />
         ))}
@@ -5881,17 +5877,17 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
         {[["all", "All Items"], ["low", "Needs Attention"]].map(([id, label]) => (
           <button key={id} onClick={() => setTabMode(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: tabMode === id ? C.lime : (dark ? C.surfaceDark : C.white), color: tabMode === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {label}
+            {translateUI(label)}
           </button>
         ))}
-        {canExport && inventory.length > 0 && <GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12, marginLeft: "auto" }} onClick={exportCSV}>Export CSV</GhostButton>}
+        {canExport && inventory.length > 0 && <GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12, marginLeft: "auto" }} onClick={exportCSV}>{translateUI("Export CSV")}</GhostButton>}
       </div>
 
       {expiringList.length > 0 && (
         <Card dark={dark} className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={18} color="#FF6B85" />
-            <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Expiring Inventory</span>
+            <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Expiring Inventory")}</span>
           </div>
           {expiringList.map((i) => (
             <ListRow key={i.id} dark={dark} title={i.name}
@@ -5905,22 +5901,22 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
         <Card dark={dark} className="mb-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle size={18} color={C.yellow} />
-            <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Reorder Recommendations</span>
+            <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Reorder Recommendations")}</span>
           </div>
           {reorderList.map((i) => (
             <div key={i.id} className="flex items-center justify-between py-2 border-b last:border-b-0 gap-2" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <div className="min-w-0">
                 <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
-                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Current {i.qty} · Recommended purchase {suggestedOrderQty(i)} {i.unit}</div>
+                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Current")}{" "}{i.qty}{" "}{translateUI("· Recommended purchase")}{" "}{suggestedOrderQty(i)} {i.unit}</div>
               </div>
-              {can("managePurchases") && !inventoryOps?.remote && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setQuickPO(i)}>Create Purchase</GhostButton>}
+              {can("managePurchases") && !inventoryOps?.remote && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setQuickPO(i)}>{translateUI("Create Purchase")}</GhostButton>}
             </div>
           ))}
         </Card>
       )}
 
       <Card dark={dark}>
-        {filtered.length === 0 ? <EmptyState dark={dark} title="No items" /> : filtered.map((i) => (
+        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No items")} /> : filtered.map((i) => (
           <div key={i.id} className="py-3 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
             <div className="flex items-center justify-between mb-2 gap-2">
               <div className="min-w-0" onClick={() => openAction("history", i)}>
@@ -5935,11 +5931,11 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("receive", i)}><PackagePlus size={13} /> Receive</GhostButton>}
-              {can("adjustInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("adjust", i)}><Edit2 size={13} /> Adjust</GhostButton>}
-              {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("waste", i)}><PackageMinus size={13} /> Waste</GhostButton>}
-              {can("adjustInventory") && inventoryOps?.transfer && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("transfer", i)}>Transfer</GhostButton>}
-              <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("history", i)}>History</GhostButton>
+              {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("receive", i)}><PackagePlus size={13} />{" "}{translateUI("Receive")}</GhostButton>}
+              {can("adjustInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("adjust", i)}><Edit2 size={13} />{" "}{translateUI("Adjust")}</GhostButton>}
+              {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("waste", i)}><PackageMinus size={13} />{" "}{translateUI("Waste")}</GhostButton>}
+              {can("adjustInventory") && inventoryOps?.transfer && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("transfer", i)}>{translateUI("Transfer")}</GhostButton>}
+              <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("history", i)}>{translateUI("History")}</GhostButton>
             </div>
           </div>
         ))}
@@ -6040,35 +6036,35 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
   };
 
   return (
-    <Modal title="New Inventory Item" onClose={onClose} dark={dark}>
-      <Field dark={dark} label="Item Name"><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+    <Modal title={translateUI("New Inventory Item")} onClose={onClose} dark={dark}>
+      <Field dark={dark} label={translateUI("Item Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
       <div className="grid grid-cols-2 gap-3">
-        <Field dark={dark} label="SKU"><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
           <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.inventoryCategories.map((c) => <option key={c}>{c}</option>)}</Select>
         </Field>
-        <Field dark={dark} label="Unit">
+        <Field dark={dark} label={translateUI("Unit")}>
           <Select dark={dark} value={unit} onChange={(e) => setUnit(e.target.value)}>{settings.units.map((u) => <option key={u}>{u}</option>)}</Select>
         </Field>
-        <Field dark={dark} label="Starting Quantity"><Input dark={dark} type="number" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
-        <Field dark={dark} label="Minimum Stock"><Input dark={dark} type="number" min="0" step="0.01" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
-        <Field dark={dark} label="Maximum Stock"><Input dark={dark} type="number" min="0" step="0.01" value={maxQty} onChange={(e) => setMaxQty(e.target.value)} /></Field>
-        <Field dark={dark} label="Cost per Unit ($)"><Input dark={dark} type="number" min="0" step="0.01" value={costPerUnit} onChange={(e) => setCostPerUnit(e.target.value)} /></Field>
-        <Field dark={dark} label="Preferred Supplier">
+        <Field dark={dark} label={translateUI("Starting Quantity")}><Input dark={dark} type="number" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Minimum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Maximum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={maxQty} onChange={(e) => setMaxQty(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Cost per Unit ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={costPerUnit} onChange={(e) => setCostPerUnit(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Preferred Supplier")}>
           <Select dark={dark} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             <option value="">—</option>
             {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>
       </div>
-      <Field dark={dark} label="Storage Location">
+      <Field dark={dark} label={translateUI("Storage Location")}>
         <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
           <option value="">—</option>
           {(locations || []).filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
         </Select>
       </Field>
       <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Item"}</PrimaryButton>
     </Modal>
   );
@@ -6102,14 +6098,14 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
       else setError(e.message || "Unable to transfer stock.");
     } finally { setSubmitting(false); }
   };
-  return <Modal title="Transfer Stock" dark={dark} onClose={onClose}>
+  return <Modal title={translateUI("Transfer Stock")} dark={dark} onClose={onClose}>
     <div className="text-sm font-bold mb-3">{item.name}</div>
-    <Field dark={dark} label="From Location"><Select dark={dark} value={fromId} onChange={(e) => setFromId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
-    <Field dark={dark} label="To Location"><Select dark={dark} value={toId} onChange={(e) => setToId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
+    <Field dark={dark} label={translateUI("From Location")}><Select dark={dark} value={fromId} onChange={(e) => setFromId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
+    <Field dark={dark} label={translateUI("To Location")}><Select dark={dark} value={toId} onChange={(e) => setToId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
     <Field dark={dark} label={"Quantity (" + item.unit + ") - available " + available}><Input dark={dark} type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
     <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-    {error && <div role="alert" className="text-sm mb-3" style={{ color: "#FF6B85" }}>{error}</div>}
-    <PrimaryButton full disabled={submitting} onClick={submit}>{submitting ? "Transferring?" : "Transfer Stock"}</PrimaryButton>
+    {error && <div role="alert" className="text-sm mb-3" style={{ color: "#FF6B85" }}>{translateUI(error)}</div>}
+    <PrimaryButton full disabled={submitting} onClick={submit}>{submitting ? "Transferring?" : translateUI("Transfer Stock")}</PrimaryButton>
   </Modal>;
 }
 
@@ -6288,12 +6284,12 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
 
   return (
     <Modal title={titleMap[mode]} onClose={onClose} dark={dark}>
-      <Field dark={dark} label="Item">
+      <Field dark={dark} label={translateUI("Item")}>
         <Select dark={dark} value={itemId} onChange={(e) => { setItemId(e.target.value); const it = inventory.find((i) => i.id === e.target.value); setNewQty(inventoryOps?.remote ? it.stocks?.find((s) => s.locationId === locationId)?.qty ?? 0 : it.qty); }}>
           {inventory.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
         </Select>
       </Field>
-      {inventoryOps?.remote && <Field dark={dark} label={translateUI("Location")}><Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setNewQty(currentBase.stocks?.find((s) => s.locationId === e.target.value)?.qty ?? 0); }}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><div className="text-xs mt-1">Available: {current.qty} {current.unit}</div></Field>}
+      {inventoryOps?.remote && <Field dark={dark} label={translateUI("Location")}><Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setNewQty(currentBase.stocks?.find((s) => s.locationId === e.target.value)?.qty ?? 0); }}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><div className="text-xs mt-1">{translateUI("Available:")}{" "}{current.qty} {current.unit}</div></Field>}
       {mode !== "adjust" ? (
         <Field dark={dark} label={`Quantity (${current.unit})`}>
           <Input dark={dark} type="number" min="0.01" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} />
@@ -6304,30 +6300,30 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
             <Input dark={dark} type="number" min="0" step="0.01" value={newQty} onChange={(e) => setNewQty(e.target.value)} />
           </Field>
           {diff !== 0 && (
-            <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: diff > 0 ? "#1E3A0F" : "#3A0F1E", color: diff > 0 ? C.lime : "#FF6B85" }}>
-              Difference: {diff > 0 ? "+" : ""}{diff} {current.unit}
+            <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: diff > 0 ? "#1E3A0F" : "#3A0F1E", color: diff > 0 ? C.lime : "#FF6B85" }}>{translateUI("Difference:")}{diff > 0 ? "+" : ""}{diff} {current.unit}
             </div>
           )}
-          <Field dark={dark} label="Reason">
+          <Field dark={dark} label={translateUI("Reason")}>
             <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{adjustReasons.map((r) => <option key={r}>{r}</option>)}</Select>
           </Field>
         </>
       )}
       {mode === "waste" && (
-        <Field dark={dark} label="Reason">
+        <Field dark={dark} label={translateUI("Reason")}>
           <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{wasteReasons.map((r) => <option key={r}>{r}</option>)}</Select>
         </Field>
       )}
       <Field dark={dark} label={translateUI("Notes")}>
         <TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : translateUI("Save")}</PrimaryButton>
     </Modal>
   );
 }
 
 function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, onClose, can }) {
+  const { translateUI } = useLanguage();
   const showCosts = !can || can("viewFinancials");
   const purchases = (invTx || []).filter((t) => t.itemId === item.id && t.type === "Purchase").sort((a, b) => new Date(b.date) - new Date(a.date));
   const allMoves = (invTx || []).filter((t) => t.itemId === item.id).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
@@ -6366,13 +6362,13 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
   const analytics30 = calculateConsumptionAnalytics(item, invTx, 30);
   const consumptionCard = (
     <Card dark={dark} className="mb-4">
-      <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Consumption &amp; Reorder</div>
-      <Row dark={dark} label="Health status" value={STOCK_STATUS_LABEL[stockStatus(item)]} bold />
-      <Row dark={dark} label="Used last 7 days" value={`${analytics7.consumedQty} ${item.unit}`} />
-      <Row dark={dark} label="Used last 30 days" value={`${analytics30.consumedQty} ${item.unit}`} />
-      <Row dark={dark} label="Avg daily usage" value={analytics30.avgDailyUsage > 0 ? `${analytics30.avgDailyUsage} ${item.unit}/day` : "No consumption data"} />
-      <Row dark={dark} label="Estimated days remaining" value={analytics30.daysRemaining !== null ? `${analytics30.daysRemaining} days` : "No consumption data"} />
-      {suggestedOrderQty(item) > 0 && <Row dark={dark} label="Recommended reorder" value={`${suggestedOrderQty(item)} ${item.unit}`} bold />}
+      <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Consumption & Reorder")}</div>
+      <Row dark={dark} label={translateUI("Health status")} value={STOCK_STATUS_LABEL[stockStatus(item)]} bold />
+      <Row dark={dark} label={translateUI("Used last 7 days")} value={`${analytics7.consumedQty} ${item.unit}`} />
+      <Row dark={dark} label={translateUI("Used last 30 days")} value={`${analytics30.consumedQty} ${item.unit}`} />
+      <Row dark={dark} label={translateUI("Avg daily usage")} value={analytics30.avgDailyUsage > 0 ? `${analytics30.avgDailyUsage} ${item.unit}/day` : "No consumption data"} />
+      <Row dark={dark} label={translateUI("Estimated days remaining")} value={analytics30.daysRemaining !== null ? `${analytics30.daysRemaining} days` : "No consumption data"} />
+      {suggestedOrderQty(item) > 0 && <Row dark={dark} label={translateUI("Recommended reorder")} value={`${suggestedOrderQty(item)} ${item.unit}`} bold />}
     </Card>
   );
 
@@ -6381,13 +6377,13 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
       <Modal title={`${item.name} — History`} onClose={onClose} dark={dark}>
         {consumptionCard}
         <Card dark={dark}>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Recent Stock Movements</div>
-          {allMoves.length === 0 ? <EmptyState dark={dark} title="No transactions yet" /> : allMoves.map((t) => (
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recent Stock Movements")}</div>
+          {allMoves.length === 0 ? <EmptyState dark={dark} title={translateUI("No transactions yet")} /> : allMoves.map((t) => (
             <ListRow key={t.id} dark={dark} title={`${t.type} ${t.qty > 0 ? "+" : ""}${t.qty} ${t.unit}`}
               subtitle={`${dateStr(t.date)} ${timeStr(t.date)}${t.note ? " · " + t.note : ""}`} />
           ))}
         </Card>
-        <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Cost details are restricted to accounts with financial access.</div>
+        <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Cost details are restricted to accounts with financial access.")}</div>
       </Modal>
     );
   }
@@ -6396,26 +6392,26 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
     <Modal title={`${item.name} — History`} onClose={onClose} dark={dark} wide>
       {consumptionCard}
       <div className="grid grid-cols-4 gap-2 mb-4">
-        <StatCard dark={dark} label="Avg Cost" value={fmtMoney(avg)} />
-        <StatCard dark={dark} label="Last Cost" value={fmtMoney(last)} />
-        <StatCard dark={dark} label="Highest" value={fmtMoney(highest)} />
-        <StatCard dark={dark} label="Lowest" value={fmtMoney(lowest)} />
+        <StatCard dark={dark} label={translateUI("Avg Cost")} value={fmtMoney(avg)} />
+        <StatCard dark={dark} label={translateUI("Last Cost")} value={fmtMoney(last)} />
+        <StatCard dark={dark} label={translateUI("Highest")} value={fmtMoney(highest)} />
+        <StatCard dark={dark} label={translateUI("Lowest")} value={fmtMoney(lowest)} />
       </div>
 
       {supplierRows.length > 0 && (
         <Card dark={dark} className="mb-4">
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Supplier Price Comparison</div>
-          <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Analysis only — nothing is auto-selected.</div>
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Supplier Price Comparison")}</div>
+          <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Analysis only — nothing is auto-selected.")}</div>
           {supplierRows.map((s, idx) => (
             <ListRow key={idx} dark={dark} title={s.name} subtitle={`${s.count} purchase${s.count === 1 ? "" : "s"}`}
-              right={fmtMoney(s.avg)} badge={idx === 0 ? <Badge dark={dark} tone="good">CHEAPEST RECENT</Badge> : null} />
+              right={fmtMoney(s.avg)} badge={idx === 0 ? <Badge dark={dark} tone="good">{translateUI("CHEAPEST RECENT")}</Badge> : null} />
           ))}
         </Card>
       )}
 
       <Card dark={dark}>
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Recent Transactions</div>
-        {allMoves.length === 0 ? <EmptyState dark={dark} title="No transactions yet" /> : allMoves.map((t) => (
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recent Transactions")}</div>
+        {allMoves.length === 0 ? <EmptyState dark={dark} title={translateUI("No transactions yet")} /> : allMoves.map((t) => (
           <ListRow key={t.id} dark={dark} title={`${t.type} ${t.qty > 0 ? "+" : ""}${t.qty} ${t.unit}`}
             subtitle={`${dateStr(t.date)} ${timeStr(t.date)}${t.referenceLabel ? " · " + t.referenceLabel : ""}${t.note ? " · " + t.note : ""}`}
             right={t.totalCost != null ? fmtMoney(Math.abs(t.totalCost)) : ""} />
@@ -6460,27 +6456,27 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Purchases")} sub="Purchase orders, receiving & supplier payments"
+      <SectionHeader dark={dark} title={translateUI("Purchases")} sub={translateUI("Purchase orders, receiving & supplier payments")}
         action={can("managePurchases") ? <PrimaryButton onClick={() => setNewOpen(true)}><Plus size={16} />{translateUI("New Purchase")}</PrimaryButton> : null} />
 
       <div className="grid grid-cols-3 gap-3 mb-4">
-        <StatCard dark={dark} label="Purchases (30d)" value={fmtMoney(purchases30d)} icon={PackagePlus} accent={C.purpleGlow} />
-        <StatCard dark={dark} label="Outstanding Payables" value={fmtMoney(outstandingPayables)} icon={AlertTriangle} accent={"#FF6B85"} />
-        <StatCard dark={dark} label="Open Orders" value={openCount} icon={Truck} accent={C.yellow} />
+        <StatCard dark={dark} label={translateUI("Purchases (30d)")} value={fmtMoney(purchases30d)} icon={PackagePlus} accent={C.purpleGlow} />
+        <StatCard dark={dark} label={translateUI("Outstanding Payables")} value={fmtMoney(outstandingPayables)} icon={AlertTriangle} accent={"#FF6B85"} />
+        <StatCard dark={dark} label={translateUI("Open Orders")} value={openCount} icon={Truck} accent={C.yellow} />
       </div>
 
       <div className="flex gap-2 mb-4 flex-wrap">
         {[["open", "Open"], ["payables", "Payables"], ["received", "Received"], ["all", "All"], ["recommendations", `Recommendations${recommendations.length ? ` (${recommendations.length})` : ""}`]].map(([id, label]) => (
           <button key={id} onClick={() => setTabMode(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: tabMode === id ? C.lime : (dark ? C.surfaceDark : C.white), color: tabMode === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {label}
+            {translateUI(label)}
           </button>
         ))}
       </div>
 
       {tabMode === "recommendations" ? (
         recommendations.length === 0 ? (
-          <Card dark={dark}><EmptyState dark={dark} title="Nothing needs restocking" sub="Every item is above its reorder point." /></Card>
+          <Card dark={dark}><EmptyState dark={dark} title={translateUI("Nothing needs restocking")} sub={translateUI("Every item is above its reorder point.")} /></Card>
         ) : (
           Object.entries(recBySupplier).map(([supplierName, items]) => (
             <Card dark={dark} key={supplierName} className="mb-3">
@@ -6490,7 +6486,7 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
                   <div className="min-w-0">
                     <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{r.item.name}</div>
                     <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                      {r.quantity} {r.unit} on hand · {r.daysRemaining !== null ? `~${r.daysRemaining}d remaining` : "no usage data"} · Suggest {r.recommendedQty} {r.unit}
+                      {r.quantity} {r.unit}{" "}{translateUI("on hand ·")}{" "}{r.daysRemaining !== null ? `~${r.daysRemaining}d remaining` : "no usage data"}{" "}{translateUI("· Suggest")}{" "}{r.recommendedQty} {r.unit}
                     </div>
                   </div>
                   <Badge dark={dark} tone={STOCK_STATUS_TONE[r.status]}>{STOCK_STATUS_LABEL[r.status]}</Badge>
@@ -6501,7 +6497,7 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
         )
       ) : (
       <Card dark={dark}>
-        {filtered.length === 0 ? <EmptyState dark={dark} title="No purchase orders" sub="Tap New Purchase to order stock from a supplier." /> : filtered.map((po) => {
+        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No purchase orders")} sub={translateUI("Tap New Purchase to order stock from a supplier.")} /> : filtered.map((po) => {
           const supplier = suppliers.find((s) => s.id === po.supplierId);
           const due = poAmountDue(po);
           return (
@@ -6604,9 +6600,9 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   };
 
   return (
-    <Modal title="New Purchase Order" onClose={onClose} dark={dark} wide>
+    <Modal title={translateUI("New Purchase Order")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-2 gap-3">
-        <Field dark={dark} label="Supplier">
+        <Field dark={dark} label={translateUI("Supplier")}>
           <Select dark={dark} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             {suppliers.filter((s) => s.active !== false).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
@@ -6616,16 +6612,16 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
             {(locations || []).filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
           </Select>
         </Field>
-        <Field dark={dark} label="Payment Method">
+        <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
             {["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"].map((m) => <option key={m}>{m}</option>)}
           </Select>
         </Field>
-        <Field dark={dark} label="Order Date"><Input dark={dark} type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></Field>
-        <Field dark={dark} label="Expected Delivery"><Input dark={dark} type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Order Date")}><Input dark={dark} type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Expected Delivery")}><Input dark={dark} type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} /></Field>
       </div>
 
-      <div className="font-bold text-sm mb-2 mt-2" style={{ color: dark ? C.white : C.black }}>Items</div>
+      <div className="font-bold text-sm mb-2 mt-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Items")}</div>
       {items.map((it, idx) => {
         const invItem = inventory.find((i) => i.id === it.itemId);
         return (
@@ -6646,30 +6642,28 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
           </div>
         );
       })}
-      <button onClick={addItem} className="text-xs font-bold mb-4" style={{ color: C.lime }}>+ Add another item</button>
+      <button onClick={addItem} className="text-xs font-bold mb-4" style={{ color: C.lime }}>{translateUI("+ Add another item")}</button>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field dark={dark} label="Discount ($)"><Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} /></Field>
-        <Field dark={dark} label="Tax ($)"><Input dark={dark} type="number" min="0" step="0.01" value={tax} onChange={(e) => setTax(Math.max(0, Number(e.target.value)))} /></Field>
+        <Field dark={dark} label={translateUI("Discount ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} /></Field>
+        <Field dark={dark} label={translateUI("Tax ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={tax} onChange={(e) => setTax(Math.max(0, Number(e.target.value)))} /></Field>
       </div>
       <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
       <div className="rounded-2xl p-3 mb-4" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
-        <Row dark={dark} label="Subtotal" value={fmtMoney(subtotal)} />
-        <Row dark={dark} label="Discount" value={`-${fmtMoney(discount)}`} />
-        <Row dark={dark} label="Tax" value={fmtMoney(tax)} />
+        <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(subtotal)} />
+        <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(discount)}`} />
+        <Row dark={dark} label={translateUI("Tax")} value={fmtMoney(tax)} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label="Grand Total" value={fmtMoney(grandTotal)} bold />
+        <Row dark={dark} label={translateUI("Grand Total")} value={fmtMoney(grandTotal)} bold />
       </div>
 
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
-        <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Draft")}>Save as Draft</GhostButton>
+        <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Draft")}>{translateUI("Save as Draft")}</GhostButton>
         <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Ordered")}><Check size={16} /> {submitting ? "Saving…" : "Submit Order"}</PrimaryButton>
       </div>
-      <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        Inventory only increases once items are marked Received — creating this order does not change stock or cash flow yet.
-      </div>
+      <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Inventory only increases once items are marked Received — creating this order does not change stock or cash flow yet.")}</div>
     </Modal>
   );
 }
@@ -6823,7 +6817,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
     <Modal title={po.poNumber} onClose={onClose} dark={dark} wide>
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <Badge dark={dark} tone={PO_STATUS_TONE[po.status]}>{po.status.toUpperCase()}</Badge>
-        <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{supplier?.name} · Ordered {dateStr(po.orderDate)} · Expected {dateStr(po.expectedDate)}</span>
+        <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{supplier?.name}{" "}{translateUI("· Ordered")}{" "}{dateStr(po.orderDate)}{" "}{translateUI("· Expected")}{" "}{dateStr(po.expectedDate)}</span>
       </div>
 
       <Card dark={dark} className="mb-4">
@@ -6834,24 +6828,24 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
             <div key={l.id} className="py-2 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <Row dark={dark} label={`${invItem?.name || l.itemId} — ${l.qty} × ${fmtMoney(l.unitCost)}`} value={fmtMoney(poLineTotal(l))} />
               <div className="text-xs" style={{ color: remaining > 0 ? C.yellow : C.lime }}>
-                {l.receivedQty} of {l.qty} {l.unit} received{remaining > 0 ? ` · ${remaining} remaining` : " · complete"}
+                {l.receivedQty}{" "}{translateUI("of")}{" "}{l.qty} {l.unit}{" "}{translateUI("received")}{remaining > 0 ? ` · ${remaining} remaining` : " · complete"}
               </div>
             </div>
           );
         })}
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label="Subtotal" value={fmtMoney(poSubtotal(po))} />
-        <Row dark={dark} label="Discount" value={`-${fmtMoney(po.discount)}`} />
-        <Row dark={dark} label="Tax" value={fmtMoney(po.tax)} />
+        <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(poSubtotal(po))} />
+        <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(po.discount)}`} />
+        <Row dark={dark} label={translateUI("Tax")} value={fmtMoney(po.tax)} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label="Grand Total" value={fmtMoney(grandTotal)} bold />
-        <Row dark={dark} label="Paid" value={fmtMoney(po.amountPaid)} />
-        <Row dark={dark} label="Amount Due" value={fmtMoney(amountDue)} bold />
+        <Row dark={dark} label={translateUI("Grand Total")} value={fmtMoney(grandTotal)} bold />
+        <Row dark={dark} label={translateUI("Paid")} value={fmtMoney(po.amountPaid)} />
+        <Row dark={dark} label={translateUI("Amount Due")} value={fmtMoney(amountDue)} bold />
       </Card>
 
       {payments.length > 0 && (
         <Card dark={dark} className="mb-4">
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Payment History</div>
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Payment History")}</div>
           {payments.map((p) => (
             <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-b-0 gap-2" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <div className="min-w-0">
@@ -6860,40 +6854,35 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
               </div>
               {p.status !== "reversed" && !reversed && can("paySuppliers") && (
                 <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setReversingPaymentId(p.id)}>
-                  <Undo2 size={13} /> Reverse
-                </GhostButton>
+                  <Undo2 size={13} />{translateUI("Reverse")}</GhostButton>
               )}
-              {p.status === "reversed" && <Badge dark={dark} tone="danger">REVERSED</Badge>}
+              {p.status === "reversed" && <Badge dark={dark} tone="danger">{translateUI("REVERSED")}</Badge>}
             </div>
           ))}
         </Card>
       )}
 
-      {po.notes && <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Notes: {po.notes}</div>}
+      {po.notes && <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Notes:")}{" "}{po.notes}</div>}
 
       <div className="flex gap-2 flex-wrap mb-2">
         {!fullyReceived && !reversed && po.status !== "Cancelled" && can("receivePurchases") && (
-          <PrimaryButton style={{ flex: 1 }} onClick={() => setReceiving(true)}><PackagePlus size={16} /> Receive Items</PrimaryButton>
+          <PrimaryButton style={{ flex: 1 }} onClick={() => setReceiving(true)}><PackagePlus size={16} />{" "}{translateUI("Receive Items")}</PrimaryButton>
         )}
         {!reversed && (po.status === "Received" || po.status === "Partially Received") && amountDue > 0.005 && can("paySuppliers") && (
-          <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => setPaying(true)}>Record Payment</GhostButton>
+          <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => setPaying(true)}>{translateUI("Record Payment")}</GhostButton>
         )}
         {!anyReceived && po.status !== "Cancelled" && can("managePurchases") && (
           <GhostButton dark={dark} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setCancelling(true)}><Trash2 size={15} />{translateUI("Cancel")}</GhostButton>
         )}
         {anyReceived && !reversed && po.status !== "Cancelled" && can("reversePurchases") && (
-          <GhostButton dark={dark} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setReversing(true)}><Undo2 size={15} /> Reverse Purchase</GhostButton>
+          <GhostButton dark={dark} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setReversing(true)}><Undo2 size={15} />{" "}{translateUI("Reverse Purchase")}</GhostButton>
         )}
       </div>
       {anyReceived && !reversed && po.status !== "Cancelled" && !can("reversePurchases") && (
-        <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-          This order has received items — reversing it requires purchase-reversal permission.
-        </div>
+        <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("This order has received items — reversing it requires purchase-reversal permission.")}</div>
       )}
       {reversed && (
-        <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-          Reversed {po.reversedAt ? dateStr(po.reversedAt) : ""} — inventory and any cash paid were corrected. This record is kept for audit purposes.
-        </div>
+        <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Reversed")}{po.reversedAt ? dateStr(po.reversedAt) : ""}{translateUI("— inventory and any cash paid were corrected. This record is kept for audit purposes.")}</div>
       )}
 
       {receiving && (
@@ -6971,7 +6960,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
           confirmLabel="Reverse Purchase" onConfirm={doReversePurchase} onCancel={() => setReversing(false)} />
       )}
       {reversingPaymentId && (
-        <ConfirmDialog dark={dark} title="Reverse this payment?"
+        <ConfirmDialog dark={dark} title={translateUI("Reverse this payment?")}
           message="This posts an offsetting cash entry and reduces the amount paid on this order — the original payment stays on record."
           confirmLabel="Reverse Payment" onConfirm={() => doReversePayment(payments.find((p) => p.id === reversingPaymentId))} onCancel={() => setReversingPaymentId(null)} />
       )}
@@ -6980,6 +6969,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
 }
 
 function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, suppliers, currentUser, can, auditLog, setAuditLog, showToast }) {
+  const { translateUI } = useLanguage();
   const [receiveQtys, setReceiveQtys] = useState(Object.fromEntries(po.items.map((l) => [l.id, round2(l.qty - l.receivedQty)])));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -7097,15 +7087,13 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
 
   return (
     <Modal title={`Receive — ${po.poNumber}`} onClose={onClose} dark={dark}>
-      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        Enter how much actually arrived. Inventory quantity and average cost update immediately for each line you receive.
-      </div>
+      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Enter how much actually arrived. Inventory quantity and average cost update immediately for each line you receive.")}</div>
       {po.items.map((l) => {
         const invItem = inventory.find((i) => i.id === l.itemId);
         const remaining = round2(l.qty - l.receivedQty);
         if (remaining <= 0) return (
           <div key={l.id} className="text-xs mb-3 px-3 py-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight, color: C.lime }}>
-            {invItem?.name || l.itemId}: fully received ({l.receivedQty}/{l.qty})
+            {invItem?.name || l.itemId}{translateUI(": fully received (")}{l.receivedQty}/{l.qty})
           </div>
         );
         return (
@@ -7115,13 +7103,14 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
           </Field>
         );
       })}
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Receiving…" : "Confirm Receipt"}</PrimaryButton>
     </Modal>
   );
 }
 
 function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOps, cashTx, persistCash, currentUser, can, auditLog, setAuditLog, showToast }) {
+  const { translateUI } = useLanguage();
   const due = poAmountDue(po);
   const [amount, setAmount] = useState(due);
   const [paymentMethod, setPaymentMethod] = useState(po.paymentMethod === "Net Terms" || po.paymentMethod === "COD" ? "Zelle" : po.paymentMethod);
@@ -7170,15 +7159,15 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
 
   return (
     <Modal title={`Pay ${po.poNumber}`} onClose={onClose} dark={dark}>
-      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Amount due: {fmtMoney(due)}</div>
-      <Field dark={dark} label="Payment Amount ($)"><Input dark={dark} type="number" min="0.01" max={due} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
-      <Field dark={dark} label="Payment Method">
+      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Amount due:")}{" "}{fmtMoney(due)}</div>
+      <Field dark={dark} label={translateUI("Payment Amount ($)")}><Input dark={dark} type="number" min="0.01" max={due} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Payment Method")}>
         <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
           {["Cash", "Credit Card", "Debit Card", "Zelle", "Other"].map((m) => <option key={m}>{m}</option>)}
         </Select>
       </Field>
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Recording…" : "Record Payment"}</PrimaryButton>
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
+      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Recording…" : translateUI("Record Payment")}</PrimaryButton>
     </Modal>
   );
 }
@@ -7208,14 +7197,14 @@ function ProductsView({ dark, products, setProducts, inventory, settings, curren
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{p.category}{canSeeCost ? ` · Cost ${fmtMoney(cost)}` : ""}</span>
-                {canSeeCost && <span className="text-xs font-bold" style={{ color: margin >= 40 ? C.lime : margin >= 20 ? C.yellow : "#FF6B85" }}>Margin {fmtPct(margin)}</span>}
+                {canSeeCost && <span className="text-xs font-bold" style={{ color: margin >= 40 ? C.lime : margin >= 20 ? C.yellow : "#FF6B85" }}>{translateUI("Margin")}{" "}{fmtPct(margin)}</span>}
               </div>
-              {!p.active && <Badge dark={dark} tone="warn">INACTIVE</Badge>}
+              {!p.active && <Badge dark={dark} tone="warn">{translateUI("INACTIVE")}</Badge>}
             </div>
           );
         })}
       </Card>
-      {!canEdit && <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>You don't have permission to edit products, recipes, or costs.</div>}
+      {!canEdit && <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to edit products, recipes, or costs.")}</div>}
 
       {modal && canEdit && (
         <ProductModal dark={dark} onClose={() => setModal(false)} product={editing} products={products} setProducts={setProducts}
@@ -7335,23 +7324,23 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
   return (
     <Modal title={product ? "Edit Product" : translateUI("New Product")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-2 gap-3">
-        <Field dark={dark} label="Product Name"><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field dark={dark} label="SKU"><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Product Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
           <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>
             {settings.productCategories.map((c) => <option key={c}>{c}</option>)}
           </Select>
         </Field>
-        <Field dark={dark} label="Selling Price ($)"><Input dark={dark} type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Selling Price ($)")}><Input dark={dark} type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
       </div>
-      <Field dark={dark} label="Description"><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Description")}><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
 
       <div className="flex items-center gap-2 mb-4">
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Active (sellable)</span>
+        <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Active (sellable)")}</span>
       </div>
 
-      <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Recipe (Inventory Deduction)</div>
+      <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recipe (Inventory Deduction)")}</div>
       {recipe.map((r, idx) => {
         const it = inventory.find((i) => i.id === r.itemId);
         return (
@@ -7369,19 +7358,19 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
           </div>
         );
       })}
-      <button onClick={addIngredient} className="text-xs font-bold mb-4" style={{ color: C.lime }}>+ Add ingredient</button>
+      <button onClick={addIngredient} className="text-xs font-bold mb-4" style={{ color: C.lime }}>{translateUI("+ Add ingredient")}</button>
 
       <div className="rounded-2xl p-3 mb-4" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
-        <Row dark={dark} label="Total Cost" value={fmtMoney(cost)} />
-        <Row dark={dark} label="Selling Price" value={fmtMoney(price)} />
+        <Row dark={dark} label={translateUI("Total Cost")} value={fmtMoney(cost)} />
+        <Row dark={dark} label={translateUI("Selling Price")} value={fmtMoney(price)} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
         <Row dark={dark} label={translateUI("Gross Profit")} value={fmtMoney(profit)} bold />
-        <Row dark={dark} label="Gross Margin" value={fmtPct(margin)} bold />
+        <Row dark={dark} label={translateUI("Gross Margin")} value={fmtPct(margin)} bold />
       </div>
 
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
-        {product && <GhostButton dark={dark} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} /> Deactivate</GhostButton>}
+        {product && <GhostButton dark={dark} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{" "}{translateUI("Deactivate")}</GhostButton>}
         <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Product"}</PrimaryButton>
       </div>
       {confirmingDelete && (
@@ -7411,12 +7400,12 @@ function ExpensesView({ dark, expenses, setExpenses, expenseOps, cashTx, persist
   return (
     <div className="pb-6">
       <SectionHeader dark={dark} title={translateUI("Expenses")} sub={`${fmtMoney(total30)} in last 30 days`}
-        action={can("manageExpenses") ? <PrimaryButton onClick={() => setModal(true)}><Plus size={16} /> Add Expense</PrimaryButton> : null} />
-      {expenses.length > 0 && <div className="flex justify-end mb-3"><GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12 }} onClick={exportCSV}>Export CSV</GhostButton></div>}
+        action={can("manageExpenses") ? <PrimaryButton onClick={() => setModal(true)}><Plus size={16} />{" "}{translateUI("Add Expense")}</PrimaryButton> : null} />
+      {expenses.length > 0 && <div className="flex justify-end mb-3"><GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12 }} onClick={exportCSV}>{translateUI("Export CSV")}</GhostButton></div>}
       <Card dark={dark}>
-        {expenses.length === 0 ? <EmptyState dark={dark} title="No expenses recorded" /> : sortedExpenses.map((e) => (
+        {expenses.length === 0 ? <EmptyState dark={dark} title={translateUI("No expenses recorded")} /> : sortedExpenses.map((e) => (
           <ListRow key={e.id} dark={dark} onClick={() => setViewing(e)} title={e.category} subtitle={`${dateStr(e.date)} · ${e.vendor}${e.recurring ? " · Recurring" : ""}`}
-            badge={e.status === "reversed" ? <Badge dark={dark} tone="danger">REVERSED</Badge> : null}
+            badge={e.status === "reversed" ? <Badge dark={dark} tone="danger">{translateUI("REVERSED")}</Badge> : null}
             right={`-${fmtMoney(e.amount)}`} rightSub={e.paymentMethod} />
         ))}
       </Card>
@@ -7482,25 +7471,24 @@ function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, exp
 
   return (
     <Modal title={expense.category} onClose={onClose} dark={dark}>
-      {reversed && <div className="mb-3"><Badge dark={dark} tone="danger">REVERSED {expense.reversedAt ? `· ${dateStr(expense.reversedAt)}` : ""}</Badge></div>}
+      {reversed && <div className="mb-3"><Badge dark={dark} tone="danger">{translateUI("REVERSED")}{" "}{expense.reversedAt ? `· ${dateStr(expense.reversedAt)}` : ""}</Badge></div>}
       <Card dark={dark} className="mb-4">
-        <Row dark={dark} label="Amount" value={fmtMoney(expense.amount)} bold />
+        <Row dark={dark} label={translateUI("Amount")} value={fmtMoney(expense.amount)} bold />
         <Row dark={dark} label={translateUI("Date")} value={dateStr(expense.date)} />
-        <Row dark={dark} label="Vendor" value={expense.vendor || "—"} />
-        <Row dark={dark} label="Payment Method" value={expense.paymentMethod} />
-        <Row dark={dark} label="Recurring" value={expense.recurring ? "Yes" : "No"} />
+        <Row dark={dark} label={translateUI("Vendor")} value={expense.vendor || "—"} />
+        <Row dark={dark} label={translateUI("Payment Method")} value={expense.paymentMethod} />
+        <Row dark={dark} label={translateUI("Recurring")} value={expense.recurring ? "Yes" : "No"} />
       </Card>
       {expense.description && <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{expense.description}</div>}
       {!reversed && can("reverseExpenses") && (
         <GhostButton dark={dark} full onClick={() => setConfirming(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85", width: "100%" }}>
-          <Undo2 size={15} /> Reverse Expense
-        </GhostButton>
+          <Undo2 size={15} />{translateUI("Reverse Expense")}</GhostButton>
       )}
       {!reversed && !can("reverseExpenses") && (
-        <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>You don't have permission to reverse expenses.</div>
+        <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to reverse expenses.")}</div>
       )}
       {confirming && (
-        <ConfirmDialog dark={dark} title="Reverse this expense?"
+        <ConfirmDialog dark={dark} title={translateUI("Reverse this expense?")}
           message="The original expense stays on record; a matching reversing entry is posted to Cash Flow so nothing is silently deleted."
           confirmLabel="Reverse Expense" onConfirm={doReverse} onCancel={() => setConfirming(false)} />
       )}
@@ -7556,12 +7544,12 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
   };
 
   return (
-    <Modal title="Add Expense" onClose={onClose} dark={dark}>
-      <Field dark={dark} label="Amount ($)"><Input dark={dark} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
+    <Modal title={translateUI("Add Expense")} onClose={onClose} dark={dark}>
+      <Field dark={dark} label={translateUI("Amount ($)")}><Input dark={dark} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Date")}><Input dark={dark} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Category")}><Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.expenseCategories.map((c) => <option key={c}>{c}</option>)}</Select></Field>
-      <Field dark={dark} label="Vendor"><Input dark={dark} value={vendor} onChange={(e) => setVendor(e.target.value)} /></Field>
-      <Field dark={dark} label="Payment Method"><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{settings.paymentMethods.map((m) => <option key={m}>{m}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Vendor")}><Input dark={dark} value={vendor} onChange={(e) => setVendor(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Payment Method")}><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{settings.paymentMethods.map((m) => <option key={m}>{m}</option>)}</Select></Field>
       <Field dark={dark} label={translateUI("Location")}>
         <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
           <option value="">—</option>
@@ -7570,10 +7558,10 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       </Field>
       <div className="flex items-center gap-2 mb-3">
         <input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.target.checked)} />
-        <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Recurring expense</span>
+        <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Recurring expense")}</span>
       </div>
-      <Field dark={dark} label="Description"><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      <Field dark={dark} label={translateUI("Description")}><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save Expense"}</PrimaryButton>
     </Modal>
   );
@@ -7621,21 +7609,21 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={title} sub={`${items.length} on file`} action={canEdit ? <PrimaryButton onClick={openNew}><Plus size={16} /> Add</PrimaryButton> : null} />
+      <SectionHeader dark={dark} title={translateUI(title)} sub={`${items.length} on file`} action={canEdit ? <PrimaryButton onClick={openNew}><Plus size={16} />{" "}{translateUI("Add")}</PrimaryButton> : null} />
       <Card dark={dark}>
         {items.length === 0 ? <EmptyState dark={dark} title={`No ${title.toLowerCase()} yet`} /> : items.map((i) => (
           <ListRow key={i.id} dark={dark} title={renderTitle(i)} subtitle={renderSub(i)} right={<ChevronRight size={16} color={dark ? C.textMutedDark : C.textMutedLight} />} onClick={() => openEdit(i)} />
         ))}
       </Card>
-      {!canEdit && <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>You have view-only access to {title.toLowerCase()}.</div>}
+      {!canEdit && <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You have view-only access to")}{" "}{title.toLowerCase()}.</div>}
       {modal && (
         <Modal title={editing ? renderTitle(editing) : `New ${title.slice(0, -1)}`} onClose={() => setModal(false)} dark={dark}>
           <fieldset disabled={!canEdit} style={{ opacity: canEdit ? 1 : 0.6 }}>
             {fields.map((f) => (
-              <Field dark={dark} key={f.key} label={f.label}>
+              <Field dark={dark} key={f.key} label={translateUI(f.label)}>
                 {f.type === "select" ? (
                   <Select dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{o.label}</option> : <option key={o}>{o}</option>))}
+                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{translateUI(o.label)}</option> : <option key={o}>{o}</option>))}
                   </Select>
                 ) : f.type === "textarea" ? (
                   <TextArea dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
@@ -7709,8 +7697,8 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
 
   return (
     <div>
-      <SectionHeader dark={dark} title="Locations" sub={`${locations.length} on file`}
-        action={canEdit ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} /> Add Location</PrimaryButton> : null} />
+      <SectionHeader dark={dark} title={translateUI("Locations")} sub={`${locations.length} on file`}
+        action={canEdit ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} />{" "}{translateUI("Add Location")}</PrimaryButton> : null} />
       <Card dark={dark}>
         {locations.length === 0 ? <EmptyState dark={dark} title={translateUI("No locations yet")} /> : locations.map((l) => {
           const inUse = hasHistory(l);
@@ -7721,13 +7709,13 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
                   <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{l.name}</div>
                   <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{l.type || "Location"}{inUse ? " · has history" : ""}</div>
                 </div>
-                {l.active === false && <Badge dark={dark} tone="danger">INACTIVE</Badge>}
+                {l.active === false && <Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge>}
               </div>
               {canEdit && (
                 <div className="flex gap-2 mt-1">
                   <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => { setEditing(l); setModal(true); }}><Edit2 size={13} />{translateUI("Edit")}</GhostButton>
                   <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => (inUse ? toggleActive(l) : remove(l))}>
-                    <Trash2 size={13} /> {inUse ? (l.active === false ? "Reactivate" : "Deactivate") : translateUI("Delete")}
+                    <Trash2 size={13} /> {inUse ? (l.active === false ? "Reactivate" : translateUI("Deactivate")) : translateUI("Delete")}
                   </GhostButton>
                 </div>
               )}
@@ -7764,8 +7752,8 @@ function LocationFormModal({ dark, location, onClose, onSave }) {
 
   return (
     <Modal title={location ? "Edit Location" : "New Location"} onClose={onClose} dark={dark}>
-      <Field dark={dark} label="Location Name"><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-      <Field dark={dark} label="Type">
+      <Field dark={dark} label={translateUI("Location Name")}><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+      <Field dark={dark} label={translateUI("Type")}>
         <Select dark={dark} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
           {["Retail", "Mobile", "Prep", "Storage", "Other"].map((t) => <option key={t}>{t}</option>)}
         </Select>
@@ -7774,7 +7762,7 @@ function LocationFormModal({ dark, location, onClose, onSave }) {
         <input type="checkbox" checked={form.active !== false} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
         <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Active")}</span>
       </div>
-      {error && <div className="text-xs font-semibold mb-3" style={{ color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3" style={{ color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save Location"}</PrimaryButton>
     </Modal>
   );
@@ -7797,14 +7785,14 @@ function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentU
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Suppliers")} sub={`${suppliers.length} on file`} action={can("manageSuppliers") ? <PrimaryButton onClick={openNew}><Plus size={16} /> Add</PrimaryButton> : null} />
+      <SectionHeader dark={dark} title={translateUI("Suppliers")} sub={`${suppliers.length} on file`} action={can("manageSuppliers") ? <PrimaryButton onClick={openNew}><Plus size={16} />{" "}{translateUI("Add")}</PrimaryButton> : null} />
       <Card dark={dark}>
-        {suppliers.length === 0 ? <EmptyState dark={dark} title="No suppliers yet" /> : suppliers.map((s) => {
+        {suppliers.length === 0 ? <EmptyState dark={dark} title={translateUI("No suppliers yet")} /> : suppliers.map((s) => {
           const stats = supplierStats(s);
           return (
             <ListRow key={s.id} dark={dark} onClick={() => setViewing(s)}
               title={s.name} subtitle={`${s.contact} · ${stats.poCount} order${stats.poCount === 1 ? "" : "s"} · ${fmtMoney(stats.total)} total`}
-              badge={s.active === false ? <Badge dark={dark} tone="danger">INACTIVE</Badge> : null}
+              badge={s.active === false ? <Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge> : null}
               right={<ChevronRight size={16} color={dark ? C.textMutedDark : C.textMutedLight} />} />
           );
         })}
@@ -7852,23 +7840,23 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
   return (
     <Modal title={supplier ? "Edit Supplier" : translateUI("New Supplier")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-2 gap-3">
-        <Field dark={dark} label="Supplier Name"><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-        <Field dark={dark} label="Contact Person"><Input dark={dark} value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></Field>
+        <Field dark={dark} label={translateUI("Supplier Name")}><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
+        <Field dark={dark} label={translateUI("Contact Person")}><Input dark={dark} value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></Field>
         <Field dark={dark} label={translateUI("Phone")}><Input dark={dark} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
         <Field dark={dark} label={translateUI("Email")}><Input dark={dark} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-        <Field dark={dark} label="Website"><Input dark={dark} value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></Field>
-        <Field dark={dark} label="Tax ID / Business ID"><Input dark={dark} value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} /></Field>
-        <Field dark={dark} label="Payment Terms"><Input dark={dark} value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} /></Field>
-        <Field dark={dark} label="Default Currency"><Input dark={dark} value={form.defaultCurrency} onChange={(e) => setForm({ ...form, defaultCurrency: e.target.value })} /></Field>
+        <Field dark={dark} label={translateUI("Website")}><Input dark={dark} value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></Field>
+        <Field dark={dark} label={translateUI("Tax ID / Business ID")}><Input dark={dark} value={form.taxId} onChange={(e) => setForm({ ...form, taxId: e.target.value })} /></Field>
+        <Field dark={dark} label={translateUI("Payment Terms")}><Input dark={dark} value={form.terms} onChange={(e) => setForm({ ...form, terms: e.target.value })} /></Field>
+        <Field dark={dark} label={translateUI("Default Currency")}><Input dark={dark} value={form.defaultCurrency} onChange={(e) => setForm({ ...form, defaultCurrency: e.target.value })} /></Field>
       </div>
-      <Field dark={dark} label="Address"><Input dark={dark} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
-      <Field dark={dark} label="Products Supplied"><Input dark={dark} value={form.products} onChange={(e) => setForm({ ...form, products: e.target.value })} /></Field>
+      <Field dark={dark} label={translateUI("Address")}><Input dark={dark} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></Field>
+      <Field dark={dark} label={translateUI("Products Supplied")}><Input dark={dark} value={form.products} onChange={(e) => setForm({ ...form, products: e.target.value })} /></Field>
       <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></Field>
       <div className="flex items-center gap-2 mb-4">
         <input type="checkbox" checked={form.active !== false} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
         <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Active")}</span>
       </div>
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Supplier"}</PrimaryButton>
     </Modal>
   );
@@ -7895,24 +7883,24 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
 
   return (
     <Modal title={supplier.name} onClose={onClose} dark={dark} wide>
-      {supplier.active === false && <div className="mb-3"><Badge dark={dark} tone="danger">INACTIVE</Badge></div>}
+      {supplier.active === false && <div className="mb-3"><Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge></div>}
       <div className="grid grid-cols-3 gap-2 mb-4">
-        <StatCard dark={dark} label="Total Purchased" value={fmtMoney(total)} />
-        <StatCard dark={dark} label="Purchase Orders" value={activePOs.length} />
-        <StatCard dark={dark} label="Last Purchase" value={last ? dateStr(last) : "—"} />
+        <StatCard dark={dark} label={translateUI("Total Purchased")} value={fmtMoney(total)} />
+        <StatCard dark={dark} label={translateUI("Purchase Orders")} value={activePOs.length} />
+        <StatCard dark={dark} label={translateUI("Last Purchase")} value={last ? dateStr(last) : "—"} />
       </div>
       <Card dark={dark} className="mb-4">
-        <Row dark={dark} label="Contact" value={supplier.contact || "—"} />
+        <Row dark={dark} label={translateUI("Contact")} value={supplier.contact || "—"} />
         <Row dark={dark} label={translateUI("Phone")} value={supplier.phone || "—"} />
         <Row dark={dark} label={translateUI("Email")} value={supplier.email || "—"} />
-        <Row dark={dark} label="Website" value={supplier.website || "—"} />
-        <Row dark={dark} label="Payment Terms" value={supplier.terms || "—"} />
-        <Row dark={dark} label="Products Supplied" value={supplier.products || "—"} />
+        <Row dark={dark} label={translateUI("Website")} value={supplier.website || "—"} />
+        <Row dark={dark} label={translateUI("Payment Terms")} value={supplier.terms || "—"} />
+        <Row dark={dark} label={translateUI("Products Supplied")} value={supplier.products || "—"} />
       </Card>
 
-      <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Purchase History</div>
+      <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Purchase History")}</div>
       <Card dark={dark} className="mb-4">
-        {pos.length === 0 ? <EmptyState dark={dark} title="No purchases yet" /> : pos.slice(0, 10).map((po) => (
+        {pos.length === 0 ? <EmptyState dark={dark} title={translateUI("No purchases yet")} /> : pos.slice(0, 10).map((po) => (
           <ListRow key={po.id} dark={dark} title={po.poNumber} subtitle={`${dateStr(po.orderDate)} · ${po.status}`} right={fmtMoney(poGrandTotal(po))} />
         ))}
       </Card>
@@ -7922,7 +7910,7 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
           <GhostButton dark={dark} style={{ flex: 1 }} onClick={onEdit}><Edit2 size={15} />{translateUI("Edit")}</GhostButton>
           {hasHistory ? (
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
-              {supplier.active === false ? "Reactivate" : "Deactivate"}
+              {supplier.active === false ? "Reactivate" : translateUI("Deactivate")}
             </GhostButton>
           ) : (
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
@@ -7930,7 +7918,7 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
           )}
         </div>
       )}
-      {hasHistory && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>This supplier has purchase history, so it's deactivated rather than deleted to keep past records intact.</div>}
+      {hasHistory && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("This supplier has purchase history, so it's deactivated rather than deleted to keep past records intact.")}</div>}
 
       {confirmingDeactivate && (
         <ConfirmDialog dark={dark} title={hasHistory ? (supplier.active === false ? "Reactivate this supplier?" : "Deactivate this supplier?") : "Delete this supplier?"}
@@ -7979,18 +7967,16 @@ function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUs
   };
 
   return (
-    <Modal title={customer ? "Edit Customer" : translateUI("New Customer")} onClose={onClose} dark={dark}>
+    <Modal title={customer ? translateUI("Edit Customer") : translateUI("New Customer")} onClose={onClose} dark={dark}>
       <Field dark={dark} label={translateUI("Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-      <Field dark={dark} label="Phone (optional)"><Input dark={dark} value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-      <Field dark={dark} label="Email (optional)"><Input dark={dark} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-      <Field dark={dark} label="Birthday (optional)"><Input dark={dark} type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></Field>
-      <Field dark={dark} label="Notes (optional)"><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Phone (optional)")}><Input dark={dark} value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Email (optional)")}><Input dark={dark} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Birthday (optional)")}><Input dark={dark} type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Notes (optional)")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       {duplicate && (
-        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A2E0F", color: "#FFD166" }}>
-          Possible existing customer: {duplicate.customer.name} (matched by {duplicate.matchType}). Check the existing record. Phone numbers and email addresses must be unique; different people can share a name.
-        </div>
+        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A2E0F", color: "#FFD166" }}>{translateUI("Possible existing customer:")}{duplicate.customer.name}{" "}{translateUI("(matched by")}{" "}{duplicate.matchType}{translateUI("). Check the existing record. Phone numbers and email addresses must be unique; different people can share a name.")}</div>
       )}
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting || !name.trim()} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : customer ? translateUI("Save Changes") : "Create Customer"}</PrimaryButton>
     </Modal>
   );
@@ -8062,38 +8048,38 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
   return (
     <Modal title={customer.name} onClose={onClose} dark={dark} wide>
       <Card dark={dark} className="mb-3">
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>CUSTOMER INFORMATION</div>
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("CUSTOMER INFORMATION")}</div>
         <Row dark={dark} label={translateUI("Phone")} value={customer.phone || "—"} />
         <Row dark={dark} label={translateUI("Email")} value={customer.email || "—"} />
-        <Row dark={dark} label="Birthday" value={customer.birthday || "—"} />
-        <Row dark={dark} label="Created" value={customer.createdAt ? dateStr(customer.createdAt) : "—"} />
+        <Row dark={dark} label={translateUI("Birthday")} value={customer.birthday || "—"} />
+        <Row dark={dark} label={translateUI("Created")} value={customer.createdAt ? dateStr(customer.createdAt) : "—"} />
         <Row dark={dark} label={translateUI("Status")} value={customer.active !== false ? translateUI("Active") : "Archived"} />
-        {customer.notes && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Notes: {customer.notes}</div>}
+        {customer.notes && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Notes:")}{" "}{customer.notes}</div>}
         {canManage && (
           <div className="mt-3 flex gap-2 flex-wrap">
-            <GhostButton dark={dark} disabled={submitting} onClick={() => setEditing(true)}>Edit Customer</GhostButton>
+            <GhostButton dark={dark} disabled={submitting} onClick={() => setEditing(true)}>{translateUI("Edit Customer")}</GhostButton>
             {customer.active !== false
-              ? <GhostButton dark={dark} disabled={submitting} onClick={doArchive} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}>Archive Customer</GhostButton>
-              : <GhostButton dark={dark} disabled={submitting} onClick={doRestore}>Restore Customer</GhostButton>}
+              ? <GhostButton dark={dark} disabled={submitting} onClick={doArchive} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}>{translateUI("Archive Customer")}</GhostButton>
+              : <GhostButton dark={dark} disabled={submitting} onClick={doRestore}>{translateUI("Restore Customer")}</GhostButton>}
           </div>
         )}
       </Card>
 
       <Card dark={dark} className="mb-3">
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>CUSTOMER PERFORMANCE</div>
-        <Row dark={dark} label="Total Orders" value={stats.totalOrders} />
-        {can("viewFinancials") && <Row dark={dark} label="Total Spent" value={fmtMoney(stats.totalSpent)} />}
-        {can("viewFinancials") && <Row dark={dark} label="Average Order Value" value={fmtMoney(stats.avgOrderValue)} />}
-        <Row dark={dark} label="Last Order" value={stats.lastOrderDate ? dateStr(stats.lastOrderDate) : "—"} />
-        <Row dark={dark} label="Loyalty Points" value={`${balance} pts`} bold />
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("CUSTOMER PERFORMANCE")}</div>
+        <Row dark={dark} label={translateUI("Total Orders")} value={stats.totalOrders} />
+        {can("viewFinancials") && <Row dark={dark} label={translateUI("Total Spent")} value={fmtMoney(stats.totalSpent)} />}
+        {can("viewFinancials") && <Row dark={dark} label={translateUI("Average Order Value")} value={fmtMoney(stats.avgOrderValue)} />}
+        <Row dark={dark} label={translateUI("Last Order")} value={stats.lastOrderDate ? dateStr(stats.lastOrderDate) : "—"} />
+        <Row dark={dark} label={translateUI("Loyalty Points")} value={`${balance} pts`} bold />
       </Card>
 
       <Card dark={dark} className="mb-3">
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>PURCHASE HISTORY</div>
-        {orders.length === 0 ? <EmptyState dark={dark} title="No orders yet" /> : orders.slice(0, 20).map((s) => (
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("PURCHASE HISTORY")}</div>
+        {orders.length === 0 ? <EmptyState dark={dark} title={translateUI("No orders yet")} /> : orders.slice(0, 20).map((s) => (
           <div key={s.id} className="py-2 border-b last:border-b-0 cursor-pointer flex items-center justify-between" style={{ borderColor: dark ? C.borderDark : C.borderLight }} onClick={() => setViewingSale(s)}>
             <div>
-              <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Order #{s.orderNo} {s.status === "cancelled" && <span style={{ color: "#FF6B85" }}>· CANCELLED</span>}</div>
+              <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Order #")}{s.orderNo} {s.status === "cancelled" && <span style={{ color: "#FF6B85" }}>{translateUI("· CANCELLED")}</span>}</div>
               <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(s.date)} · {s.location || "—"} · {s.paymentMethod}</div>
             </div>
             <div className="text-sm font-bold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(s.total)}</div>
@@ -8102,8 +8088,8 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
       </Card>
 
       <Card dark={dark} className="mb-3">
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>LOYALTY HISTORY</div>
-        {history.length === 0 ? <EmptyState dark={dark} title="No loyalty activity yet" /> : history.map((t) => (
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("LOYALTY HISTORY")}</div>
+        {history.length === 0 ? <EmptyState dark={dark} title={translateUI("No loyalty activity yet")} /> : history.map((t) => (
           <div key={t.id} className="py-1.5 border-b last:border-b-0 text-xs" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
             <div className="flex items-center justify-between">
               <span className="font-semibold" style={{ color: dark ? C.white : C.black }}>
@@ -8118,20 +8104,20 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
 
       {canLoyalty && (
         <Card dark={dark}>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>MANUAL POINT ADJUSTMENT</div>
-          {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("MANUAL POINT ADJUSTMENT")}</div>
+          {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-            <Field dark={dark} label="Adjustment Type">
+            <Field dark={dark} label={translateUI("Adjustment Type")}>
               <Select dark={dark} value={adjustType} onChange={(e) => setAdjustType(e.target.value)} style={{ width: "100%" }}>
-                <option value="manual_add">Add Points</option>
-                <option value="manual_remove">Remove Points</option>
+                <option value="manual_add">{translateUI("Add Points")}</option>
+                <option value="manual_remove">{translateUI("Remove Points")}</option>
               </Select>
             </Field>
-            <Field dark={dark} label="Points">
-              <Input dark={dark} type="number" min="1" step="1" inputMode="numeric" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} placeholder="e.g. 50" style={{ width: "100%", minWidth: 0, fontSize: 16, fontWeight: 700 }} />
+            <Field dark={dark} label={translateUI("Points")}>
+              <Input dark={dark} type="number" min="1" step="1" inputMode="numeric" value={adjustPoints} onChange={(e) => setAdjustPoints(e.target.value)} placeholder={translateUI("e.g. 50")} style={{ width: "100%", minWidth: 0, fontSize: 16, fontWeight: 700 }} />
             </Field>
           </div>
-          <Field dark={dark} label="Reason (required)"><Input dark={dark} value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder="e.g. Customer service recovery" /></Field>
+          <Field dark={dark} label={translateUI("Reason (required)")}><Input dark={dark} value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder={translateUI("e.g. Customer service recovery")} /></Field>
           <PrimaryButton full disabled={submitting} onClick={doAdjust}><Check size={16} /> {submitting ? "Saving…" : "Apply Adjustment"}</PrimaryButton>
         </Card>
       )}
@@ -8186,13 +8172,13 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
       </div>
 
       <div className="flex gap-2 mb-3">
-        <Input dark={dark} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search name, phone, or email…" style={{ flex: 1 }} />
+        <Input dark={dark} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={translateUI("Search name, phone, or email…")} style={{ flex: 1 }} />
         {canManage && <PrimaryButton onClick={() => setCreating(true)}><Plus size={16} />{translateUI("New Customer")}</PrimaryButton>}
       </div>
       <GhostButton dark={dark} onClick={() => setShowArchived((s) => !s)} style={{ marginBottom: 12 }}>{showArchived ? "Showing Archived — Show Active" : "Show Archived"}</GhostButton>
 
       <Card dark={dark}>
-        {filtered.length === 0 ? <EmptyState dark={dark} title="No customers found" sub={showArchived ? "No archived customers" : "Try a different search, or add a new customer"} /> : filtered.map((c) => {
+        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No customers found")} sub={showArchived ? "No archived customers" : "Try a different search, or add a new customer"} /> : filtered.map((c) => {
           const stats = getCustomerStats(c.id, sales);
           const balance = getLoyaltyBalance(c.id, loyaltyTransactions);
           return (
@@ -8202,8 +8188,8 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{c.phone || "—"}{c.email ? ` · ${c.email}` : ""}</div>
               </div>
               <div className="text-right">
-                <div className="text-xs font-bold" style={{ color: C.lime }}>{balance} pts</div>
-                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{stats.totalOrders} orders{showSpend ? ` · ${fmtMoney(stats.totalSpent)}` : ""}</div>
+                <div className="text-xs font-bold" style={{ color: C.lime }}>{balance}{" "}{translateUI("pts")}</div>
+                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{stats.totalOrders}{" "}{translateUI("orders")}{showSpend ? ` · ${fmtMoney(stats.totalSpent)}` : ""}</div>
               </div>
             </div>
           );
@@ -8256,30 +8242,30 @@ function EmployeeDetailModal({ dark, employeeId, onClose, employees, shifts, sal
   return (
     <Modal title={employee.name} onClose={onClose} dark={dark} wide>
       <Card dark={dark} className="mb-3">
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Employee Information</div>
-        <Row dark={dark} label="Role" value={employee.role || "—"} />
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Employee Information")}</div>
+        <Row dark={dark} label={translateUI("Role")} value={employee.role || "—"} />
         <Row dark={dark} label={translateUI("Status")} value={employee.active !== false ? translateUI("Active") : "Archived"} />
-        <Row dark={dark} label="Location (on file)" value={employee.location || "—"} />
-        {employee.managerId && <Row dark={dark} label="Reports To" value={(employees || []).find((e) => e.id === employee.managerId)?.name || "—"} />}
-        {showFinancials && typeof employee.hourlyRate === "number" && <Row dark={dark} label="Hourly Rate" value={fmtMoney(employee.hourlyRate)} />}
+        <Row dark={dark} label={translateUI("Location (on file)")} value={employee.location || "—"} />
+        {employee.managerId && <Row dark={dark} label={translateUI("Reports To")} value={(employees || []).find((e) => e.id === employee.managerId)?.name || "—"} />}
+        {showFinancials && typeof employee.hourlyRate === "number" && <Row dark={dark} label={translateUI("Hourly Rate")} value={fmtMoney(employee.hourlyRate)} />}
       </Card>
 
       <Card dark={dark} className="mb-3">
         <div className="flex items-center justify-between mb-2">
-          <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Current Shift Status</div>
+          <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Current Shift Status")}</div>
           <Badge dark={dark} tone={activeBreak ? "warn" : openShift ? "good" : "default"}>
             {activeBreak ? translateUI("ON BREAK") : openShift ? translateUI("CLOCKED IN") : "CLOCKED OUT"}
           </Badge>
         </div>
         {openShift ? (
           <>
-            <Row dark={dark} label="Clocked in at" value={`${dateStr(openShift.clockInAt)} ${timeStr(openShift.clockInAt)}`} />
+            <Row dark={dark} label={translateUI("Clocked in at")} value={`${dateStr(openShift.clockInAt)} ${timeStr(openShift.clockInAt)}`} />
             <Row dark={dark} label={translateUI("Location")} value={locationName(openShift.locationId)} />
-            <Row dark={dark} label="Worked so far" value={formatMinutesLive(calculateWorkedMinutes(openShift))} />
-            {activeBreak && <Row dark={dark} label="Current break" value={formatMinutesLive(calculateBreakMinutes({ breaks: [activeBreak] }))} />}
+            <Row dark={dark} label={translateUI("Worked so far")} value={formatMinutesLive(calculateWorkedMinutes(openShift))} />
+            {activeBreak && <Row dark={dark} label={translateUI("Current break")} value={formatMinutesLive(calculateBreakMinutes({ breaks: [activeBreak] }))} />}
           </>
         ) : (
-          <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Not currently clocked in.</div>
+          <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Not currently clocked in.")}</div>
         )}
       </Card>
 
@@ -8287,34 +8273,34 @@ function EmployeeDetailModal({ dark, employeeId, onClose, employees, shifts, sal
         {[["today", "Today"], ["7d", "7 Days"], ["30d", "30 Days"], ["all", "All Time"]].map(([id, label]) => (
           <button key={id} onClick={() => setHistoryRange(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: historyRange === id ? C.lime : (dark ? C.surfaceDark : C.white), color: historyRange === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {label}
+            {translateUI(label)}
           </button>
         ))}
       </div>
 
       <Card dark={dark} className="mb-3">
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Performance</div>
-        <Row dark={dark} label="Sales Count" value={perf.salesCount} />
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Performance")}</div>
+        <Row dark={dark} label={translateUI("Sales Count")} value={perf.salesCount} />
         {showFinancials && <Row dark={dark} label={translateUI("Revenue")} value={fmtMoney(perf.revenue)} />}
-        {showFinancials && <Row dark={dark} label="Average Ticket" value={perf.averageTicket !== null ? fmtMoney(perf.averageTicket) : "—"} />}
-        <Row dark={dark} label="Worked Hours" value={perf.workedHours} />
-        <Row dark={dark} label="Sales / Hour" value={perf.salesPerHour !== null ? perf.salesPerHour : "No data available for this period"} />
-        {showFinancials && <Row dark={dark} label="Revenue / Hour" value={perf.revenuePerHour !== null ? fmtMoney(perf.revenuePerHour) : "No data available for this period"} />}
+        {showFinancials && <Row dark={dark} label={translateUI("Average Ticket")} value={perf.averageTicket !== null ? fmtMoney(perf.averageTicket) : "—"} />}
+        <Row dark={dark} label={translateUI("Worked Hours")} value={perf.workedHours} />
+        <Row dark={dark} label={translateUI("Sales / Hour")} value={perf.salesPerHour !== null ? perf.salesPerHour : "No data available for this period"} />
+        {showFinancials && <Row dark={dark} label={translateUI("Revenue / Hour")} value={perf.revenuePerHour !== null ? fmtMoney(perf.revenuePerHour) : "No data available for this period"} />}
         {showFinancials && typeof employee.hourlyRate === "number" && (
-          <Row dark={dark} label="Estimated Labor Cost" value={fmtMoney(round2(perf.workedHours * employee.hourlyRate))} bold />
+          <Row dark={dark} label={translateUI("Estimated Labor Cost")} value={fmtMoney(round2(perf.workedHours * employee.hourlyRate))} bold />
         )}
       </Card>
 
       <Card dark={dark}>
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Shift History</div>
-        {stats.recentShifts.length === 0 ? <EmptyState dark={dark} title="No shifts in this range" /> : stats.recentShifts.map((s) => (
+        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Shift History")}</div>
+        {stats.recentShifts.length === 0 ? <EmptyState dark={dark} title={translateUI("No shifts in this range")} /> : stats.recentShifts.map((s) => (
           <div key={s.id} className="py-2 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold" style={{ color: dark ? C.white : C.black }}>{dateStr(s.clockInAt)} · {locationName(s.locationId)}</span>
               <Badge dark={dark} tone={s.status === "open" ? "good" : "default"}>{s.status === "open" ? translateUI("OPEN") : translateUI("CLOSED")}</Badge>
             </div>
             <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-              {timeStr(s.clockInAt)} – {s.clockOutAt ? timeStr(s.clockOutAt) : "—"} · Worked {formatMinutesLive(calculateWorkedMinutes(s))}
+              {timeStr(s.clockInAt)} – {s.clockOutAt ? timeStr(s.clockOutAt) : "—"}{" "}{translateUI("· Worked")}{" "}{formatMinutesLive(calculateWorkedMinutes(s))}
               {calculateBreakMinutes(s) > 0 ? ` · Break ${formatMinutesLive(calculateBreakMinutes(s))}` : ""}
             </div>
           </div>
@@ -8380,7 +8366,7 @@ function MyShiftCard({ dark, myEmployeeId, shifts, setShifts, locations, employe
   return (
     <Card dark={dark} className="mb-4">
       <div className="flex items-center justify-between mb-2">
-        <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>My Shift{employee ? ` — ${employee.name}` : ""}</div>
+        <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("My Shift")}{employee ? ` — ${employee.name}` : ""}</div>
         <Badge dark={dark} tone={activeBreak ? "warn" : openShift ? "good" : "default"}>
           {activeBreak ? translateUI("ON BREAK") : openShift ? translateUI("CLOCKED IN") : "CLOCKED OUT"}
         </Badge>
@@ -8388,18 +8374,18 @@ function MyShiftCard({ dark, myEmployeeId, shifts, setShifts, locations, employe
 
       {openShift ? (
         <>
-          <Row dark={dark} label="Clocked in at" value={`${dateStr(openShift.clockInAt)} ${timeStr(openShift.clockInAt)}`} />
-          <Row dark={dark} label="Shift duration" value={formatMinutesLive(workedMinutes + breakMinutes)} />
-          <Row dark={dark} label="Worked time" value={formatMinutesLive(workedMinutes)} bold />
-          {activeBreak && <Row dark={dark} label="Current break" value={formatMinutesLive(activeBreakMinutes)} />}
-          {!activeBreak && breakMinutes > 0 && <Row dark={dark} label="Break time so far" value={formatMinutesLive(breakMinutes)} />}
+          <Row dark={dark} label={translateUI("Clocked in at")} value={`${dateStr(openShift.clockInAt)} ${timeStr(openShift.clockInAt)}`} />
+          <Row dark={dark} label={translateUI("Shift duration")} value={formatMinutesLive(workedMinutes + breakMinutes)} />
+          <Row dark={dark} label={translateUI("Worked time")} value={formatMinutesLive(workedMinutes)} bold />
+          {activeBreak && <Row dark={dark} label={translateUI("Current break")} value={formatMinutesLive(activeBreakMinutes)} />}
+          {!activeBreak && breakMinutes > 0 && <Row dark={dark} label={translateUI("Break time so far")} value={formatMinutesLive(breakMinutes)} />}
           <div className="flex gap-2 mt-3">
             {activeBreak ? (
-              <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={doEndBreak}>End Break</GhostButton>
+              <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={doEndBreak}>{translateUI("End Break")}</GhostButton>
             ) : (
-              <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={doStartBreak}>Start Break</GhostButton>
+              <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={doStartBreak}>{translateUI("Start Break")}</GhostButton>
             )}
-            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doClockOut}>Clock Out</PrimaryButton>
+            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doClockOut}>{translateUI("Clock Out")}</PrimaryButton>
           </div>
         </>
       ) : (
@@ -8455,7 +8441,7 @@ function EmployeesView({ dark, employees, setEmployees, locations, tasks, persis
           {[["staff", "Staff"], ["tasks", `Tasks${openTaskCount ? ` (${openTaskCount})` : ""}`]].map(([id, label]) => (
             <button key={id} onClick={() => setSubTab(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
               style={{ background: subTab === id ? C.lime : (dark ? C.surfaceDark : C.white), color: subTab === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-              {label}
+              {translateUI(label)}
             </button>
           ))}
         </div>
@@ -8464,18 +8450,16 @@ function EmployeesView({ dark, employees, setEmployees, locations, tasks, persis
       {subTab === "staff" && showStaffTab ? (
         <>
           {isManager && !canEdit && (
-            <div className="text-xs mb-3 px-3 py-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight, color: dark ? C.textMutedDark : C.textMutedLight }}>
-              You're viewing employees who report to you. Editing HR records requires Owner access.
-            </div>
+            <div className="text-xs mb-3 px-3 py-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight, color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You're viewing employees who report to you. Editing HR records requires Owner access.")}</div>
           )}
           {/* manageUsers-gated: view all employee shift/labor detail — self-service above already
               covers the logged-in user's own shift regardless of this permission. */}
           {can("manageUsers") && (
             <Card dark={dark} className="mb-4">
-              <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Employee Shift Detail</div>
-              <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>View clock status, shift history, and performance for any staff member.</div>
+              <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Employee Shift Detail")}</div>
+              <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("View clock status, shift history, and performance for any staff member.")}</div>
               <Select dark={dark} value="" onChange={(e) => e.target.value && setDetailEmployeeId(e.target.value)}>
-                <option value="">Select an employee…</option>
+                <option value="">{translateUI("Select an employee…")}</option>
                 {visibleEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? " (inactive)" : ""}</option>)}
               </Select>
             </Card>
@@ -8540,20 +8524,20 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title="Tasks" sub={`${baseTasks.filter((t) => t.status !== "done").length} open${!canManage ? " · assigned to me" : ""}`}
-        action={canManage ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} /> New Task</PrimaryButton> : null} />
+      <SectionHeader dark={dark} title={translateUI("Tasks")} sub={`${baseTasks.filter((t) => t.status !== "done").length} open${!canManage ? " · assigned to me" : ""}`}
+        action={canManage ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} />{" "}{translateUI("New Task")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 flex-wrap">
         {(canManage ? [["open", "Open"], ["done", "Done"], ["mine", "Assigned to Me"], ["all", "All"]] : [["open", "Open"], ["done", "Done"], ["all", "All"]]).map(([id, label]) => (
           <button key={id} onClick={() => setFilter(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: filter === id ? C.lime : (dark ? C.surfaceDark : C.white), color: filter === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {label}
+            {translateUI(label)}
           </button>
         ))}
       </div>
 
       <Card dark={dark}>
-        {filtered.length === 0 ? <EmptyState dark={dark} title="No tasks" sub={canManage ? "Tap New Task to assign one." : "Nothing assigned to you right now."} /> : filtered.map((t) => {
+        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No tasks")} sub={canManage ? "Tap New Task to assign one." : "Nothing assigned to you right now."} /> : filtered.map((t) => {
           const overdue = t.status !== "done" && t.dueDate && t.dueDate < today0;
           const mine = t.assignedTo === myEmployeeId;
           return (
@@ -8564,7 +8548,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
               </button>
               <div className="min-w-0 flex-1 cursor-pointer" onClick={() => { setEditing(t); setModal(true); }}>
                 <div className="text-sm font-semibold truncate" style={{ color: dark ? C.white : C.black, textDecoration: t.status === "done" ? "line-through" : "none", opacity: t.status === "done" ? 0.6 : 1 }}>{t.title}</div>
-                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{employeeName(t.assignedTo)}{mine ? " (me)" : ""} · due {t.dueDate ? dateStrLocal(t.dueDate) : "—"}</div>
+                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{employeeName(t.assignedTo)}{mine ? " (me)" : ""}{" "}{translateUI("· due")}{" "}{t.dueDate ? dateStrLocal(t.dueDate) : "—"}</div>
               </div>
               {overdue ? <Badge dark={dark} tone="danger">{translateUI("OVERDUE")}</Badge> : t.status !== "done" && <Badge dark={dark} tone={t.priority === "High" ? "danger" : t.priority === "Medium" ? "warn" : "default"}>{(t.priority || "LOW").toUpperCase()}</Badge>}
             </div>
@@ -8621,18 +8605,18 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
   };
 
   return (
-    <Modal title={task ? (canManage ? "Edit Task" : "Task Details") : "New Task"} onClose={onClose} dark={dark}>
+    <Modal title={task ? (canManage ? "Edit Task" : "Task Details") : translateUI("New Task")} onClose={onClose} dark={dark}>
       <fieldset disabled={!canManage} style={{ opacity: canManage ? 1 : 0.65 }}>
-        <Field dark={dark} label="Task"><Input dark={dark} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Task")}><Input dark={dark} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field dark={dark} label="Assign To">
+          <Field dark={dark} label={translateUI("Assign To")}>
             <Select dark={dark} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
               {employees.filter((e) => e.active !== false || e.id === task?.assignedTo).map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? " (inactive)" : ""}</option>)}
             </Select>
           </Field>
-          <Field dark={dark} label="Due Date"><Input dark={dark} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
+          <Field dark={dark} label={translateUI("Due Date")}><Input dark={dark} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
         </div>
-        <Field dark={dark} label="Priority">
+        <Field dark={dark} label={translateUI("Priority")}>
           <Select dark={dark} value={priority} onChange={(e) => setPriority(e.target.value)}>
             {["Low", "Medium", "High"].map((p) => <option key={p}>{p}</option>)}
           </Select>
@@ -8642,25 +8626,25 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
 
       {task?.activity?.length > 0 && (
         <div className="mb-4">
-          <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Activity</div>
+          <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Activity")}</div>
           <div className="rounded-2xl p-3" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
             {task.activity.slice(0, 8).map((a, idx) => (
               <div key={idx} className="text-xs py-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                <span style={{ color: dark ? C.white : C.black, fontWeight: 600 }}>{a.action}</span> by {a.userName} · {dateStr(a.date)} {timeStr(a.date)}
+                <span style={{ color: dark ? C.white : C.black, fontWeight: 600 }}>{a.action}</span>{" "}{translateUI("by")}{" "}{a.userName} · {dateStr(a.date)} {timeStr(a.date)}
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       {canManage ? (
         <div className="flex gap-2">
           {task && <GhostButton dark={dark} onClick={remove} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{translateUI("Delete")}</GhostButton>}
           <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Task"}</PrimaryButton>
         </div>
       ) : (
-        <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Only a manager or owner can edit task details. Use the checkbox to mark it done.</div>
+        <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Only a manager or owner can edit task details. Use the checkbox to mark it done.")}</div>
       )}
     </Modal>
   );
@@ -9441,79 +9425,77 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Reports")} sub="Profit & Loss and business performance"
-        action={<GhostButton dark={dark} onClick={exportCSV}>Export P&amp;L CSV</GhostButton>} />
+      <SectionHeader dark={dark} title={translateUI("Reports")} sub={translateUI("Profit & Loss and business performance")}
+        action={<GhostButton dark={dark} onClick={exportCSV}>{translateUI("Export P&L CSV")}</GhostButton>} />
 
       <div className="flex gap-2 mb-2 flex-wrap">
         {REPORT_RANGE_PRESETS.map((p) => (
           <button key={p.id} onClick={() => setRangeId(p.id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: rangeId === p.id ? C.lime : (dark ? C.surfaceDark : C.white), color: rangeId === p.id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-            {p.label}
+            {translateUI(p.label)}
           </button>
         ))}
       </div>
       {rangeId === "custom" && (
         <div className="flex gap-2 mb-3 items-end">
-          <Field dark={dark} label="Start"><Input dark={dark} type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} /></Field>
-          <Field dark={dark} label="End"><Input dark={dark} type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} /></Field>
+          <Field dark={dark} label={translateUI("Start")}><Input dark={dark} type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} /></Field>
+          <Field dark={dark} label={translateUI("End")}><Input dark={dark} type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} /></Field>
         </div>
       )}
       {customRangeInvalid && (
-        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>
-          Start date must be on or before end date. Showing Today until this is corrected.
-        </div>
+        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI("Start date must be on or before end date. Showing Today until this is corrected.")}</div>
       )}
       <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
         {dateStr(range.start.toISOString())} – {dateStr(range.end.toISOString())}
       </div>
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Sales Performance</div>
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Sales Performance")}</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div>
-            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>REVENUE</div>
+            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("REVENUE")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(salesCmp.current.totalRevenue)}</div>
-            <div className="text-xs font-semibold" style={{ color: deltaColor(salesCmp.revenueChangePct) }}>{fmtDelta(salesCmp.revenueChangePct)} vs prior period</div>
+            <div className="text-xs font-semibold" style={{ color: deltaColor(salesCmp.revenueChangePct) }}>{fmtDelta(salesCmp.revenueChangePct)}{" "}{translateUI("vs prior period")}</div>
           </div>
           <div>
-            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>ORDERS</div>
+            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("ORDERS")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{salesCmp.current.orders}</div>
-            <div className="text-xs font-semibold" style={{ color: deltaColor(salesCmp.ordersChangePct) }}>{fmtDelta(salesCmp.ordersChangePct)} vs prior period</div>
+            <div className="text-xs font-semibold" style={{ color: deltaColor(salesCmp.ordersChangePct) }}>{fmtDelta(salesCmp.ordersChangePct)}{" "}{translateUI("vs prior period")}</div>
           </div>
           <div>
-            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>AVG ORDER VALUE</div>
+            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("AVG ORDER VALUE")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{salesCmp.current.avgOrderValue !== null ? fmtMoney(salesCmp.current.avgOrderValue) : "—"}</div>
           </div>
           <div>
-            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>DISCOUNTS</div>
+            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("DISCOUNTS")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(salesCmp.current.discounts)}</div>
           </div>
         </div>
       </Card>
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Profit &amp; Loss</div>
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Profit & Loss")}</div>
         <Row dark={dark} label={translateUI("Revenue")} value={fmtMoney(revenue)} />
-        <Row dark={dark} label="Cost of Goods Sold" value={`-${fmtMoney(cogs)}`} />
+        <Row dark={dark} label={translateUI("Cost of Goods Sold")} value={`-${fmtMoney(cogs)}`} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
         <Row dark={dark} label={translateUI("Gross Profit")} value={fmtMoney(grossProfit)} bold />
-        <Row dark={dark} label="Gross Margin" value={fmtPct(grossMargin)} />
-        <Row dark={dark} label="Operating Expenses" value={`-${fmtMoney(opEx)}`} />
+        <Row dark={dark} label={translateUI("Gross Margin")} value={fmtPct(grossMargin)} />
+        <Row dark={dark} label={translateUI("Operating Expenses")} value={`-${fmtMoney(opEx)}`} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
         <Row dark={dark} label={translateUI("Net Profit")} value={fmtMoney(netProfit)} bold />
-        <Row dark={dark} label="Net Margin" value={fmtPct(netMargin)} />
+        <Row dark={dark} label={translateUI("Net Margin")} value={fmtPct(netMargin)} />
       </Card>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard dark={dark} label={translateUI("Orders")} value={rSales.length} icon={ShoppingCart} accent={C.lime} />
-        <StatCard dark={dark} label="Avg Ticket" value={fmtMoney(rSales.length ? round2(revenue / rSales.length) : 0)} icon={BarChart2} accent={C.yellow} />
-        <StatCard dark={dark} label="Inventory Value" value={fmtMoney(inventoryValue)} icon={Boxes} accent={C.purpleGlow} />
-        <StatCard dark={dark} label="Waste Cost" value={fmtMoney(waste)} icon={AlertTriangle} accent={"#FF6B85"} />
+        <StatCard dark={dark} label={translateUI("Avg Ticket")} value={fmtMoney(rSales.length ? round2(revenue / rSales.length) : 0)} icon={BarChart2} accent={C.yellow} />
+        <StatCard dark={dark} label={translateUI("Inventory Value")} value={fmtMoney(inventoryValue)} icon={Boxes} accent={C.purpleGlow} />
+        <StatCard dark={dark} label={translateUI("Waste Cost")} value={fmtMoney(waste)} icon={AlertTriangle} accent={"#FF6B85"} />
       </div>
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Revenue Trend {trend.bucketType === "day" ? "(Daily)" : trend.bucketType === "week" ? "(Weekly)" : "(Monthly)"}</div>
-        {trend.points.length === 0 ? <EmptyState dark={dark} title="No data available for this period" /> : (
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Revenue Trend")}{" "}{trend.bucketType === "day" ? "(Daily)" : trend.bucketType === "week" ? "(Weekly)" : "(Monthly)"}</div>
+        {trend.points.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : (
           <div className="flex items-end gap-1 h-32 overflow-x-auto">
             {trend.points.map((p) => (
               <div key={p.key} className="flex-1 flex flex-col items-center gap-1" style={{ minWidth: 24 }}>
@@ -9528,25 +9510,25 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         <Card dark={dark}>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Top Products</div>
+            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Top Products")}</div>
             <div className="flex gap-1">
               {[["revenue", "Revenue"], ["qty", "Qty"]].map(([id, label]) => (
                 <button key={id} onClick={() => setProductSort(id)} className="px-2 py-1 rounded-full text-[10px] font-bold"
                   style={{ background: productSort === id ? C.lime : "transparent", color: productSort === id ? C.black : (dark ? C.textMutedDark : C.textMutedLight), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
-                  {label}
+                  {translateUI(label)}
                 </button>
               ))}
             </div>
           </div>
-          <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11, marginBottom: 8 }} onClick={exportProducts}>Export CSV</GhostButton>
-          {(productSort === "revenue" ? productPerf.byRevenue : productPerf.byQty).length === 0 ? <EmptyState dark={dark} title="No sales in this range" /> :
+          <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11, marginBottom: 8 }} onClick={exportProducts}>{translateUI("Export CSV")}</GhostButton>
+          {(productSort === "revenue" ? productPerf.byRevenue : productPerf.byQty).length === 0 ? <EmptyState dark={dark} title={translateUI("No sales in this range")} /> :
             (productSort === "revenue" ? productPerf.byRevenue : productPerf.byQty).slice(0, 10).map((p) => (
               <ListRow key={p.productId} dark={dark} title={p.name} subtitle={`${p.qty} units · ${fmtPct(p.pctOfSales)} of sales`} right={fmtMoney(p.revenue)} />
             ))}
         </Card>
         <Card dark={dark}>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Sales by Channel</div>
-          {channelPerf.length === 0 ? <EmptyState dark={dark} title="No data available for this period" /> : channelPerf.map((c) => (
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Sales by Channel")}</div>
+          {channelPerf.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : channelPerf.map((c) => (
             <ListRow key={c.key} dark={dark} title={c.key} subtitle={`${c.orders} orders · avg ${c.avgOrderValue !== null ? fmtMoney(c.avgOrderValue) : "—"}`} right={fmtMoney(c.revenue)} rightSub={fmtPct(c.pctOfSales)} />
           ))}
         </Card>
@@ -9554,28 +9536,28 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         <Card dark={dark}>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Sales by Location</div>
-          {locationPerf.length === 0 ? <EmptyState dark={dark} title="No data available for this period" /> : locationPerf.map((l) => (
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Sales by Location")}</div>
+          {locationPerf.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : locationPerf.map((l) => (
             <ListRow key={l.key} dark={dark} title={l.key} subtitle={`${l.orders} orders`} right={fmtMoney(l.revenue)} rightSub={fmtPct(l.pctOfSales)} />
           ))}
         </Card>
         <Card dark={dark}>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Payment Methods</div>
-            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportPayments}>Export CSV</GhostButton>
+            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Payment Methods")}</div>
+            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportPayments}>{translateUI("Export CSV")}</GhostButton>
           </div>
-          {paymentPerf.length === 0 ? <EmptyState dark={dark} title="No data available for this period" /> : paymentPerf.map((p) => (
+          {paymentPerf.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : paymentPerf.map((p) => (
             <ListRow key={p.key} dark={dark} title={p.key} subtitle={`${p.orders} transactions`} right={fmtMoney(p.revenue)} rightSub={fmtPct(p.pctOfSales)} />
           ))}
         </Card>
       </div>
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Discounts</div>
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Discounts")}</div>
         <div className="grid grid-cols-3 gap-3">
-          <StatCard dark={dark} label="Total Discounted" value={fmtMoney(discountA.totalDiscount)} />
-          <StatCard dark={dark} label="Discounted Orders" value={discountA.discountedOrders} />
-          <StatCard dark={dark} label="Avg per Order" value={discountA.avgDiscountPerOrder !== null ? fmtMoney(discountA.avgDiscountPerOrder) : "—"} />
+          <StatCard dark={dark} label={translateUI("Total Discounted")} value={fmtMoney(discountA.totalDiscount)} />
+          <StatCard dark={dark} label={translateUI("Discounted Orders")} value={discountA.discountedOrders} />
+          <StatCard dark={dark} label={translateUI("Avg per Order")} value={discountA.avgDiscountPerOrder !== null ? fmtMoney(discountA.avgDiscountPerOrder) : "—"} />
         </div>
       </Card>
 
@@ -9584,31 +9566,31 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
         <Card dark={dark}>
           <div className="flex items-center justify-between mb-2">
             <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Customers")}</div>
-            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportCustomers}>Export CSV</GhostButton>
+            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportCustomers}>{translateUI("Export CSV")}</GhostButton>
           </div>
-          <Row dark={dark} label="New Customers" value={customerA.newCustomers} />
-          <Row dark={dark} label="Returning Customers" value={customerA.returningCustomers} />
-          <Row dark={dark} label="Repeat Rate" value={customerA.repeatRate !== null ? fmtPct(customerA.repeatRate) : "No data available for this period"} />
-          <Row dark={dark} label="Walk-in / Anonymous Orders" value={customerA.anonymousOrders} />
+          <Row dark={dark} label={translateUI("New Customers")} value={customerA.newCustomers} />
+          <Row dark={dark} label={translateUI("Returning Customers")} value={customerA.returningCustomers} />
+          <Row dark={dark} label={translateUI("Repeat Rate")} value={customerA.repeatRate !== null ? fmtPct(customerA.repeatRate) : "No data available for this period"} />
+          <Row dark={dark} label={translateUI("Walk-in / Anonymous Orders")} value={customerA.anonymousOrders} />
           <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-          <div className="text-xs font-bold mb-1" style={{ color: dark ? C.white : C.black }}>Top Customers</div>
-          {customerA.topCustomers.length === 0 ? <EmptyState dark={dark} title="No data available for this period" /> : customerA.topCustomers.slice(0, 5).map((r) => (
+          <div className="text-xs font-bold mb-1" style={{ color: dark ? C.white : C.black }}>{translateUI("Top Customers")}</div>
+          {customerA.topCustomers.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : customerA.topCustomers.slice(0, 5).map((r) => (
             <ListRow key={r.customer.id} dark={dark} title={r.customer.name} subtitle={`${r.stats.totalOrders} orders`} right={fmtMoney(r.stats.totalSpent)} />
           ))}
         </Card>
         <Card dark={dark}>
           <div className="flex items-center justify-between mb-2">
-            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Loyalty Activity</div>
-            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportLoyalty}>Export CSV</GhostButton>
+            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Loyalty Activity")}</div>
+            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportLoyalty}>{translateUI("Export CSV")}</GhostButton>
           </div>
-          <Row dark={dark} label="Points Earned" value={`+${loyaltyA.earned}`} />
-          <Row dark={dark} label="Points Redeemed" value={`-${loyaltyA.redeemed}`} />
-          <Row dark={dark} label="Manual Adjustments" value={`+${loyaltyA.manualAdd} / -${loyaltyA.manualRemove}`} />
-          <Row dark={dark} label="Reversals / Restored" value={`-${loyaltyA.reversed} / +${loyaltyA.restored}`} />
+          <Row dark={dark} label={translateUI("Points Earned")} value={`+${loyaltyA.earned}`} />
+          <Row dark={dark} label={translateUI("Points Redeemed")} value={`-${loyaltyA.redeemed}`} />
+          <Row dark={dark} label={translateUI("Manual Adjustments")} value={`+${loyaltyA.manualAdd} / -${loyaltyA.manualRemove}`} />
+          <Row dark={dark} label={translateUI("Reversals / Restored")} value={`-${loyaltyA.reversed} / +${loyaltyA.restored}`} />
           <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-          <Row dark={dark} label="Net Point Movement" value={loyaltyA.netMovement} bold />
-          <Row dark={dark} label="Active Loyalty Customers" value={loyaltyA.activeCustomers} />
-          <Row dark={dark} label="Rewards Redeemed" value={loyaltyA.redemptionCount} />
+          <Row dark={dark} label={translateUI("Net Point Movement")} value={loyaltyA.netMovement} bold />
+          <Row dark={dark} label={translateUI("Active Loyalty Customers")} value={loyaltyA.activeCustomers} />
+          <Row dark={dark} label={translateUI("Rewards Redeemed")} value={loyaltyA.redemptionCount} />
         </Card>
       </div>
       )}
@@ -9616,22 +9598,22 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
       {canFinance && (
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         <Card dark={dark}>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Cash Register</div>
-          <Row dark={dark} label="Cash Sales" value={fmtMoney(cashRegA.cashSales)} />
-          <Row dark={dark} label="Registers Closed" value={cashRegA.closedCount} />
-          <Row dark={dark} label="Balanced Closes" value={cashRegA.balancedCount} />
-          <Row dark={dark} label="Overages" value={cashRegA.overageCount > 0 ? `${cashRegA.overageCount} · ${fmtMoney(cashRegA.overageTotal)}` : "0"} />
-          <Row dark={dark} label="Shortages" value={cashRegA.shortageCount > 0 ? `${cashRegA.shortageCount} · ${fmtMoney(cashRegA.shortageTotal)}` : "0"} />
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Cash Register")}</div>
+          <Row dark={dark} label={translateUI("Cash Sales")} value={fmtMoney(cashRegA.cashSales)} />
+          <Row dark={dark} label={translateUI("Registers Closed")} value={cashRegA.closedCount} />
+          <Row dark={dark} label={translateUI("Balanced Closes")} value={cashRegA.balancedCount} />
+          <Row dark={dark} label={translateUI("Overages")} value={cashRegA.overageCount > 0 ? `${cashRegA.overageCount} · ${fmtMoney(cashRegA.overageTotal)}` : "0"} />
+          <Row dark={dark} label={translateUI("Shortages")} value={cashRegA.shortageCount > 0 ? `${cashRegA.shortageCount} · ${fmtMoney(cashRegA.shortageTotal)}` : "0"} />
         </Card>
         <Card dark={dark}>
           <div className="flex items-center justify-between mb-2">
             <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Expenses")}</div>
-            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportExpenses}>Export CSV</GhostButton>
+            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportExpenses}>{translateUI("Export CSV")}</GhostButton>
           </div>
-          <Row dark={dark} label="Total Expenses" value={fmtMoney(expenseA.total)} bold />
-          <Row dark={dark} label="Expense Count" value={expenseA.count} />
+          <Row dark={dark} label={translateUI("Total Expenses")} value={fmtMoney(expenseA.total)} bold />
+          <Row dark={dark} label={translateUI("Expense Count")} value={expenseA.count} />
           <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-          {expenseA.categories.length === 0 ? <EmptyState dark={dark} title="No data available for this period" /> : expenseA.categories.slice(0, 5).map((c) => (
+          {expenseA.categories.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : expenseA.categories.slice(0, 5).map((c) => (
             <Row key={c.category} dark={dark} label={c.category} value={fmtMoney(c.amount)} />
           ))}
         </Card>
@@ -9639,55 +9621,55 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
       )}
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Inventory &amp; Procurement</div>
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Inventory & Procurement")}</div>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <StatCard dark={dark} label="Out of Stock" value={invSummary.outOfStock} accent={"#FF6B85"} />
-          <StatCard dark={dark} label="Critical" value={invSummary.critical} accent={"#FF6B85"} />
+          <StatCard dark={dark} label={translateUI("Out of Stock")} value={invSummary.outOfStock} accent={"#FF6B85"} />
+          <StatCard dark={dark} label={translateUI("Critical")} value={invSummary.critical} accent={"#FF6B85"} />
           <StatCard dark={dark} label={translateUI("Low Stock")} value={invSummary.low} accent={C.yellow} />
         </div>
         {invSummary.topConsumption.length > 0 && (
           <>
-            <div className="text-xs font-bold mb-1" style={{ color: dark ? C.white : C.black }}>Highest Consumption</div>
+            <div className="text-xs font-bold mb-1" style={{ color: dark ? C.white : C.black }}>{translateUI("Highest Consumption")}</div>
             {invSummary.topConsumption.map((r) => (
               <ListRow key={r.item.id} dark={dark} title={r.item.name} subtitle={`${r.avgDailyUsage} ${r.unit}/day · ${r.daysRemaining !== null ? `${r.daysRemaining}d remaining` : "No consumption data available yet"}`} right={STOCK_STATUS_LABEL[r.status]} />
             ))}
           </>
         )}
-        {invSummary.outOfStock + invSummary.critical + invSummary.low === 0 && <EmptyState dark={dark} title="Nothing needs restocking" />}
+        {invSummary.outOfStock + invSummary.critical + invSummary.low === 0 && <EmptyState dark={dark} title={translateUI("Nothing needs restocking")} />}
       </Card>
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Orders &amp; Production</div>
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Orders & Production")}</div>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <StatCard dark={dark} label="Received" value={orderA.received} />
-          <StatCard dark={dark} label="Completed" value={orderA.completed} />
-          <StatCard dark={dark} label="Cancelled" value={orderA.cancelled} />
+          <StatCard dark={dark} label={translateUI("Received")} value={orderA.received} />
+          <StatCard dark={dark} label={translateUI("Completed")} value={orderA.completed} />
+          <StatCard dark={dark} label={translateUI("Cancelled")} value={orderA.cancelled} />
         </div>
-        <Row dark={dark} label="Avg Prep Time" value={orderA.avgPrepMinutes !== null ? `${orderA.avgPrepMinutes} min` : "No data available for this period"} />
-        <Row dark={dark} label="Avg Fulfillment Time" value={orderA.avgFulfillMinutes !== null ? `${orderA.avgFulfillMinutes} min` : "No data available for this period"} />
+        <Row dark={dark} label={translateUI("Avg Prep Time")} value={orderA.avgPrepMinutes !== null ? `${orderA.avgPrepMinutes} min` : "No data available for this period"} />
+        <Row dark={dark} label={translateUI("Avg Fulfillment Time")} value={orderA.avgFulfillMinutes !== null ? `${orderA.avgFulfillMinutes} min` : "No data available for this period"} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label="Currently New" value={orderA.statusCounts.Received} />
-        <Row dark={dark} label="Currently In Production" value={orderA.statusCounts.Preparing} />
-        <Row dark={dark} label="Currently Ready" value={orderA.statusCounts.Ready} />
-        {orderA.longestWaiting && <Row dark={dark} label="Longest Waiting" value={`Order #${orderA.longestWaiting.orderNo} · ${formatElapsed(orderA.longestWaiting.date)}`} />}
+        <Row dark={dark} label={translateUI("Currently New")} value={orderA.statusCounts.Received} />
+        <Row dark={dark} label={translateUI("Currently In Production")} value={orderA.statusCounts.Preparing} />
+        <Row dark={dark} label={translateUI("Currently Ready")} value={orderA.statusCounts.Ready} />
+        {orderA.longestWaiting && <Row dark={dark} label={translateUI("Longest Waiting")} value={`Order #${orderA.longestWaiting.orderNo} · ${formatElapsed(orderA.longestWaiting.date)}`} />}
       </Card>
 
       {shifts && (
         <Card dark={dark} className="mb-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Labor</div>
-            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportLabor}>Export CSV</GhostButton>
+            <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Labor")}</div>
+            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportLabor}>{translateUI("Export CSV")}</GhostButton>
           </div>
           <div className="grid grid-cols-3 gap-3 mb-3">
-            <StatCard dark={dark} label="Worked Hours" value={laborA.totalWorkedHours} />
-            <StatCard dark={dark} label="Employees Worked" value={laborA.byEmployee.length} />
-            <StatCard dark={dark} label="Currently Clocked In" value={laborA.employeesClockedIn} />
+            <StatCard dark={dark} label={translateUI("Worked Hours")} value={laborA.totalWorkedHours} />
+            <StatCard dark={dark} label={translateUI("Employees Worked")} value={laborA.byEmployee.length} />
+            <StatCard dark={dark} label={translateUI("Currently Clocked In")} value={laborA.employeesClockedIn} />
           </div>
-          <Row dark={dark} label="Avg Hours / Employee" value={laborA.byEmployee.length > 0 ? round2(laborA.totalWorkedHours / laborA.byEmployee.length) : "No data available for this period"} />
-          {canFinance && <Row dark={dark} label="Estimated Labor Cost" value={laborA.estimatedLaborCost > 0 ? fmtMoney(laborA.estimatedLaborCost) : "No data available for this period"} bold />}
+          <Row dark={dark} label={translateUI("Avg Hours / Employee")} value={laborA.byEmployee.length > 0 ? round2(laborA.totalWorkedHours / laborA.byEmployee.length) : "No data available for this period"} />
+          {canFinance && <Row dark={dark} label={translateUI("Estimated Labor Cost")} value={laborA.estimatedLaborCost > 0 ? fmtMoney(laborA.estimatedLaborCost) : "No data available for this period"} bold />}
           <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-          <div className="text-xs font-bold mb-1" style={{ color: dark ? C.white : C.black }}>Employee Breakdown</div>
-          {laborPerf.length === 0 ? <EmptyState dark={dark} title="No labor data available for this period" /> : laborPerf.map((r) => (
+          <div className="text-xs font-bold mb-1" style={{ color: dark ? C.white : C.black }}>{translateUI("Employee Breakdown")}</div>
+          {laborPerf.length === 0 ? <EmptyState dark={dark} title={translateUI("No labor data available for this period")} /> : laborPerf.map((r) => (
             <ListRow key={r.employee.id} dark={dark} title={r.employee.name}
               subtitle={`${r.perf.workedHours}h · ${r.perf.salesCount} sales · ${r.perf.salesPerHour !== null ? `${r.perf.salesPerHour}/hr` : "—"}`}
               right={canFinance ? fmtMoney(r.perf.revenue) : `${r.perf.salesCount} sales`}
@@ -9698,7 +9680,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
       {purchaseOrders && (
         <Card dark={dark} className="mb-4">
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Purchases by Supplier</div>
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Purchases by Supplier")}</div>
           {(() => {
             const rPOs = purchaseOrders.filter((po) => !["Cancelled", "Reversed"].includes(po.status) && withinRange(po.orderDate, range));
             const map = {};
@@ -9707,7 +9689,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
               map[name] = (map[name] || 0) + poGrandTotal(po);
             });
             const arr = Object.entries(map).sort((a, b) => b[1] - a[1]);
-            if (arr.length === 0) return <EmptyState dark={dark} title="No purchases in this range" />;
+            if (arr.length === 0) return <EmptyState dark={dark} title={translateUI("No purchases in this range")} />;
             return arr.map(([name, total], idx) => <ListRow key={idx} dark={dark} title={name} right={fmtMoney(round2(total))} />);
           })()}
         </Card>
@@ -9715,10 +9697,10 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
       {purchaseOrders && (
         <Card dark={dark}>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Outstanding Payables</div>
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Outstanding Payables")}</div>
           {(() => {
             const payables = purchaseOrders.filter((po) => (po.status === "Received" || po.status === "Partially Received") && poAmountDue(po) > 0.005);
-            if (payables.length === 0) return <EmptyState dark={dark} title="No outstanding balances" sub="All received purchases are paid in full." />;
+            if (payables.length === 0) return <EmptyState dark={dark} title={translateUI("No outstanding balances")} sub={translateUI("All received purchases are paid in full.")} />;
             return payables.map((po) => (
               <ListRow key={po.id} dark={dark} title={po.poNumber} subtitle={suppliers.find((s) => s.id === po.supplierId)?.name || ""} right={fmtMoney(poAmountDue(po))} />
             ));
@@ -9761,18 +9743,18 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Settings")} sub="Business configuration" />
+      <SectionHeader dark={dark} title={translateUI("Settings")} sub={translateUI("Business configuration")} />
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>My Account</div>
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("My Account")}</div>
         <Row dark={dark} label={translateUI("Name")} value={currentUser.name} />
-        <Row dark={dark} label="Role" value={currentUser.role === "OWNER" ? "Owner (full access)" : translateUI(roleLabel(currentUser.role))} />
+        <Row dark={dark} label={translateUI("Role")} value={currentUser.role === "OWNER" ? "Owner (full access)" : translateUI(roleLabel(currentUser.role))} />
         <div className="mt-3"><GhostButton dark={dark} onClick={onLogout}><LogOut size={15} />{translateUI("Log Out")}</GhostButton></div>
       </Card>
 
       <fieldset disabled={!canEditSettings} style={{ opacity: canEditSettings ? 1 : 0.6 }}>
         <Card dark={dark} className="mb-4">
-          <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Business Info</div>
+          <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Business Info")}</div>
           <Field dark={dark} label={translateUI("Business Name")}><Input dark={dark} value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} /></Field>
           <Field dark={dark} label={translateUI("Currency")}>
             <Select dark={dark} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
@@ -9782,33 +9764,31 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
         </Card>
 
         <Card dark={dark} className="mb-4">
-          <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Tax</div>
+          <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Tax")}</div>
           <div className="flex items-center gap-2 mb-3">
             <input type="checkbox" checked={form.taxEnabled} onChange={(e) => setForm({ ...form, taxEnabled: e.target.checked })} />
-            <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Enable tax on sales</span>
+            <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Enable tax on sales")}</span>
           </div>
           <Field dark={dark} label={translateUI("Tax Rate (%)")}><Input dark={dark} type="number" min="0" step="0.01" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: Math.max(0, Number(e.target.value)) })} /></Field>
         </Card>
 
         <Card dark={dark} className="mb-4">
-          <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>Inventory Rules</div>
+          <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Inventory Rules")}</div>
           <div className="flex items-center gap-2">
             <input type="checkbox" checked={form.allowNegativeInventory} onChange={(e) => setForm({ ...form, allowNegativeInventory: e.target.checked })} />
-            <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Allow sales to push inventory negative</span>
+            <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Allow sales to push inventory negative")}</span>
           </div>
-          <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Off by default. When off, a sale is blocked if it would exceed available stock.</div>
+          <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Off by default. When off, a sale is blocked if it would exceed available stock.")}</div>
         </Card>
       </fieldset>
 
       {settingsUnavailable && (
-        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>
-          The real business settings could not be loaded. What's shown below is a placeholder, not your actual configuration — saving is disabled until this is resolved.
-        </div>
+        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI("The real business settings could not be loaded. What's shown below is a placeholder, not your actual configuration — saving is disabled until this is resolved.")}</div>
       )}
       {canEditSettings ? (
         <PrimaryButton disabled={submitting || settingsUnavailable} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Settings"}</PrimaryButton>
       ) : (
-        <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>You don't have permission to change business settings.</div>
+        <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to change business settings.")}</div>
       )}
 
       {canEditSettings && (
@@ -9820,21 +9800,20 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
 
       {canManageUsers && (
         <>
-          <div className="font-bold text-sm mt-6 mb-2" style={{ color: dark ? C.white : C.black }}>Team & Permissions</div>
+          <div className="font-bold text-sm mt-6 mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Team & Permissions")}</div>
           <Card dark={dark} className="mb-4">
             {users.map((u) => (
               <ListRow key={u.id} dark={dark} onClick={() => setUserModal(u)}
                 title={u.name} subtitle={`${u.username} · ${roleLabel(u.role)}`}
-                badge={u.active === false ? <Badge dark={dark} tone="danger">INACTIVE</Badge> : null}
+                badge={u.active === false ? <Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge> : null}
                 right={<ChevronRight size={16} color={dark ? C.textMutedDark : C.textMutedLight} />} />
             ))}
           </Card>
-          <GhostButton dark={dark} onClick={() => setUserModal("new")} style={{ marginBottom: 24 }}><Plus size={15} /> Add Staff Login</GhostButton>
+          <GhostButton dark={dark} onClick={() => setUserModal("new")} style={{ marginBottom: 24 }}><Plus size={15} />{" "}{translateUI("Add Staff Login")}</GhostButton>
 
           <div className="font-bold text-sm mb-2 flex items-center gap-2" style={{ color: dark ? C.white : C.black }}>
-            <ScrollText size={16} /> Audit Log
-          </div>
-          <GhostButton dark={dark} onClick={() => setShowAudit(true)} style={{ marginBottom: 24 }}>View Audit Log ({auditLog.length})</GhostButton>
+            <ScrollText size={16} />{translateUI("Audit Log")}</div>
+          <GhostButton dark={dark} onClick={() => setShowAudit(true)} style={{ marginBottom: 24 }}>{translateUI("View Audit Log (")}{auditLog.length})</GhostButton>
         </>
       )}
 
@@ -10095,12 +10074,12 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
   };
 
   return (
-    <Modal title={user ? "Edit User" : "Add Staff Login"} onClose={onClose} dark={dark} wide>
+    <Modal title={user ? "Edit User" : translateUI("Add Staff Login")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field dark={dark} label="Username"><Input dark={dark} value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Username")}><Input dark={dark} value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
         {!user && <Field dark={dark} label={translateUI("Email")}><Input dark={dark} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>}
-        <Field dark={dark} label="Role">
+        <Field dark={dark} label={translateUI("Role")}>
           <Select dark={dark} value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="EMPLOYEE">{translateUI("Employee")}</option>
             <option value="MANAGER">{translateUI("Manager")}</option>
@@ -10108,44 +10087,40 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
           </Select>
         </Field>
       </div>
-      <Field dark={dark} label="Linked Employee Record">
+      <Field dark={dark} label={translateUI("Linked Employee Record")}>
         <Select dark={dark} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-          <option value="">— No linked employee —</option>
+          <option value="">{translateUI("— No linked employee —")}</option>
           {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? " (inactive)" : ""}</option>)}
         </Select>
       </Field>
-      <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        Linking connects this login to a staff record, so tasks assigned to {employeeId ? (employees.find((e) => e.id === employeeId)?.name || "them") : "them"} show up under "Assigned to Me" when they're signed in.
-      </div>
+      <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Linking connects this login to a staff record, so tasks assigned to")}{employeeId ? (employees.find((e) => e.id === employeeId)?.name || "them") : "them"}{translateUI("show up under \"Assigned to Me\" when they're signed in.")}</div>
       <div className="flex items-center gap-2 mb-4">
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
-        <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>Active (can log in)</span>
+        <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Active (can log in)")}</span>
       </div>
 
       {role !== "OWNER" ? (
         <>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>Permissions</div>
-          <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Starts from standard {roleLabel(role)} defaults. Toggle to grant or remove specific access for this person.</div>
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Permissions")}</div>
+          <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Starts from standard")}{" "}{roleLabel(role)}{" "}{translateUI("defaults. Toggle to grant or remove specific access for this person.")}</div>
           <div className="grid grid-cols-1 gap-1 mb-4 max-h-64 overflow-y-auto pr-1">
             {PERMISSIONS.map((p) => (
               <label key={p.key} className="flex items-center justify-between gap-2 py-2 px-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
-                <span className="text-xs" style={{ color: dark ? C.white : C.black }}>{p.label}</span>
+                <span className="text-xs" style={{ color: dark ? C.white : C.black }}>{translateUI(p.label)}</span>
                 <input type="checkbox" checked={permState(p.key)} onChange={() => togglePerm(p.key)} />
               </label>
             ))}
           </div>
         </>
       ) : (
-        <div className="text-xs mb-4 px-3 py-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight, color: dark ? C.textMutedDark : C.textMutedLight }}>
-          Owners always have full access to every section — permissions above only apply to Managers and Employees.
-        </div>
+        <div className="text-xs mb-4 px-3 py-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight, color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Owners always have full access to every section — permissions above only apply to Managers and Employees.")}</div>
       )}
 
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error}</div>}
+      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
         {user && (
           <GhostButton dark={dark} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
-            {user.active === false ? "Reactivate" : "Deactivate"}
+            {user.active === false ? "Reactivate" : translateUI("Deactivate")}
           </GhostButton>
         )}
         <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : translateUI("Save")}</PrimaryButton>
@@ -10160,11 +10135,12 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
 }
 
 function AuditLogModal({ dark, auditLog, onClose }) {
+  const { translateUI } = useLanguage();
   return (
-    <Modal title="Audit Log" onClose={onClose} dark={dark} wide>
-      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>Most recent 100 actions across the business.</div>
+    <Modal title={translateUI("Audit Log")} onClose={onClose} dark={dark} wide>
+      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Most recent 100 actions across the business.")}</div>
       <Card dark={dark}>
-        {auditLog.length === 0 ? <EmptyState dark={dark} title="No activity yet" /> : auditLog.slice(0, 100).map((a) => (
+        {auditLog.length === 0 ? <EmptyState dark={dark} title={translateUI("No activity yet")} /> : auditLog.slice(0, 100).map((a) => (
           <ListRow key={a.id} dark={dark} title={a.action} subtitle={`${dateStr(a.date)} ${timeStr(a.date)} · ${a.userName} (${roleLabel(a.role)})`} rightSub={a.details} />
         ))}
       </Card>
