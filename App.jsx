@@ -233,14 +233,14 @@ const ROLE_LABEL = { OWNER: "Owner", MANAGER: "Manager", EMPLOYEE: "Employee" };
 const roleLabel = (role) => ROLE_LABEL[role] || "Employee";
 
 const seedUsers = () => ([
-  { id: "user-owner", name: "Marcos Masseli", username: "owner", pin: "1234", role: "OWNER", permissions: {}, active: true, employeeId: "", sample: true },
+  { id: "user-owner", name: "Demo Owner", username: "owner", pin: "1234", role: "OWNER", permissions: {}, active: true, employeeId: "", sample: true },
   { id: "user-mgr1", name: "Rafael Souza", username: "rafael", pin: "1111", role: "MANAGER", permissions: {}, active: true, employeeId: "emp-1", sample: true },
   { id: "user-emp2", name: "Beatriz Alves", username: "beatriz", pin: "2222", role: "EMPLOYEE", permissions: { viewReports: true }, active: true, employeeId: "emp-2", sample: true, notes: "Granted extra: can view reports" },
   { id: "user-emp3", name: "Diego Fernandes", username: "diego", pin: "3333", role: "EMPLOYEE", permissions: {}, active: true, employeeId: "emp-3", sample: true },
 ]);
 
 const seedSettings = () => ({
-  businessName: "Masseli Açaíberry",
+  businessName: "NEXALVO",
   currency: "USD",
   taxRate: 7,
   taxEnabled: true,
@@ -292,8 +292,8 @@ function seedSalesAndCash(products, inventory) {
 
 const seedTasks = () => ([
   { id: uid("task"), title: "Restock napkins & straws at kiosk counter", assignedTo: "emp-2", dueDate: dateStrOffset(0), priority: "Medium", status: "pending", notes: "", createdAt: nowISO(), activity: [{ date: nowISO(), userId: "user-mgr1", userName: "Rafael Souza", action: "Created" }], sample: true },
-  { id: uid("task"), title: "Deep clean blender stations", assignedTo: "emp-1", dueDate: dateStrOffset(0), priority: "High", status: "pending", notes: "End of day close-up task", createdAt: nowISO(), activity: [{ date: nowISO(), userId: "user-owner", userName: "Marcos Masseli", action: "Created" }], sample: true },
-  { id: uid("task"), title: "Count cash drawer at open", assignedTo: "emp-1", dueDate: dateStrOffset(-1), priority: "High", status: "done", notes: "", createdAt: daysAgoISO(1), completedAt: daysAgoISO(1), completedBy: "user-mgr1", activity: [{ date: daysAgoISO(1), userId: "user-owner", userName: "Marcos Masseli", action: "Created" }, { date: daysAgoISO(1), userId: "user-mgr1", userName: "Rafael Souza", action: "Completed" }], sample: true },
+  { id: uid("task"), title: "Deep clean blender stations", assignedTo: "emp-1", dueDate: dateStrOffset(0), priority: "High", status: "pending", notes: "End of day close-up task", createdAt: nowISO(), activity: [{ date: nowISO(), userId: "user-owner", userName: "Demo Owner", action: "Created" }], sample: true },
+  { id: uid("task"), title: "Count cash drawer at open", assignedTo: "emp-1", dueDate: dateStrOffset(-1), priority: "High", status: "done", notes: "", createdAt: daysAgoISO(1), completedAt: daysAgoISO(1), completedBy: "user-mgr1", activity: [{ date: daysAgoISO(1), userId: "user-owner", userName: "Demo Owner", action: "Created" }, { date: daysAgoISO(1), userId: "user-mgr1", userName: "Rafael Souza", action: "Completed" }], sample: true },
   { id: uid("task"), title: "Call Fresh Farms about strawberry delivery", assignedTo: "emp-2", dueDate: dateStrOffset(1), priority: "Low", status: "pending", notes: "", createdAt: nowISO(), activity: [{ date: nowISO(), userId: "user-mgr1", userName: "Rafael Souza", action: "Created" }], sample: true },
   { id: uid("task"), title: "Wipe down and restock condiment station", assignedTo: "emp-3", dueDate: dateStrOffset(-2), priority: "Medium", status: "pending", notes: "", createdAt: daysAgoISO(2), activity: [{ date: daysAgoISO(2), userId: "user-mgr1", userName: "Rafael Souza", action: "Created" }], sample: true },
 ]);
@@ -1478,7 +1478,7 @@ function renderCustomerReceiptBody(sale, ctx) {
   ).join("");
   const status = (getPaymentStatus(sale) || "paid").toUpperCase();
   return `
-    <div class="center bold lg">${escHtml(settings?.businessName || "Masseli Açaíberry")}</div>
+    <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
     <div class="center muted">Order Receipt</div>
     <div class="divider-solid"></div>
     <div class="row"><span>Order #</span><span class="bold">${escHtml(sale.orderNo)}</span></div>
@@ -1500,7 +1500,7 @@ function renderCustomerReceiptBody(sale, ctx) {
     ${sale.stripePaymentIntentId ? `<div class="row"><span>Transaction</span><span>${escHtml(sale.stripePaymentIntentId)}</span></div>` : ""}
     <div class="divider-solid"></div>
     <div class="center">Thank you!</div>
-    <div class="center bold">${escHtml(settings?.businessName || "Masseli Açaíberry")}</div>
+    <div class="center bold">${escHtml(settings?.businessName || "NEXALVO")}</div>
   `;
 }
 
@@ -1508,13 +1508,13 @@ function renderCustomerReceiptBody(sale, ctx) {
 // method/status, or transaction information. Operational data only: order #, time, items,
 // customer name (if any), notes.
 function renderKitchenTicketBody(sale, ctx) {
-  const { customers } = ctx;
+  const { customers, settings } = ctx;
   const customer = (customers || []).find((c) => c.id === sale.customerId)?.name;
   const itemsHtml = (sale.items || [])
     .map((it) => `<div class="item"><div class="k-qty">${escHtml(it.qty)}x <span class="k-name">${escHtml(it.name)}</span></div></div>`)
     .join('<div class="divider"></div>');
   return `
-    <div class="center bold lg">MASSELI AÇAÍBERRY</div>
+    <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
     <div class="center bold">NEW ORDER</div>
     <div class="divider-solid"></div>
     <div class="row bold"><span>Order #${escHtml(sale.orderNo)}</span><span>${escHtml(timeStr(sale.date))}</span></div>
@@ -1533,7 +1533,7 @@ function renderPaymentReceiptBody(sale, ctx) {
   const { settings } = ctx;
   const status = getPaymentStatus(sale) === "paid" ? "APPROVED" : (getPaymentStatus(sale) || "").toUpperCase();
   return `
-    <div class="center bold lg">${escHtml(settings?.businessName || "Masseli Açaíberry")}</div>
+    <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
     <div class="center muted">Payment Receipt</div>
     <div class="divider-solid"></div>
     <div class="row"><span>Amount</span><span class="bold xl">${escHtml(fmtMoney(sale.total))}</span></div>
@@ -5021,7 +5021,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
   const totalRev = round2(filtered.filter((s) => s.status !== "cancelled").reduce((a, s) => a + s.total, 0));
 
   const exportCSV = () => {
-    downloadCSV(`masseli-sales-${filter}.csv`,
+    downloadCSV(`nexalvo-sales-${filter}.csv`,
       ["Order #", "Date", "Time", "Channel", "Location", "Items", "Subtotal", "Discount", "Tax", "Total", "Payment Method", "Status", "Fulfillment"],
       filtered.map((s) => [s.orderNo, dateStr(s.date), timeStr(s.date), s.channel, locationLabel(s, locations), s.items.map((i) => `${i.qty}x ${i.name}`).join("; "), s.subtotal, s.discount, s.tax, s.total, s.paymentMethod, s.status === "cancelled" ? "Cancelled" : "Completed", s.fulfillmentStatus || "Completed"])
     );
@@ -5810,7 +5810,7 @@ function CashFlowView({ dark, cashTx, showToast }) {
   const merged = [...inRange].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const exportCSV = () => {
-    downloadCSV(`masseli-cashflow-${filter}.csv`,
+    downloadCSV(`nexalvo-cashflow-${filter}.csv`,
       ["Date", "Type", "Category", "Amount", "Payment Method", "Description"],
       merged.map((t) => [dateStr(t.date), t.type === "income" ? "Income" : "Expense", t.category, t.amount, t.paymentMethod || "", t.description || ""])
     );
@@ -5861,7 +5861,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
   const openAction = (mode, item) => { setSelected(item); setModal(mode); };
   const canExport = can("viewFinancials");
   const exportCSV = () => {
-    downloadCSV("masseli-inventory-valuation.csv",
+    downloadCSV("nexalvo-inventory-valuation.csv",
       ["Name", "SKU", "Category", "Quantity", "Unit", "Cost/Unit", "Total Value", "Min Stock", "Max Stock", "Status", "Location"],
       inventoryLocationRows(inventory).map((i) => [i.name, i.sku || "", i.category, i.qty, i.unit, i.costPerUnit, round2(i.qty * i.costPerUnit), i.minQty, i.maxQty, STOCK_STATUS_LABEL[stockStatus(i)], locationLabel(i, locations)])
     );
@@ -7390,7 +7390,7 @@ function ExpensesView({ dark, expenses, setExpenses, expenseOps, cashTx, persist
   const sortedExpenses = [...expenses].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const exportCSV = () => {
-    downloadCSV("masseli-expenses.csv",
+    downloadCSV("nexalvo-expenses.csv",
       ["Date", "Category", "Vendor", "Amount", "Payment Method", "Recurring", "Status", "Description"],
       sortedExpenses.map((e) => [dateStr(e.date), e.category, e.vendor, e.amount, e.paymentMethod, e.recurring ? "Yes" : "No", e.status === "reversed" ? "Reversed" : "Active", e.description || ""])
     );
@@ -9380,33 +9380,33 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
   const deltaColor = (pct) => pct === null ? (dark ? C.textMutedDark : C.textMutedLight) : pct > 0 ? C.lime : pct < 0 ? "#FF6B85" : (dark ? C.textMutedDark : C.textMutedLight);
 
   const exportCSV = () => {
-    downloadCSV("masseli-pl-report.csv", ["Metric", "Value"], [
+    downloadCSV("nexalvo-pl-report.csv", ["Metric", "Value"], [
       ["Revenue", revenue], ["COGS", cogs], ["Gross Profit", grossProfit], ["Gross Margin %", grossMargin],
       ["Operating Expenses", opEx], ["Net Profit", netProfit], ["Net Margin %", netMargin],
     ]);
     showToast("CSV exported");
   };
   const exportProducts = () => {
-    downloadCSV("masseli-product-performance.csv", ["Product", "Qty Sold", "Revenue", "% of Sales"],
+    downloadCSV("nexalvo-product-performance.csv", ["Product", "Qty Sold", "Revenue", "% of Sales"],
       productPerf.byRevenue.map((p) => [p.name, p.qty, p.revenue, p.pctOfSales]));
     showToast("CSV exported");
   };
   const exportCustomers = () => {
-    downloadCSV("masseli-customer-performance.csv", ["Customer", "Orders", "Total Spent", "Last Order"],
+    downloadCSV("nexalvo-customer-performance.csv", ["Customer", "Orders", "Total Spent", "Last Order"],
       customerA.topCustomers.map((r) => [r.customer.name, r.stats.totalOrders, r.stats.totalSpent, r.stats.lastOrderDate ? dateStr(r.stats.lastOrderDate) : ""]));
     showToast("CSV exported");
   };
   const exportExpenses = () => {
-    downloadCSV("masseli-expense-summary.csv", ["Category", "Amount"], expenseA.categories.map((c) => [c.category, c.amount]));
+    downloadCSV("nexalvo-expense-summary.csv", ["Category", "Amount"], expenseA.categories.map((c) => [c.category, c.amount]));
     showToast("CSV exported");
   };
   const exportPayments = () => {
-    downloadCSV("masseli-payment-methods.csv", ["Method", "Revenue", "Orders", "% of Sales"],
+    downloadCSV("nexalvo-payment-methods.csv", ["Method", "Revenue", "Orders", "% of Sales"],
       paymentPerf.map((p) => [p.key, p.revenue, p.orders, p.pctOfSales]));
     showToast("CSV exported");
   };
   const exportLoyalty = () => {
-    downloadCSV("masseli-loyalty-activity.csv", ["Metric", "Points"], [
+    downloadCSV("nexalvo-loyalty-activity.csv", ["Metric", "Points"], [
       ["Earned", loyaltyA.earned], ["Redeemed", loyaltyA.redeemed], ["Manual Add", loyaltyA.manualAdd],
       ["Manual Remove", loyaltyA.manualRemove], ["Reversed", loyaltyA.reversed], ["Restored", loyaltyA.restored], ["Net Movement", loyaltyA.netMovement],
     ]);
@@ -9419,7 +9419,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
     const rows = laborPerf.map((r) => canFinance
       ? [r.employee.name, r.perf.workedHours, r.perf.salesCount, r.perf.revenue, r.perf.averageTicket ?? "", r.perf.salesPerHour ?? "", r.perf.revenuePerHour ?? "", typeof r.employee.hourlyRate === "number" ? round2(r.perf.workedHours * r.employee.hourlyRate) : ""]
       : [r.employee.name, r.perf.workedHours, r.perf.salesCount, r.perf.salesPerHour ?? ""]);
-    downloadCSV("masseli-labor-report.csv", headers, rows);
+    downloadCSV("nexalvo-labor-report.csv", headers, rows);
     showToast("CSV exported");
   };
 
@@ -9923,7 +9923,7 @@ function SupabaseTestPanel({ dark }) {
   };
 
   const bootstrapSql = session
-    ? `-- Run this ONCE in the Supabase SQL Editor (uses your project-owner credentials, which\n-- bypass RLS — this is intentionally NOT something the anon-key client can do itself,\n-- since businesses has no INSERT policy by design).\ninsert into businesses (name) values ('Masseli Test Business') returning id;\n-- copy the returned id into the "Business ID" field below, then run:\ninsert into users (id, business_id, name, username, role)\nvalues ('${session.user?.id}', '<PASTE_BUSINESS_ID_HERE>', 'Test Owner', 'test-owner', 'OWNER');`
+    ? `-- Run this ONCE in the Supabase SQL Editor (uses your project-owner credentials, which\n-- bypass RLS — this is intentionally NOT something the anon-key client can do itself,\n-- since businesses has no INSERT policy by design).\ninsert into businesses (name) values ('NEXALVO Test Business') returning id;\n-- copy the returned id into the "Business ID" field below, then run:\ninsert into users (id, business_id, name, username, role)\nvalues ('${session.user?.id}', '<PASTE_BUSINESS_ID_HERE>', 'Test Owner', 'test-owner', 'OWNER');`
     : "";
 
   return (
