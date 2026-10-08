@@ -1,4 +1,4 @@
-import { LanguageProvider, LanguageSelector, useLanguage, translateCurrent, currentLanguage, interpolateCurrent } from "./i18n.jsx";
+import { LanguageProvider, LanguageSelector, useLanguage, paymentMethodsForLanguage, translateCurrent, currentLanguage, interpolateCurrent } from "./i18n.jsx";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Home, ShoppingCart, Wallet, Boxes, Package, Receipt, Truck, Users, UserCog,
@@ -246,7 +246,7 @@ const seedSettings = () => ({
   taxEnabled: true,
   allowNegativeInventory: false,
   theme: "dark",
-  paymentMethods: ["Cash", "Credit Card", "Debit Card", "Zelle", "Other"],
+  paymentMethods: ["Cash", "Credit Card", "Debit Card", "Zelle", "Pix", "Other"],
   channels: ["In Store", "Online", "Delivery", "Other"],
   expenseCategories: ["Ingredients", "Packaging", "Rent", "Payroll", "Utilities", "Gas", "Marketing", "Delivery Fees", "Equipment", "Maintenance", "Supplies", "Taxes", "Other"],
   productCategories: ["Products", "Services", "Other"],
@@ -5367,7 +5367,8 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
 }
 
 function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId, reportLoadError }) {
-  const { translateUI , interpolateUI } = useLanguage();
+  const { translateUI , interpolateUI, language } = useLanguage();
+  const availablePaymentMethods = useMemo(() => paymentMethodsForLanguage(settings.paymentMethods, language), [settings.paymentMethods, language]);
   // v1.6.4: the POS customer picker uses the same Supabase-backed collection as Customers.
   // It also performs a direct tenant refresh when the modal opens. Do not gate this refresh on
   // hasSession(): supabaseFetch already attaches the active access token and surfaces any auth error.
@@ -5396,7 +5397,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const activeProducts = products.filter((p) => p.active);
   const [items, setItems] = useState([{ productId: activeProducts[0]?.id || "", qty: 1 }]);
   const [discount, setDiscount] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState(settings.paymentMethods[0]);
+  const [paymentMethod, setPaymentMethod] = useState(availablePaymentMethods[0] || "Other");
   const [channel, setChannel] = useState(settings.channels[0]);
   const [locationId, setLocationId] = useState((locations || []).find((l) => l.active !== false)?.id || "");
   const [employeeId, setEmployeeId] = useState("");
@@ -5447,7 +5448,8 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   // print screen below. Printing from that screen is strictly read-only against this object;
   // nothing in the print flow calls finalizeSuccessfulPayment/failSalePayment/paymentService again.
   const [completedSale, setCompletedSale] = useState(null);
-  const [printPreview, setPrintPreview] = useState(null); // { title, html } | null
+  const [printPreview, setPrintPreview] = useState(null);
+  useEffect(() => { if (paymentPhase === "idle" && !submitting && !completedSale && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, paymentPhase, submitting, completedSale]); // { title, html } | null
 
   const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId, reportLoadError };
   const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog, reloadLoyalty, reportLoadError };
@@ -5712,9 +5714,10 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            {settings.paymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
+            {availablePaymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
           </Select>
         </Field>
+          {paymentMethod.trim().toLowerCase() === "pix" && <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Confirm receipt of Pix before completing this sale. This records the payment; it does not collect or verify Pix.")}</div>}
         <Field dark={dark} label={translateUI("Sales Channel")}>
           <Select dark={dark} value={channel} onChange={(e) => setChannel(e.target.value)}>
             {settings.channels.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}
@@ -6539,7 +6542,8 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
 }
 
 function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders, persistPO, purchaseOps, locations, currentUser, can, auditLog, setAuditLog, showToast, prefill }) {
-  const { translateUI } = useLanguage();
+  const { translateUI, language } = useLanguage();
+  const availablePaymentMethods = useMemo(() => paymentMethodsForLanguage(["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"], language), [language]);
   const [supplierId, setSupplierId] = useState(prefill?.supplierId || suppliers[0]?.id || "");
   const [locationId, setLocationId] = useState(prefill?.locationId || (locations || []).find((l) => l.active !== false)?.id || inventory.find((i) => i.locationId)?.locationId || "");
   const [orderDate, setOrderDate] = useState(todayStr());
@@ -6553,6 +6557,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   );
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => { if (!submitting && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting]);
 
   const addItem = () => setItems([...items, { itemId: inventory[0]?.id || "", qty: 1, unitCost: inventory[0]?.costPerUnit || 0 }]);
   const updateItem = (idx, patch) => setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
@@ -6621,7 +6626,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
         </Field>
         <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            {["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"].map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
+            {availablePaymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Order Date")}><Input dark={dark} type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></Field>
@@ -7117,12 +7122,14 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
 }
 
 function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOps, cashTx, persistCash, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI , interpolateUI } = useLanguage();
+  const { translateUI , interpolateUI, language } = useLanguage();
+  const availablePaymentMethods = useMemo(() => paymentMethodsForLanguage(["Cash", "Credit Card", "Debit Card", "Zelle", "Other"], language), [language]);
   const due = poAmountDue(po);
   const [amount, setAmount] = useState(due);
-  const [paymentMethod, setPaymentMethod] = useState(po.paymentMethod === "Net Terms" || po.paymentMethod === "COD" ? "Zelle" : po.paymentMethod);
+  const [paymentMethod, setPaymentMethod] = useState(() => { const preferred = po.paymentMethod === "Net Terms" || po.paymentMethod === "COD" ? (language === "pt-BR" ? "Pix" : "Zelle") : po.paymentMethod; return availablePaymentMethods.includes(preferred) ? preferred : availablePaymentMethods[0] || "Other"; });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  useEffect(() => { if (!submitting && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting]);
 
   const submit = async () => {
     if (submitting) return;
@@ -7170,7 +7177,7 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
       <Field dark={dark} label={translateUI("Payment Amount ($)")}><Input dark={dark} type="number" min="0.01" max={due} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Payment Method")}>
         <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-          {["Cash", "Credit Card", "Debit Card", "Zelle", "Other"].map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
+          {availablePaymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
         </Select>
       </Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
@@ -7504,18 +7511,20 @@ function ExpenseDetailModal({ dark, expense, onClose, expenses, setExpenses, exp
 }
 
 function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI, language } = useLanguage();
+  const availablePaymentMethods = useMemo(() => paymentMethodsForLanguage(settings.paymentMethods, language), [settings.paymentMethods, language]);
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(todayStr());
   const [category, setCategory] = useState(settings.expenseCategories[0]);
   const [vendor, setVendor] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState(settings.paymentMethods[0]);
+  const [paymentMethod, setPaymentMethod] = useState(availablePaymentMethods[0] || "Other");
   const [locationId, setLocationId] = useState((locations || []).find((l) => l.active !== false)?.id || "");
   const [recurring, setRecurring] = useState(false);
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  useEffect(() => { if (!submitting && !uncertain && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting, uncertain]);
 
   const submit = async () => {
     if (submitting || uncertain) return;
@@ -7556,7 +7565,7 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       <Field dark={dark} label={translateUI("Date")}><Input dark={dark} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Category")}><Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.expenseCategories.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}</Select></Field>
       <Field dark={dark} label={translateUI("Vendor")}><Input dark={dark} value={vendor} onChange={(e) => setVendor(e.target.value)} /></Field>
-      <Field dark={dark} label={translateUI("Payment Method")}><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{settings.paymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Payment Method")}><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{availablePaymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}</Select></Field>
       <Field dark={dark} label={translateUI("Location")}>
         <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
           <option value="">—</option>
@@ -9721,12 +9730,15 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 /* ============================== SETTINGS ============================== */
 
 function SettingsListEditor({ dark, label, values, onChange }) {
-  const { translateUI, interpolateUI } = useLanguage();
+  const { translateUI, interpolateUI, language } = useLanguage();
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
+  const hiddenMethod = language === "pt-BR" ? "zelle" : "pix";
+  const displayedValues = label === "Payment methods" ? values.filter(value => value.trim().toLowerCase() !== hiddenMethod) : values;
   const add = () => {
     const value = draft.trim();
     if (!value) { setError("Enter a name before adding."); return; }
+    if (label === "Payment methods" && value.toLowerCase() === hiddenMethod) { setError(language === "pt-BR" ? "Zelle is available only in English." : "Pix is available only in Portuguese."); return; }
     if (value.length > 80) { setError("Use a name with up to 80 characters."); return; }
     if (values.some(item => item.toLowerCase() === value.toLowerCase())) { setError("This name is already in the list."); return; }
     onChange([...values, value]); setDraft(""); setError("");
@@ -9734,7 +9746,7 @@ function SettingsListEditor({ dark, label, values, onChange }) {
   return <Card dark={dark} className="mb-3">
     <div className="text-sm font-bold mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI(label)}</div>
     <div className="flex flex-wrap gap-2 mb-3">
-      {values.map(value => <div key={value} className="flex items-center gap-1 rounded-xl px-2 py-1 text-xs" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, color: dark ? C.white : C.black }}>
+      {displayedValues.map(value => <div key={value} className="flex items-center gap-1 rounded-xl px-2 py-1 text-xs" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, color: dark ? C.white : C.black }}>
         <span className="break-all min-w-0">{translateUI(value)}</span>
         <button type="button" disabled={values.length <= 1} aria-label={interpolateUI("Remove {0}",[value])} onClick={() => onChange(values.filter(item => item !== value))} className="p-1 disabled:opacity-30"><X size={12} /></button>
       </div>)}

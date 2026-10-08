@@ -933,13 +933,20 @@ export const PORTUGUESE = {
   "Services": "Serviços",
   "In Store": "Na loja",
   "Online": "Online",
-  "Delivery": "Entrega"
+  "Delivery": "Entrega",
+  "Pix": "Pix",
+  "Confirm receipt of Pix before completing this sale. This records the payment; it does not collect or verify Pix.": "Confirme o recebimento do Pix antes de concluir a venda. O aplicativo registra o pagamento; não cobra nem verifica o Pix.",
+  "Zelle is available only in English.": "Zelle est? dispon?vel somente em ingl?s.",
+  "Pix is available only in Portuguese.": "Pix est? dispon?vel somente em portugu?s."
 };
 export const normalizeLanguage = value => value === "pt-BR" ? "pt-BR" : "en";
 const LOWER_PORTUGUESE = Object.fromEntries(Object.entries(PORTUGUESE).map(([key,value]) => [key.toLowerCase(),value]));
 export const translate = (text, language) => {
   if (language !== "pt-BR" || typeof text !== "string") return text;
   if (Object.hasOwn(PORTUGUESE,text)) return PORTUGUESE[text];
+  const stock = text.match(/^Not enough stock: (.+) \(have (-?[\d.]+) (.+), need ([\d.]+)\)\.$/);
+  if (stock) return `Estoque insuficiente: ${stock[1]} (disponível ${stock[2]} ${translate(stock[3], language)}, necessário ${stock[4]}).`;
+
   const known = Object.hasOwn(LOWER_PORTUGUESE,text.toLowerCase()) ? LOWER_PORTUGUESE[text.toLowerCase()] : undefined;
   return known ? (text === text.toUpperCase() ? known.toUpperCase() : known) : text;
 };
@@ -974,3 +981,13 @@ export const interpolate = (key, values, language) => {
 };
 
 export const interpolateCurrent = (key, values) => interpolate(key, values, currentLanguage());
+
+export const paymentMethodsForLanguage = (methods, language) => {
+  const hidden = language === "pt-BR" ? "zelle" : "pix";
+  const result = (Array.isArray(methods) ? methods : []).filter(method => typeof method === "string" && method.trim().toLowerCase() !== hidden);
+  if (language === "pt-BR" && !result.some(method => method.trim().toLowerCase() === "pix")) {
+    const other = result.findIndex(method => method.trim().toLowerCase() === "other");
+    result.splice(other < 0 ? result.length : other, 0, "Pix");
+  }
+  return result;
+};
