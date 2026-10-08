@@ -4610,7 +4610,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
 
       <div className="grid grid-cols-4 gap-2 mb-5">
         {quickActions.map((a) => (
-          <button key={translateUI(a.label)} onClick={() => setTab(a.tab)} className="flex flex-col items-center gap-1.5 py-3 rounded-2xl"
+          <button key={a.label} onClick={() => setTab(a.tab)} className="flex flex-col items-center gap-1.5 py-3 rounded-2xl"
             style={{ background: dark ? C.surfaceDark : C.white, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: a.color + "22" }}><a.icon size={18} color={a.color} /></div>
             <span className="text-[11px] font-bold" style={{ color: dark ? C.white : C.black }}>{translateUI(a.label)}</span>
