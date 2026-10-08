@@ -1,4 +1,4 @@
-import { LanguageProvider, LanguageSelector, useLanguage } from "./i18n.jsx";
+import { LanguageProvider, LanguageSelector, useLanguage, translateCurrent, currentLanguage, interpolateCurrent } from "./i18n.jsx";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   Home, ShoppingCart, Wallet, Boxes, Package, Receipt, Truck, Users, UserCog,
@@ -76,10 +76,10 @@ const fmtMoney = (n) => `${CURRENCY_SYMBOLS[_activeCurrency] || _activeCurrency 
 const fmtPct = (n) => `${(Number(n) || 0).toFixed(1)}%`;
 // For full ISO timestamps (sale.date, po.orderDate, etc) — these already carry real time+zone
 // info, so parsing with `new Date(iso)` is correct and has none of the bare-date pitfall above.
-const dateStr = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+const dateStr = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)).toLocaleDateString(currentLanguage(), { month: "short", day: "numeric" });
 // For bare "YYYY-MM-DD" values only (task due dates, birthdays) — uses parseLocalDate above.
-const dateStrLocal = (ymd) => (!ymd ? "" : parseLocalDate(ymd).toLocaleDateString("en-US", { month: "short", day: "numeric" }));
-const timeStr = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+const dateStrLocal = (ymd) => (!ymd ? "" : parseLocalDate(ymd).toLocaleDateString(currentLanguage(), { month: "short", day: "numeric" }));
+const timeStr = (iso) => new Date(iso).toLocaleTimeString(currentLanguage(), { hour: "numeric", minute: "2-digit" });
 const daysAgoISO = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString(); };
 // Rolling time-window check (e.g. "last 7 days") — compares absolute timestamps, so it's already
 // timezone-safe and needed no change.
@@ -105,7 +105,7 @@ async function withTimeout(promise, ms, label) {
 // escaping, blob handling) consistent everywhere instead of each view rolling its own.
 const csvEscape = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
 function downloadCSV(filename, headerRow, rows) {
-  const csv = [headerRow, ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
+  const csv = [headerRow.map(translateCurrent), ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a"); a.href = url; a.download = filename; a.click();
@@ -1452,7 +1452,7 @@ function escHtml(v) {
 // The print window contains ONLY this content (no app chrome/nav/buttons exist in it at all),
 // which is what makes "hide the rest of the app" unnecessary — there's nothing else there to hide.
 function printDocumentHtml(title, bodyHtml) {
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${escHtml(title)}</title><style>
+  return `<!DOCTYPE html><html lang="${escHtml(currentLanguage())}"><head><meta charset="utf-8"><title>${escHtml(translateCurrent(title))}</title><style>
     @page { size: 80mm auto; margin: 4mm; }
     * { box-sizing: border-box; }
     body { font-family: 'Courier New', ui-monospace, monospace; width: 80mm; margin: 0 auto; padding: 0; color: #000; font-size: 12px; line-height: 1.45; }
@@ -1479,27 +1479,27 @@ function renderCustomerReceiptBody(sale, ctx) {
   const status = (getPaymentStatus(sale) || "paid").toUpperCase();
   return `
     <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
-    <div class="center muted">Order Receipt</div>
+    <div class="center muted">${escHtml(translateCurrent("Order Receipt"))}</div>
     <div class="divider-solid"></div>
-    <div class="row"><span>Order #</span><span class="bold">${escHtml(sale.orderNo)}</span></div>
-    <div class="row"><span>Date</span><span>${escHtml(dateStr(sale.date))} ${escHtml(timeStr(sale.date))}</span></div>
-    ${loc && loc !== "—" ? `<div class="row"><span>Location</span><span>${escHtml(loc)}</span></div>` : ""}
-    ${cashier ? `<div class="row"><span>Cashier</span><span>${escHtml(cashier)}</span></div>` : ""}
-    ${customer ? `<div class="row"><span>Customer</span><span>${escHtml(customer)}</span></div>` : ""}
+    <div class="row"><span>${escHtml(translateCurrent("Order #"))}</span><span class="bold">${escHtml(sale.orderNo)}</span></div>
+    <div class="row"><span>${escHtml(translateCurrent("Date"))}</span><span>${escHtml(dateStr(sale.date))} ${escHtml(timeStr(sale.date))}</span></div>
+    ${loc && loc !== "—" ? `<div class="row"><span>${escHtml(translateCurrent("Location"))}</span><span>${escHtml(loc)}</span></div>` : ""}
+    ${cashier ? `<div class="row"><span>${escHtml(translateCurrent("Cashier"))}</span><span>${escHtml(cashier)}</span></div>` : ""}
+    ${customer ? `<div class="row"><span>${escHtml(translateCurrent("Customer"))}</span><span>${escHtml(customer)}</span></div>` : ""}
     <div class="divider"></div>
     ${itemsHtml}
     <div class="divider"></div>
-    <div class="row"><span>Subtotal</span><span>${escHtml(fmtMoney(sale.subtotal))}</span></div>
-    ${sale.discount > 0 ? `<div class="row"><span>Discount</span><span>-${escHtml(fmtMoney(sale.discount))}</span></div>` : ""}
-    <div class="row"><span>Tax</span><span>${escHtml(fmtMoney(sale.tax))}</span></div>
+    <div class="row"><span>${escHtml(translateCurrent("Subtotal"))}</span><span>${escHtml(fmtMoney(sale.subtotal))}</span></div>
+    ${sale.discount > 0 ? `<div class="row"><span>${escHtml(translateCurrent("Discount"))}</span><span>-${escHtml(fmtMoney(sale.discount))}</span></div>` : ""}
+    <div class="row"><span>${escHtml(translateCurrent("Tax"))}</span><span>${escHtml(fmtMoney(sale.tax))}</span></div>
     <div class="divider"></div>
-    <div class="row bold xl"><span>Total</span><span>${escHtml(fmtMoney(sale.total))}</span></div>
+    <div class="row bold xl"><span>${escHtml(translateCurrent("Total"))}</span><span>${escHtml(fmtMoney(sale.total))}</span></div>
     <div class="divider"></div>
-    <div class="row"><span>Payment Method</span><span>${escHtml(sale.paymentMethod)}</span></div>
-    <div class="row"><span>Payment Status</span><span class="bold">${escHtml(status)}</span></div>
-    ${sale.stripePaymentIntentId ? `<div class="row"><span>Transaction</span><span>${escHtml(sale.stripePaymentIntentId)}</span></div>` : ""}
+    <div class="row"><span>${escHtml(translateCurrent("Payment Method"))}</span><span>${escHtml(translateCurrent(sale.paymentMethod))}</span></div>
+    <div class="row"><span>${escHtml(translateCurrent("Payment Status"))}</span><span class="bold">${escHtml(translateCurrent(status))}</span></div>
+    ${sale.stripePaymentIntentId ? `<div class="row"><span>${escHtml(translateCurrent("Transaction"))}</span><span>${escHtml(sale.stripePaymentIntentId)}</span></div>` : ""}
     <div class="divider-solid"></div>
-    <div class="center">Thank you!</div>
+    <div class="center">${escHtml(translateCurrent("Thank you!"))}</div>
     <div class="center bold">${escHtml(settings?.businessName || "NEXALVO")}</div>
   `;
 }
@@ -1515,15 +1515,15 @@ function renderKitchenTicketBody(sale, ctx) {
     .join('<div class="divider"></div>');
   return `
     <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
-    <div class="center bold">NEW ORDER</div>
+    <div class="center bold">${escHtml(translateCurrent("NEW ORDER"))}</div>
     <div class="divider-solid"></div>
-    <div class="row bold"><span>Order #${escHtml(sale.orderNo)}</span><span>${escHtml(timeStr(sale.date))}</span></div>
+    <div class="row bold"><span>${escHtml(translateCurrent("Order #"))}${escHtml(sale.orderNo)}</span><span>${escHtml(timeStr(sale.date))}</span></div>
     ${sale.channel ? `<div class="center muted">${escHtml(sale.channel)}</div>` : ""}
     <div class="divider"></div>
     ${itemsHtml}
     <div class="divider-solid"></div>
-    ${customer ? `<div class="row bold"><span>Customer</span><span>${escHtml(customer)}</span></div>` : ""}
-    ${sale.notes ? `<div class="muted">Notes: ${escHtml(sale.notes)}</div>` : ""}
+    ${customer ? `<div class="row bold"><span>${escHtml(translateCurrent("Customer"))}</span><span>${escHtml(customer)}</span></div>` : ""}
+    ${sale.notes ? `<div class="muted">${escHtml(translateCurrent("Notes:"))} ${escHtml(sale.notes)}</div>` : ""}
   `;
 }
 
@@ -1534,12 +1534,12 @@ function renderPaymentReceiptBody(sale, ctx) {
   const status = getPaymentStatus(sale) === "paid" ? "APPROVED" : (getPaymentStatus(sale) || "").toUpperCase();
   return `
     <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
-    <div class="center muted">Payment Receipt</div>
+    <div class="center muted">${escHtml(translateCurrent("Payment Receipt"))}</div>
     <div class="divider-solid"></div>
-    <div class="row"><span>Amount</span><span class="bold xl">${escHtml(fmtMoney(sale.total))}</span></div>
-    <div class="row"><span>Payment Method</span><span>${escHtml((sale.paymentMethod || "").toUpperCase())}</span></div>
-    <div class="row"><span>Status</span><span class="bold">${escHtml(status)}</span></div>
-    <div class="row"><span>Transaction ID</span><span>${escHtml(sale.stripePaymentIntentId || "—")}</span></div>
+    <div class="row"><span>${escHtml(translateCurrent("Amount"))}</span><span class="bold xl">${escHtml(fmtMoney(sale.total))}</span></div>
+    <div class="row"><span>${escHtml(translateCurrent("Payment Method"))}</span><span>${escHtml(translateCurrent((sale.paymentMethod || "").toUpperCase()))}</span></div>
+    <div class="row"><span>${escHtml(translateCurrent("Status"))}</span><span class="bold">${escHtml(translateCurrent(status))}</span></div>
+    <div class="row"><span>${escHtml(translateCurrent("Transaction ID"))}</span><span>${escHtml(sale.stripePaymentIntentId || "—")}</span></div>
     <div class="divider-solid"></div>
   `;
 }
@@ -3301,6 +3301,7 @@ const Card = ({ children, className = "", dark, style, onClick }) => (
 );
 
 const Badge = ({ children, tone = "default", dark }) => {
+  const { translateUI } = useLanguage();
   const tones = {
     default: { bg: dark ? "#2A1B44" : "#EFE9FA", fg: dark ? C.textMutedDark : C.textMutedLight },
     warn: { bg: "#3A2A00", fg: C.yellow },
@@ -3310,7 +3311,7 @@ const Badge = ({ children, tone = "default", dark }) => {
   const t = tones[tone] || tones.default;
   return (
     <span className="text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1" style={{ background: t.bg, color: t.fg }}>
-      {children}
+      {typeof children === "string" ? translateUI(children) : children}
     </span>
   );
 };
@@ -3438,7 +3439,7 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger = true
           <GhostButton dark={dark} onClick={onCancel} style={{ flex: 1 }}>{translateUI("Cancel")}</GhostButton>
           <button onClick={run} disabled={busy} className="flex-1 font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2"
             style={{ background: busy ? "#555" : (danger ? "#FF6B85" : C.lime), color: danger ? C.white : C.black, opacity: busy ? 0.7 : 1 }}>
-            {busy ? "Please wait…" : confirmLabel}
+            {busy ? translateUI("Please wait…") : confirmLabel}
           </button>
         </div>
       </div>
@@ -3467,11 +3468,15 @@ const inputStyle = (dark) => ({
   fontSize: "14px",
 });
 
-const Input = ({ dark, style, ...props }) => <input {...props} style={{ ...inputStyle(dark), ...(style || {}) }} />;
+const Input = ({ dark, style, ...props }) => {
+  const { translateUI } = useLanguage();
+  return <input {...props} placeholder={translateUI(props.placeholder)} style={{ ...inputStyle(dark), ...(style || {}) }} />;
+};
 const Select = ({ dark, children, ...props }) => <select {...props} style={inputStyle(dark)}>{children}</select>;
 const TextArea = ({ dark, style, ...props }) => <textarea {...props} style={{ ...inputStyle(dark), minHeight: 70, ...(style || {}) }} />;
 
 function PrimaryButton({ children, onClick, full, style, disabled, type = "button" }) {
+  const { translateUI } = useLanguage();
   return (
     <button
       type={type}
@@ -3480,15 +3485,16 @@ function PrimaryButton({ children, onClick, full, style, disabled, type = "butto
       className={`font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition ${full ? "w-full" : ""}`}
       style={{ background: disabled ? "#555" : C.lime, color: C.black, opacity: disabled ? 0.6 : 1, ...style }}
     >
-      {children}
+      {typeof children === "string" ? translateUI(children) : children}
     </button>
   );
 }
 function GhostButton({ children, onClick, dark, style }) {
+  const { translateUI } = useLanguage();
   return (
     <button onClick={onClick} className="font-semibold rounded-2xl px-4 py-3 flex items-center justify-center gap-2"
       style={{ background: "transparent", border: `1px solid ${dark ? C.borderDark : C.borderLight}`, color: dark ? C.white : C.black, ...style }}>
-      {children}
+      {typeof children === "string" ? translateUI(children) : children}
     </button>
   );
 }
@@ -3566,6 +3572,7 @@ function navAllowed(user, tabId) {
 // stack N notifications. Distinguishes "initial" (this data has never loaded — nothing shown for
 // it is real yet) from "reload" (data shown may now be stale, but is not fabricated/fake).
 function DataLoadBanner({ dark, errors }) {
+  const { interpolateUI } = useLanguage();
   const entries = Object.entries(errors || {});
   if (entries.length === 0) return null;
   const initialCount = entries.filter(([, v]) => v.kind === "initial").length;
@@ -3573,9 +3580,9 @@ function DataLoadBanner({ dark, errors }) {
   return (
     <div className="mb-4 px-4 py-3 rounded-2xl text-xs font-semibold" style={{ background: "#3A0F1E", color: "#FF6B85", border: "1px solid #FF6B85" }}>
       <div className="font-bold mb-1">
-        {initialCount > 0 && `${initialCount} area${initialCount === 1 ? "" : "s"} failed to load`}
+        {initialCount > 0 && interpolateUI("{0} area{1} failed to load",[initialCount,initialCount === 1 ? "" : "s"])}
         {initialCount > 0 && reloadCount > 0 && " · "}
-        {reloadCount > 0 && `${reloadCount} area${reloadCount === 1 ? "" : "s"} may be out of date`}
+        {reloadCount > 0 && interpolateUI("{0} area{1} may be out of date",[reloadCount,reloadCount === 1 ? "" : "s"])}
       </div>
       <div className="space-y-0.5" style={{ opacity: 0.85 }}>
         {entries.map(([key, v]) => (
@@ -3910,11 +3917,11 @@ function NavButton({ item, active, dark, onClick }) {
 }
 
 function TopBar({ dark, settings, tab, currentUser, onLogout }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   return (
     <div className="px-4 md:px-8 pt-5 pb-1 flex items-center justify-between max-w-6xl mx-auto md:hidden">
       <BrandHeader dark={dark} settings={settings} />
-      <button onClick={onLogout} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: dark ? C.surfaceDark : C.white, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }} title={`Log out (${currentUser?.name})`}>
+      <button onClick={onLogout} className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: dark ? C.surfaceDark : C.white, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }} title={interpolateUI("Log out ({0})",[currentUser?.name])}>
         <LogOut size={16} color={dark ? C.textMutedDark : C.textMutedLight} />
       </button>
     </div>
@@ -4074,7 +4081,7 @@ function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
               className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full"
               style={{ background: submitting ? "#555" : C.lime, color: C.black, opacity: submitting ? 0.6 : 1 }}
             >
-              <Lock size={16} /> {submitting ? "Saving…" : translateUI("Set New Password")}
+              <Lock size={16} /> {submitting ? translateUI("Saving…") : translateUI("Set New Password")}
             </button>
           </form>
         )}
@@ -4229,7 +4236,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
           <Field dark={dark} label={translateUI("Notes (optional)")}><TextArea dark={dark} value={openNotes} onChange={(e) => setOpenNotes(e.target.value)} /></Field>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => { setMode("status"); setError(""); }}>{translateUI("Cancel")}</GhostButton>
-            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doOpen}><Check size={16} /> {submitting ? "Opening…" : translateUI("Open Register")}</PrimaryButton>
+            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doOpen}><Check size={16} /> {submitting ? translateUI("Opening…") : translateUI("Open Register")}</PrimaryButton>
           </div>
         </div>
       )}
@@ -4246,7 +4253,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
           <Field dark={dark} label={translateUI("Notes (optional)")}><TextArea dark={dark} value={movementNotes} onChange={(e) => setMovementNotes(e.target.value)} /></Field>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => { setMode("status"); setError(""); }}>{translateUI("Cancel")}</GhostButton>
-            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doMovement}><Check size={16} /> {submitting ? "Saving…" : "Record Movement"}</PrimaryButton>
+            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doMovement}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Record Movement")}</PrimaryButton>
           </div>
         </div>
       )}
@@ -4280,7 +4287,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
           <Field dark={dark} label={translateUI("Notes (optional)")}><TextArea dark={dark} value={closeNotes} onChange={(e) => setCloseNotes(e.target.value)} /></Field>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => { setMode("status"); setError(""); }}>{translateUI("Cancel")}</GhostButton>
-            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doClose}><Lock size={16} /> {submitting ? "Closing…" : translateUI("Close Register")}</PrimaryButton>
+            <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={doClose}><Lock size={16} /> {submitting ? translateUI("Closing…") : translateUI("Close Register")}</PrimaryButton>
           </div>
         </div>
       )}
@@ -4362,7 +4369,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
 // mutation available here is dismissAlert, which only ever touches businessAlerts (confirmed via
 // dismissAlert's own implementation, which calls setBusinessAlerts and logAudit, nothing else).
 function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFinance, currentUser, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [filter, setFilter] = useState("open"); // "open" | "resolved" | "dismissed" | "all"
   const [dismissingId, setDismissingId] = useState(null);
   const alertCtx = { businessAlerts, setBusinessAlerts, currentUser, auditLog, setAuditLog };
@@ -4395,7 +4402,7 @@ function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFina
       </div>
 
       {sorted.length === 0 ? (
-        <EmptyState dark={dark} title={translateUI("No alerts here")} sub={filter === "open" ? "Everything is running smoothly." : "Nothing matches this filter."} />
+        <EmptyState dark={dark} title={translateUI("No alerts here")} sub={filter === "open" ? translateUI("Everything is running smoothly.") : translateUI("Nothing matches this filter.")} />
       ) : (
         sorted.map((a) => (
           <Card dark={dark} key={a.id} className="mb-2">
@@ -4408,13 +4415,13 @@ function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFina
                 <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{a.title}</div>
                 <div className="text-xs mt-0.5" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{a.message}</div>
                 <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Since")}{dateStr(a.createdAt)} {timeStr(a.createdAt)}
-                  {a.status === "resolved" && a.resolvedAt ? ` · Resolved ${dateStr(a.resolvedAt)} ${timeStr(a.resolvedAt)}` : ""}
-                  {a.status === "dismissed" && a.dismissedAt ? ` · Dismissed ${dateStr(a.dismissedAt)} ${timeStr(a.dismissedAt)}` : ""}
+                  {a.status === "resolved" && a.resolvedAt ? interpolateUI(" · Resolved {0} {1}",[dateStr(a.resolvedAt),timeStr(a.resolvedAt)]) : ""}
+                  {a.status === "dismissed" && a.dismissedAt ? interpolateUI(" · Dismissed {0} {1}",[dateStr(a.dismissedAt),timeStr(a.dismissedAt)]) : ""}
                 </div>
               </div>
               {a.status === "open" && (
                 <GhostButton dark={dark} disabled={dismissingId === a.id} onClick={() => doDismiss(a.id)} style={{ padding: "4px 10px", fontSize: 11, whiteSpace: "nowrap" }}>
-                  {dismissingId === a.id ? "…" : "Dismiss"}
+                  {dismissingId === a.id ? "…" : translateUI("Dismiss")}
                 </GhostButton>
               )}
             </div>
@@ -4426,7 +4433,7 @@ function AlertsPanel({ dark, onClose, businessAlerts, setBusinessAlerts, canFina
 }
 
 function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inventory, invTx, wasteTx, tasks, purchaseOrders, employees, locations, cashRegisters, setCashRegisters, cashRegisterOps, customers, loyaltyTransactions, shifts, businessAlerts, setBusinessAlerts, auditLog, setAuditLog, setTab, currentUser, can, showToast }) {
-  const { translateUI, language } = useLanguage();
+  const { translateUI, language , interpolateUI } = useLanguage();
   const [showCashRegister, setShowCashRegister] = useState(false);
   const [showAlertsPanel, setShowAlertsPanel] = useState(false);
   const canFinance = can("viewFinancials");
@@ -4555,7 +4562,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
 
       {canFinance ? (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
-          <StatCard dark={dark} label={translateUI("Today's Sales")} value={fmtMoney(todayRevenue)} sub={`${orders} orders`} icon={TrendingUp} accent={C.lime} />
+          <StatCard dark={dark} label={translateUI("Today's Sales")} value={fmtMoney(todayRevenue)} sub={interpolateUI("{0} orders",[orders])} icon={TrendingUp} accent={C.lime} />
           <StatCard dark={dark} label={translateUI("Today's Expenses")} value={fmtMoney(todayExpenses)} sub={translateUI("Operating")} icon={TrendingDown} accent={"#FF6B85"} />
           <StatCard dark={dark} label={translateUI("Est. Profit")} value={fmtMoney(todayProfit)} sub={translateUI("After COGS + expenses")} icon={Flame} accent={C.yellow} />
           <StatCard dark={dark} label={translateUI("Cash Balance")} value={fmtMoney(cashBalance)} sub={translateUI("All-time")} icon={Wallet} accent={C.purpleGlow} />
@@ -4716,9 +4723,9 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
             <span className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{opsAlertCount}{" "}{translateUI("operational issue")}{opsAlertCount === 1 ? "" : "s"}{" "}{translateUI("need attention")}</span>
           </div>
           <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-            {[lowStock.length > 0 ? `${lowStock.length} stock alert${lowStock.length === 1 ? "" : "s"}` : null,
-              overdueTasks.length > 0 ? `${overdueTasks.length} overdue task${overdueTasks.length === 1 ? "" : "s"}` : null,
-              canFinance && agingPayables.length > 0 ? `${agingPayables.length} unpaid bill${agingPayables.length === 1 ? "" : "s"} 3+ days old` : null,
+            {[lowStock.length > 0 ? interpolateUI("{0} stock alert{1}",[lowStock.length,lowStock.length === 1 ? "" : "s"]) : null,
+              overdueTasks.length > 0 ? interpolateUI("{0} overdue task{1}",[overdueTasks.length,overdueTasks.length === 1 ? "" : "s"]) : null,
+              canFinance && agingPayables.length > 0 ? interpolateUI("{0} unpaid bill{1} 3+ days old",[agingPayables.length,agingPayables.length === 1 ? "" : "s"]) : null,
             ].filter(Boolean).join(" · ") || "See details below."}
           </div>
           {lowStock.length > 0 && (
@@ -4769,7 +4776,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
               ))}
             </>
           )}
-          <button onClick={() => setTab("employees")} className="text-xs font-bold mt-2" style={{ color: C.lime }}>{canSeeAllTasks ? "Manage tasks →" : translateUI("View my tasks →")}</button>
+          <button onClick={() => setTab("employees")} className="text-xs font-bold mt-2" style={{ color: C.lime }}>{canSeeAllTasks ? translateUI("Manage tasks →") : translateUI("View my tasks →")}</button>
         </Card>
       </div>
 
@@ -4931,7 +4938,7 @@ function OrderCard({ dark, sale, customerName, tick, onAdvance, advancingId }) {
       {sale.notes && <div className="text-xs mb-1 italic" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Note:")}{" "}{sale.notes}</div>}
       {sale.status !== "cancelled" && meta?.action && (
         <PrimaryButton full disabled={isAdvancing} onClick={() => onAdvance(sale.id)} style={{ marginTop: 8 }}>
-          <Check size={15} /> {isAdvancing ? "Updating…" : meta.action}
+          <Check size={15} /> {isAdvancing ? translateUI("Updating…") : meta.action}
         </PrimaryButton>
       )}
     </Card>
@@ -5000,7 +5007,7 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
       </div>
 
       {list.length === 0 ? (
-        <EmptyState dark={dark} title={translateUI("No orders here")} sub={filter === "active" ? "Every order is caught up." : "Nothing matches this filter."} />
+        <EmptyState dark={dark} title={translateUI("No orders here")} sub={filter === "active" ? translateUI("Every order is caught up.") : translateUI("Nothing matches this filter.")} />
       ) : (
         list.map((s) => <OrderCard key={s.id} dark={dark} sale={s} customerName={s.customerId ? (customers || []).find((c) => c.id === s.customerId)?.name : null} tick={tick} onAdvance={doAdvance} advancingId={advancingId} />)
       )}
@@ -5009,7 +5016,7 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
 }
 
 function SalesView({ dark, sales, persistSales, products, inventory, setInventory, persistCash, cashTx, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId, reportLoadError }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [open, setOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
   const [filter, setFilter] = useState("today");
@@ -5030,7 +5037,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Sales")} sub={`${filtered.length} orders · ${fmtMoney(totalRev)}`}
+      <SectionHeader dark={dark} title={translateUI("Sales")} sub={interpolateUI("{0} orders · {1}",[filtered.length,fmtMoney(totalRev)])}
         action={can("manageSales") ? <PrimaryButton onClick={() => setOpen(true)}><Plus size={16} />{" "}{translateUI("New Sale")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 items-center flex-wrap">
@@ -5046,7 +5053,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
       <Card dark={dark}>
         {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No sales yet")} sub={translateUI("Tap New Sale to record your first order.")} /> : filtered.map((s) => (
           <ListRow key={s.id} dark={dark} onClick={() => setViewing(s)}
-            title={`Order #${s.orderNo} · ${s.channel}`}
+            title={interpolateUI("Order #{0} · {1}",[s.orderNo,s.channel])}
             subtitle={`${dateStr(s.date)} ${timeStr(s.date)} · ${s.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}`}
             badge={s.status === "cancelled" ? <Badge dark={dark} tone="danger">{getPaymentStatus(s) === "failed" ? "PAYMENT FAILED" : translateUI("CANCELLED")}</Badge> : (s.fulfillmentStatus && s.fulfillmentStatus !== "Completed" ? <Badge dark={dark} tone={FULFILLMENT_TONE[s.fulfillmentStatus]}>{s.fulfillmentStatus.toUpperCase()}</Badge> : null)}
             right={fmtMoney(s.total)} rightSub={s.paymentMethod} />
@@ -5076,7 +5083,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
 }
 
 function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, customers, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError, reloadInventory }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [advancing, setAdvancing] = useState(false);
@@ -5265,7 +5272,7 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
   };
 
   return (
-    <Modal title={`Order #${sale.orderNo}`} onClose={onClose} dark={dark}>
+    <Modal title={interpolateUI("Order #{0}",[sale.orderNo])} onClose={onClose} dark={dark}>
       {cancelled && <div className="mb-3"><Badge dark={dark} tone="danger">{getPaymentStatus(sale) === "failed" ? "PAYMENT FAILED" : translateUI("CANCELLED")} {sale.cancelledAt ? `· ${dateStr(sale.cancelledAt)}` : ""}</Badge></div>}
       {!cancelled && <div className="mb-3"><Badge dark={dark} tone={FULFILLMENT_TONE[fulfillment]}>{fulfillment.toUpperCase()}</Badge></div>}
       <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
@@ -5300,7 +5307,7 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
       )}
       {canAdvance && (
         <PrimaryButton full disabled={advancing} onClick={advanceStatus} style={{ marginBottom: 10 }}>
-          <Check size={16} /> {advancing ? "Updating…" : (ORDER_STATUS_META[fulfillment]?.action || `Mark as ${nextStatus}`)}
+          <Check size={16} /> {advancing ? translateUI("Updating…") : (ORDER_STATUS_META[fulfillment]?.action || interpolateUI("Mark as {0}",[nextStatus]))}
         </PrimaryButton>
       )}
       {!cancelled && can("reverseSales") && (
@@ -5353,14 +5360,14 @@ function NewSaleCustomerCreate({ dark, customers, setCustomers, currentUser, aud
       {error && <div className="text-xs font-semibold mb-2 px-2 py-1.5 rounded-lg" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
         <GhostButton dark={dark} style={{ flex: 1 }} onClick={onCancel}>{translateUI("Cancel")}</GhostButton>
-        <PrimaryButton style={{ flex: 1 }} disabled={submitting || !name.trim()} onClick={submit}>{submitting ? "Saving…" : "Create"}</PrimaryButton>
+        <PrimaryButton style={{ flex: 1 }} disabled={submitting || !name.trim()} onClick={submit}>{submitting ? translateUI("Saving…") : translateUI("Create")}</PrimaryButton>
       </div>
     </div>
   );
 }
 
 function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales, persistSales, cashTx, persistCash, settings, locations, employees, customers, setCustomers, invTx, setInvTx, cashRegisters, loyaltyTransactions, setLoyaltyTransactions, loyaltyRewards, currentUser, can, auditLog, setAuditLog, showToast, supabaseSalesOps, reloadInventory, reloadLoyalty, businessId, reportLoadError }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   // v1.6.4: the POS customer picker uses the same Supabase-backed collection as Customers.
   // It also performs a direct tenant refresh when the modal opens. Do not gate this refresh on
   // hasSession(): supabaseFetch already attaches the active access token and surfaces any auth error.
@@ -5667,8 +5674,8 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           </div>
           <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
             {paymentPhase === "connecting"
-              ? "Connecting to card terminal (simulated)…"
-              : "No physical card reader is connected yet — this is a development simulator standing in for Stripe Terminal. Choose an outcome to test the payment lifecycle."}
+              ? translateUI("Connecting to card terminal (simulated)…")
+              : translateUI("No physical card reader is connected yet — this is a development simulator standing in for Stripe Terminal. Choose an outcome to test the payment lifecycle.")}
           </div>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.cancel()}>{translateUI("Cancel")}</GhostButton>
@@ -5682,14 +5689,14 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       {items.map((it, idx) => (
         <div key={idx} className="flex gap-2 mb-2 items-end">
           <div className="flex-1">
-            <Field dark={dark} label={idx === 0 ? "Product" : ""}>
+            <Field dark={dark} label={idx === 0 ? translateUI("Product") : ""}>
               <Select dark={dark} value={it.productId} onChange={(e) => updateItem(idx, { productId: e.target.value })}>
                 {activeProducts.map((p) => <option key={p.id} value={p.id}>{p.name} — {fmtMoney(p.price)}</option>)}
               </Select>
             </Field>
           </div>
           <div className="w-20">
-            <Field dark={dark} label={idx === 0 ? "Qty" : ""}>
+            <Field dark={dark} label={idx === 0 ? translateUI("Qty") : ""}>
               <Input dark={dark} type="number" min="1" value={it.qty} onChange={(e) => updateItem(idx, { qty: Math.max(1, Number(e.target.value)) })} />
             </Field>
           </div>
@@ -5705,12 +5712,12 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            {settings.paymentMethods.map((m) => <option key={m}>{m}</option>)}
+            {settings.paymentMethods.map((m) => <option key={m}>{translateUI(m)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Sales Channel")}>
           <Select dark={dark} value={channel} onChange={(e) => setChannel(e.target.value)}>
-            {settings.channels.map((c) => <option key={c}>{c}</option>)}
+            {settings.channels.map((c) => <option key={c}>{translateUI(c)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Location")}>
@@ -5772,14 +5779,14 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(subtotal)} />
         <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(discount)}`} />
         {rewardDiscountAmt > 0 && <Row dark={dark} label={translateUI("Reward Discount")} value={`-${fmtMoney(rewardDiscountAmt)}`} />}
-        <Row dark={dark} label={`Tax (${settings.taxEnabled ? settings.taxRate + "%" : "disabled"})`} value={fmtMoney(taxAmt)} />
+        <Row dark={dark} label={interpolateUI("Tax ({0})",[settings.taxEnabled ? settings.taxRate + "%" : "disabled"])} value={fmtMoney(taxAmt)} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
         <Row dark={dark} label={translateUI("Total")} value={fmtMoney(total)} bold />
       </div>
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting} onClick={submit}>
-        <Check size={16} /> {submitting ? "Saving…" : CARD_PAYMENT_METHODS.includes(paymentMethod) ? `Charge Card — ${fmtMoney(total)}` : `Complete Sale — ${fmtMoney(total)}`}
+        <Check size={16} /> {submitting ? translateUI("Saving…") : CARD_PAYMENT_METHODS.includes(paymentMethod) ? interpolateUI("Charge Card — {0}",[fmtMoney(total)]) : interpolateUI("Complete Sale — {0}",[fmtMoney(total)])}
       </PrimaryButton>
       </>
       )}
@@ -5846,7 +5853,7 @@ function CashFlowView({ dark, cashTx, showToast }) {
 
 /* ============================== INVENTORY ============================== */
 function InventoryView({ dark, inventory, setInventory, settings, suppliers, showToast, wasteTx, persistWaste, invTx, setInvTx, purchaseOrders, persistPO, employees, locations, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [tabMode, setTabMode] = useState("all");
   const [modal, setModal] = useState(null); // 'receive' | 'adjust' | 'waste' | 'new' | 'history' | null
   const [selected, setSelected] = useState(null);
@@ -5870,7 +5877,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Inventory")} sub={`Total value ${fmtMoney(totalValue)}`}
+      <SectionHeader dark={dark} title={translateUI("Inventory")} sub={interpolateUI("Total value {0}",[fmtMoney(totalValue)])}
         action={can("adjustInventory") ? <PrimaryButton onClick={() => { setSelected(null); setModal("new"); }}><Plus size={16} />{translateUI("New Item")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 items-center flex-wrap">
@@ -5922,7 +5929,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
               <div className="min-w-0" onClick={() => openAction("history", i)}>
                 <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                  {i.category} · {i.qty} {i.unit}{i.location ? " · " + i.location : ""}{can("viewFinancials") ? ` · avg ${fmtMoney(i.costPerUnit)}/${i.unit}` : ""}
+                  {i.category} · {i.qty} {i.unit}{i.location ? " · " + i.location : ""}{can("viewFinancials") ? interpolateUI(" · avg {0}/{1}",[fmtMoney(i.costPerUnit),i.unit]) : ""}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
@@ -6041,10 +6048,10 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
-          <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.inventoryCategories.map((c) => <option key={c}>{c}</option>)}</Select>
+          <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.inventoryCategories.map((c) => <option key={c}>{translateUI(c)}</option>)}</Select>
         </Field>
         <Field dark={dark} label={translateUI("Unit")}>
-          <Select dark={dark} value={unit} onChange={(e) => setUnit(e.target.value)}>{settings.units.map((u) => <option key={u}>{u}</option>)}</Select>
+          <Select dark={dark} value={unit} onChange={(e) => setUnit(e.target.value)}>{settings.units.map((u) => <option key={u}>{translateUI(u)}</option>)}</Select>
         </Field>
         <Field dark={dark} label={translateUI("Starting Quantity")}><Input dark={dark} type="number" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Minimum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
@@ -6065,7 +6072,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
       </Field>
       <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Item"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Item")}</PrimaryButton>
     </Modal>
   );
 }
@@ -6105,12 +6112,12 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
     <Field dark={dark} label={"Quantity (" + item.unit + ") - available " + available}><Input dark={dark} type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
     <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
     {error && <div role="alert" className="text-sm mb-3" style={{ color: "#FF6B85" }}>{translateUI(error)}</div>}
-    <PrimaryButton full disabled={submitting} onClick={submit}>{submitting ? "Transferring?" : translateUI("Transfer Stock")}</PrimaryButton>
+    <PrimaryButton full disabled={submitting} onClick={submit}>{submitting ? translateUI("Transferring?") : translateUI("Transfer Stock")}</PrimaryButton>
   </Modal>;
 }
 
 function StockActionModal({ mode, item, inventory, setInventory, locations = [], dark, onClose, showToast, wasteTx, persistWaste, invTx, setInvTx, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [itemId, setItemId] = useState(item.id);
   const activeLocations = locations.filter((l) => l.active !== false);
   const [locationId, setLocationId] = useState(activeLocations.some((l) => l.id === item.locationId) ? item.locationId : activeLocations[0]?.id || "");
@@ -6291,12 +6298,12 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
       </Field>
       {inventoryOps?.remote && <Field dark={dark} label={translateUI("Location")}><Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setNewQty(currentBase.stocks?.find((s) => s.locationId === e.target.value)?.qty ?? 0); }}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><div className="text-xs mt-1">{translateUI("Available:")}{" "}{current.qty} {current.unit}</div></Field>}
       {mode !== "adjust" ? (
-        <Field dark={dark} label={`Quantity (${current.unit})`}>
+        <Field dark={dark} label={interpolateUI("Quantity ({0})",[current.unit])}>
           <Input dark={dark} type="number" min="0.01" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} />
         </Field>
       ) : (
         <>
-          <Field dark={dark} label={`New counted quantity (${current.unit}) — system says ${current.qty}`}>
+          <Field dark={dark} label={interpolateUI("New counted quantity ({0}) — system says {1}",[current.unit,current.qty])}>
             <Input dark={dark} type="number" min="0" step="0.01" value={newQty} onChange={(e) => setNewQty(e.target.value)} />
           </Field>
           {diff !== 0 && (
@@ -6304,26 +6311,26 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
             </div>
           )}
           <Field dark={dark} label={translateUI("Reason")}>
-            <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{adjustReasons.map((r) => <option key={r}>{r}</option>)}</Select>
+            <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{adjustReasons.map((r) => <option key={r}>{translateUI(r)}</option>)}</Select>
           </Field>
         </>
       )}
       {mode === "waste" && (
         <Field dark={dark} label={translateUI("Reason")}>
-          <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{wasteReasons.map((r) => <option key={r}>{r}</option>)}</Select>
+          <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{wasteReasons.map((r) => <option key={r}>{translateUI(r)}</option>)}</Select>
         </Field>
       )}
       <Field dark={dark} label={translateUI("Notes")}>
         <TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : translateUI("Save")}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save")}</PrimaryButton>
     </Modal>
   );
 }
 
 function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, onClose, can }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const showCosts = !can || can("viewFinancials");
   const purchases = (invTx || []).filter((t) => t.itemId === item.id && t.type === "Purchase").sort((a, b) => new Date(b.date) - new Date(a.date));
   const allMoves = (invTx || []).filter((t) => t.itemId === item.id).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
@@ -6374,7 +6381,7 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
 
   if (!showCosts) {
     return (
-      <Modal title={`${item.name} — History`} onClose={onClose} dark={dark}>
+      <Modal title={interpolateUI("{0} — History",[item.name])} onClose={onClose} dark={dark}>
         {consumptionCard}
         <Card dark={dark}>
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recent Stock Movements")}</div>
@@ -6389,7 +6396,7 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
   }
 
   return (
-    <Modal title={`${item.name} — History`} onClose={onClose} dark={dark} wide>
+    <Modal title={interpolateUI("{0} — History",[item.name])} onClose={onClose} dark={dark} wide>
       {consumptionCard}
       <div className="grid grid-cols-4 gap-2 mb-4">
         <StatCard dark={dark} label={translateUI("Avg Cost")} value={fmtMoney(avg)} />
@@ -6425,7 +6432,7 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
 const PO_STATUS_TONE = { Draft: "default", Ordered: "warn", "Partially Received": "warn", Received: "good", Cancelled: "danger", Reversed: "danger" };
 
 function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [tabMode, setTabMode] = useState("open");
   const [newOpen, setNewOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
@@ -6466,7 +6473,7 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
       </div>
 
       <div className="flex gap-2 mb-4 flex-wrap">
-        {[["open", "Open"], ["payables", "Payables"], ["received", "Received"], ["all", "All"], ["recommendations", `Recommendations${recommendations.length ? ` (${recommendations.length})` : ""}`]].map(([id, label]) => (
+        {[["open", "Open"], ["payables", "Payables"], ["received", "Received"], ["all", "All"], ["recommendations", interpolateUI("Recommendations{0}",[recommendations.length ? ` (${recommendations.length})` : ""])]].map(([id, label]) => (
           <button key={id} onClick={() => setTabMode(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: tabMode === id ? C.lime : (dark ? C.surfaceDark : C.white), color: tabMode === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
             {translateUI(label)}
@@ -6486,7 +6493,7 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
                   <div className="min-w-0">
                     <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{r.item.name}</div>
                     <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                      {r.quantity} {r.unit}{" "}{translateUI("on hand ·")}{" "}{r.daysRemaining !== null ? `~${r.daysRemaining}d remaining` : "no usage data"}{" "}{translateUI("· Suggest")}{" "}{r.recommendedQty} {r.unit}
+                      {r.quantity} {r.unit}{" "}{translateUI("on hand ·")}{" "}{r.daysRemaining !== null ? interpolateUI("~{0}d remaining",[r.daysRemaining]) : "no usage data"}{" "}{translateUI("· Suggest")}{" "}{r.recommendedQty} {r.unit}
                     </div>
                   </div>
                   <Badge dark={dark} tone={STOCK_STATUS_TONE[r.status]}>{STOCK_STATUS_LABEL[r.status]}</Badge>
@@ -6614,7 +6621,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
         </Field>
         <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            {["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"].map((m) => <option key={m}>{m}</option>)}
+            {["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"].map((m) => <option key={m}>{translateUI(m)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Order Date")}><Input dark={dark} type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></Field>
@@ -6661,7 +6668,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
         <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Draft")}>{translateUI("Save as Draft")}</GhostButton>
-        <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Ordered")}><Check size={16} /> {submitting ? "Saving…" : "Submit Order"}</PrimaryButton>
+        <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Ordered")}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Submit Order")}</PrimaryButton>
       </div>
       <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Inventory only increases once items are marked Received — creating this order does not change stock or cash flow yet.")}</div>
     </Modal>
@@ -6669,7 +6676,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
 }
 
 function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppliers, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, cashTx, persistCash, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [receiving, setReceiving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -6828,7 +6835,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
             <div key={l.id} className="py-2 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <Row dark={dark} label={`${invItem?.name || l.itemId} — ${l.qty} × ${fmtMoney(l.unitCost)}`} value={fmtMoney(poLineTotal(l))} />
               <div className="text-xs" style={{ color: remaining > 0 ? C.yellow : C.lime }}>
-                {l.receivedQty}{" "}{translateUI("of")}{" "}{l.qty} {l.unit}{" "}{translateUI("received")}{remaining > 0 ? ` · ${remaining} remaining` : " · complete"}
+                {l.receivedQty}{" "}{translateUI("of")}{" "}{l.qty} {l.unit}{" "}{translateUI("received")}{remaining > 0 ? interpolateUI(" · {0} remaining",[remaining]) : " · complete"}
               </div>
             </div>
           );
@@ -6895,7 +6902,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
           cashTx={cashTx} persistCash={persistCash} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
       {cancelling && (
-        <ConfirmDialog dark={dark} title={`Cancel ${po.poNumber}?`} message="This order has no received items yet, so cancelling it is safe — no inventory or cash has been affected."
+        <ConfirmDialog dark={dark} title={interpolateUI("Cancel {0}?",[po.poNumber])} message="This order has no received items yet, so cancelling it is safe — no inventory or cash has been affected."
           confirmLabel="Cancel Order" onConfirm={async () => {
             if (!can("managePurchases")) { showToast("You don't have permission to cancel purchase orders.", "danger"); setCancelling(false); return; }
             // Re-check the latest PO right before writing — closes the window for a stale modal
@@ -6955,7 +6962,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
           }} onCancel={() => setCancelling(false)} />
       )}
       {reversing && (
-        <ConfirmDialog dark={dark} title={`Reverse ${po.poNumber}?`}
+        <ConfirmDialog dark={dark} title={interpolateUI("Reverse {0}?",[po.poNumber])}
           message="This pulls the received quantities back out of inventory and posts a reversing cash entry for anything already paid. The order stays on record marked Reversed."
           confirmLabel="Reverse Purchase" onConfirm={doReversePurchase} onCancel={() => setReversing(false)} />
       )}
@@ -6969,7 +6976,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
 }
 
 function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, suppliers, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [receiveQtys, setReceiveQtys] = useState(Object.fromEntries(po.items.map((l) => [l.id, round2(l.qty - l.receivedQty)])));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -7086,7 +7093,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
   };
 
   return (
-    <Modal title={`Receive — ${po.poNumber}`} onClose={onClose} dark={dark}>
+    <Modal title={interpolateUI("Receive — {0}",[po.poNumber])} onClose={onClose} dark={dark}>
       <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Enter how much actually arrived. Inventory quantity and average cost update immediately for each line you receive.")}</div>
       {po.items.map((l) => {
         const invItem = inventory.find((i) => i.id === l.itemId);
@@ -7097,20 +7104,20 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
           </div>
         );
         return (
-          <Field key={l.id} dark={dark} label={`${invItem?.name || l.itemId} — remaining ${remaining} ${l.unit} @ ${fmtMoney(l.unitCost)}`}>
+          <Field key={l.id} dark={dark} label={interpolateUI("{0} — remaining {1} {2} @ {3}",[invItem?.name || l.itemId,remaining,l.unit,fmtMoney(l.unitCost)])}>
             <Input dark={dark} type="number" min="0" max={remaining} step="0.01" value={receiveQtys[l.id]}
               onChange={(e) => setReceiveQtys({ ...receiveQtys, [l.id]: e.target.value })} />
           </Field>
         );
       })}
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Receiving…" : "Confirm Receipt"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? translateUI("Receiving…") : translateUI("Confirm Receipt")}</PrimaryButton>
     </Modal>
   );
 }
 
 function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOps, cashTx, persistCash, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const due = poAmountDue(po);
   const [amount, setAmount] = useState(due);
   const [paymentMethod, setPaymentMethod] = useState(po.paymentMethod === "Net Terms" || po.paymentMethod === "COD" ? "Zelle" : po.paymentMethod);
@@ -7158,23 +7165,23 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
   };
 
   return (
-    <Modal title={`Pay ${po.poNumber}`} onClose={onClose} dark={dark}>
+    <Modal title={interpolateUI("Pay {0}",[po.poNumber])} onClose={onClose} dark={dark}>
       <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Amount due:")}{" "}{fmtMoney(due)}</div>
       <Field dark={dark} label={translateUI("Payment Amount ($)")}><Input dark={dark} type="number" min="0.01" max={due} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Payment Method")}>
         <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-          {["Cash", "Credit Card", "Debit Card", "Zelle", "Other"].map((m) => <option key={m}>{m}</option>)}
+          {["Cash", "Credit Card", "Debit Card", "Zelle", "Other"].map((m) => <option key={m}>{translateUI(m)}</option>)}
         </Select>
       </Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Recording…" : translateUI("Record Payment")}</PrimaryButton>
+      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? translateUI("Recording…") : translateUI("Record Payment")}</PrimaryButton>
     </Modal>
   );
 }
 
 /* ============================== PRODUCTS ============================== */
 function ProductsView({ dark, products, setProducts, inventory, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const canEdit = can("manageRecipesAndCosts");
@@ -7182,7 +7189,7 @@ function ProductsView({ dark, products, setProducts, inventory, settings, curren
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Products")} sub={`${products.length} products`}
+      <SectionHeader dark={dark} title={translateUI("Products")} sub={interpolateUI("{0} products",[products.length])}
         action={canEdit ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} />{translateUI("New Product")}</PrimaryButton> : null} />
       <Card dark={dark}>
         {products.length === 0 ? <EmptyState dark={dark} title={translateUI("No products yet")} /> : products.map((p) => {
@@ -7196,7 +7203,7 @@ function ProductsView({ dark, products, setProducts, inventory, settings, curren
                 <div className="font-extrabold text-sm" style={{ color: dark ? C.white : C.black }}>{fmtMoney(p.price)}</div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{p.category}{canSeeCost ? ` · Cost ${fmtMoney(cost)}` : ""}</span>
+                <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{p.category}{canSeeCost ? interpolateUI(" · Cost {0}",[fmtMoney(cost)]) : ""}</span>
                 {canSeeCost && <span className="text-xs font-bold" style={{ color: margin >= 40 ? C.lime : margin >= 20 ? C.yellow : "#FF6B85" }}>{translateUI("Margin")}{" "}{fmtPct(margin)}</span>}
               </div>
               {!p.active && <Badge dark={dark} tone="warn">{translateUI("INACTIVE")}</Badge>}
@@ -7215,7 +7222,7 @@ function ProductsView({ dark, products, setProducts, inventory, settings, curren
 }
 
 function ProductModal({ dark, onClose, product, products, setProducts, inventory, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [name, setName] = useState(product?.name || "");
   const [sku, setSku] = useState(product?.sku || "");
   const [category, setCategory] = useState(product?.category || settings.productCategories[0]);
@@ -7322,13 +7329,13 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
   };
 
   return (
-    <Modal title={product ? "Edit Product" : translateUI("New Product")} onClose={onClose} dark={dark} wide>
+    <Modal title={product ? translateUI("Edit Product") : translateUI("New Product")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Product Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
           <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {settings.productCategories.map((c) => <option key={c}>{c}</option>)}
+            {settings.productCategories.map((c) => <option key={c}>{translateUI(c)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Selling Price ($)")}><Input dark={dark} type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
@@ -7371,10 +7378,10 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
         {product && <GhostButton dark={dark} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{" "}{translateUI("Deactivate")}</GhostButton>}
-        <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Product"}</PrimaryButton>
+        <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Product")}</PrimaryButton>
       </div>
       {confirmingDelete && (
-        <ConfirmDialog dark={dark} title={`Deactivate ${product?.name}?`} message="This deactivates the product — it will no longer be available for new sales. Its name, price, and recipe are preserved (not deleted), and past sales records are unaffected."
+        <ConfirmDialog dark={dark} title={interpolateUI("Deactivate {0}?",[product?.name])} message="This deactivates the product — it will no longer be available for new sales. Its name, price, and recipe are preserved (not deleted), and past sales records are unaffected."
           confirmLabel="Deactivate Product" onConfirm={async () => { const ok = await deactivateProduct(); if (ok) setConfirmingDelete(false); }} onCancel={() => setConfirmingDelete(false)} />
       )}
     </Modal>
@@ -7383,7 +7390,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
 
 /* ============================== EXPENSES ============================== */
 function ExpensesView({ dark, expenses, setExpenses, expenseOps, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [viewing, setViewing] = useState(null);
   const total30 = round2(expenses.filter((e) => e.status !== "reversed" && withinDays(e.date, 30)).reduce((a, e) => a + e.amount, 0));
@@ -7399,7 +7406,7 @@ function ExpensesView({ dark, expenses, setExpenses, expenseOps, cashTx, persist
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Expenses")} sub={`${fmtMoney(total30)} in last 30 days`}
+      <SectionHeader dark={dark} title={translateUI("Expenses")} sub={interpolateUI("{0} in last 30 days",[fmtMoney(total30)])}
         action={can("manageExpenses") ? <PrimaryButton onClick={() => setModal(true)}><Plus size={16} />{" "}{translateUI("Add Expense")}</PrimaryButton> : null} />
       {expenses.length > 0 && <div className="flex justify-end mb-3"><GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12 }} onClick={exportCSV}>{translateUI("Export CSV")}</GhostButton></div>}
       <Card dark={dark}>
@@ -7547,9 +7554,9 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
     <Modal title={translateUI("Add Expense")} onClose={onClose} dark={dark}>
       <Field dark={dark} label={translateUI("Amount ($)")}><Input dark={dark} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Date")}><Input dark={dark} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-      <Field dark={dark} label={translateUI("Category")}><Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.expenseCategories.map((c) => <option key={c}>{c}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Category")}><Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.expenseCategories.map((c) => <option key={c}>{translateUI(c)}</option>)}</Select></Field>
       <Field dark={dark} label={translateUI("Vendor")}><Input dark={dark} value={vendor} onChange={(e) => setVendor(e.target.value)} /></Field>
-      <Field dark={dark} label={translateUI("Payment Method")}><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{settings.paymentMethods.map((m) => <option key={m}>{m}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Payment Method")}><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{settings.paymentMethods.map((m) => <option key={m}>{translateUI(m)}</option>)}</Select></Field>
       <Field dark={dark} label={translateUI("Location")}>
         <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
           <option value="">—</option>
@@ -7562,14 +7569,14 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       </div>
       <Field dark={dark} label={translateUI("Description")}><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save Expense"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Expense")}</PrimaryButton>
     </Modal>
   );
 }
 
 /* ============================== SUPPLIERS / CUSTOMERS / EMPLOYEES (light CRUD) ============================== */
 function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, renderSub, showToast, canEdit = true, currentUser, auditLog, setAuditLog, auditAction }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
@@ -7609,21 +7616,21 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI(title)} sub={`${items.length} on file`} action={canEdit ? <PrimaryButton onClick={openNew}><Plus size={16} />{" "}{translateUI("Add")}</PrimaryButton> : null} />
+      <SectionHeader dark={dark} title={translateUI(title)} sub={interpolateUI("{0} on file",[items.length])} action={canEdit ? <PrimaryButton onClick={openNew}><Plus size={16} />{" "}{translateUI("Add")}</PrimaryButton> : null} />
       <Card dark={dark}>
-        {items.length === 0 ? <EmptyState dark={dark} title={`No ${title.toLowerCase()} yet`} /> : items.map((i) => (
+        {items.length === 0 ? <EmptyState dark={dark} title={interpolateUI("No {0} yet",[title.toLowerCase()])} /> : items.map((i) => (
           <ListRow key={i.id} dark={dark} title={renderTitle(i)} subtitle={renderSub(i)} right={<ChevronRight size={16} color={dark ? C.textMutedDark : C.textMutedLight} />} onClick={() => openEdit(i)} />
         ))}
       </Card>
       {!canEdit && <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You have view-only access to")}{" "}{title.toLowerCase()}.</div>}
       {modal && (
-        <Modal title={editing ? renderTitle(editing) : `New ${title.slice(0, -1)}`} onClose={() => setModal(false)} dark={dark}>
+        <Modal title={editing ? renderTitle(editing) : interpolateUI("New {0}",[title.slice(0, -1)])} onClose={() => setModal(false)} dark={dark}>
           <fieldset disabled={!canEdit} style={{ opacity: canEdit ? 1 : 0.6 }}>
             {fields.map((f) => (
               <Field dark={dark} key={f.key} label={translateUI(f.label)}>
                 {f.type === "select" ? (
                   <Select dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{translateUI(o.label)}</option> : <option key={o}>{o}</option>))}
+                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{translateUI(o.label)}</option> : <option key={o}>{translateUI(o)}</option>))}
                   </Select>
                 ) : f.type === "textarea" ? (
                   <TextArea dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
@@ -7638,7 +7645,7 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
           {canEdit && (
             <div className="flex gap-2 mt-2">
               {editing && <GhostButton dark={dark} onClick={remove} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{translateUI("Delete")}</GhostButton>}
-              <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : translateUI("Save")}</PrimaryButton>
+              <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save")}</PrimaryButton>
             </div>
           )}
         </Modal>
@@ -7648,7 +7655,7 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
 }
 
 function LocationsView({ dark, locations, setLocations, inventory, sales, employees, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const canEdit = can("manageSettings");
@@ -7697,7 +7704,7 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
 
   return (
     <div>
-      <SectionHeader dark={dark} title={translateUI("Locations")} sub={`${locations.length} on file`}
+      <SectionHeader dark={dark} title={translateUI("Locations")} sub={interpolateUI("{0} on file",[locations.length])}
         action={canEdit ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} />{" "}{translateUI("Add Location")}</PrimaryButton> : null} />
       <Card dark={dark}>
         {locations.length === 0 ? <EmptyState dark={dark} title={translateUI("No locations yet")} /> : locations.map((l) => {
@@ -7715,7 +7722,7 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
                 <div className="flex gap-2 mt-1">
                   <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => { setEditing(l); setModal(true); }}><Edit2 size={13} />{translateUI("Edit")}</GhostButton>
                   <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => (inUse ? toggleActive(l) : remove(l))}>
-                    <Trash2 size={13} /> {inUse ? (l.active === false ? "Reactivate" : translateUI("Deactivate")) : translateUI("Delete")}
+                    <Trash2 size={13} /> {inUse ? (l.active === false ? translateUI("Reactivate") : translateUI("Deactivate")) : translateUI("Delete")}
                   </GhostButton>
                 </div>
               )}
@@ -7751,11 +7758,11 @@ function LocationFormModal({ dark, location, onClose, onSave }) {
   };
 
   return (
-    <Modal title={location ? "Edit Location" : "New Location"} onClose={onClose} dark={dark}>
+    <Modal title={location ? translateUI("Edit Location") : translateUI("New Location")} onClose={onClose} dark={dark}>
       <Field dark={dark} label={translateUI("Location Name")}><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
       <Field dark={dark} label={translateUI("Type")}>
         <Select dark={dark} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-          {["Retail", "Mobile", "Prep", "Storage", "Other"].map((t) => <option key={t}>{t}</option>)}
+          {["Retail", "Mobile", "Prep", "Storage", "Other"].map((t) => <option key={t}>{translateUI(t)}</option>)}
         </Select>
       </Field>
       <div className="flex items-center gap-2 mb-4">
@@ -7763,13 +7770,13 @@ function LocationFormModal({ dark, location, onClose, onSave }) {
         <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Active")}</span>
       </div>
       {error && <div className="text-xs font-semibold mb-3" style={{ color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : "Save Location"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Location")}</PrimaryButton>
     </Modal>
   );
 }
 
 function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
@@ -7785,7 +7792,7 @@ function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentU
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Suppliers")} sub={`${suppliers.length} on file`} action={can("manageSuppliers") ? <PrimaryButton onClick={openNew}><Plus size={16} />{" "}{translateUI("Add")}</PrimaryButton> : null} />
+      <SectionHeader dark={dark} title={translateUI("Suppliers")} sub={interpolateUI("{0} on file",[suppliers.length])} action={can("manageSuppliers") ? <PrimaryButton onClick={openNew}><Plus size={16} />{" "}{translateUI("Add")}</PrimaryButton> : null} />
       <Card dark={dark}>
         {suppliers.length === 0 ? <EmptyState dark={dark} title={translateUI("No suppliers yet")} /> : suppliers.map((s) => {
           const stats = supplierStats(s);
@@ -7838,7 +7845,7 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
   };
 
   return (
-    <Modal title={supplier ? "Edit Supplier" : translateUI("New Supplier")} onClose={onClose} dark={dark} wide>
+    <Modal title={supplier ? translateUI("Edit Supplier") : translateUI("New Supplier")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Supplier Name")}><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
         <Field dark={dark} label={translateUI("Contact Person")}><Input dark={dark} value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></Field>
@@ -7857,7 +7864,7 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
         <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Active")}</span>
       </div>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Supplier"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Supplier")}</PrimaryButton>
     </Modal>
   );
 }
@@ -7910,7 +7917,7 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
           <GhostButton dark={dark} style={{ flex: 1 }} onClick={onEdit}><Edit2 size={15} />{translateUI("Edit")}</GhostButton>
           {hasHistory ? (
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
-              {supplier.active === false ? "Reactivate" : translateUI("Deactivate")}
+              {supplier.active === false ? translateUI("Reactivate") : translateUI("Deactivate")}
             </GhostButton>
           ) : (
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
@@ -7921,7 +7928,7 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
       {hasHistory && <div className="text-xs mt-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("This supplier has purchase history, so it's deactivated rather than deleted to keep past records intact.")}</div>}
 
       {confirmingDeactivate && (
-        <ConfirmDialog dark={dark} title={hasHistory ? (supplier.active === false ? "Reactivate this supplier?" : "Deactivate this supplier?") : "Delete this supplier?"}
+        <ConfirmDialog dark={dark} title={hasHistory ? (supplier.active === false ? translateUI("Reactivate this supplier?") : translateUI("Deactivate this supplier?")) : translateUI("Delete this supplier?")}
           message={hasHistory ? "It stays on record with full purchase history — you can reactivate it any time." : "This supplier has no purchase history, so it can be permanently removed."}
           confirmLabel={hasHistory ? (supplier.active === false ? "Reactivate" : "Deactivate") : translateUI("Delete")}
           onConfirm={async () => {
@@ -7977,13 +7984,13 @@ function CustomerCreateModal({ dark, onClose, customers, setCustomers, currentUs
         <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A2E0F", color: "#FFD166" }}>{translateUI("Possible existing customer:")}{duplicate.customer.name}{" "}{translateUI("(matched by")}{" "}{duplicate.matchType}{translateUI("). Check the existing record. Phone numbers and email addresses must be unique; different people can share a name.")}</div>
       )}
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting || !name.trim()} onClick={submit}><Check size={16} /> {submitting ? "Saving…" : customer ? translateUI("Save Changes") : "Create Customer"}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || !name.trim()} onClick={submit}><Check size={16} /> {submitting ? translateUI("Saving…") : customer ? translateUI("Save Changes") : translateUI("Create Customer")}</PrimaryButton>
     </Modal>
   );
 }
 
 function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomers, sales, products, inventory, setInventory, persistSales, cashTx, persistCash, invTx, setInvTx, locations, employees, settings, loyaltyTransactions, setLoyaltyTransactions, reloadLoyalty, businessAlerts, setBusinessAlerts, currentUser, can, auditLog, setAuditLog, showToast, reportLoadError, reloadInventory }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const customer = (customers || []).find((c) => c.id === customerId);
   const [viewingSale, setViewingSale] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -8093,7 +8100,7 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
           <div key={t.id} className="py-1.5 border-b last:border-b-0 text-xs" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
             <div className="flex items-center justify-between">
               <span className="font-semibold" style={{ color: dark ? C.white : C.black }}>
-                {LOYALTY_DIRECTION[t.type] > 0 ? "+" : "-"}{t.points} {LOYALTY_LABEL[t.type] || t.type}{t.saleId ? ` · Order` : ""}
+                {LOYALTY_DIRECTION[t.type] > 0 ? "+" : "-"}{t.points} {LOYALTY_LABEL[t.type] || t.type}{t.saleId ? interpolateUI(" · Order",[]) : ""}
               </span>
               <span style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(t.createdAt)}</span>
             </div>
@@ -8118,7 +8125,7 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
             </Field>
           </div>
           <Field dark={dark} label={translateUI("Reason (required)")}><Input dark={dark} value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} placeholder={translateUI("e.g. Customer service recovery")} /></Field>
-          <PrimaryButton full disabled={submitting} onClick={doAdjust}><Check size={16} /> {submitting ? "Saving…" : "Apply Adjustment"}</PrimaryButton>
+          <PrimaryButton full disabled={submitting} onClick={doAdjust}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Apply Adjustment")}</PrimaryButton>
         </Card>
       )}
 
@@ -8165,7 +8172,7 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
           ["New This Month", newThisMonth],
         ].map(([label, value]) => (
           <Card dark={dark} key={label} style={{ padding: 10 }}>
-            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{label.toUpperCase()}</div>
+            <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI(label).toUpperCase()}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{value}</div>
           </Card>
         ))}
@@ -8175,10 +8182,10 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
         <Input dark={dark} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={translateUI("Search name, phone, or email…")} style={{ flex: 1 }} />
         {canManage && <PrimaryButton onClick={() => setCreating(true)}><Plus size={16} />{translateUI("New Customer")}</PrimaryButton>}
       </div>
-      <GhostButton dark={dark} onClick={() => setShowArchived((s) => !s)} style={{ marginBottom: 12 }}>{showArchived ? "Showing Archived — Show Active" : "Show Archived"}</GhostButton>
+      <GhostButton dark={dark} onClick={() => setShowArchived((s) => !s)} style={{ marginBottom: 12 }}>{showArchived ? translateUI("Showing Archived — Show Active") : translateUI("Show Archived")}</GhostButton>
 
       <Card dark={dark}>
-        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No customers found")} sub={showArchived ? "No archived customers" : "Try a different search, or add a new customer"} /> : filtered.map((c) => {
+        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No customers found")} sub={showArchived ? translateUI("No archived customers") : translateUI("Try a different search, or add a new customer")} /> : filtered.map((c) => {
           const stats = getCustomerStats(c.id, sales);
           const balance = getLoyaltyBalance(c.id, loyaltyTransactions);
           return (
@@ -8225,7 +8232,7 @@ function formatMinutesLive(mins) {
 // gated by viewFinancials and, per the spec, are not rendered into the DOM at all when
 // unauthorized — not just visually hidden.
 function EmployeeDetailModal({ dark, employeeId, onClose, employees, shifts, sales, locations, currentUser, can, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [historyRange, setHistoryRange] = useState("30d");
   const employee = (employees || []).find((e) => e.id === employeeId);
   const showFinancials = can("viewFinancials");
@@ -8301,7 +8308,7 @@ function EmployeeDetailModal({ dark, employeeId, onClose, employees, shifts, sal
             </div>
             <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
               {timeStr(s.clockInAt)} – {s.clockOutAt ? timeStr(s.clockOutAt) : "—"}{" "}{translateUI("· Worked")}{" "}{formatMinutesLive(calculateWorkedMinutes(s))}
-              {calculateBreakMinutes(s) > 0 ? ` · Break ${formatMinutesLive(calculateBreakMinutes(s))}` : ""}
+              {calculateBreakMinutes(s) > 0 ? interpolateUI(" · Break {0}",[formatMinutesLive(calculateBreakMinutes(s))]) : ""}
             </div>
           </div>
         ))}
@@ -8397,7 +8404,7 @@ function MyShiftCard({ dark, myEmployeeId, shifts, setShifts, locations, employe
               </Select>
             </Field>
           )}
-          <PrimaryButton full disabled={submitting} onClick={doClockIn}>{submitting ? "Clocking in…" : "Clock In"}</PrimaryButton>
+          <PrimaryButton full disabled={submitting} onClick={doClockIn}>{submitting ? translateUI("Clocking in…") : translateUI("Clock In")}</PrimaryButton>
         </>
       )}
     </Card>
@@ -8405,7 +8412,7 @@ function MyShiftCard({ dark, myEmployeeId, shifts, setShifts, locations, employe
 }
 
 function EmployeesView({ dark, employees, setEmployees, locations, tasks, persistTasks, shifts, setShifts, sales, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const role = currentUser?.role;
   const myEmployeeId = currentUser?.employeeId || "";
   const isOwner = role === "OWNER";
@@ -8438,7 +8445,7 @@ function EmployeesView({ dark, employees, setEmployees, locations, tasks, persis
 
       {showStaffTab && (
         <div className="flex gap-2 mb-4">
-          {[["staff", "Staff"], ["tasks", `Tasks${openTaskCount ? ` (${openTaskCount})` : ""}`]].map(([id, label]) => (
+          {[["staff", "Staff"], ["tasks", interpolateUI("Tasks{0}",[openTaskCount ? ` (${openTaskCount})` : ""])]].map(([id, label]) => (
             <button key={id} onClick={() => setSubTab(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
               style={{ background: subTab === id ? C.lime : (dark ? C.surfaceDark : C.white), color: subTab === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
               {translateUI(label)}
@@ -8488,7 +8495,7 @@ function EmployeesView({ dark, employees, setEmployees, locations, tasks, persis
 }
 
 function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, auditLog, setAuditLog, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("open");
@@ -8524,7 +8531,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Tasks")} sub={`${baseTasks.filter((t) => t.status !== "done").length} open${!canManage ? " · assigned to me" : ""}`}
+      <SectionHeader dark={dark} title={translateUI("Tasks")} sub={interpolateUI("{0} open{1}",[baseTasks.filter((t) => t.status !== "done").length,!canManage ? " · assigned to me" : ""])}
         action={canManage ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} />{" "}{translateUI("New Task")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -8537,7 +8544,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
       </div>
 
       <Card dark={dark}>
-        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No tasks")} sub={canManage ? "Tap New Task to assign one." : "Nothing assigned to you right now."} /> : filtered.map((t) => {
+        {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No tasks")} sub={canManage ? translateUI("Tap New Task to assign one.") : translateUI("Nothing assigned to you right now.")} /> : filtered.map((t) => {
           const overdue = t.status !== "done" && t.dueDate && t.dueDate < today0;
           const mine = t.assignedTo === myEmployeeId;
           return (
@@ -8605,7 +8612,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
   };
 
   return (
-    <Modal title={task ? (canManage ? "Edit Task" : "Task Details") : translateUI("New Task")} onClose={onClose} dark={dark}>
+    <Modal title={task ? (canManage ? translateUI("Edit Task") : translateUI("Task Details")) : translateUI("New Task")} onClose={onClose} dark={dark}>
       <fieldset disabled={!canManage} style={{ opacity: canManage ? 1 : 0.65 }}>
         <Field dark={dark} label={translateUI("Task")}><Input dark={dark} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
         <div className="grid grid-cols-2 gap-3">
@@ -8618,7 +8625,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
         </div>
         <Field dark={dark} label={translateUI("Priority")}>
           <Select dark={dark} value={priority} onChange={(e) => setPriority(e.target.value)}>
-            {["Low", "Medium", "High"].map((p) => <option key={p}>{p}</option>)}
+            {["Low", "Medium", "High"].map((p) => <option key={p}>{translateUI(p)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
@@ -8641,7 +8648,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
       {canManage ? (
         <div className="flex gap-2">
           {task && <GhostButton dark={dark} onClick={remove} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{translateUI("Delete")}</GhostButton>}
-          <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Task"}</PrimaryButton>
+          <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Task")}</PrimaryButton>
         </div>
       ) : (
         <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Only a manager or owner can edit task details. Use the checkbox to mark it done.")}</div>
@@ -9330,7 +9337,7 @@ async function dismissAlert(alertId, ctx) {
 }
 
 function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders, suppliers, customers, loyaltyTransactions, cashRegisters, cashTx, invTx, locations, employees, shifts, can, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI } = useLanguage();
   const [rangeId, setRangeId] = useState("30d");
   const [customStart, setCustomStart] = useState(todayStr());
   const [customEnd, setCustomEnd] = useState(todayStr());
@@ -9494,12 +9501,12 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
       </div>
 
       <Card dark={dark} className="mb-4">
-        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Revenue Trend")}{" "}{trend.bucketType === "day" ? "(Daily)" : trend.bucketType === "week" ? "(Weekly)" : "(Monthly)"}</div>
+        <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Revenue Trend")}{" "}{trend.bucketType === "day" ? translateUI("(Daily)") : trend.bucketType === "week" ? translateUI("(Weekly)") : translateUI("(Monthly)")}</div>
         {trend.points.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : (
           <div className="flex items-end gap-1 h-32 overflow-x-auto">
             {trend.points.map((p) => (
               <div key={p.key} className="flex-1 flex flex-col items-center gap-1" style={{ minWidth: 24 }}>
-                <div className="w-full rounded-t-lg" style={{ height: `${(p.revenue / maxTrend) * 100}%`, minHeight: 4, background: `linear-gradient(180deg, ${C.lime}, ${C.limeDim})` }} title={`${fmtMoney(p.revenue)} · ${p.orders} orders`} />
+                <div className="w-full rounded-t-lg" style={{ height: `${(p.revenue / maxTrend) * 100}%`, minHeight: 4, background: `linear-gradient(180deg, ${C.lime}, ${C.limeDim})` }} title={interpolateUI("{0} · {1} orders",[fmtMoney(p.revenue),p.orders])} />
                 <span className="text-[9px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{p.key.slice(5)}</span>
               </div>
             ))}
@@ -9758,7 +9765,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
           <Field dark={dark} label={translateUI("Business Name")}><Input dark={dark} value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} /></Field>
           <Field dark={dark} label={translateUI("Currency")}>
             <Select dark={dark} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
-              {Object.keys(CURRENCY_SYMBOLS).map((c) => <option key={c} value={c}>{c} ({CURRENCY_SYMBOLS[c]})</option>)}
+              {Object.keys(CURRENCY_SYMBOLS).map((c) => <option key={c} value={c}>{translateUI(c)} ({CURRENCY_SYMBOLS[c]})</option>)}
             </Select>
           </Field>
         </Card>
@@ -9786,7 +9793,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
         <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI("The real business settings could not be loaded. What's shown below is a placeholder, not your actual configuration — saving is disabled until this is resolved.")}</div>
       )}
       {canEditSettings ? (
-        <PrimaryButton disabled={submitting || settingsUnavailable} onClick={save}><Check size={16} /> {submitting ? "Saving…" : "Save Settings"}</PrimaryButton>
+        <PrimaryButton disabled={submitting || settingsUnavailable} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Settings")}</PrimaryButton>
       ) : (
         <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to change business settings.")}</div>
       )}
@@ -9939,7 +9946,7 @@ function SupabaseTestPanel({ dark }) {
 
       <Card dark={dark} className="mb-3">
         <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>1. Connectivity check</div>
-        <GhostButton dark={dark} onClick={runPing} disabled={pinging}>{pinging ? "Checking…" : "Test Connection"}</GhostButton>
+        <GhostButton dark={dark} onClick={runPing} disabled={pinging}>{pinging ? translateUI("Checking…") : "Test Connection"}</GhostButton>
         {pingResult && (
           <div className="text-xs mt-2" style={{ color: pingResult.reachable ? C.lime : "#FF6B85" }}>
             {pingResult.reachable ? `Reachable — HTTP ${pingResult.status}` : `Not reachable — ${pingResult.error}`}
@@ -9961,8 +9968,8 @@ function SupabaseTestPanel({ dark }) {
               <Input dark={dark} type="password" placeholder="password (6+ chars)" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div className="flex gap-2">
-              <GhostButton dark={dark} onClick={runSignUp} disabled={authBusy || !email || !password}>{authBusy ? "Working…" : "Sign Up"}</GhostButton>
-              <GhostButton dark={dark} onClick={runSignIn} disabled={authBusy || !email || !password}>{authBusy ? "Working…" : translateUI("Sign In")}</GhostButton>
+              <GhostButton dark={dark} onClick={runSignUp} disabled={authBusy || !email || !password}>{authBusy ? translateUI("Working…") : "Sign Up"}</GhostButton>
+              <GhostButton dark={dark} onClick={runSignIn} disabled={authBusy || !email || !password}>{authBusy ? translateUI("Working…") : translateUI("Sign In")}</GhostButton>
             </div>
             {authResult && (
               <div className="text-xs mt-2" style={{ color: authResult.ok ? C.lime : (authResult.reachable ? C.yellow : "#FF6B85") }}>
@@ -10001,7 +10008,7 @@ function SupabaseTestPanel({ dark }) {
             <div className="mt-3">
               {crudResults.map((r, i) => (
                 <div key={i} className="mb-3 pb-3" style={{ borderBottom: i < crudResults.length - 1 ? `1px solid ${dark ? C.borderDark : C.borderLight}` : "none" }}>
-                  <div className="text-xs font-bold mb-1" style={{ color: r.ok ? C.lime : "#FF6B85" }}>{r.table} — {r.ok ? "PASS" : "FAILED"}</div>
+                  <div className="text-xs font-bold mb-1" style={{ color: r.ok ? C.lime : "#FF6B85" }}>{r.table} — {r.ok ? "PASS" : translateUI("FAILED")}</div>
                   {r.steps.map((s, j) => (
                     <div key={j} className="text-xs" style={{ color: s.ok === false ? "#FF6B85" : s.ok === null ? C.yellow : (dark ? C.textMutedDark : C.textMutedLight) }}>
                       {s.step}: {s.detail}
@@ -10074,7 +10081,7 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
   };
 
   return (
-    <Modal title={user ? "Edit User" : translateUI("Add Staff Login")} onClose={onClose} dark={dark} wide>
+    <Modal title={user ? translateUI("Edit User") : translateUI("Add Staff Login")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Username")}><Input dark={dark} value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
@@ -10120,13 +10127,13 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
       <div className="flex gap-2">
         {user && (
           <GhostButton dark={dark} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
-            {user.active === false ? "Reactivate" : translateUI("Deactivate")}
+            {user.active === false ? translateUI("Reactivate") : translateUI("Deactivate")}
           </GhostButton>
         )}
-        <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? "Saving…" : translateUI("Save")}</PrimaryButton>
+        <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save")}</PrimaryButton>
       </div>
       {confirmingDeactivate && (
-        <ConfirmDialog dark={dark} title={user.active === false ? "Reactivate this login?" : "Deactivate this login?"}
+        <ConfirmDialog dark={dark} title={user.active === false ? translateUI("Reactivate this login?") : translateUI("Deactivate this login?")}
           message={user.active === false ? "They'll be able to log in again." : "They won't be able to log in until reactivated. Their history is kept."}
           confirmLabel={user.active === false ? "Reactivate" : "Deactivate"} onConfirm={deactivate} onCancel={() => setConfirmingDeactivate(false)} />
       )}
