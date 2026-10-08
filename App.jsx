@@ -247,10 +247,10 @@ const seedSettings = () => ({
   allowNegativeInventory: false,
   theme: "dark",
   paymentMethods: ["Cash", "Credit Card", "Debit Card", "Zelle", "Other"],
-  channels: ["Kiosk", "Car/Pop-up", "DoorDash", "Uber Eats", "Website", "WhatsApp", "Other"],
+  channels: ["In Store", "Online", "Delivery", "Other"],
   expenseCategories: ["Ingredients", "Packaging", "Rent", "Payroll", "Utilities", "Gas", "Marketing", "Delivery Fees", "Equipment", "Maintenance", "Supplies", "Taxes", "Other"],
-  productCategories: ["Açaí", "Smoothies", "Gelato", "Toppings", "Drinks", "Other"],
-  inventoryCategories: ["Açaí", "Fruit", "Toppings", "Packaging", "Drinks", "Cleaning Supplies", "Other"],
+  productCategories: ["Products", "Services", "Other"],
+  inventoryCategories: ["Supplies", "Packaging", "Other"],
   units: ["Units", "Pieces", "Liters", "Gallons", "Kilograms", "Pounds", "Ounces", "Boxes", "Packages"],
 });
 
@@ -3572,7 +3572,7 @@ function navAllowed(user, tabId) {
 // stack N notifications. Distinguishes "initial" (this data has never loaded — nothing shown for
 // it is real yet) from "reload" (data shown may now be stale, but is not fabricated/fake).
 function DataLoadBanner({ dark, errors }) {
-  const { interpolateUI } = useLanguage();
+  const { interpolateUI , translateUI} = useLanguage();
   const entries = Object.entries(errors || {});
   if (entries.length === 0) return null;
   const initialCount = entries.filter(([, v]) => v.kind === "initial").length;
@@ -3587,7 +3587,7 @@ function DataLoadBanner({ dark, errors }) {
       <div className="space-y-0.5" style={{ opacity: 0.85 }}>
         {entries.map(([key, v]) => (
           <div key={key}>
-            {key}: {v.kind === "initial" ? "failed to load" : "last refresh failed — showing previously loaded data"}
+            {key}: {v.kind === "initial" ? translateUI("failed to load") : translateUI("last refresh failed — showing previously loaded data")}
           </div>
         ))}
       </div>
@@ -4050,7 +4050,7 @@ function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
         <div className="flex flex-col items-center gap-2 mb-7">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center font-black text-2xl" style={{ background: `linear-gradient(135deg, ${C.purple500}, ${C.purple700})`, color: C.lime, border: `2px solid ${C.lime}` }}>N</div>
           <div className="font-black text-xl tracking-[0.16em]" style={{ color: dark ? C.white : C.black }}>NEXALVO</div>
-          <div className="text-xs font-semibold" style={{ color: C.yellow }}>{done ? "PASSWORD UPDATED" : "SET A NEW PASSWORD"}</div>
+          <div className="text-xs font-semibold" style={{ color: C.yellow }}>{done ? translateUI("PASSWORD UPDATED") : translateUI("SET A NEW PASSWORD")}</div>
         </div>
 
         {done ? (
@@ -4352,7 +4352,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
             {cashRegisterBreakdown(historyDetail, cashTx).movements.map((m) => (
               <div key={m.id} className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-xs" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
                 <div>
-                  <div className="font-semibold" style={{ color: dark ? C.white : C.black }}>{m.category}</div>
+                  <div className="font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI(m.category)}</div>
                   <div style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{timeStr(m.date)} · {m.description}</div>
                 </div>
                 <div className="font-bold" style={{ color: m.type === "income" ? C.lime : "#FF6B85" }}>{m.type === "income" ? "+" : "-"}{fmtMoney(m.amount)}</div>
@@ -4609,7 +4609,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
               </div>
             )}
             {!activeRegister && (
-              <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Tap to")}{" "}{can("manageCashRegister") ? "open the register" : translateUI("view register status")}.</div>
+              <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Tap to")}{" "}{can("manageCashRegister") ? translateUI("open the register") : translateUI("view register status")}.</div>
             )}
           </Card>
         );
@@ -4915,7 +4915,7 @@ function OrderCard({ dark, sale, customerName, tick, onAdvance, advancingId }) {
         <div>
           <div className="font-extrabold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Order #")}{sale.orderNo}</div>
           <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-            {timeStr(sale.date)} · {sale.channel}{sale.location ? ` · ${sale.location}` : ""}
+            {timeStr(sale.date)} · {translateUI(sale.channel)}{sale.location ? ` · ${sale.location}` : ""}
           </div>
         </div>
         {sale.status === "cancelled" ? (
@@ -5055,7 +5055,7 @@ function SalesView({ dark, sales, persistSales, products, inventory, setInventor
           <ListRow key={s.id} dark={dark} onClick={() => setViewing(s)}
             title={interpolateUI("Order #{0} · {1}",[s.orderNo,s.channel])}
             subtitle={`${dateStr(s.date)} ${timeStr(s.date)} · ${s.items.map((i) => `${i.qty}× ${i.name}`).join(", ")}`}
-            badge={s.status === "cancelled" ? <Badge dark={dark} tone="danger">{getPaymentStatus(s) === "failed" ? "PAYMENT FAILED" : translateUI("CANCELLED")}</Badge> : (s.fulfillmentStatus && s.fulfillmentStatus !== "Completed" ? <Badge dark={dark} tone={FULFILLMENT_TONE[s.fulfillmentStatus]}>{s.fulfillmentStatus.toUpperCase()}</Badge> : null)}
+            badge={s.status === "cancelled" ? <Badge dark={dark} tone="danger">{getPaymentStatus(s) === "failed" ? translateUI("PAYMENT FAILED") : translateUI("CANCELLED")}</Badge> : (s.fulfillmentStatus && s.fulfillmentStatus !== "Completed" ? <Badge dark={dark} tone={FULFILLMENT_TONE[s.fulfillmentStatus]}>{s.fulfillmentStatus.toUpperCase()}</Badge> : null)}
             right={fmtMoney(s.total)} rightSub={s.paymentMethod} />
         ))}
       </Card>
@@ -5273,10 +5273,10 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
 
   return (
     <Modal title={interpolateUI("Order #{0}",[sale.orderNo])} onClose={onClose} dark={dark}>
-      {cancelled && <div className="mb-3"><Badge dark={dark} tone="danger">{getPaymentStatus(sale) === "failed" ? "PAYMENT FAILED" : translateUI("CANCELLED")} {sale.cancelledAt ? `· ${dateStr(sale.cancelledAt)}` : ""}</Badge></div>}
+      {cancelled && <div className="mb-3"><Badge dark={dark} tone="danger">{getPaymentStatus(sale) === "failed" ? translateUI("PAYMENT FAILED") : translateUI("CANCELLED")} {sale.cancelledAt ? `· ${dateStr(sale.cancelledAt)}` : ""}</Badge></div>}
       {!cancelled && <div className="mb-3"><Badge dark={dark} tone={FULFILLMENT_TONE[fulfillment]}>{fulfillment.toUpperCase()}</Badge></div>}
       <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        {dateStr(sale.date)} {timeStr(sale.date)} · {sale.channel} · {locationLabel(sale, locations)} · {sale.paymentMethod}
+        {dateStr(sale.date)} {timeStr(sale.date)} · {translateUI(sale.channel)} · {locationLabel(sale, locations)} · {translateUI(sale.paymentMethod)}
       </div>
       <div className="rounded-2xl p-3 mb-3" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
         {sale.items.map((it, idx) => (
@@ -5647,7 +5647,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
               <Check size={28} color={C.black} />
             </div>
             <div className="font-extrabold text-lg" style={{ color: dark ? C.white : C.black }}>{translateUI("Payment Successful")}</div>
-            <div className="text-sm text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Order #")}{completedSale.orderNo} · {fmtMoney(completedSale.total)} · {completedSale.paymentMethod}
+            <div className="text-sm text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Order #")}{completedSale.orderNo} · {fmtMoney(completedSale.total)} · {translateUI(completedSale.paymentMethod)}
             </div>
           </div>
           <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("PRINT OPTIONS")}</div>
@@ -5669,7 +5669,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         // above). Clearly labeled as a development/testing surface; never fakes a Stripe
         // PaymentIntent or claims a real payment processor approved anything.
         <div>
-          <div className="mb-3"><Badge dark={dark} tone="warn">{paymentPhase === "connecting" ? "CONNECTING…" : paymentPhase === "settling" ? "FINALIZING…" : "PAYMENT SIMULATOR"}</Badge></div>
+          <div className="mb-3"><Badge dark={dark} tone="warn">{paymentPhase === "connecting" ? translateUI("CONNECTING…") : paymentPhase === "settling" ? translateUI("FINALIZING…") : translateUI("PAYMENT SIMULATOR")}</Badge></div>
           <div className="text-sm mb-2 font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Card payment of")}{fmtMoney(pendingCardSale.total)}{" "}{translateUI("for Order #")}{pendingCardSale.orderNo}
           </div>
           <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
@@ -5898,7 +5898,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
           </div>
           {expiringList.map((i) => (
             <ListRow key={i.id} dark={dark} title={i.name}
-              subtitle={i._expiry === "EXPIRED" ? `Expired ${dateStr(i.expiresAt)}` : `Expires ${dateStr(i.expiresAt)}`}
+              subtitle={i._expiry === translateUI("EXPIRED") ? `Expired ${dateStr(i.expiresAt)}` : `Expires ${dateStr(i.expiresAt)}`}
               right={<Badge dark={dark} tone={EXPIRY_TONE[i._expiry]}>{EXPIRY_LABEL[i._expiry]}</Badge>} />
           ))}
         </Card>
@@ -5914,7 +5914,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
             <div key={i.id} className="flex items-center justify-between py-2 border-b last:border-b-0 gap-2" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <div className="min-w-0">
                 <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
-                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Current")}{" "}{i.qty}{" "}{translateUI("· Recommended purchase")}{" "}{suggestedOrderQty(i)} {i.unit}</div>
+                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Current")}{" "}{i.qty}{" "}{translateUI("· Recommended purchase")}{" "}{suggestedOrderQty(i)} {translateUI(i.unit)}</div>
               </div>
               {can("managePurchases") && !inventoryOps?.remote && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setQuickPO(i)}>{translateUI("Create Purchase")}</GhostButton>}
             </div>
@@ -5929,11 +5929,11 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
               <div className="min-w-0" onClick={() => openAction("history", i)}>
                 <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                  {i.category} · {i.qty} {i.unit}{i.location ? " · " + i.location : ""}{can("viewFinancials") ? interpolateUI(" · avg {0}/{1}",[fmtMoney(i.costPerUnit),i.unit]) : ""}
+                  {translateUI(i.category)} · {i.qty} {translateUI(i.unit)}{i.location ? " · " + i.location : ""}{can("viewFinancials") ? interpolateUI(" · avg {0}/{1}",[fmtMoney(i.costPerUnit),i.unit]) : ""}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                {i._status !== "NORMAL" && <Badge dark={dark} tone={STOCK_STATUS_TONE[i._status]}>{STOCK_STATUS_LABEL[i._status]}</Badge>}
+                {i._status !== translateUI("NORMAL") && <Badge dark={dark} tone={STOCK_STATUS_TONE[i._status]}>{STOCK_STATUS_LABEL[i._status]}</Badge>}
                 {i._expiry && <Badge dark={dark} tone={EXPIRY_TONE[i._expiry]}>{EXPIRY_LABEL[i._expiry]}</Badge>}
               </div>
             </div>
@@ -6079,7 +6079,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
 
 
 function InventoryTransferModal({ dark, item, locations, inventoryOps, can, showToast, onClose }) {
-  const { translateUI } = useLanguage();
+  const { translateUI , interpolateUI} = useLanguage();
   const activeLocations = (locations || []).filter((l) => l.active !== false);
   const [fromId, setFromId] = useState(item.locationId || activeLocations[0]?.id || "");
   const [toId, setToId] = useState(activeLocations.find((l) => l.id !== item.locationId)?.id || "");
@@ -6109,7 +6109,7 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
     <div className="text-sm font-bold mb-3">{item.name}</div>
     <Field dark={dark} label={translateUI("From Location")}><Select dark={dark} value={fromId} onChange={(e) => setFromId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
     <Field dark={dark} label={translateUI("To Location")}><Select dark={dark} value={toId} onChange={(e) => setToId(e.target.value)}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select></Field>
-    <Field dark={dark} label={"Quantity (" + item.unit + ") - available " + available}><Input dark={dark} type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
+    <Field dark={dark} label={interpolateUI("Quantity ({0}) - available {1}",[translateUI(item.unit),available])}><Input dark={dark} type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
     <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
     {error && <div role="alert" className="text-sm mb-3" style={{ color: "#FF6B85" }}>{translateUI(error)}</div>}
     <PrimaryButton full disabled={submitting} onClick={submit}>{submitting ? translateUI("Transferring?") : translateUI("Transfer Stock")}</PrimaryButton>
@@ -6296,7 +6296,7 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
           {inventory.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
         </Select>
       </Field>
-      {inventoryOps?.remote && <Field dark={dark} label={translateUI("Location")}><Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setNewQty(currentBase.stocks?.find((s) => s.locationId === e.target.value)?.qty ?? 0); }}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><div className="text-xs mt-1">{translateUI("Available:")}{" "}{current.qty} {current.unit}</div></Field>}
+      {inventoryOps?.remote && <Field dark={dark} label={translateUI("Location")}><Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setNewQty(currentBase.stocks?.find((s) => s.locationId === e.target.value)?.qty ?? 0); }}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><div className="text-xs mt-1">{translateUI("Available:")}{" "}{current.qty} {translateUI(current.unit)}</div></Field>}
       {mode !== "adjust" ? (
         <Field dark={dark} label={interpolateUI("Quantity ({0})",[current.unit])}>
           <Input dark={dark} type="number" min="0.01" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} />
@@ -6307,7 +6307,7 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
             <Input dark={dark} type="number" min="0" step="0.01" value={newQty} onChange={(e) => setNewQty(e.target.value)} />
           </Field>
           {diff !== 0 && (
-            <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: diff > 0 ? "#1E3A0F" : "#3A0F1E", color: diff > 0 ? C.lime : "#FF6B85" }}>{translateUI("Difference:")}{diff > 0 ? "+" : ""}{diff} {current.unit}
+            <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: diff > 0 ? "#1E3A0F" : "#3A0F1E", color: diff > 0 ? C.lime : "#FF6B85" }}>{translateUI("Difference:")}{diff > 0 ? "+" : ""}{diff} {translateUI(current.unit)}
             </div>
           )}
           <Field dark={dark} label={translateUI("Reason")}>
@@ -6493,7 +6493,7 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
                   <div className="min-w-0">
                     <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{r.item.name}</div>
                     <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-                      {r.quantity} {r.unit}{" "}{translateUI("on hand ·")}{" "}{r.daysRemaining !== null ? interpolateUI("~{0}d remaining",[r.daysRemaining]) : "no usage data"}{" "}{translateUI("· Suggest")}{" "}{r.recommendedQty} {r.unit}
+                      {r.quantity} {translateUI(r.unit)}{" "}{translateUI("on hand ·")}{" "}{r.daysRemaining !== null ? interpolateUI("~{0}d remaining",[r.daysRemaining]) : translateUI("no usage data")}{" "}{translateUI("· Suggest")}{" "}{r.recommendedQty} {translateUI(r.unit)}
                     </div>
                   </div>
                   <Badge dark={dark} tone={STOCK_STATUS_TONE[r.status]}>{STOCK_STATUS_LABEL[r.status]}</Badge>
@@ -6635,7 +6635,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
           <div key={idx} className="flex gap-2 mb-2 items-end">
             <div className="flex-1">
               <Select dark={dark} value={it.itemId} onChange={(e) => { const ni = inventory.find((i) => i.id === e.target.value); updateItem(idx, { itemId: e.target.value, unitCost: ni?.costPerUnit ?? it.unitCost }); }}>
-                {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
+                {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)})</option>)}
               </Select>
             </div>
             <div className="w-20"><Input dark={dark} type="number" min="0.01" step="0.01" value={it.qty} onChange={(e) => updateItem(idx, { qty: Math.max(0, Number(e.target.value)) })} /></div>
@@ -6835,7 +6835,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
             <div key={l.id} className="py-2 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <Row dark={dark} label={`${invItem?.name || l.itemId} — ${l.qty} × ${fmtMoney(l.unitCost)}`} value={fmtMoney(poLineTotal(l))} />
               <div className="text-xs" style={{ color: remaining > 0 ? C.yellow : C.lime }}>
-                {l.receivedQty}{" "}{translateUI("of")}{" "}{l.qty} {l.unit}{" "}{translateUI("received")}{remaining > 0 ? interpolateUI(" · {0} remaining",[remaining]) : " · complete"}
+                {l.receivedQty}{" "}{translateUI("of")}{" "}{l.qty} {translateUI(l.unit)}{" "}{translateUI("received")}{remaining > 0 ? interpolateUI(" · {0} remaining",[remaining]) : translateUI(" · complete")}
               </div>
             </div>
           );
@@ -6856,8 +6856,8 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
           {payments.map((p) => (
             <div key={p.id} className="flex items-center justify-between py-2 border-b last:border-b-0 gap-2" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <div className="min-w-0">
-                <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(p.amount)} · {p.paymentMethod}</div>
-                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(p.date)}{p.status === "reversed" ? " · reversed" : ""}</div>
+                <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(p.amount)} · {translateUI(p.paymentMethod)}</div>
+                <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(p.date)}{p.status === "reversed" ? translateUI(" · reversed") : ""}</div>
               </div>
               {p.status !== "reversed" && !reversed && can("paySuppliers") && (
                 <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setReversingPaymentId(p.id)}>
@@ -7203,7 +7203,7 @@ function ProductsView({ dark, products, setProducts, inventory, settings, curren
                 <div className="font-extrabold text-sm" style={{ color: dark ? C.white : C.black }}>{fmtMoney(p.price)}</div>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{p.category}{canSeeCost ? interpolateUI(" · Cost {0}",[fmtMoney(cost)]) : ""}</span>
+                <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI(p.category)}{canSeeCost ? interpolateUI(" · Cost {0}",[fmtMoney(cost)]) : ""}</span>
                 {canSeeCost && <span className="text-xs font-bold" style={{ color: margin >= 40 ? C.lime : margin >= 20 ? C.yellow : "#FF6B85" }}>{translateUI("Margin")}{" "}{fmtPct(margin)}</span>}
               </div>
               {!p.active && <Badge dark={dark} tone="warn">{translateUI("INACTIVE")}</Badge>}
@@ -7335,7 +7335,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
         <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
           <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {settings.productCategories.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}
+            {[...new Set([category, ...settings.productCategories].filter(Boolean))].map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Selling Price ($)")}><Input dark={dark} type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
@@ -7354,7 +7354,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
           <div key={idx} className="flex gap-2 mb-2 items-end">
             <div className="flex-1">
               <Select dark={dark} value={r.itemId} onChange={(e) => updateIngredient(idx, { itemId: e.target.value })}>
-                {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
+                {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)})</option>)}
               </Select>
             </div>
             <div className="w-24"><Input dark={dark} type="number" step="0.01" value={r.qty} onChange={(e) => updateIngredient(idx, { qty: Number(e.target.value) })} /></div>
@@ -7714,7 +7714,7 @@ function LocationsView({ dark, locations, setLocations, inventory, sales, employ
               <div className="flex items-center justify-between mb-1">
                 <div className="min-w-0">
                   <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{l.name}</div>
-                  <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{l.type || "Location"}{inUse ? " · has history" : ""}</div>
+                  <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{l.type || "Location"}{inUse ? translateUI(" · has history") : ""}</div>
                 </div>
                 {l.active === false && <Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge>}
               </div>
@@ -8087,7 +8087,7 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
           <div key={s.id} className="py-2 border-b last:border-b-0 cursor-pointer flex items-center justify-between" style={{ borderColor: dark ? C.borderDark : C.borderLight }} onClick={() => setViewingSale(s)}>
             <div>
               <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Order #")}{s.orderNo} {s.status === "cancelled" && <span style={{ color: "#FF6B85" }}>{translateUI("· CANCELLED")}</span>}</div>
-              <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(s.date)} · {s.location || "—"} · {s.paymentMethod}</div>
+              <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(s.date)} · {s.location || "—"} · {translateUI(s.paymentMethod)}</div>
             </div>
             <div className="text-sm font-bold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(s.total)}</div>
           </div>
@@ -8100,7 +8100,7 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
           <div key={t.id} className="py-1.5 border-b last:border-b-0 text-xs" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
             <div className="flex items-center justify-between">
               <span className="font-semibold" style={{ color: dark ? C.white : C.black }}>
-                {LOYALTY_DIRECTION[t.type] > 0 ? "+" : "-"}{t.points} {LOYALTY_LABEL[t.type] || t.type}{t.saleId ? interpolateUI(" · Order",[]) : ""}
+                {LOYALTY_DIRECTION[t.type] > 0 ? "+" : "-"}{t.points} {translateUI(LOYALTY_LABEL[t.type] || t.type)}{t.saleId ? interpolateUI(" · Order",[]) : ""}
               </span>
               <span style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(t.createdAt)}</span>
             </div>
@@ -8467,7 +8467,7 @@ function EmployeesView({ dark, employees, setEmployees, locations, tasks, persis
               <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("View clock status, shift history, and performance for any staff member.")}</div>
               <Select dark={dark} value="" onChange={(e) => e.target.value && setDetailEmployeeId(e.target.value)}>
                 <option value="">{translateUI("Select an employee…")}</option>
-                {visibleEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? " (inactive)" : ""}</option>)}
+                {visibleEmployees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? translateUI(" (inactive)") : ""}</option>)}
               </Select>
             </Card>
           )}
@@ -8531,7 +8531,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Tasks")} sub={interpolateUI("{0} open{1}",[baseTasks.filter((t) => t.status !== "done").length,!canManage ? " · assigned to me" : ""])}
+      <SectionHeader dark={dark} title={translateUI("Tasks")} sub={interpolateUI("{0} open{1}",[baseTasks.filter((t) => t.status !== "done").length,!canManage ? translateUI(" · assigned to me") : ""])}
         action={canManage ? <PrimaryButton onClick={() => { setEditing(null); setModal(true); }}><Plus size={16} />{" "}{translateUI("New Task")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -8618,7 +8618,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
         <div className="grid grid-cols-2 gap-3">
           <Field dark={dark} label={translateUI("Assign To")}>
             <Select dark={dark} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
-              {employees.filter((e) => e.active !== false || e.id === task?.assignedTo).map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? " (inactive)" : ""}</option>)}
+              {employees.filter((e) => e.active !== false || e.id === task?.assignedTo).map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? translateUI(" (inactive)") : ""}</option>)}
             </Select>
           </Field>
           <Field dark={dark} label={translateUI("Due Date")}><Input dark={dark} type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} /></Field>
@@ -9719,6 +9719,34 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 }
 
 /* ============================== SETTINGS ============================== */
+
+function SettingsListEditor({ dark, label, values, onChange }) {
+  const { translateUI, interpolateUI } = useLanguage();
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const add = () => {
+    const value = draft.trim();
+    if (!value) { setError("Enter a name before adding."); return; }
+    if (value.length > 80) { setError("Use a name with up to 80 characters."); return; }
+    if (values.some(item => item.toLowerCase() === value.toLowerCase())) { setError("This name is already in the list."); return; }
+    onChange([...values, value]); setDraft(""); setError("");
+  };
+  return <Card dark={dark} className="mb-3">
+    <div className="text-sm font-bold mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI(label)}</div>
+    <div className="flex flex-wrap gap-2 mb-3">
+      {values.map(value => <div key={value} className="flex items-center gap-1 rounded-xl px-2 py-1 text-xs" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, color: dark ? C.white : C.black }}>
+        <span className="break-all min-w-0">{translateUI(value)}</span>
+        <button type="button" disabled={values.length <= 1} aria-label={interpolateUI("Remove {0}",[value])} onClick={() => onChange(values.filter(item => item !== value))} className="p-1 disabled:opacity-30"><X size={12} /></button>
+      </div>)}
+    </div>
+    <div className="flex gap-2">
+      <Input dark={dark} aria-label={translateUI(label)} value={draft} maxLength={80} placeholder={translateUI("Add a custom name")} onChange={event => { setDraft(event.target.value); setError(""); }} />
+      <GhostButton dark={dark} onClick={add}><Plus size={14} />{translateUI("Add")}</GhostButton>
+    </div>
+    {error && <div role="alert" className="text-xs mt-2" style={{ color: "#FF6B85" }}>{translateUI(error)}</div>}
+  </Card>;
+}
+
 function SettingsView({ dark, settings, setSettings, settingsUnavailable, users, setUsers, inviteUser, employees, locations, setLocations, inventory, sales, currentUser, can, auditLog, setAuditLog, showToast, onLogout }) {
   const { translateUI } = useLanguage();
   const [form, setForm] = useState(settings);
@@ -9755,7 +9783,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("My Account")}</div>
         <Row dark={dark} label={translateUI("Name")} value={currentUser.name} />
-        <Row dark={dark} label={translateUI("Role")} value={currentUser.role === "OWNER" ? "Owner (full access)" : translateUI(roleLabel(currentUser.role))} />
+        <Row dark={dark} label={translateUI("Role")} value={currentUser.role === "OWNER" ? translateUI("Owner (full access)") : translateUI(roleLabel(currentUser.role))} />
         <div className="mt-3"><GhostButton dark={dark} onClick={onLogout}><LogOut size={15} />{translateUI("Log Out")}</GhostButton></div>
       </Card>
 
@@ -9787,6 +9815,14 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
           </div>
           <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Off by default. When off, a sale is blocked if it would exceed available stock.")}</div>
         </Card>
+
+        <div className="mt-4 mb-3">
+          <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Business lists")}</div>
+          <div className="text-xs mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Customize these options for your business. Removing an option does not change existing records. Save Settings applies your changes.")}</div>
+        </div>
+        {[["productCategories", "Product categories"], ["inventoryCategories", "Inventory categories"], ["channels", "Sales channels"], ["paymentMethods", "Payment methods"], ["expenseCategories", "Expense categories"], ["units", "Units"]].map(([key, label]) => (
+          <SettingsListEditor key={key} dark={dark} label={label} values={form[key] || []} onChange={values => setForm(current => ({ ...current, [key]: values }))} />
+        ))}
       </fieldset>
 
       {settingsUnavailable && (
@@ -9937,16 +9973,13 @@ function SupabaseTestPanel({ dark }) {
     <div className="mt-8 pt-6" style={{ borderTop: `1px dashed ${dark ? C.borderDark : C.borderLight}` }}>
       <div className="flex items-center gap-2 mb-1">
         <ShieldAlert size={16} color={C.yellow} />
-        <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>Supabase Connection (Owner QA)</div>
+        <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Supabase Connection (Owner QA)")}</div>
       </div>
-      <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        Owner-only QA utility. The main application uses tenant-scoped Supabase data and protected RPCs for transactional modules.
-        Rows created here are synthetic test records and are deactivated after the CRUD check.
-      </div>
+      <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Owner-only QA utility. The main application uses tenant-scoped Supabase data and protected RPCs for transactional modules.\n        Rows created here are synthetic test records and are deactivated after the CRUD check.")}</div>
 
       <Card dark={dark} className="mb-3">
-        <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>1. Connectivity check</div>
-        <GhostButton dark={dark} onClick={runPing} disabled={pinging}>{pinging ? translateUI("Checking…") : "Test Connection"}</GhostButton>
+        <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("1. Connectivity check")}</div>
+        <GhostButton dark={dark} onClick={runPing} disabled={pinging}>{pinging ? translateUI("Checking…") : translateUI("Test Connection")}</GhostButton>
         {pingResult && (
           <div className="text-xs mt-2" style={{ color: pingResult.reachable ? C.lime : "#FF6B85" }}>
             {pingResult.reachable ? `Reachable — HTTP ${pingResult.status}` : `Not reachable — ${pingResult.error}`}
@@ -9955,25 +9988,25 @@ function SupabaseTestPanel({ dark }) {
       </Card>
 
       <Card dark={dark} className="mb-3">
-        <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>2. Real Supabase Auth account</div>
+        <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("2. Real Supabase Auth account")}</div>
         {session ? (
           <>
-            <div className="text-xs mb-2" style={{ color: C.lime }}>Signed in as {session.user?.email} · uid: {session.user?.id}</div>
-            <GhostButton dark={dark} onClick={runSignOut}>Sign Out</GhostButton>
+            <div className="text-xs mb-2" style={{ color: C.lime }}>{translateUI("Signed in as")}{session.user?.email} · uid: {session.user?.id}</div>
+            <GhostButton dark={dark} onClick={runSignOut}>{translateUI("Sign Out")}</GhostButton>
           </>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <Input dark={dark} type="email" placeholder="test@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-              <Input dark={dark} type="password" placeholder="password (6+ chars)" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Input dark={dark} type="password" placeholder={translateUI("password (6+ chars)")} value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div className="flex gap-2">
-              <GhostButton dark={dark} onClick={runSignUp} disabled={authBusy || !email || !password}>{authBusy ? translateUI("Working…") : "Sign Up"}</GhostButton>
+              <GhostButton dark={dark} onClick={runSignUp} disabled={authBusy || !email || !password}>{authBusy ? translateUI("Working…") : translateUI("Sign Up")}</GhostButton>
               <GhostButton dark={dark} onClick={runSignIn} disabled={authBusy || !email || !password}>{authBusy ? translateUI("Working…") : translateUI("Sign In")}</GhostButton>
             </div>
             {authResult && (
               <div className="text-xs mt-2" style={{ color: authResult.ok ? C.lime : (authResult.reachable ? C.yellow : "#FF6B85") }}>
-                {authResult.kind === "signup" && authResult.ok && authResult.confirmed && "Account created and signed in immediately (auto-confirm is on for this project)."}
+                {authResult.kind === "signup" && authResult.ok && authResult.confirmed && translateUI("Account created and signed in immediately (auto-confirm is on for this project).")}
                 {authResult.kind === "signup" && authResult.ok && !authResult.confirmed && authResult.message}
                 {!authResult.ok && authResult.reachable && `Endpoint reachable: ${authResult.error}`}
                 {!authResult.ok && !authResult.reachable && `Not reachable — ${authResult.error}`}
@@ -9985,13 +10018,11 @@ function SupabaseTestPanel({ dark }) {
 
       {session && (
         <Card dark={dark} className="mb-3">
-          <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>3. One-time bootstrap (manual — required, see explanation)</div>
+          <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("3. One-time bootstrap (manual — required, see explanation)")}</div>
           <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-            <code>businesses</code> has no INSERT policy for the anon-key client by design — creating one is deliberately not self-service.
-            Run this once in the Supabase SQL Editor (which uses your project-owner credentials, bypassing RLS), then paste the returned business id below.
-          </div>
+            <code>businesses</code>{translateUI("has no INSERT policy for the anon-key client by design — creating one is deliberately not self-service.\n            Run this once in the Supabase SQL Editor (which uses your project-owner credentials, bypassing RLS), then paste the returned business id below.")}</div>
           <pre className="text-xs p-3 rounded-xl overflow-x-auto mb-2" style={{ background: dark ? C.surfaceDark : C.bgLight, color: dark ? C.white : C.black, whiteSpace: "pre-wrap" }}>{bootstrapSql}</pre>
-          <Field dark={dark} label="Business ID (paste after running the SQL above)">
+          <Field dark={dark} label={translateUI("Business ID (paste after running the SQL above)")}>
             <Input dark={dark} value={businessId} onChange={(e) => setBusinessId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" />
           </Field>
         </Card>
@@ -9999,11 +10030,9 @@ function SupabaseTestPanel({ dark }) {
 
       {session && businessId && (
         <Card dark={dark} className="mb-3">
-          <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>4. CRUD test — Locations, Suppliers, Employees, Customers</div>
-          <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-            Runs read → create → read-back → update → deactivate (or notes an unavailable step) against each table, using your authenticated session's access token, not the anon key.
-          </div>
-          <GhostButton dark={dark} onClick={runCrudTest} disabled={crudRunning}>{crudRunning ? "Running…" : "Run CRUD Test"}</GhostButton>
+          <div className="text-xs font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("4. CRUD test — Locations, Suppliers, Employees, Customers")}</div>
+          <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Runs read → create → read-back → update → deactivate (or notes an unavailable step) against each table, using your authenticated session's access token, not the anon key.")}</div>
+          <GhostButton dark={dark} onClick={runCrudTest} disabled={crudRunning}>{crudRunning ? translateUI("Running…") : translateUI("Run CRUD Test")}</GhostButton>
           {crudResults && (
             <div className="mt-3">
               {crudResults.map((r, i) => (
@@ -10097,7 +10126,7 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
       <Field dark={dark} label={translateUI("Linked Employee Record")}>
         <Select dark={dark} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
           <option value="">{translateUI("— No linked employee —")}</option>
-          {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? " (inactive)" : ""}</option>)}
+          {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? translateUI(" (inactive)") : ""}</option>)}
         </Select>
       </Field>
       <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Linking connects this login to a staff record, so tasks assigned to")}{employeeId ? (employees.find((e) => e.id === employeeId)?.name || "them") : "them"}{translateUI("show up under \"Assigned to Me\" when they're signed in.")}</div>
