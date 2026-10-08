@@ -4279,8 +4279,8 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
             <Field dark={dark} label={translateUI("Difference Reason (required)")}>
               <Select dark={dark} value={differenceReason} onChange={(e) => setDifferenceReason(e.target.value)}>
                 <option value="">{translateUI("Select a reason…")}</option>
-                <option>{translateUI("Counting mistake")}</option><option>{translateUI("Missing cash")}</option><option>{translateUI("Extra cash found")}</option>
-                <option>{translateUI("Cash drawer adjustment")}</option><option>{translateUI("Other")}</option>
+                <option value="Counting mistake">{translateUI("Counting mistake")}</option><option value="Missing cash">{translateUI("Missing cash")}</option><option value="Extra cash found">{translateUI("Extra cash found")}</option>
+                <option value="Cash drawer adjustment">{translateUI("Cash drawer adjustment")}</option><option value="Other">{translateUI("Other")}</option>
               </Select>
             </Field>
           )}
@@ -5712,12 +5712,12 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            {settings.paymentMethods.map((m) => <option key={m}>{translateUI(m)}</option>)}
+            {settings.paymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Sales Channel")}>
           <Select dark={dark} value={channel} onChange={(e) => setChannel(e.target.value)}>
-            {settings.channels.map((c) => <option key={c}>{translateUI(c)}</option>)}
+            {settings.channels.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Location")}>
@@ -6048,10 +6048,10 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
       <div className="grid grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
-          <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.inventoryCategories.map((c) => <option key={c}>{translateUI(c)}</option>)}</Select>
+          <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.inventoryCategories.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}</Select>
         </Field>
         <Field dark={dark} label={translateUI("Unit")}>
-          <Select dark={dark} value={unit} onChange={(e) => setUnit(e.target.value)}>{settings.units.map((u) => <option key={u}>{translateUI(u)}</option>)}</Select>
+          <Select dark={dark} value={unit} onChange={(e) => setUnit(e.target.value)}>{settings.units.map((u) => <option key={u} value={u}>{translateUI(u)}</option>)}</Select>
         </Field>
         <Field dark={dark} label={translateUI("Starting Quantity")}><Input dark={dark} type="number" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Minimum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
@@ -6311,13 +6311,13 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
             </div>
           )}
           <Field dark={dark} label={translateUI("Reason")}>
-            <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{adjustReasons.map((r) => <option key={r}>{translateUI(r)}</option>)}</Select>
+            <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{adjustReasons.map((r) => <option key={r} value={r}>{translateUI(r)}</option>)}</Select>
           </Field>
         </>
       )}
       {mode === "waste" && (
         <Field dark={dark} label={translateUI("Reason")}>
-          <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{wasteReasons.map((r) => <option key={r}>{translateUI(r)}</option>)}</Select>
+          <Select dark={dark} value={reason} onChange={(e) => setReason(e.target.value)}>{wasteReasons.map((r) => <option key={r} value={r}>{translateUI(r)}</option>)}</Select>
         </Field>
       )}
       <Field dark={dark} label={translateUI("Notes")}>
@@ -6621,7 +6621,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
         </Field>
         <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-            {["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"].map((m) => <option key={m}>{translateUI(m)}</option>)}
+            {["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"].map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Order Date")}><Input dark={dark} type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} /></Field>
@@ -7170,7 +7170,7 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
       <Field dark={dark} label={translateUI("Payment Amount ($)")}><Input dark={dark} type="number" min="0.01" max={due} step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Payment Method")}>
         <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-          {["Cash", "Credit Card", "Debit Card", "Zelle", "Other"].map((m) => <option key={m}>{translateUI(m)}</option>)}
+          {["Cash", "Credit Card", "Debit Card", "Zelle", "Other"].map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
         </Select>
       </Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
@@ -7335,7 +7335,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
         <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
           <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>
-            {settings.productCategories.map((c) => <option key={c}>{translateUI(c)}</option>)}
+            {settings.productCategories.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Selling Price ($)")}><Input dark={dark} type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
@@ -7554,9 +7554,9 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
     <Modal title={translateUI("Add Expense")} onClose={onClose} dark={dark}>
       <Field dark={dark} label={translateUI("Amount ($)")}><Input dark={dark} type="number" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Date")}><Input dark={dark} type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-      <Field dark={dark} label={translateUI("Category")}><Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.expenseCategories.map((c) => <option key={c}>{translateUI(c)}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Category")}><Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.expenseCategories.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}</Select></Field>
       <Field dark={dark} label={translateUI("Vendor")}><Input dark={dark} value={vendor} onChange={(e) => setVendor(e.target.value)} /></Field>
-      <Field dark={dark} label={translateUI("Payment Method")}><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{settings.paymentMethods.map((m) => <option key={m}>{translateUI(m)}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Payment Method")}><Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>{settings.paymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}</Select></Field>
       <Field dark={dark} label={translateUI("Location")}>
         <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
           <option value="">—</option>
@@ -7630,7 +7630,7 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
               <Field dark={dark} key={f.key} label={translateUI(f.label)}>
                 {f.type === "select" ? (
                   <Select dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{translateUI(o.label)}</option> : <option key={o}>{translateUI(o)}</option>))}
+                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{translateUI(o.label)}</option> : <option key={o} value={o}>{translateUI(o)}</option>))}
                   </Select>
                 ) : f.type === "textarea" ? (
                   <TextArea dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
@@ -7762,7 +7762,7 @@ function LocationFormModal({ dark, location, onClose, onSave }) {
       <Field dark={dark} label={translateUI("Location Name")}><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
       <Field dark={dark} label={translateUI("Type")}>
         <Select dark={dark} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-          {["Retail", "Mobile", "Prep", "Storage", "Other"].map((t) => <option key={t}>{translateUI(t)}</option>)}
+          {["Retail", "Mobile", "Prep", "Storage", "Other"].map((t) => <option key={t} value={t}>{translateUI(t)}</option>)}
         </Select>
       </Field>
       <div className="flex items-center gap-2 mb-4">
@@ -8625,7 +8625,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
         </div>
         <Field dark={dark} label={translateUI("Priority")}>
           <Select dark={dark} value={priority} onChange={(e) => setPriority(e.target.value)}>
-            {["Low", "Medium", "High"].map((p) => <option key={p}>{translateUI(p)}</option>)}
+            {["Low", "Medium", "High"].map((p) => <option key={p} value={p}>{translateUI(p)}</option>)}
           </Select>
         </Field>
         <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
