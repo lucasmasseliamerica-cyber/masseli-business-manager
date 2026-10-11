@@ -25,13 +25,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: node --test qa/security.test.mjs
-      - name: Upload build artifact
+      - name: Run static security checks and save report
+        shell: bash
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs | tee qa-static-results.tap
+      - name: Upload build and static QA report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nexalvo-build
-          path: dist/
-          retention-days: 7
+          name: nexalvo-build-and-static-qa
+          path: |
+            dist/
+            qa-static-results.tap
+          retention-days: 14
   test-api-smoke:
     needs: build-and-security
     if: github.event_name != 'pull_request'
@@ -47,4 +52,12 @@ jobs:
         with:
           node-version: '22'
       - name: Verify TEST target and run isolated API checks
-        run: node --test qa/api-smoke.mjs qa/concurrency-readonly.test.mjs qa/anonymous-isolation.test.mjs
+        shell: bash
+        run: set -o pipefail; node --test --test-reporter=tap qa/api-smoke.mjs qa/concurrency-readonly.test.mjs qa/anonymous-isolation.test.mjs | tee qa-api-results.tap
+      - name: Upload API QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-api-qa-report
+          path: qa-api-results.tap
+          retention-days: 14
