@@ -1,0 +1,52 @@
+name: NEXALVO TEST - QA
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 10 * * *'
+  push:
+    branches: [automation/nexalvo-qa-actions]
+    paths:
+      - '.github/workflows/nexalvo-test.yml'
+      - 'qa/**'
+      - 'src/**'
+      - 'package*.json'
+permissions:
+  contents: read
+concurrency:
+  group: nexalvo-test-qa
+  cancel-in-progress: false
+jobs:
+  build-and-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --test qa/*.test.mjs
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-build
+          path: dist/
+          retention-days: 7
+  test-api-smoke:
+    needs: build-and-security
+    if: github.event_name != 'pull_request'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify TEST target and run isolated API checks
+        run: node --test qa/api-smoke.mjs
