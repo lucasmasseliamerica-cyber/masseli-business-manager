@@ -47,4 +47,4 @@ jobs:
         with:
           node-version: '22'
       - name: Verify TEST target and run isolated API checks
-        run: node --test qa/api-smoke.mjs qa/concurrency-readonly.test.mjs
+        run: node --test qa/api-smoke.mjs qa/concurrency-readonly.test.mjs qa/anonymous-isolation.test.mjs
