@@ -53,7 +53,7 @@ jobs:
           node-version: '22'
       - name: Verify TEST target and run isolated API checks
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/api-smoke.mjs qa/concurrency-readonly.test.mjs qa/anonymous-isolation.test.mjs | tee qa-api-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/api-smoke.mjs qa/concurrency-readonly.test.mjs qa/anonymous-isolation.test.mjs qa/invalid-jwt.test.mjs | tee qa-api-results.tap
       - name: Upload API QA report
         if: always()
         uses: actions/upload-artifact@v4
