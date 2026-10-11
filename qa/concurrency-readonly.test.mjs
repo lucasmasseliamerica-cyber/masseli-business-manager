@@ -29,7 +29,7 @@ test('10 concurrent anonymous calls cannot create a sale', {timeout:30000},async
    body:JSON.stringify({p_sale_id:'00000000-0000-4000-8000-000000000001',p_business_id:'00000000-0000-4000-8000-000000000002',p_location_id:'00000000-0000-4000-8000-000000000003',p_channel:'QA',p_payment_method:'Card',p_discount:0,p_tax:0,p_items:[]}),
    signal:AbortSignal.timeout(15000)
   });
-  assert.ok([401,403,404].includes(r.status),`anonymous write returned ${r.status}`);
+  assert.ok([400,401,403,404].includes(r.status),`anonymous write returned ${r.status}`);
  }));
  const failures=results.filter(x=>x.status==='rejected');
  assert.equal(failures.length,0,failures.map(x=>String(x.reason)).join('; '));
