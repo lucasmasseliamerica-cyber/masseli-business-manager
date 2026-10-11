@@ -1,6 +1,8 @@
 name: NEXALVO TEST - QA
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '20 10 * * *'
 permissions:
   contents: read
 concurrency:
@@ -40,3 +42,15 @@ jobs:
         with:
           node-version: '22'
       - run: node --test qa/api-smoke.mjs
+  schedule-qa:
+    if: github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Dispatch isolated QA branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run nexalvo-test.yml --repo "${{ github.repository }}" --ref automation/nexalvo-qa-actions
