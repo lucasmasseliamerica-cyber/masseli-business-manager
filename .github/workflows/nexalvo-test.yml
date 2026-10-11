@@ -1,0 +1,42 @@
+name: NEXALVO TEST - QA
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nexalvo-test-qa
+  cancel-in-progress: false
+jobs:
+  build-and-security:
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: node --test qa/*.test.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-build
+          path: dist/
+          retention-days: 7
+  test-api-smoke:
+    needs: build-and-security
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test qa/api-smoke.mjs
