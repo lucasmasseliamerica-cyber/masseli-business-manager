@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 const workflowPath='.github/workflows/nexalvo-test.yml';
 const workflow=readFileSync(workflowPath,'utf8');
-const qaFiles=readdirSync('qa').filter(x=>/\.mjs$/.test(x));
+const qaFiles=readdirSync('qa').filter(x=>/\.mjs$/.test(x) && x!=='security.test.mjs');
 test('QA workflow is confined to isolated branch and TEST environment',()=>{
  assert.match(workflow,/branches:\s*\[automation\/nexalvo-qa-actions\]/);
  assert.match(workflow,/permissions:\s*\n\s*contents: read/);
