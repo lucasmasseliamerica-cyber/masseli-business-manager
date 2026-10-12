@@ -26,3 +26,15 @@ test('concurrency scripts enforce exact TEST hostname before network access',()=
   assert.match(body,/\.hostname/,file);
  }
 });
+
+test('root App.jsx mirrors src/App.jsx to prevent deployment drift',()=>{
+ const root=readFileSync('App.jsx','utf8');
+ const src=readFileSync('src/App.jsx','utf8');
+ assert.equal(root,src,'Keep both required frontend copies byte-for-byte identical');
+});
+test('frontend Supabase configuration is injected via Vite, not hard-coded',()=>{
+ const body=readFileSync('src/App.jsx','utf8');
+ assert.match(body,/import\.meta\.env\.VITE_SUPABASE_URL/);
+ assert.match(body,/import\.meta\.env\.VITE_SUPABASE_ANON_KEY/);
+ assert.doesNotMatch(body,/https:\/\/ebhlfghbdfqgrgmtzpti\.supabase\.co/);
+});
