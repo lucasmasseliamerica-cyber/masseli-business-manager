@@ -23,6 +23,15 @@ async function call(conf,path,options={}){
 }
 test('TEST-only authentication sessions: independent login, refresh rotation and revoked refresh after logout',{skip,timeout:120000},async t=>{
  const conf=cfg();
+ await t.test('anonymous caller cannot retrieve private auth identity',async()=>{
+  const r=await call(conf,'/auth/v1/user',{method:'GET'});
+  assert.ok([401,403].includes(r.status),'Expected auth rejection, got HTTP '+r.status);
+ });
+ await t.test('forged refresh token cannot start a new session',async()=>{
+  const r=await call(conf,'/auth/v1/token?grant_type=refresh_token',{body:{refresh_token:'qa-invalid-refresh-token-do-not-authenticate'}});
+  assert.ok([400,401,403].includes(r.status),'Invalid refresh unexpectedly accepted HTTP '+r.status);
+  assert.equal(Boolean(r.value?.access_token),false,'Invalid refresh leaked access token');
+ });
  const sessions=[];
  for(const label of ['A','B']){
   await t.test('authenticated login and isolated identity '+label,async()=>{
