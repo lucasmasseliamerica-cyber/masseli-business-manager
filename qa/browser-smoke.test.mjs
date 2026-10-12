@@ -44,6 +44,69 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     await invite.locator('input[name=email]').waitFor({timeout:15000});
    }finally{await invite.close()}
   });
+  await t.test('P0.02 UI: short recovery password is blocked before any account update request',async()=>{
+   const recovery=await browser.newPage();
+   let attempted=0;
+   await recovery.route('**/auth/v1/user',async route=>{
+    if(route.request().method()==='PUT') attempted++;
+    await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({msg:'Invalid token'})});
+   });
+   try{
+    await recovery.goto('http://127.0.0.1:4179/#access_token=QA_FAKE_RECOVERY_TOKEN&type=recovery',{waitUntil:'domcontentloaded'});
+    const fields=recovery.locator('input[type=password]');
+    await fields.first().waitFor({timeout:15000});
+    assert.equal(await fields.count(),2);
+    assert.equal(new URL(recovery.url()).hash,'','Recovery link must not remain in URL');
+    await fields.nth(0).fill('short');
+    await fields.nth(1).fill('short');
+    await recovery.getByText('Set New Password',{exact:true}).last().click();
+    await recovery.getByText(/Password must be at least 8 characters/i).first().waitFor({timeout:10000});
+    assert.equal(attempted,0,'Weak password must not issue PUT /auth/v1/user');
+    assert.equal(await recovery.getByText('PASSWORD UPDATED',{exact:true}).count(),0);
+   }finally{await recovery.close()}
+  });
+  await t.test('P0.02 UI: nonmatching recovery passwords are rejected without a write',async()=>{
+   const recovery=await browser.newPage();
+   let attempted=0;
+   await recovery.route('**/auth/v1/user',async route=>{
+    if(route.request().method()==='PUT') attempted++;
+    await route.fulfill({status:401,contentType:'application/json',body:JSON.stringify({msg:'Invalid token'})});
+   });
+   try{
+    await recovery.goto('http://127.0.0.1:4179/#access_token=QA_FAKE_RECOVERY_TOKEN&type=recovery',{waitUntil:'domcontentloaded'});
+    const fields=recovery.locator('input[type=password]');
+    await fields.first().waitFor({timeout:15000});
+    await fields.nth(0).fill('QA_testing_only_12345');
+    await fields.nth(1).fill('QA_testing_only_DIFFERENT');
+    await recovery.getByText('Set New Password',{exact:true}).last().click();
+    await recovery.getByText(/Passwords don't match/i).first().waitFor({timeout:10000});
+    assert.equal(attempted,0,'Mismatched password must not issue PUT /auth/v1/user');
+    assert.equal(await recovery.getByText('PASSWORD UPDATED',{exact:true}).count(),0);
+   }finally{await recovery.close()}
+  });
+  await t.test('P0.02 UI: forged recovery JWT is refused and cannot confirm a password change',async()=>{
+   const recovery=await browser.newPage();
+   let attempts=0;
+   try{
+    await recovery.route('**/auth/v1/user',async route=>{
+     if(route.request().method()==='PUT') {
+      attempts++;
+      assert.equal(route.request().headers()['authorization'],'Bearer QA_INVALID_NEVER_REAL_TOKEN');
+     }
+     await route.continue();
+    });
+    await recovery.goto('http://127.0.0.1:4179/#access_token=QA_INVALID_NEVER_REAL_TOKEN&type=recovery',{waitUntil:'domcontentloaded'});
+    const fields=recovery.locator('input[type=password]');
+    await fields.first().waitFor({timeout:15000});
+    await fields.nth(0).fill('QA_only_invalid_token_12345');
+    await fields.nth(1).fill('QA_only_invalid_token_12345');
+    await recovery.getByText('Set New Password',{exact:true}).last().click();
+    await recovery.getByText(/invalid|expired|could not update|JWT/i).first().waitFor({timeout:20000});
+    assert.equal(attempts,1,'Only one invalid-token change attempt is expected');
+    assert.equal(await recovery.getByText('PASSWORD UPDATED',{exact:true}).count(),0);
+    assert.equal(new URL(recovery.url()).hash,'','Sensitive hash must be removed');
+   }finally{await recovery.close()}
+  });
   const page=await browser.newPage({viewport:{width:1366,height:768},deviceScaleFactor:1});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:4179/',{waitUntil:'domcontentloaded',timeout:30000});
