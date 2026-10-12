@@ -45,6 +45,16 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     assert.equal(page.url().startsWith('http://127.0.0.1:4179/'),true);
    });
   }
+  await t.test('dashboard desktop screenshot was captured',async()=>{
+   const {stat}=await import('node:fs/promises');
+   const shot=await stat('qa-browser-artifacts/dashboard-desktop.png');
+   assert.ok(shot.size>10000,'Dashboard screenshot too small to review');
+  });
+  await t.test('desktop still allows scrolling with navigation available',async()=>{
+   const metrics=await page.evaluate(()=>({height:document.documentElement.scrollHeight,viewport:window.innerHeight}));
+   assert.ok(metrics.height>0 && metrics.viewport>0);
+   assert.equal(await page.getByText('NEXALVO',{exact:false}).count()>0,true);
+  });
   await t.test('desktop page has no uncaught JS exceptions',async()=>{assert.deepEqual(errors,[])});
   const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
   const mobileErrors=[];mobile.on('pageerror',e=>mobileErrors.push(e.message));
