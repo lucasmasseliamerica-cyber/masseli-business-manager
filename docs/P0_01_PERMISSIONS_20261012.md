@@ -55,3 +55,17 @@ https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/ru
 **Still a blocker for certifying P0.01 at 100%:** independent password/secret-backed accounts for real TEST manager and employee roles are not configured in the CI environment. The profile rows already exist in TEST; manager profile is inactive. Do not permanently activate the manager without a coordinated controlled test setup. Do not treat simulated role JWT variables as real Supabase Auth credentials. Do not request passwords in chat; store them only as dedicated GitHub environment secrets once such test accounts are provisioned.
 
 **P0.02 gaps:** invitation email/acceptance, account recovery email, real token expiry and revocation mid-session still need explicit isolated end-to-end coverage; tests above do not prove them.
+
+
+## Continued P0 authorization: two live OWNER JWTs, HTTP cross-tenant checks
+
+GitHub Actions [run #60](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38301655468), on isolated branch `automation/nexalvo-qa-actions`, added `qa/p0-isolation-matrix.test.mjs` and integrated it into the `access-regression` CI job.
+
+- Test project only: `msinksoilkluooxenecy`. Production was not accessed.
+- Access regression job: **65/65 TAP checks passed, 0 failed, 0 skipped**. Of these, 26 are newly added nested live HTTP assertions (two OWNER sessions x 13 cross-company checks). The count includes Node TAP parent test assertions.
+- Verified RLS hiding across ten tables: customers, expenses, purchase_orders, suppliers, tasks, cash_registers, shifts, inventory_items, locations and users.
+- Also confirmed `fn_read_employees_secure`, `fn_read_waste_transactions_secure` do not expose foreign tenant records; foreign `fn_export_business_data` is rejected.
+- Additional **8/8** read-only/denied SQL checks performed in `BEGIN/ROLLBACK` for cross-company customers, purchase orders, products and backup export.
+- These are OWNER credentials for two fictitious businesses, **not** real MANAGER/EMPLOYEE logins.
+
+Pending P0 blockers: independently authenticated manager/employee credential-based positive/negative API and browser cases, invitations/recovery email, actual JWT expiry/revocation, and full production-ready transaction/backup recovery acceptance. Do not mark complete based on this result.
