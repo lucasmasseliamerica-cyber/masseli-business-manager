@@ -69,7 +69,7 @@ test('ten parallel authenticated retries create exactly one sale and one payment
  const [sales,items,flow]=await Promise.all([
   call(base,key,token,'/rest/v1/sales?select=id&id=eq.'+id),
   call(base,key,token,'/rest/v1/rpc/fn_read_sale_items_secure?select=id,sale_id&sale_id=eq.'+id),
-  call(base,key,token,'/rest/v1/cash_flow?select=id&sale_id=eq.'+id)
+  call(base,key,token,'/rest/v1/cash_flow?select=id,amount,business_id&sale_id=eq.'+id)
  ]);
  for(const result of [sales,items,flow]) assert.equal(result.status,200,'QA validation read failed');
  assert.equal(sales.value.length,1,'Duplicate sales');
