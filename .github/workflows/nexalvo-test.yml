@@ -92,3 +92,39 @@ jobs:
           name: nexalvo-authenticated-concurrency
           path: qa-concurrency-results.tap
           retention-days: 14
+
+  two-tenant-concurrency:
+    needs: test-api-smoke
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
+      QA_TWO_TENANT_A_EMAIL: ${{ secrets.QA_TWO_TENANT_A_EMAIL }}
+      QA_TWO_TENANT_A_PASSWORD: ${{ secrets.QA_TWO_TENANT_A_PASSWORD }}
+      QA_TWO_TENANT_B_EMAIL: ${{ secrets.QA_TWO_TENANT_B_EMAIL }}
+      QA_TWO_TENANT_B_PASSWORD: ${{ secrets.QA_TWO_TENANT_B_PASSWORD }}
+      QA_TWO_TENANT_A_BUSINESS_ID: ${{ vars.QA_TWO_TENANT_A_BUSINESS_ID }}
+      QA_TWO_TENANT_A_LOCATION_ID: ${{ vars.QA_TWO_TENANT_A_LOCATION_ID }}
+      QA_TWO_TENANT_A_PRODUCT_ID: ${{ vars.QA_TWO_TENANT_A_PRODUCT_ID }}
+      QA_TWO_TENANT_B_BUSINESS_ID: ${{ vars.QA_TWO_TENANT_B_BUSINESS_ID }}
+      QA_TWO_TENANT_B_LOCATION_ID: ${{ vars.QA_TWO_TENANT_B_LOCATION_ID }}
+      QA_TWO_TENANT_B_PRODUCT_ID: ${{ vars.QA_TWO_TENANT_B_PRODUCT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Two independent authenticated companies and different sale values
+        shell: bash
+        run: set -o pipefail; node --test --test-reporter=tap qa/concurrency-two-tenants.test.mjs | tee qa-two-tenants-results.tap
+      - name: Archive two-tenant QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-two-tenant-concurrency
+          path: qa-two-tenants-results.tap
+          retention-days: 14
