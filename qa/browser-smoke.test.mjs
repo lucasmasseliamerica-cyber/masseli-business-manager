@@ -93,6 +93,24 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     await page.locator('input[name=email]').waitFor({state:'detached',timeout:40000});
     await page.getByText('ZZ_QA_PLATFORM_20261009_AUTO',{exact:false}).first().waitFor({state:'attached',timeout:40000});
   });
+  await t.test('P0.06 browser: temporary offline state keeps existing TEST interface visible',async()=>{
+    const ctx=page.context();
+    await ctx.setOffline(true);
+    try{
+      const nav=page.getByText('Inventory',{exact:true}).first();
+      await nav.click({timeout:10000});
+      assert.equal(await page.getByText('NEXALVO',{exact:false}).count()>0,true,'Offline must not immediately crash shell');
+      assert.equal(await page.locator('input[name=password]').count(),0,'Transient outage must not force logout');
+    }finally{
+      await ctx.setOffline(false);
+    }
+  });
+  await t.test('P0.06 browser: reconnect and reload restores authenticated TEST dashboard',async()=>{
+    await page.reload({waitUntil:'domcontentloaded',timeout:30000});
+    await page.getByText('ZZ_QA_PLATFORM_20261009_AUTO',{exact:false}).first().waitFor({state:'attached',timeout:40000});
+    assert.equal(await page.locator('input[name=password]').count(),0);
+    assert.equal(await page.getByText('NEXALVO',{exact:false}).count()>0,true);
+  });
   const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
   const mobileErrors=[];mobile.on('pageerror',e=>mobileErrors.push(e.message));
   await mobile.goto('http://127.0.0.1:4179/',{waitUntil:'domcontentloaded',timeout:30000});
