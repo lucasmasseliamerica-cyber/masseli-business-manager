@@ -180,3 +180,12 @@ Staged identical `src/App.jsx` and `App.jsx` code, commits `e7bbbee` and `b62b8f
 New test `qa/security.test.mjs` asserts exact frontend copy sync, OFF-by-default gate and proposed SQL invariants. CI first intermediate run #73 failed as it caught temporarily unsynchronized App.jsx copies; subsequent synced-code [run #74](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38320589570) **10/10 jobs successful, 168/168 TAP passed, 0 failed, 0 skips**. These are tests of existing behavior and static staged implementation, NOT live verification of the undelivered idempotent purchase RPC.
 
 Next: authorized TEST-only migration installation; inspect exposure/roles, real owner A + owner B strict isolation, repeat purchase UUID and changed-payload rejection, concurrent same UUID checks, fault injection post-commit response loss, non-duplicate purchase items and audit rows, safe cancellation and concurrency test. Only then consider enabling flag for QA and, separately, production after explicit release approval.
+
+
+## P0.02 real browser bad-password behavior — run #75
+
+- GitHub Actions [run #75](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38321029984): **10/10 jobs success, 169/169 TAP checks passed (including parent counts), zero failures or skips.**
+- Commit `5f678592851c080bc7aae1c9e175a0a931d797ee` added a real TEST-owner browser check before the existing login: enter known QA owner's correct email and an intentionally incorrect password, assert an authentication error appears, login form remains, and another company's dashboard is not presented.
+- The subsequent correct-password owner login, logout, reload, re-login, mobile smoke, financial replay and HTTP post-commit network recovery continue to pass.
+- The purchase-idempotency migration is **still NOT applied**, because its execution was blocked by tool security controls. `VITE_PURCHASE_IDEMPOTENCY_ENABLED` remains unset/off. The static staged purchase code is not proof of production-ready idempotency.
+- Pending P0.02: independent manager/employee sessions, real invitation and reset email delivery, expiry and token-revocation behavior. Production untouched.
