@@ -45,6 +45,15 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     assert.equal(page.url().startsWith('http://127.0.0.1:4179/'),true);
    });
   }
+  await t.test('product form Save button is reachable after scrolling modal',async()=>{
+    await page.getByText('Products',{exact:true}).first().click();
+    await page.getByText('New Product',{exact:true}).first().click();
+    const save=page.getByText('Save Product',{exact:true}).first();
+    await save.scrollIntoViewIfNeeded({timeout:12000});
+    assert.equal(await save.isVisible(),true,'Save Product must be visible and reachable');
+    await page.screenshot({path:'qa-browser-artifacts/product-modal-desktop.png'});
+    await page.keyboard.press('Escape');
+  });
   await t.test('dashboard desktop screenshot was captured',async()=>{
    const {stat}=await import('node:fs/promises');
    const shot=await stat('qa-browser-artifacts/dashboard-desktop.png');
