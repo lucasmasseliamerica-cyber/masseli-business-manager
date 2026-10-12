@@ -134,3 +134,14 @@ New permanent tests:
 - No production accounts, secrets, or databases were modified. New successful QA card-sale fixture is reversed at the end of the financial test, retaining an audit trail in TEST.
 
 Remaining blockers: MANAGER and EMPLOYEE E2E login; invitation/password recovery delivery; real token expiration; complete UI sales, inventory and purchasing workflows; actual network outage; backup restore.
+
+
+## P0.06 — Offline browser/reconnect regression (2026-10-12)
+
+- [GitHub Actions run #70](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38319002252): **9/9 jobs success, 161/161 TAP checks passed, zero failures, zero skips** (including TAP parent assertions).
+- Commit `a72c8de0b72f570ef4f33edfcc2b6798a9cf1204` added two permanent Playwright tests in `qa/browser-smoke.test.mjs`:
+  1. With real TEST OWNER B logged in, temporarily set Playwright browser context to offline, navigate to Inventory, verify NEXALVO shell remains present and login form does not reappear.
+  2. Reconnect context, reload browser page, verify TEST company dashboard and authenticated session are restored.
+- Browser smoke: 27/27 TAP checks approved. Other jobs remain green.
+- **Scope limitation:** this is a real browser network offline toggle, but **NOT** yet an interrupted in-flight sale/purchase write, timeout after commit, or automatic transaction retry validation. Do not mark P0.06 fully certified on this evidence alone.
+- All execution against local TEST frontend and Supabase TEST project `msinksoilkluooxenecy`. Production unchanged.
