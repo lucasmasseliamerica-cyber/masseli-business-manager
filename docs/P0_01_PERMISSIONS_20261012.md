@@ -121,3 +121,16 @@ Additional **8/8** isolated SQL checks via `BEGIN/ROLLBACK`, for QA tenant A:
 - Verify exactly one associated expense ledger entry.
 
 **Limitation**: the supplier payment checks ran inside one transaction and are not yet part of GitHub Actions; real invoice UI, cash/card reversal and live network faults still need coverage. The automated card sale/reversal check is permanent CI.
+
+
+## P0.02 / P0.03 replay and rejected authentication regression — run #68
+
+GitHub [run #68](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38306237787): **9/9 jobs successful, 159/159 TAP checks passed (including TAP parent assertions), zero failures, zero skips**. Executed on TEST `msinksoilkluooxenecy` only.
+
+New permanent tests:
+- `qa/replay-financial.test.mjs`: reuse the same sale ID with a financially different retry payload; assert immutable committed sale total and only one income posting. After successful reversal, replay the original request: assert sale remains cancelled and only one refund and one sale ledger row exist. These are application replays, **not physical network interruptions**.
+- `qa/auth-session-lifecycle.test.mjs`: real TEST owner B login with intentionally wrong password is rejected; malformed Bearer token cannot read protected sales; malformed token cannot call protected `fn_create_sale`. Reuses OWNER QA sessions only; manager/employee independent credentials remain missing.
+- Auth-lifecycle 12/12 TAP checks and replay-financial 7/7; all prior suites still green.
+- No production accounts, secrets, or databases were modified. New successful QA card-sale fixture is reversed at the end of the financial test, retaining an audit trail in TEST.
+
+Remaining blockers: MANAGER and EMPLOYEE E2E login; invitation/password recovery delivery; real token expiration; complete UI sales, inventory and purchasing workflows; actual network outage; backup restore.
