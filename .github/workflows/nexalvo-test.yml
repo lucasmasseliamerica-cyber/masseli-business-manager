@@ -178,6 +178,34 @@ jobs:
           path: qa-replay-financial.tap
           retention-days: 14
 
+  network-after-commit:
+    needs: test-api-smoke
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
+      QA_TWO_TENANT_A_EMAIL: ${{ secrets.QA_TWO_TENANT_A_EMAIL }}
+      QA_TWO_TENANT_A_PASSWORD: ${{ secrets.QA_TWO_TENANT_A_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Drop committed TEST sale and PO responses and reconcile
+        shell: bash
+        run: set -o pipefail; node --test --test-reporter=tap qa/p0-network-after-commit.test.mjs | tee qa-network-after-commit.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-network-after-commit.tap
+      - name: Archive network-loss QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-network-after-commit
+          path: qa-network-after-commit.tap
+          retention-days: 14
+
   browser-smoke:
     needs: test-api-smoke
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
