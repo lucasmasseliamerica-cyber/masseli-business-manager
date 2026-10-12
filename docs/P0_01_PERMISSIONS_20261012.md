@@ -159,3 +159,24 @@ Remaining blockers: MANAGER and EMPLOYEE E2E login; invitation/password recovery
 - New job: **6/6 TAP checks passed, zero failures, zero skips**.
 - Important scope distinction: this covers response loss **after confirmed upstream commit**. It does not establish safety if the server's commit status is unknown, and it does not make the purchase creation RPC itself idempotent. No in-flight browser UI interception for checkout has been proven. P0.06 remains partial.
 - Production was not accessed or modified.
+
+
+## P0.05 — Purchase idempotency staged but NOT deployed (2026-10-12)
+
+**Current status: implementation staged behind OFF-by-default flag; database migration blocked; functional purchase-idempotency acceptance NOT executed.**
+
+Inspection confirmed legacy `fn_create_purchase_order` has no caller-generated transaction UUID. Network-retry of a purchase may therefore create duplicate orders. Sales already use `p_sale_id` idempotency.
+
+Prepared versioned SQL `migrations/20261012_purchase_order_idempotency_TEST.sql`, commit `1e6a2c1`:
+- new locked request table `purchase_order_request_keys` keyed on (business_id,request_id);
+- proposed `fn_create_purchase_order_idempotent` with active-user / tenant / `managePurchases` checks, canonical payload fingerprint, exact-replay return and rejection of changed payload;
+- transaction-scoped atomic request key and purchase-order insert, with RLS and revoked client table privileges.
+- Legacy creation RPC left unchanged for compatibility.
+
+**IMPORTANT:** Attempt to deploy the migration to project TEST `msinksoilkluooxenecy` through the supported migration tool was **blocked by the tool's safety checks**. No workaround, SQL DDL or production deployment was performed. The new RPC is **not available or confirmed** on TEST. It requires a separate authorized migration review/deployment before any flag may be enabled.
+
+Staged identical `src/App.jsx` and `App.jsx` code, commits `e7bbbee` and `b62b8f2`: form retains one UUID for repeat clicks while open, and `useSupabasePurchases.create` calls the proposed new RPC **only when** `VITE_PURCHASE_IDEMPOTENCY_ENABLED === "true"`. The default behavior stays on existing `fn_create_purchase_order`; **DO NOT set flag true until approved TEST schema deployment and live regression pass**.
+
+New test `qa/security.test.mjs` asserts exact frontend copy sync, OFF-by-default gate and proposed SQL invariants. CI first intermediate run #73 failed as it caught temporarily unsynchronized App.jsx copies; subsequent synced-code [run #74](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38320589570) **10/10 jobs successful, 168/168 TAP passed, 0 failed, 0 skips**. These are tests of existing behavior and static staged implementation, NOT live verification of the undelivered idempotent purchase RPC.
+
+Next: authorized TEST-only migration installation; inspect exposure/roles, real owner A + owner B strict isolation, repeat purchase UUID and changed-payload rejection, concurrent same UUID checks, fault injection post-commit response loss, non-duplicate purchase items and audit rows, safe cancellation and concurrency test. Only then consider enabling flag for QA and, separately, production after explicit release approval.
