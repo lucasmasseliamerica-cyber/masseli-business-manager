@@ -2941,7 +2941,12 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
     async create(x) {
       // fn_create_purchase_order itself is NOT wrapped here — a failure there must keep throwing
       // normally, so the caller's existing "create failed" handling is unchanged.
-      const row = await supabaseRest.rpc("fn_create_purchase_order", {
+      // Opt-in only after the TEST migration has been installed and approved.
+      // A stable requestId from the modal makes an ambiguous network retry safe.
+      const idempotent = import.meta.env.VITE_PURCHASE_IDEMPOTENCY_ENABLED === "true";
+      if (idempotent && !x.requestId) throw new Error("Purchase request ID is required");
+      const row = await supabaseRest.rpc(idempotent ? "fn_create_purchase_order_idempotent" : "fn_create_purchase_order", {
+        ...(idempotent ? { p_request_id: x.requestId } : {}),
         p_business_id: businessId, p_supplier_id: x.supplierId, p_location_id: x.locationId,
         p_order_date: x.orderDate, p_expected_date: x.expectedDate || null, p_status: x.status,
         p_payment_method: x.paymentMethod || null, p_notes: x.notes || null,
@@ -6557,6 +6562,8 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   );
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Preserve this id for all retries while this purchase form remains open.
+  const requestIdRef = useRef(newDbId());
   useEffect(() => { if (!submitting && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting]);
 
   const addItem = () => setItems([...items, { itemId: inventory[0]?.id || "", qty: 1, unitCost: inventory[0]?.costPerUnit || 0 }]);
@@ -6581,7 +6588,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     try {
       if (purchaseOps?.remote) {
         try {
-          await purchaseOps.create({ supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
+          await purchaseOps.create({ requestId: requestIdRef.current, supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
             discount: Number(discount) || 0, tax: Number(tax) || 0,
             items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)) })) });
           showToast(`Purchase order created · ${fmtMoney(grandTotal)}`);
