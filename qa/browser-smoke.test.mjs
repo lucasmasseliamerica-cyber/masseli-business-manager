@@ -28,6 +28,14 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
    await page.locator('input[name=email]').waitFor({timeout:20000});
    assert.equal(await page.locator('input[name=password]').count(),1);
   });
+  await t.test('P0.02 UI: incorrect password is rejected without creating a session',async()=>{
+   await page.locator('input[name=email]').fill(process.env.QA_TWO_TENANT_B_EMAIL);
+   await page.locator('input[name=password]').fill('QA_KNOWN_INVALID_PASSWORD_DO_NOT_ACCEPT');
+   await page.locator('button[type=submit]').click();
+   await page.getByText(/invalid login credentials|sign-in failed|invalid credentials/i).first().waitFor({state:'visible',timeout:20000});
+   assert.equal(await page.locator('input[name=password]').count(),1,'Rejected login must remain on login screen');
+   assert.equal(await page.getByText('ZZ_QA_PLATFORM_20261009_AUTO',{exact:false}).count(),0,'Rejected login cannot show tenant dashboard');
+  });
   await page.locator('input[name=email]').fill(process.env.QA_TWO_TENANT_B_EMAIL);
   await page.locator('input[name=password]').fill(process.env.QA_TWO_TENANT_B_PASSWORD);
   await page.locator('button[type=submit]').click();
