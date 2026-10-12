@@ -158,6 +158,59 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     await page.screenshot({path:'qa-browser-artifacts/customer-modal-desktop.png'});
     await page.locator('h3').filter({hasText:'New Customer'}).locator('..').locator('button').first().click();
   });
+  await t.test('P0.03 UI sale form rejects duplicate product without write RPC',async()=>{
+    await page.getByText('Sales',{exact:true}).first().click();
+    await page.getByText('New Sale',{exact:true}).first().click();
+    const modalTitle=page.locator('h3').filter({hasText:'New Sale'}).first();
+    await modalTitle.waitFor({timeout:15000});
+    let writes=0;
+    const onRequest=req=>{if(req.method()==='POST'&&req.url().includes('/rest/v1/rpc/fn_create_sale'))writes++;};
+    page.on('request',onRequest);
+    try{
+      await page.getByText('+ Add another product',{exact:true}).first().click();
+      await page.getByText(/Complete Sale|Charge Card/i).last().click();
+      await page.getByText(/same product can't appear more than once on a sale/i).first().waitFor({timeout:12000});
+      assert.equal(writes,0,'Duplicate sale must be rejected locally before transaction RPC');
+    }finally{
+      page.off('request',onRequest);
+      await modalTitle.locator('..').locator('button').first().click();
+    }
+  });
+  await t.test('P0.04 UI inventory form rejects unnamed new stock item without write RPC',async()=>{
+    await page.getByText('Inventory',{exact:true}).first().click();
+    await page.getByText('New Item',{exact:true}).first().click();
+    const modalTitle=page.locator('h3').filter({hasText:'New Inventory Item'}).first();
+    await modalTitle.waitFor({timeout:15000});
+    let writes=0;
+    const onRequest=req=>{if(req.method()==='POST'&&req.url().includes('/rest/v1/rpc/'))writes++;};
+    page.on('request',onRequest);
+    try{
+      await page.getByText('Save Item',{exact:true}).first().click();
+      await page.getByText(/Item name is required/i).first().waitFor({timeout:12000});
+      assert.equal(writes,0,'Unnamed item must not invoke any stock write RPC');
+    }finally{
+      page.off('request',onRequest);
+      await modalTitle.locator('..').locator('button').first().click();
+    }
+  });
+  await t.test('P0.05 UI purchase form rejects invalid order locally without creation RPC',async()=>{
+    await page.getByText('Purchases',{exact:true}).first().click();
+    await page.getByText('New Purchase',{exact:true}).first().click();
+    const modalTitle=page.locator('h3').filter({hasText:'New Purchase Order'}).first();
+    await modalTitle.waitFor({timeout:15000});
+    let writes=0;
+    const onRequest=req=>{if(req.method()==='POST'&&/\/rest\/v1\/rpc\/fn_create_purchase_order/.test(req.url()))writes++;};
+    page.on('request',onRequest);
+    try{
+      await page.getByText('+ Add another item',{exact:true}).first().click();
+      await page.getByText('Save as Draft',{exact:true}).first().click();
+      await page.getByText(/Select a supplier|same inventory item can't appear more than once on a purchase order/i).first().waitFor({timeout:12000});
+      assert.equal(writes,0,'Missing supplier or duplicate lines must not create a PO');
+    }finally{
+      page.off('request',onRequest);
+      await modalTitle.locator('..').locator('button').first().click();
+    }
+  });
   await t.test('dashboard desktop screenshot was captured',async()=>{
    const {stat}=await import('node:fs/promises');
    const shot=await stat('qa-browser-artifacts/dashboard-desktop.png');
