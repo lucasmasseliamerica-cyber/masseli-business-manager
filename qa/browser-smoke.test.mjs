@@ -21,6 +21,29 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
  await mkdir('qa-browser-artifacts',{recursive:true});
  const browser=await chromium.launch({headless:true});
  try{
+  await t.test('P0.02 UI: expired recovery link is rejected without showing a password form',async()=>{
+   const expired=await browser.newPage();
+   try{
+    await expired.goto('http://127.0.0.1:4179/#error=access_denied&error_code=otp_expired&error_description=Email%20link%20is%20invalid%20or%20has%20expired&type=recovery',{waitUntil:'domcontentloaded'});
+    await expired.getByText(/Email link is invalid or has expired/i).first().waitFor({timeout:15000});
+    assert.equal(await expired.getByText('Back to Sign In',{exact:true}).count(),1);
+    assert.equal(await expired.locator('input[type=password]').count(),0,'Expired recovery cannot show password-reset form');
+    assert.equal(new URL(expired.url()).hash,'','Recovery tokens/errors must be stripped from address bar');
+    await expired.getByText('Back to Sign In',{exact:true}).click();
+    await expired.locator('input[name=email]').waitFor({timeout:15000});
+   }finally{await expired.close()}
+  });
+  await t.test('P0.02 UI: expired invitation link is rejected and returns to login',async()=>{
+   const invite=await browser.newPage();
+   try{
+    await invite.goto('http://127.0.0.1:4179/#error=access_denied&error_code=otp_expired&error_description=Invitation%20expired&type=invite',{waitUntil:'domcontentloaded'});
+    await invite.getByText('Invitation expired',{exact:false}).first().waitFor({timeout:15000});
+    assert.equal(await invite.locator('input[type=password]').count(),0);
+    assert.equal(new URL(invite.url()).hash,'');
+    await invite.getByText('Back to Sign In',{exact:true}).click();
+    await invite.locator('input[name=email]').waitFor({timeout:15000});
+   }finally{await invite.close()}
+  });
   const page=await browser.newPage({viewport:{width:1366,height:768},deviceScaleFactor:1});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:4179/',{waitUntil:'domcontentloaded',timeout:30000});
