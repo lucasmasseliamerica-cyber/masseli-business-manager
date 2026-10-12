@@ -99,3 +99,25 @@ Extra independent PostgreSQL TEST transaction checks: 5/5 negative validation ca
 - No successful business mutation is performed by the new suite; it uses only invalid/negative requests against the isolated TEST project.
 - Existing browser, session, concurrency, financial replay, performance and static security jobs remained green.
 - **Still unverified:** real MANAGER/EMPLOYEE token logins, invitations/password reset and real expiration, full UI write operations, performance at realistic production size, and restoration of an actual backup. Do not certify complete P0 on this evidence alone.
+
+
+## P0.03 / P0.05 additional payment and reversal coverage — 2026-10-12
+
+Automated QA branch change `dff1c54a6b83eac10bbeeedbc706559751bb7f29` updated `qa/replay-financial.test.mjs` (TEST B).
+- A single idempotent sale is created, its lost application response is simulated, and the replay returns the existing sale.
+- The sale is compensated with `fn_reverse_sale`; assert the sale is marked cancelled and has `cancelled_at`.
+- Require exactly one original income ledger row and one offsetting Sale Cancellation expense ledger row, both $23, with zero net amount.
+- Try a second cancellation: expect `sale already cancelled` error and no additional refund ledger row.
+- **GitHub Actions [run #66](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38305160654), financial replay job: 5/5 TAP checks success, 0 failed, 0 skipped.**
+
+Additional **8/8** isolated SQL checks via `BEGIN/ROLLBACK`, for QA tenant A:
+- Create Draft PO.
+- Reject supplier payment before any receipt.
+- Partially receive item.
+- Reject $5 payment against $4 due.
+- Accept exactly $4 payment.
+- Reject duplicate payment when due is $0.
+- Verify one supplier payment record.
+- Verify exactly one associated expense ledger entry.
+
+**Limitation**: the supplier payment checks ran inside one transaction and are not yet part of GitHub Actions; real invoice UI, cash/card reversal and live network faults still need coverage. The automated card sale/reversal check is permanent CI.
