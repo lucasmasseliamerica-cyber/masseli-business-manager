@@ -1,35 +1,65 @@
-# NEXALVO TEST automated QA — 2026-10-12
+# NEXALVO v1.6.8 — Automation evidence, 2026-10-12
 
-## CI evidence
+**Source of truth for current automated CI:** [GitHub Actions QA run #46](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38292313509), branch `automation/nexalvo-qa-actions`, commit `a45fe8bd179fcb38f30adcf7e7e1f77a09271bc5`.
 
-- Workflow: NEXALVO TEST - QA, GitHub run #38: https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38290870164
-- Branch: automation/nexalvo-qa-actions; commit 6ca8285491d648b1b33d43c4157baf0f68ceea35
-- **Five jobs all succeeded**: build-and-security, test-api-smoke, authenticated-concurrency, two-tenant-concurrency, access-regression.
-- Static security 3/3. API/anonymous/JWT 5/5. Authenticated sale idempotency 1/1. Two-company PostgreSQL concurrency 1/1. Access regression 38/38 (37 nested assertions and 1 parent assertion), 0 failures, 0 skips.
-- **48 test-runner assertions succeeded** by TAP counts (3+5+1+1+38); note the access suite has 37 individual scenarios under its parent test. The 38 count includes its parent assertion.
-- Two-tenant PostgreSQL overlap measured 2,984 milliseconds; request overlap also required. Both QA sales reversed.
-- No production DB writes.
+**Result: 8/8 jobs successful, 72 TAP checks passed, 0 failed, 0 skipped.** This is not 72 unique business flows; Node TAP reports nested subtests and parent tests separately.
 
-## Additional manual transaction-scoped SQL verification
+| Automated CI group | Checks | Passed | Skipped |
+|---|---:|---:|---:|
+| Build and static safety (including mirrored App.jsx) | 5 | 5 | 0 |
+| Auth/API smoke, anonymous protection, invalid JWT | 5 | 5 | 0 |
+| Real owner A/B access regression incl. products, sales, stock, purchases | 38 | 38 | 0 |
+| Independent QA auth sessions, refresh rotation, logout | 7 | 7 | 0 |
+| Concurrent idempotency: ten same-sale requests | 1 | 1 | 0 |
+| Two tenants in independent PostgreSQL sessions | 1 | 1 | 0 |
+| Replay after intentionally discarded application response + tax/discount | 3 | 3 | 0 |
+| Playwright browser desktop/mobile login and navigation | 12 | 12 | 0 |
+| **TOTAL** | **72** | **72** | **0** |
 
-- Previously 93 role/default/custom/RLS checks documented in `qa/QA_PERMISSION_AUDIT_20261012.md`.
-- Additional 5 masked-field read checks passed: employee stock cost masking, employee pay rate masking, purchase unit cost masking, owner stock visibility, owner employee visibility.
-- Employee privileged-operation probes were rejected for adjustment, transfer, purchasing, and user administration. Waste recording has a different default gate (`manageInventory`) and requires valid inventory input; an invalid item rejected at item lookup, not a role denial.
-- All mutable manual probes inside transaction rollback.
+PostgreSQL transaction overlap observed at 3015 ms. Auth/browser tests run only against TEST Supabase project `msinksoilkluooxenecy`. The Playwright job sets `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to the **TEST** project, starts Vite locally and navigates the UI using the existing QA owner B credentials. Screenshots: GitHub run #46 artifact `nexalvo-browser-smoke` (artifact ID 11766832016, retained 14 days).
 
-## CI test suite `qa/access-regression.test.mjs`
+## Additional isolated SQL transaction checks executed interactively
 
-- Real independently authenticated TEST owners A and B.
-- Checks own fixtures visible, foreign-tenant products/sales/cashflow hidden.
-- Exercises 6 secure read RPCs in both businesses.
-- Rejects incorrect company sale and expense writes, negative quantity/discount, duplicate/empty items, invalid location/product/status, invalid adjustment/transfer/waste, invalid purchase orders, invalid user data.
-- No successful mutation is attempted by this suite. Existing authenticated concurrency jobs conduct reversable fictitious writes.
+All of these used the TEST project and `BEGIN ... ROLLBACK` so fixture modifications were not persisted:
 
-## Not yet covered
+- 9 stock/purchasing confirmations: adjust stock, transfer both balances, waste, manual receipt, create purchase draft, partial/full receipt, record supplier payment.
+- 8 customer/task confirmations: create/edit/deactivate customer (including name, email, phone and notes); create/edit/complete/reopen/delete task.
+- 6 cash register confirmations: open, add/drop cash, cash sale, link sale to register, reverse sale, close register with expected balance $107 and difference $0.
+- 3 product/image URL confirmations: create with URL, update URL and price, deactivate.
+- 4 employee timekeeping confirmations: clock in, start/end break and clock out.
+- **30/30 checks passed**; their coverage is **not** equivalent to automated browser form/visual testing and they are **not** included in the 72 TAP total.
 
-- Full form interactions and visual regression in browser; customer edits, suppliers, employee shifts/breaks/tasks, inventory adjustments and transfers with successful UI operations.
-- Dedicated manager/employee credential-based end-to-end HTTP tests, although role functions were checked in rollback via simulated JWT.
-- Failed-network compensation, session expiry/refresh lifecycle, and broad supplier/expense reversal/purchase receipts.
-- Warnings/dependencies across Vercel production: production intentionally untouched.
+Earlier test batches included 93 permission/matrix assertions and 5 employee cost/salary masking checks, described separately in `qa/QA_PERMISSION_AUDIT_20261012.md`. Do not treat counts as percentage of product completeness.
 
-Automated suites execute on future pushes to branch automation/nexalvo-qa-actions or manual workflow dispatch. GitHub Actions artifacts retained 14 days. Do not claim 100% product QA coverage from the current success.
+## Priority register: status against 19 requested workstreams
+
+P0:
+1. OWNER/MANAGER/EMPLOYEE permissions: **partial** — real OWNER logins and simulated employee/manager SQL controls tested; real manager/employee authenticated browser flows still pending.
+2. Sales/payment modes and register: **partial** — card, cash and refunds, discount/tax, register rollbacks tested; full UI/method permutations pending.
+3. Inventory: **partial** — valid movements tested in rollback, invalid operations tested HTTP; full UI and costing/expiry pending.
+4. Purchasing/suppliers: **partial** — draft, partial/full receipts and supplier payments tested in rollback; UI, reversals and edge cases pending.
+5. Auth: **partial** — password login, refresh, logout and invalid JWT tested; invitation, recovery email, real expiry/revocation still pending.
+6. Network recovery: **partial** — simulated lost *application* response after commit + idempotent replay tested; real transport cut, offline UI and ambiguous delivery pending.
+
+P1:
+7. Products and photos: **partial** — RPC image URL, price and deactivate; actual file upload, PDV display and UI edit pending.
+8. Customers: **partial** — SQL create/edit/deactivate; actual UI edit, dedup and history pending.
+9. Employees and timekeeping: **partial** — SQL clock in/break/out; UI flows and role workflows pending.
+10. Tasks: **partial** — SQL create/edit/complete/reopen/delete; UI pending.
+11. Expense/cashflow: **partial** — sales ledger and cash register checked; UI filters, reverse expense, all methods pending.
+12. Reports: **pending comprehensive evidence** — navigation smoke only; financial arithmetic/COGS/export not certified.
+13. Settings: **pending comprehensive evidence** — navigation and static compilation only.
+
+P2:
+14. Responsive UI: **partial** — real Chromium desktop/mobile login and navigation screenshots; visual review, modal clipping and accessibility pending.
+15. Performance at volume: **pending** — no representative stress/capacity baseline.
+16. Advanced concurrency: **partial** — sales and dual tenants proven; purchasing/stock mutation overlaps and location races pending.
+17. Deploy and mirror consistency: **partial** — byte-identical frontend copies and build verified in QA; deploy/rollback approvals and environment segregation still pending.
+18. Backup/restore/monitoring: **pending** — should use separate isolated restoration target and verified snapshots; do not risk live data.
+19. Final UAT: **pending** — full profile journeys and human acceptance.
+
+## Guardrails
+
+Production Supabase `ebhlfghbdfqgrgmtzpti` and production Vercel deployment are strictly excluded. Never enable destructive load tests, password recovery email blasts, restore or delete data outside TEST without independent authorization and a restoration plan. The workflow automatically executes on future QA branch pushes or manual dispatch only.
+
+**Conclusion:** The automated suites that exist are currently green. **100% product completion cannot be certified** until missing workflows and criteria above are validated.
