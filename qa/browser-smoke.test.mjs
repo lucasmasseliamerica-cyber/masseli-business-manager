@@ -52,7 +52,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     await save.scrollIntoViewIfNeeded({timeout:12000});
     assert.equal(await save.isVisible(),true,'Save Product must be visible and reachable');
     await page.screenshot({path:'qa-browser-artifacts/product-modal-desktop.png'});
-    await page.keyboard.press('Escape');
+    await page.locator('h3').filter({hasText:'New Product'}).locator('..').locator('button').first().click();
   });
   await t.test('new customer form prevents empty-name creation without sending writes',async()=>{
     await page.getByText('Customers',{exact:true}).first().click();
@@ -62,7 +62,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     assert.equal(await submit.isVisible(),true);
     assert.equal(await submit.isDisabled(),true,'Create Customer must be disabled without a name');
     await page.screenshot({path:'qa-browser-artifacts/customer-modal-desktop.png'});
-    await page.keyboard.press('Escape');
+    await page.locator('h3').filter({hasText:'New Customer'}).locator('..').locator('button').first().click();
   });
   await t.test('dashboard desktop screenshot was captured',async()=>{
    const {stat}=await import('node:fs/promises');
