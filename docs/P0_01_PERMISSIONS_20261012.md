@@ -1,0 +1,44 @@
+# P0.01 — Roles & authorization validation (TEST only)
+
+Date: 2026-10-12
+Target project: `msinksoilkluooxenecy` (TEST only).
+Production project `ebhlfghbdfqgrgmtzpti` was not queried or mutated.
+
+## Execution
+
+All checks ran through SQL on the isolated TEST instance inside `BEGIN ... ROLLBACK`. JWT subject and (when needed) `SET LOCAL ROLE authenticated` were used to exercise PostgreSQL permission functions and RPC guards.
+
+### Suite A: full default permission matrix
+- 20 permission keys x four QA profiles = **80/80 passed**.
+- Profiles: active OWNER, active EMPLOYEE, transaction-temporarily-activated MANAGER, inactive EMPLOYEE.
+- A temporary manager activation was reverted by rollback.
+- Every `user_can(permission)` result was compared against the explicit `role_default_permissions` table (OWNER expected all, inactive user expected none).
+- Zero failures.
+
+### Suite B: privilege overrides & prohibited RPC
+- **8/8 passed**:
+  - manager custom `viewFinancials:false` denied;
+  - manager custom `manageUsers:true` allowed by authorization helper;
+  - manager still denied OWNER-only business data export despite the custom override;
+  - employee lacks `reverseSales`;
+  - employee retains `manageSales`;
+  - employee `fn_reverse_sale` RPC denied;
+  - employee `fn_save_task` administration RPC denied;
+  - inactive employee blocked from sales.
+- Zero failures, rollback performed.
+
+## Important limitations
+
+**88 passed SQL checks do not prove end-to-end authenticated manager/employee sessions.** Role identities were simulated with transaction-scoped JWT claims; actual TEST accounts for MANAGER and EMPLOYEE still need independent password or invitation/login credentials in the GitHub `nexalvo-test` environment. Do not place passwords in repository source. Do not alter production or enable disabled accounts outside rollback.
+
+Additional P0.01 completion work:
+1. Connect dedicated TEST-only MANAGER and EMPLOYEE sessions, without changing owners or production accounts.
+2. Verify real PostgREST/HTTP permission response, RLS row visibility, cross-tenant access and each protected RPC.
+3. Execute Playwright login for both roles and verify navigation/buttons/operation restrictions.
+4. Audit custom overrides/revocation after login and stale JWT refresh; collect audit logs.
+5. Re-run all GitHub Actions QA suites with 0 skips and approve the role matrix.
+
+Next phases: P0.02 session lifecycle invitations/password recovery/expiry; P0.03 checkout, payments and cash register; etc.
+
+Existing last fully passing QA workflow before this permission test: GitHub run #54, 9/9 jobs green, 0 failures, 0 skipped:
+https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38299455362
