@@ -61,3 +61,34 @@ jobs:
           name: nexalvo-api-qa-report
           path: qa-api-results.tap
           retention-days: 14
+
+  authenticated-concurrency:
+    needs: test-api-smoke
+    if: ${{ vars.QA_CONCURRENCY_ENABLED == 'true' }}
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_CONCURRENCY_ENABLED: ${{ vars.QA_CONCURRENCY_ENABLED }}
+      QA_CONCURRENCY_EMAIL: ${{ secrets.QA_CONCURRENCY_EMAIL }}
+      QA_CONCURRENCY_PASSWORD: ${{ secrets.QA_CONCURRENCY_PASSWORD }}
+      QA_CONCURRENCY_BUSINESS_ID: ${{ vars.QA_CONCURRENCY_BUSINESS_ID }}
+      QA_CONCURRENCY_LOCATION_ID: ${{ vars.QA_CONCURRENCY_LOCATION_ID }}
+      QA_CONCURRENCY_PRODUCT_ID: ${{ vars.QA_CONCURRENCY_PRODUCT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Concurrent sale idempotency in isolated TEST tenant
+        shell: bash
+        run: set -o pipefail; node --test --test-reporter=tap qa/concurrency-authenticated.test.mjs | tee qa-concurrency-results.tap
+      - name: Upload authenticated concurrency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-authenticated-concurrency
+          path: qa-concurrency-results.tap
+          retention-days: 14
