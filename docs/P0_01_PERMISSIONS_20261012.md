@@ -200,3 +200,14 @@ Next: authorized TEST-only migration installation; inspect exposure/roles, real 
 - Browser suite: **30/30 TAP checks passed**, 0 failures/skips. Other security, TEST network, financial and role suites green.
 - This is a synthetic expired redirect test, **not real SMTP delivery, link consumption or natural expiry**. Those remain pending.
 - No actual QA passwords were reset or emails sent; PROD not accessed.
+
+
+## P0.02 — Recovery form validation and fake-token denial, run #77
+
+- GitHub Actions [run #77](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38322845229): **10/10 jobs success; 174/174 TAP checks passed (including parent assertions); zero failures, zero skips**.
+- Commit `4868b0803057b97492ddd0f2cfbed05b3cfebfd4` added 3 TEST-only Playwright checks to `qa/browser-smoke.test.mjs`.
+- The recovery hash is stripped from the address bar, and form controls remain available only within recovery state.
+- A short password is rejected, and a mismatched confirmation is rejected. Both tests explicitly count outgoing `PUT /auth/v1/user` calls and require **zero** before local validation passes.
+- A synthetic invalid recovery access token triggers a real TEST Supabase `PUT /auth/v1/user` request: the server rejects it; the UI must not show `PASSWORD UPDATED`. The fake token is not persisted as the normal application session.
+- Browser suite 33/33 TAP; all other jobs, including isolation, network recovery and financial replay, remain green.
+- **Not proven**: successful real recovery email delivery and verified valid-token password reset, natural token expiry, independent MANAGER/EMPLOYEE sessions. No password was changed for a real QA user; PROD was not accessed or mutated.
