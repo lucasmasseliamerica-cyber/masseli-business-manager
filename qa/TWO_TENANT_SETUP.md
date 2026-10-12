@@ -1,24 +1,32 @@
-# Two-tenant authenticated concurrency certification
+# NEXALVO TEST: duas empresas e concorrência PostgreSQL
 
-**Status: implemented, not certified until executed with independent logins.**
+**Status:** instrumentação instalada e validada individualmente; simultaneidade real ainda precisa de execução autenticada pelo GitHub Actions. Um resultado SKIP nunca significa aprovação.
 
-Workflow job: `two-tenant-concurrency`.
-File: `qa/concurrency-two-tenants.test.mjs`.
-This test never targets production and performs authenticated writes only if `QA_TWO_TENANT_ENABLED=true` and every QA secret/fixture exists.
+## Cenários isolados já preparados
+- Empresa A (NEXALVO QA - EMPRESA FICTICIA): produto `QA-CONCURRENCY-A-1125`, **US$ 11,25**, sem receita de estoque; unidade `LOJA QA - TESTE`.
+- Empresa B (ZZ_QA_PLATFORM_20261009_AUTO): produto `QA-CONCURRENCY-B-2350`, **US$ 23,50**, sem receita de estoque; unidade `QA Unit`.
+- Função instalada **somente no projeto Supabase TEST**: `public.fn_qa_two_tenant_overlap(uuid,text)`; só executável por `authenticated`. A função verifica empresa, produto e local exatos, aguarda 3 segundos dentro da transação, chama a RPC de vendas e retorna `backend_pid`, `started_at` e `finished_at`.
+- Ambos os ramos A/B da função passaram individualmente sob rollback. Isso **não** é uma aprovação da simultaneidade entre transações.
 
-## Requirements (GitHub Environment: nexalvo-test)
-Environment secrets: `QA_TWO_TENANT_A_EMAIL`, `QA_TWO_TENANT_A_PASSWORD`, `QA_TWO_TENANT_B_EMAIL`, `QA_TWO_TENANT_B_PASSWORD`. These must correspond to **two dedicated, already-authorized accounts** in the two fictitious TEST businesses. Do not commit credentials.
+## Configuração única para executar automaticamente
+No GitHub, ambiente `nexalvo-test`:
 
-Environment variables:
-- `QA_TWO_TENANT_A_BUSINESS_ID` and `QA_TWO_TENANT_B_BUSINESS_ID` (checked against the two specific TEST fixture companies)
-- `QA_TWO_TENANT_A_LOCATION_ID`, `QA_TWO_TENANT_B_LOCATION_ID`
-- `QA_TWO_TENANT_A_PRODUCT_ID`, `QA_TWO_TENANT_B_PRODUCT_ID` (active products; TEST fixture B currently requires creating one)
-- `QA_TWO_TENANT_ENABLED=true` to opt in only after setup
+**Secrets** (4 valores, não enviar senhas por chat):
+- `QA_TWO_TENANT_A_EMAIL` e `QA_TWO_TENANT_A_PASSWORD`: conta OWNER da empresa fictícia A.
+- `QA_TWO_TENANT_B_EMAIL` e `QA_TWO_TENANT_B_PASSWORD`: conta OWNER da empresa fictícia B.
 
-Existing `QA_SUPABASE_URL` and `QA_SUPABASE_ANON_KEY` are reused.
+**Variable** (1):
+- `QA_TWO_TENANT_ENABLED=true` depois que as quatro credenciais estiverem configuradas.
 
-Test sequence: log in both users independently; issue two simultaneous HTTP requests to create sales at $11.25 and $23.50; verify separate sale IDs, company IDs and amounts; verify both ledgers contain one exact entry each; verify neither company can read the other's sale/ledger; attempt compensating cancellation on both sales; archive TAP output.
+As variáveis `QA_SUPABASE_URL` e o secret `QA_SUPABASE_ANON_KEY` já atendem aos testes básicos; não é necessário criar novos valores para elas. IDs das empresas, produtos e unidades são verificados dentro da função TEST e nos testes; não precisam ser preenchidos pelo usuário.
 
-**Evidence interpretation**: Positive HTTP request timing overlap proves concurrency at the network/request level, not necessarily overlap of PostgreSQL transaction execution. 100% transaction-overlap certification also requires independent database-session instrumentation, such as a TEST-only RPC returning backend PID and transaction timestamps. No such RPC has been installed by this workflow.
+## Critérios para aprovar a concorrência
+1. As duas contas autenticam de forma independente.
+2. Dois RPCs são enviados juntos via `Promise.all`.
+3. Os dois RPCs retornam HTTP 200, tenant correto, venda correta e valores 11,25 / 23,50.
+4. Os PIDs PostgreSQL são diferentes e os intervalos de transação registrados pelo banco têm **sobreposição >= 1000 ms**.
+5. Cada empresa vê exatamente um registro de venda e de fluxo financeiro com seu valor, e não consegue ver dados da outra.
+6. Ambas as vendas são canceladas por RPC ao final. Registros históricos cancelados permanecem apenas no TEST.
+7. Repetir várias vezes e revisar artefatos no GitHub Actions para descartar falhas intermitentes.
 
-If TAP output shows `SKIP`, the test has **not passed**. The production project must remain off limits. The test uses existing fictitious TEST tenants and leaves cancelled QA audit history after compensating reversal.
+O workflow usa o job `two-tenant-concurrency` e salva `qa-two-tenants-results.tap` por 14 dias. Não executar em produção.
