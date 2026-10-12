@@ -69,3 +69,16 @@ GitHub Actions [run #60](https://github.com/lucasmasseliamerica-cyber/masseli-bu
 - These are OWNER credentials for two fictitious businesses, **not** real MANAGER/EMPLOYEE logins.
 
 Pending P0 blockers: independently authenticated manager/employee credential-based positive/negative API and browser cases, invitations/recovery email, actual JWT expiry/revocation, and full production-ready transaction/backup recovery acceptance. Do not mark complete based on this result.
+
+
+## P0 continued — cross-company privileged-write guards (run #63)
+
+**GitHub Actions [run #63](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38302261805)**: all 9 jobs success. TAP totals: 134 passed, 0 failed, 0 skipped (including nested parent test counts).
+
+Added `qa/p0-write-isolation.test.mjs` to the regular `access-regression` job. **16 new HTTP cases**: real OWNER A tries eight RPCs under B business context and OWNER B tries the equivalent operations under A. Tested: `fn_adjust_inventory_count`, `fn_transfer_inventory`, `fn_record_waste`, `fn_create_purchase_order`, `fn_create_expense`, `fn_open_cash_register`, `fn_save_product` and `fn_create_sale`. Each asserts an explicit `business_id mismatch` error, not just arbitrary HTTP 4xx. Intentionally invalid quantities/nonexistent QA fixture IDs ensure operations cannot succeed even if a scope guard unexpectedly regresses; **the test does not create successful business transactions**.
+
+The access-regression job passed 82/82 TAP checks, 0 skipped. Existing 25 browser smoke and 9 auth lifecycle checks passed. CI branch exclusively points to TEST project `msinksoilkluooxenecy`.
+
+Extra independent PostgreSQL TEST transaction checks: 5/5 negative validation cases passed with ROLLBACK — opening cash register negative; duplicate PO line; zero PO quantity; negative unit cost; receiving more than outstanding order quantity. No persisted fixture changes.
+
+**P0 remains incomplete:** real MANAGER and EMPLOYEE credentials, invitation/recovery email and expiry, UI write flows, detailed stock and purchasing concurrency. Production unchanged.
