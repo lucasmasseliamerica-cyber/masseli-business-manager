@@ -59,6 +59,16 @@ test('TEST: replay after dropped application response is idempotent; discount an
    assert.equal(Number(flow.value[0].amount),23.00);
    assert.equal(flow.value[0].type,'income');assert.equal(flow.value[0].business_id,business);
   });
+  await t.test('replay same sale ID with changed financial payload cannot mutate committed sale',async()=>{
+   const altered={...payload,p_discount:0,p_tax:0,p_notes:'QA MUTATED RETRY'};
+   const replay=await request(c,'/rest/v1/rpc/fn_create_sale',token,altered);
+   assert.equal(replay.status,200,'Idempotent changed-payload request must not create a second sale');
+   assert.equal(replay.value.id,id);
+   assert.equal(Number(replay.value.total),23,'Committed total must remain unchanged');
+   const ledger=await request(c,'/rest/v1/cash_flow?select=id,amount&sale_id=eq.'+id,token);
+   assert.equal(ledger.status,200);assert.equal(ledger.value.length,1,'Retry cannot double-post income');
+   assert.equal(Number(ledger.value[0].amount),23);
+  });
  }catch(e){error=e}
  finally{
   const sales=await request(c,'/rest/v1/sales?select=id,status&id=eq.'+id,token);
@@ -92,5 +102,20 @@ test('TEST: replay after dropped application response is idempotent; discount an
    assert.match(String(again.value?.message||''),/sale already cancelled/i);
    const ledger=await request(c,'/rest/v1/cash_flow?select=id&sale_id=eq.'+id,token);
    assert.equal(ledger.status,200);assert.equal(ledger.value.length,2,'No duplicate refund on repeat');
+ });
+ await t.test('late replay of cancelled sale must not reactivate sale or ledger',async()=>{
+   const late=await request(c,'/rest/v1/rpc/fn_create_sale',token,payload);
+   assert.ok(late.status===200||(late.status>=400&&late.status<500),'Unexpected late retry response '+late.status);
+   if(late.status===200){
+    assert.equal(late.value.id,id);
+    assert.equal(late.value.status,'cancelled','Late replay must remain cancelled');
+   }
+   const [sales,ledger]=await Promise.all([
+    request(c,'/rest/v1/sales?select=id,status&id=eq.'+id,token),
+    request(c,'/rest/v1/cash_flow?select=id,amount,type&sale_id=eq.'+id,token)
+   ]);
+   assert.equal(sales.status,200);assert.equal(sales.value.length,1);
+   assert.equal(sales.value[0].status,'cancelled');
+   assert.equal(ledger.status,200);assert.equal(ledger.value.length,2,'Late replay must not alter refund or duplicate ledger');
  });
 });
