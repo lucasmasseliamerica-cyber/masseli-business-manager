@@ -73,7 +73,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
   await mobile.locator('button[type=submit]').click();
   await t.test('mobile owner can sign in and render dashboard',async()=>{
    await mobile.locator('input[name=email]').waitFor({state:'detached',timeout:40000});
-   assert.ok(await mobile.getByText('ZZ_QA_PLATFORM_20261009_AUTO',{exact:false}).count()>0,'QA company must exist in authenticated DOM');
+   await mobile.getByText('ZZ_QA_PLATFORM_20261009_AUTO',{exact:false}).first().waitFor({state:'attached',timeout:40000});
    assert.equal(await mobile.locator('input[name=password]').count(),0,'Mobile login form must be gone');
   });
   await mobile.screenshot({path:'qa-browser-artifacts/dashboard-mobile.png',fullPage:true});
