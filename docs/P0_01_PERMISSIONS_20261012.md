@@ -82,3 +82,20 @@ The access-regression job passed 82/82 TAP checks, 0 skipped. Existing 25 browse
 Extra independent PostgreSQL TEST transaction checks: 5/5 negative validation cases passed with ROLLBACK — opening cash register negative; duplicate PO line; zero PO quantity; negative unit cost; receiving more than outstanding order quantity. No persisted fixture changes.
 
 **P0 remains incomplete:** real MANAGER and EMPLOYEE credentials, invitation/recovery email and expiry, UI write flows, detailed stock and purchasing concurrency. Production unchanged.
+
+
+## P0 operational-validation expansion — GitHub run #65
+
+- Workflow: https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38302881553
+- **9/9 jobs success, 152/152 TAP assertions passed, 0 failed, 0 skipped.**
+- Added `qa/p0-validation-boundaries.test.mjs` to `access-regression`: **17 new negative-only authenticated HTTP cases** using OWNER A TEST fixtures.
+- Purchase order: duplicate item, zero quantity, negative cost, empty list, discount exceeding total, invalid initial status, negative tax.
+- Sales: discount greater than subtotal, empty channel, empty payment method, missing customer, negative tax.
+- Inventory: negative physical count, same-location transfer, negative waste quantity.
+- Cash register: negative opening balance.
+- Expenses: negative amount.
+- Each case asserts an expected application rejection **message**, not only HTTP 4xx; the suite has preflight checks that TEST supplier, stock item, product and closed register fixtures exist.
+- Access regression job: **100/100 TAP assertions** including prior tenant RLS/read + privileged-write guards. This is a mix of nested assertions and parent tests.
+- No successful business mutation is performed by the new suite; it uses only invalid/negative requests against the isolated TEST project.
+- Existing browser, session, concurrency, financial replay, performance and static security jobs remained green.
+- **Still unverified:** real MANAGER/EMPLOYEE token logins, invitations/password reset and real expiration, full UI write operations, performance at realistic production size, and restoration of an actual backup. Do not certify complete P0 on this evidence alone.
