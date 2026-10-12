@@ -32,6 +32,34 @@ test('TEST-only authentication sessions: independent login, refresh rotation and
   assert.ok([400,401,403].includes(r.status),'Invalid refresh unexpectedly accepted HTTP '+r.status);
   assert.equal(Boolean(r.value?.access_token),false,'Invalid refresh leaked access token');
  });
+ await t.test('incorrect TEST password cannot authenticate',async()=>{
+  const r=await call(conf,'/auth/v1/token?grant_type=password',{body:{
+    email:process.env.QA_TWO_TENANT_B_EMAIL,
+    password:'QA_INVALID_PASSWORD_DO_NOT_ACCEPT_'+Date.now()
+  }});
+  assert.ok([400,401,403].includes(r.status),'Bad password unexpectedly succeeded: '+r.status);
+  assert.ok(!r.value?.access_token,'Bad password cannot return access token');
+ });
+ await t.test('malformed bearer token cannot access protected REST records',async()=>{
+  const r=await call(conf,'/rest/v1/sales?select=id&limit=1',{
+   method:'GET',token:'this-is-not-a-jwt'
+  });
+  assert.ok([401,403].includes(r.status),'Malformed JWT must be denied, got '+r.status);
+  assert.ok(!Array.isArray(r.value),'Protected REST cannot return records with invalid JWT');
+ });
+ await t.test('malformed bearer token cannot create financial sale',async()=>{
+  const r=await call(conf,'/rest/v1/rpc/fn_create_sale',{
+   token:'this-is-not-a-jwt',body:{
+    p_sale_id:'00000000-0000-4000-8000-000000000001',
+    p_business_id:'3849b750-20f7-4929-8699-737a4e1983c8',
+    p_location_id:'1302346c-5197-46cb-a586-f8aeac394789',
+    p_channel:'QA_AUTH_NEGATIVE',p_payment_method:'Card',p_employee_id:null,
+    p_customer_id:null,p_discount:0,p_tax:0,p_notes:'QA_AUTH_NEGATIVE',
+    p_fulfillment_status:'Received',p_items:[]
+   }
+  });
+  assert.ok([401,403].includes(r.status),'Malformed JWT must be rejected before RPC, got '+r.status);
+ });
  const sessions=[];
  for(const label of ['A','B']){
   await t.test('authenticated login and isolated identity '+label,async()=>{
