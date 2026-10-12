@@ -75,6 +75,24 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
    assert.equal(await page.getByText('NEXALVO',{exact:false}).count()>0,true);
   });
   await t.test('desktop page has no uncaught JS exceptions',async()=>{assert.deepEqual(errors,[])});
+  await t.test('P0.02 UI: logout clears authentication and returns to login form',async()=>{
+    await page.getByText('Settings',{exact:true}).first().click();
+    await page.getByText('Log Out',{exact:true}).first().click();
+    await page.locator('input[name=email]').waitFor({state:'visible',timeout:20000});
+    assert.equal(await page.locator('input[name=password]').count(),1);
+  });
+  await t.test('P0.02 UI: page reload does not resurrect logged-out session',async()=>{
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.locator('input[name=email]').waitFor({state:'visible',timeout:15000});
+    assert.equal(await page.locator('input[name=password]').count(),1);
+  });
+  await t.test('P0.02 UI: re-login after logout restores TEST owner session',async()=>{
+    await page.locator('input[name=email]').fill(process.env.QA_TWO_TENANT_B_EMAIL);
+    await page.locator('input[name=password]').fill(process.env.QA_TWO_TENANT_B_PASSWORD);
+    await page.locator('button[type=submit]').click();
+    await page.locator('input[name=email]').waitFor({state:'detached',timeout:40000});
+    await page.getByText('ZZ_QA_PLATFORM_20261009_AUTO',{exact:false}).first().waitFor({state:'attached',timeout:40000});
+  });
   const mobile=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});
   const mobileErrors=[];mobile.on('pageerror',e=>mobileErrors.push(e.message));
   await mobile.goto('http://127.0.0.1:4179/',{waitUntil:'domcontentloaded',timeout:30000});
