@@ -217,6 +217,34 @@ jobs:
             qa-browser-artifacts/
           retention-days: 14
 
+  performance-read:
+    needs: test-api-smoke
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
+      QA_TWO_TENANT_B_EMAIL: ${{ secrets.QA_TWO_TENANT_B_EMAIL }}
+      QA_TWO_TENANT_B_PASSWORD: ${{ secrets.QA_TWO_TENANT_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Safe bounded TEST read performance baseline
+        shell: bash
+        run: set -o pipefail; node --test --test-reporter=tap qa/performance-read-smoke.test.mjs | tee qa-performance-read.tap
+      - name: Archive API read latency metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-performance-read
+          path: qa-performance-read.tap
+          retention-days: 14
+
   two-tenant-concurrency:
     needs: test-api-smoke
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
