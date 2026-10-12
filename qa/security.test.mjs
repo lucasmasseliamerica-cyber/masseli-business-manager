@@ -20,7 +20,7 @@ test('all QA test scripts reject production host and privileged keys',()=>{
  assert.doesNotMatch(workflow,/ebhlfghbdfqgrgmtzpti|SUPABASE_SERVICE_ROLE|PROD_SUPABASE/i);
 });
 test('concurrency scripts enforce exact TEST hostname before network access',()=>{
- for(const file of ['api-smoke.mjs','concurrency-readonly.test.mjs','anonymous-isolation.test.mjs']){
+ for(const file of ['api-smoke.mjs','concurrency-readonly.test.mjs','anonymous-isolation.test.mjs','invalid-jwt.test.mjs','concurrency-authenticated.test.mjs','concurrency-two-tenants.test.mjs']){
   const body=readFileSync('qa/'+file,'utf8');
   assert.match(body,/msinksoilkluooxenecy/,file);
   assert.match(body,/\.hostname/,file);
