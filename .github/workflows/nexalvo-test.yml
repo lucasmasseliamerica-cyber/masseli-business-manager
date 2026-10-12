@@ -27,7 +27,7 @@ jobs:
       - run: npm run build
       - name: Run static security checks and save report
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs | tee qa-static-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
       - name: Upload build and static QA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -53,7 +53,7 @@ jobs:
           node-version: '22'
       - name: Verify TEST target and run isolated API checks
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/api-smoke.mjs qa/concurrency-readonly.test.mjs qa/anonymous-isolation.test.mjs qa/invalid-jwt.test.mjs | tee qa-api-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/api-smoke.mjs qa/concurrency-readonly.test.mjs qa/anonymous-isolation.test.mjs qa/invalid-jwt.test.mjs | tee qa-api-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-api-results.tap
       - name: Upload API QA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -81,7 +81,7 @@ jobs:
           node-version: '22'
       - name: Concurrent sale idempotency in isolated TEST tenant
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/concurrency-authenticated.test.mjs | tee qa-concurrency-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/concurrency-authenticated.test.mjs | tee qa-concurrency-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-concurrency-results.tap
       - name: Upload authenticated concurrency report
         if: always()
         uses: actions/upload-artifact@v4
@@ -111,7 +111,7 @@ jobs:
           node-version: '22'
       - name: Authenticated multi-tenant reads and rejection of invalid writes
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/access-regression.test.mjs qa/p0-isolation-matrix.test.mjs qa/p0-write-isolation.test.mjs qa/p0-validation-boundaries.test.mjs | tee qa-access-regression.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/access-regression.test.mjs qa/p0-isolation-matrix.test.mjs qa/p0-write-isolation.test.mjs qa/p0-validation-boundaries.test.mjs | tee qa-access-regression.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-access-regression.tap
       - name: Archive tenant/access regression report
         if: always()
         uses: actions/upload-artifact@v4
@@ -141,7 +141,7 @@ jobs:
           node-version: '22'
       - name: Verify TEST auth login refresh rotation logout and refresh revocation
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/auth-session-lifecycle.test.mjs | tee qa-auth-lifecycle.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/auth-session-lifecycle.test.mjs | tee qa-auth-lifecycle.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-auth-lifecycle.tap
       - name: Archive TEST session QA
         if: always()
         uses: actions/upload-artifact@v4
@@ -169,7 +169,7 @@ jobs:
           node-version: '22'
       - name: TEST write replay, discount, tax and accounting idempotency
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/replay-financial.test.mjs | tee qa-replay-financial.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/replay-financial.test.mjs | tee qa-replay-financial.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-replay-financial.tap
       - name: Archive TEST replay report
         if: always()
         uses: actions/upload-artifact@v4
@@ -206,7 +206,7 @@ jobs:
         run: |
           set -euo pipefail
           npm run dev -- --host 127.0.0.1 --port 4179 --strictPort &
-          node --test --test-reporter=tap qa/browser-smoke.test.mjs | tee qa-browser-smoke.tap
+          node --test --test-reporter=tap qa/browser-smoke.test.mjs | tee qa-browser-smoke.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-browser-smoke.tap
       - name: Save QA browser report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
@@ -236,7 +236,7 @@ jobs:
           node-version: '22'
       - name: Safe bounded TEST read performance baseline
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/performance-read-smoke.test.mjs | tee qa-performance-read.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/performance-read-smoke.test.mjs | tee qa-performance-read.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-performance-read.tap
       - name: Archive API read latency metrics
         if: always()
         uses: actions/upload-artifact@v4
@@ -266,7 +266,7 @@ jobs:
           node-version: '22'
       - name: Two independent authenticated companies and different sale values
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/concurrency-two-tenants.test.mjs | tee qa-two-tenants-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/concurrency-two-tenants.test.mjs | tee qa-two-tenants-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-two-tenants-results.tap
       - name: Archive two-tenant QA evidence
         if: always()
         uses: actions/upload-artifact@v4
