@@ -63,3 +63,16 @@ P2:
 Production Supabase `ebhlfghbdfqgrgmtzpti` and production Vercel deployment are strictly excluded. Never enable destructive load tests, password recovery email blasts, restore or delete data outside TEST without independent authorization and a restoration plan. The workflow automatically executes on future QA branch pushes or manual dispatch only.
 
 **Conclusion:** The automated suites that exist are currently green. **100% product completion cannot be certified** until missing workflows and criteria above are validated.
+
+
+## Continued execution (after run #46): GitHub Actions run #54
+
+- [Execution #54](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38299455362), branch commit `5c014c03dba47e9dafc4a0fa152b83c3d9607b57`.
+- **9/9 jobs successful; browser-smoke 22/22 TAP checks, 0 failures, 0 skips**. This includes all 12 operational sidebar sections, authenticated desktop/mobile access, accessible product Save button with scrolling, customer Create Customer disabled for empty name, and screenshots.
+- New TEST-only performance-read job validated 25 read requests in five batches, max 5 simultaneous: p95 211 ms, mean 105 ms on its first measured run (#51). This is a small baseline, **not** a production-scale benchmark.
+- Regression test improvements in browser included explicit X-button close of product and customer modals (Escape is not an app-supported close shortcut), plus asynchronous mobile profile wait. Previous failed runs #47/#52 were test harness problems and have been resolved and re-run successfully.
+- Additional isolated SQL role tests on TEST: 5 real-role employee checks and 6 transaction-scoped manager checks passed.
+- Backup/export access TEST probes: own company OWNER permitted; employee and foreign-company OWNER denied. **Full restore was NOT attempted.**
+- Current validation remains partial on all 19 product workstreams; only tested cases are certified. UI form complete write/save flows, real MANAGER/EMPLOYEE logins, production-scale load, actual restore to isolated database, and final user acceptance remain outstanding.
+- Production Supabase project `ebhlfghbdfqgrgmtzpti` remained untouched.
+
