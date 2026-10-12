@@ -189,3 +189,14 @@ Next: authorized TEST-only migration installation; inspect exposure/roles, real 
 - The subsequent correct-password owner login, logout, reload, re-login, mobile smoke, financial replay and HTTP post-commit network recovery continue to pass.
 - The purchase-idempotency migration is **still NOT applied**, because its execution was blocked by tool security controls. `VITE_PURCHASE_IDEMPOTENCY_ENABLED` remains unset/off. The static staged purchase code is not proof of production-ready idempotency.
 - Pending P0.02: independent manager/employee sessions, real invitation and reset email delivery, expiry and token-revocation behavior. Production untouched.
+
+
+## P0.02 — Expired recovery and invitation links (CI run #76)
+
+- GitHub Actions [run #76](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38322429753): **10/10 jobs success, 171/171 TAP assertions passed (including parent test counts), 0 failures, 0 skips.**
+- Commit `ab2ceb1d78bc3b306764abf0bb403d7df5e2288e`: two permanent Playwright negative tests in `qa/browser-smoke.test.mjs`.
+- An expired Supabase recovery redirect (`#error=access_denied&error_code=otp_expired&type=recovery`) is rendered as an invalid-link state. The password form is absent; URL fragment is stripped; Back to Sign In returns to the normal login screen.
+- An expired invitation redirect (`type=invite` with `otp_expired`) is similarly rejected without a password-change form and supports returning to login.
+- Browser suite: **30/30 TAP checks passed**, 0 failures/skips. Other security, TEST network, financial and role suites green.
+- This is a synthetic expired redirect test, **not real SMTP delivery, link consumption or natural expiry**. Those remain pending.
+- No actual QA passwords were reset or emails sent; PROD not accessed.
