@@ -38,3 +38,18 @@ test('frontend Supabase configuration is injected via Vite, not hard-coded',()=>
  assert.match(body,/import\.meta\.env\.VITE_SUPABASE_ANON_KEY/);
  assert.doesNotMatch(body,/https:\/\/ebhlfghbdfqgrgmtzpti\.supabase\.co/);
 });
+
+test('purchase idempotency rollout remains opt-in until isolated TEST migration approved',()=>{
+ const source=readFileSync('src/App.jsx','utf8');
+ const migration=readFileSync('migrations/20261012_purchase_order_idempotency_TEST.sql','utf8');
+ assert.match(source,/VITE_PURCHASE_IDEMPOTENCY_ENABLED\s*===\s*"true"/);
+ assert.match(source,/fn_create_purchase_order_idempotent/);
+ assert.match(source,/requestId:\s*requestIdRef\.current/);
+ assert.match(migration,/CREATE TABLE IF NOT EXISTS public\.purchase_order_request_keys/);
+ assert.match(migration,/PRIMARY KEY\(business_id,request_id\)/);
+ assert.match(migration,/ON CONFLICT\(business_id,request_id\) DO NOTHING/);
+ assert.match(migration,/FOR UPDATE/);
+ assert.match(migration,/idempotency key reused with different payload/);
+ assert.match(migration,/ENABLE ROW LEVEL SECURITY/);
+ assert.match(migration,/REVOKE ALL ON public\.purchase_order_request_keys FROM PUBLIC,anon,authenticated/);
+});
