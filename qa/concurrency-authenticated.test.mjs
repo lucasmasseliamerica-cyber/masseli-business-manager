@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 
 const EXPECTED_HOST='msinksoilkluooxenecy.supabase.co';
-const enabled=process.env.QA_CONCURRENCY_ENABLED==='true';
-const needed=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_CONCURRENCY_EMAIL','QA_CONCURRENCY_PASSWORD','QA_CONCURRENCY_BUSINESS_ID','QA_CONCURRENCY_LOCATION_ID','QA_CONCURRENCY_PRODUCT_ID'];
+const enabled=process.env.QA_TWO_TENANT_ENABLED==='true';
+const needed=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_TWO_TENANT_B_EMAIL','QA_TWO_TENANT_B_PASSWORD'];
 const missing=needed.filter(k=>!process.env[k]);
-const skipReason=!enabled?'Not run: QA_CONCURRENCY_ENABLED is not true (no write permission granted)':
+const skipReason=!enabled?'Not run: QA_TWO_TENANT_ENABLED is not true (no write permission granted)':
  missing.length?'Not run: missing dedicated QA fixture/credentials: '+missing.join(', '):false;
 function config(){
  const base=new URL(process.env.QA_SUPABASE_URL);
@@ -19,7 +19,7 @@ function config(){
 async function authenticate(base,key){
  const response=await fetch(new URL('/auth/v1/token?grant_type=password',base),{
   method:'POST',headers:{apikey:key,'Content-Type':'application/json'},
-  body:JSON.stringify({email:process.env.QA_CONCURRENCY_EMAIL,password:process.env.QA_CONCURRENCY_PASSWORD}),
+  body:JSON.stringify({email:process.env.QA_TWO_TENANT_B_EMAIL,password:process.env.QA_TWO_TENANT_B_PASSWORD}),
   signal:AbortSignal.timeout(15000),redirect:'error'
  });
  assert.equal(response.status,200,'Dedicated QA account login failed: '+response.status);
@@ -40,21 +40,23 @@ async function call(base,key,token,path,options={}){
 test('ten parallel authenticated retries create exactly one sale and one payment entry', {skip:skipReason,timeout:120000},async()=>{
  const {base,key}=config();
  const token=await authenticate(base,key);
- const business=process.env.QA_CONCURRENCY_BUSINESS_ID;
- const location=process.env.QA_CONCURRENCY_LOCATION_ID;
- const product=process.env.QA_CONCURRENCY_PRODUCT_ID;
- for(const id of [business,location,product]) assert.match(id,/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
- // An isolated QA-only tenant is mandatory; refuse legacy tenant IDs.
- assert.notEqual(business,'d627563b-2ce4-491d-8cf6-141ef28d0f63');
- assert.notEqual(business,'3849b750-20f7-4929-8699-737a4e1983c8');
+ const business='3849b750-20f7-4929-8699-737a4e1983c8';
+ const location='1302346c-5197-46cb-a586-f8aeac394789';
+ const product='a4cac86d-038d-418e-b953-9a3605f2df18';
  const businessRows=await call(base,key,token,'/rest/v1/businesses?select=id,name&id=eq.'+business+'&limit=1');
- assert.equal(businessRows.status,200,'Cannot verify isolated TEST tenant');
- assert.equal(businessRows.value?.length,1,'QA fixture business is inaccessible');
- assert.match(businessRows.value[0].name,/^NEXALVO_QA_/i,'Business must start NEXALVO_QA_');
+ assert.equal(businessRows.status,200,'Cannot verify TEST tenant');
+ assert.equal(businessRows.value?.length,1,'TEST fixture B not visible');
+ assert.equal(businessRows.value[0].name,'ZZ_QA_PLATFORM_20261009_AUTO','Wrong TEST company');
+ const productRows=await call(base,key,token,'/rest/v1/products?select=id,sku,price,active&id=eq.'+product);
+ assert.equal(productRows.status,200,'Cannot read TEST fixture product');
+ assert.equal(productRows.value.length,1,'Missing TEST-only product');
+ assert.equal(productRows.value[0].sku,'QA-CONCURRENCY-B-2350');
+ assert.equal(Number(productRows.value[0].price),23.50);
+ assert.equal(productRows.value[0].active,true);
  const id=randomUUID();
  const payload={p_sale_id:id,p_business_id:business,p_location_id:location,p_channel:'QA_CONCURRENCY',p_payment_method:'Card',
   p_employee_id:null,p_customer_id:null,p_discount:0,p_tax:0,p_notes:'AUTOMATED_QA_'+id,p_fulfillment_status:'Received',
-  p_items:[{product_id:product,qty:1,unit_price:1}]};
+  p_items:[{product_id:product,qty:1,unit_price:23.50}]};
  try {
  const responses=await Promise.allSettled(Array.from({length:10},()=>call(base,key,token,'/rest/v1/rpc/fn_create_sale',{
   method:'POST',body:JSON.stringify(payload)
@@ -66,13 +68,14 @@ test('ten parallel authenticated retries create exactly one sale and one payment
  assert.ok(responses.every(r=>r.value.value?.id===id),'Responses did not return same sale id');
  const [sales,items,flow]=await Promise.all([
   call(base,key,token,'/rest/v1/sales?select=id&id=eq.'+id),
-  call(base,key,token,'/rest/v1/sale_items?select=id&sale_id=eq.'+id),
+  call(base,key,token,'/rest/v1/rpc/fn_read_sale_items_secure?select=id,sale_id&sale_id=eq.'+id),
   call(base,key,token,'/rest/v1/cash_flow?select=id&sale_id=eq.'+id)
  ]);
  for(const result of [sales,items,flow]) assert.equal(result.status,200,'QA validation read failed');
  assert.equal(sales.value.length,1,'Duplicate sales');
  assert.equal(items.value.length,1,'Duplicate sale items');
  assert.equal(flow.value.length,1,'Duplicate cash entries');
+ assert.equal(Number(flow.value[0].amount),23.50,'Wrong payment amount');
  } finally {
   // A request may commit even when its HTTP response is lost. Query by unique ID
   // and attempt a reversal whenever the QA sale exists.
