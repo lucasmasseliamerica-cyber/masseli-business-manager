@@ -42,3 +42,16 @@ Next phases: P0.02 session lifecycle invitations/password recovery/expiry; P0.03
 
 Existing last fully passing QA workflow before this permission test: GitHub run #54, 9/9 jobs green, 0 failures, 0 skipped:
 https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38299455362
+
+
+## Continuation: authenticated OWNER browser/API regressions — GitHub run #58
+
+[Run #58](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38300920693) is **9/9 jobs successful**, zero failed/ignored tests.
+- P0.02 Auth API: 9/9 TAP assertions, including explicit anonymous `GET /auth/v1/user` rejection and forged refresh token rejection, as well as 2 real TEST owner logins, session refresh, and refresh revocation after logout.
+- P0.02 Playwright: browser smoke 25/25 TAP assertions, including tested end-to-end Settings → Log Out → login form, page reload does not resurrect session, and re-login. Real owner B credentials only.
+- Added commits `3ed39a0` (browser) and `32cf83e` (auth).
+- The existing 88 simulated-role SQL checks reported above remain valid and were run in reversible transactions.
+
+**Still a blocker for certifying P0.01 at 100%:** independent password/secret-backed accounts for real TEST manager and employee roles are not configured in the CI environment. The profile rows already exist in TEST; manager profile is inactive. Do not permanently activate the manager without a coordinated controlled test setup. Do not treat simulated role JWT variables as real Supabase Auth credentials. Do not request passwords in chat; store them only as dedicated GitHub environment secrets once such test accounts are provisioned.
+
+**P0.02 gaps:** invitation email/acceptance, account recovery email, real token expiry and revocation mid-session still need explicit isolated end-to-end coverage; tests above do not prove them.
