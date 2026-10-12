@@ -36,7 +36,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
    assert.equal(await page.getByText('NEXALVO',{exact:false}).count()>0,true);
   });
   await page.screenshot({path:'qa-browser-artifacts/dashboard-desktop.png',fullPage:true});
-  for(const section of ['Sales','Inventory','Products','Purchases','Customers','Employees']){
+  for(const section of ['Orders','Sales','Cash Flow','Inventory','Products','Purchases','Expenses','Suppliers','Customers','Employees','Reports','Settings']){
    await t.test('desktop navigation '+section,async()=>{
     const item=page.getByText(section,{exact:true}).first();
     assert.ok(await item.isVisible(),'Missing navigation '+section);
