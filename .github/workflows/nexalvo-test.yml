@@ -64,7 +64,7 @@ jobs:
 
   authenticated-concurrency:
     needs: test-api-smoke
-    if: ${{ vars.QA_CONCURRENCY_ENABLED == 'true' }}
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
     timeout-minutes: 5
