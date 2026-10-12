@@ -55,7 +55,6 @@ test('ten parallel authenticated retries create exactly one sale and one payment
  const payload={p_sale_id:id,p_business_id:business,p_location_id:location,p_channel:'QA_CONCURRENCY',p_payment_method:'Card',
   p_employee_id:null,p_customer_id:null,p_discount:0,p_tax:0,p_notes:'AUTOMATED_QA_'+id,p_fulfillment_status:'Received',
   p_items:[{product_id:product,qty:1,unit_price:1}]};
- let created=false;
  try {
  const responses=await Promise.allSettled(Array.from({length:10},()=>call(base,key,token,'/rest/v1/rpc/fn_create_sale',{
   method:'POST',body:JSON.stringify(payload)
@@ -63,7 +62,6 @@ test('ten parallel authenticated retries create exactly one sale and one payment
  const failures=responses.filter(r=>r.status==='rejected');
  assert.equal(failures.length,0,failures.map(r=>String(r.reason)).join('; '));
  const statuses=responses.map(r=>r.value.status);
- created=statuses.some(s=>s===200);
  assert.ok(statuses.every(s=>s===200), 'Concurrent request statuses: '+statuses.join(','));
  assert.ok(responses.every(r=>r.value.value?.id===id),'Responses did not return same sale id');
  const [sales,items,flow]=await Promise.all([
@@ -76,9 +74,12 @@ test('ten parallel authenticated retries create exactly one sale and one payment
  assert.equal(items.value.length,1,'Duplicate sale items');
  assert.equal(flow.value.length,1,'Duplicate cash entries');
  } finally {
-  // Always attempt reversal if an RPC succeeded, even when result assertions fail.
+  // A request may commit even when its HTTP response is lost. Query by unique ID
+  // and attempt a reversal whenever the QA sale exists.
   // Cancelled QA audit rows intentionally remain in isolated TEST only.
-  if (created) {
+  const check=await call(base,key,token,'/rest/v1/sales?select=id,status&id=eq.'+id);
+  assert.equal(check.status,200,'Cannot verify compensating cleanup for QA sale '+id);
+  if (check.value.length>0 && check.value[0].status!=='cancelled') {
    const reversal=await call(base,key,token,'/rest/v1/rpc/fn_reverse_sale',{method:'POST',body:JSON.stringify({p_sale_id:id})});
    assert.equal(reversal.status,200,'QA sale created but compensating reversal failed: '+reversal.status);
    assert.equal(reversal.value?.status,'cancelled','QA sale reversal did not cancel');
