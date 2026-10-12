@@ -145,3 +145,17 @@ Remaining blockers: MANAGER and EMPLOYEE E2E login; invitation/password recovery
 - Browser smoke: 27/27 TAP checks approved. Other jobs remain green.
 - **Scope limitation:** this is a real browser network offline toggle, but **NOT** yet an interrupted in-flight sale/purchase write, timeout after commit, or automatic transaction retry validation. Do not mark P0.06 fully certified on this evidence alone.
 - All execution against local TEST frontend and Supabase TEST project `msinksoilkluooxenecy`. Production unchanged.
+
+
+## P0.06 — Actual post-commit HTTP interruption and reconciliation, CI run #72
+
+- Workflow: https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38319660523
+- New permanent isolated QA script: `qa/p0-network-after-commit.test.mjs`.
+- New CI job: `network-after-commit`, uses TEST owner A secrets from `nexalvo-test` environment.
+- Script starts a temporary local HTTP proxy that forwards exactly one authenticated `POST` to Supabase TEST `msinksoilkluooxenecy`, awaits actual upstream HTTP 200, and *destroys its response socket* before the client receives any successful response. Thus the application-side HTTP request fails even though the transaction committed.
+- Sale: verifies transaction recovered by original client-generated UUID, safe idempotent retry and exactly one income ledger row.
+- Purchase: verifies transaction uniquely reconciled by test-only distinctive notes marker, checks exactly one purchase item, and explicitly avoids a blind repeat `POST` (purchase creation RPC currently lacks a client-provided idempotency key).
+- Cleanup: `fn_cancel_purchase_order` cancels QA Draft PO; `fn_reverse_sale` cancels QA card sale; asserts terminal statuses and exactly two compensating sale ledger rows.
+- New job: **6/6 TAP checks passed, zero failures, zero skips**.
+- Important scope distinction: this covers response loss **after confirmed upstream commit**. It does not establish safety if the server's commit status is unknown, and it does not make the purchase creation RPC itself idempotent. No in-flight browser UI interception for checkout has been proven. P0.06 remains partial.
+- Production was not accessed or modified.
