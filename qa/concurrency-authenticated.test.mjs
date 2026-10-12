@@ -8,7 +8,6 @@ const needed=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_CONCURRENCY_EMAIL','Q
 const missing=needed.filter(k=>!process.env[k]);
 const skipReason=!enabled?'Not run: QA_CONCURRENCY_ENABLED is not true (no write permission granted)':
  missing.length?'Not run: missing dedicated QA fixture/credentials: '+missing.join(', '):false;
-const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function config(){
  const base=new URL(process.env.QA_SUPABASE_URL);
  assert.equal(base.protocol,'https:');
@@ -56,12 +55,15 @@ test('ten parallel authenticated retries create exactly one sale and one payment
  const payload={p_sale_id:id,p_business_id:business,p_location_id:location,p_channel:'QA_CONCURRENCY',p_payment_method:'Card',
   p_employee_id:null,p_customer_id:null,p_discount:0,p_tax:0,p_notes:'AUTOMATED_QA_'+id,p_fulfillment_status:'Received',
   p_items:[{product_id:product,qty:1,unit_price:1}]};
+ let created=false;
+ try {
  const responses=await Promise.allSettled(Array.from({length:10},()=>call(base,key,token,'/rest/v1/rpc/fn_create_sale',{
   method:'POST',body:JSON.stringify(payload)
  })));
  const failures=responses.filter(r=>r.status==='rejected');
  assert.equal(failures.length,0,failures.map(r=>String(r.reason)).join('; '));
  const statuses=responses.map(r=>r.value.status);
+ created=statuses.some(s=>s===200);
  assert.ok(statuses.every(s=>s===200), 'Concurrent request statuses: '+statuses.join(','));
  assert.ok(responses.every(r=>r.value.value?.id===id),'Responses did not return same sale id');
  const [sales,items,flow]=await Promise.all([
@@ -73,9 +75,13 @@ test('ten parallel authenticated retries create exactly one sale and one payment
  assert.equal(sales.value.length,1,'Duplicate sales');
  assert.equal(items.value.length,1,'Duplicate sale items');
  assert.equal(flow.value.length,1,'Duplicate cash entries');
- // Write reversal restores financial balance. The cancelled QA audit rows remain intentionally.
- const reversal=await call(base,key,token,'/rest/v1/rpc/fn_reverse_sale',{method:'POST',body:JSON.stringify({p_sale_id:id})});
- assert.equal(reversal.status,200,'QA sale created; reversal failed: '+reversal.status);
- assert.equal(reversal.value?.status,'cancelled','QA sale reversal did not cancel');
- await sleep(100);
+ } finally {
+  // Always attempt reversal if an RPC succeeded, even when result assertions fail.
+  // Cancelled QA audit rows intentionally remain in isolated TEST only.
+  if (created) {
+   const reversal=await call(base,key,token,'/rest/v1/rpc/fn_reverse_sale',{method:'POST',body:JSON.stringify({p_sale_id:id})});
+   assert.equal(reversal.status,200,'QA sale created but compensating reversal failed: '+reversal.status);
+   assert.equal(reversal.value?.status,'cancelled','QA sale reversal did not cancel');
+  }
+ }
 });
