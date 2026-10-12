@@ -211,3 +211,15 @@ Next: authorized TEST-only migration installation; inspect exposure/roles, real 
 - A synthetic invalid recovery access token triggers a real TEST Supabase `PUT /auth/v1/user` request: the server rejects it; the UI must not show `PASSWORD UPDATED`. The fake token is not persisted as the normal application session.
 - Browser suite 33/33 TAP; all other jobs, including isolation, network recovery and financial replay, remain green.
 - **Not proven**: successful real recovery email delivery and verified valid-token password reset, natural token expiry, independent MANAGER/EMPLOYEE sessions. No password was changed for a real QA user; PROD was not accessed or mutated.
+
+
+## P0.03/P0.04/P0.05 — browser form pre-write validation (run #78)
+
+- [GitHub Actions run #78](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38323278668): **10/10 jobs success, 177/177 TAP checks passed (parent tests counted), 0 failures, 0 skips.**
+- QA branch commit `487eaef29047cde707089206451e830b9dd7f794`: three durable Playwright negative-only tests added to `qa/browser-smoke.test.mjs`, using authenticated TEST owner B.
+- **Sales:** open New Sale, add a second line with the same product, try to finalize; verify duplicate-product warning and that `fn_create_sale` has **zero POST calls**.
+- **Inventory:** open New Item, leave Item Name empty, click Save Item; verify name-is-required warning and **zero stock RPC POST calls**.
+- **Purchases:** open New Purchase, add another inventory line and attempt Save as Draft; fixture-specific validation rejects the invalid order (no supplier or duplicate inventory item) and `fn_create_purchase_order*` has **zero POST calls**. The B tenant has no reliable supplier fixture, so **this is not proof of duplicate PO-line validation on a tenant with a configured supplier**.
+- Browser job 36/36 TAP checks passed; previous API, permissions, auth, financial replay and network after commit suites remain green.
+- Limitations: these are browser input-rejection paths, **not real successful sale/stock/purchase form submissions**, payment-terminal integration, user-role permission flows, or recovery from live input submission failures. Continue P0.03–P0.05 as partial.
+- Production database and deployment untouched. Purchase idempotency migration remains blocked and feature flag remains off.
