@@ -70,4 +70,27 @@ test('TEST: replay after dropped application response is idempotent; discount an
   }
  }
  if(error)throw error;
+ await t.test('sale reversal creates exactly one offsetting refund and a zero-net ledger',async()=>{
+   const [sales,ledger]=await Promise.all([
+     request(c,'/rest/v1/sales?select=id,status,cancelled_at,total&id=eq.'+id,token),
+     request(c,'/rest/v1/cash_flow?select=id,type,category,amount,payment_method,sale_id&sale_id=eq.'+id,token)
+   ]);
+   assert.equal(sales.status,200);assert.equal(ledger.status,200);
+   assert.equal(sales.value.length,1);assert.equal(sales.value[0].status,'cancelled');
+   assert.ok(sales.value[0].cancelled_at,'Reversal must set cancelled_at');
+   assert.equal(ledger.value.length,2,'Exactly one sale and one offsetting refund');
+   const income=ledger.value.filter(x=>x.type==='income');
+   const refund=ledger.value.filter(x=>x.type==='expense'&&x.category==='Sale Cancellation');
+   assert.equal(income.length,1);assert.equal(refund.length,1);
+   assert.equal(Number(income[0].amount),23);
+   assert.equal(Number(refund[0].amount),23);
+   assert.equal(Number(income[0].amount)-Number(refund[0].amount),0);
+ });
+ await t.test('second reversal is rejected without producing another refund',async()=>{
+   const again=await request(c,'/rest/v1/rpc/fn_reverse_sale',token,{p_sale_id:id});
+   assert.ok(again.status>=400&&again.status<500,'Repeated sale cancellation must be rejected');
+   assert.match(String(again.value?.message||''),/sale already cancelled/i);
+   const ledger=await request(c,'/rest/v1/cash_flow?select=id&sale_id=eq.'+id,token);
+   assert.equal(ledger.status,200);assert.equal(ledger.value.length,2,'No duplicate refund on repeat');
+ });
 });
