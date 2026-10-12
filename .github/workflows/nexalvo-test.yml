@@ -178,6 +178,45 @@ jobs:
           path: qa-replay-financial.tap
           retention-days: 14
 
+  browser-smoke:
+    needs: test-api-smoke
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      VITE_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
+      QA_TWO_TENANT_B_EMAIL: ${{ secrets.QA_TWO_TENANT_B_EMAIL }}
+      QA_TWO_TENANT_B_PASSWORD: ${{ secrets.QA_TWO_TENANT_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install browser for isolated TEST user-interface smoke
+        run: npm install --no-save playwright && npx playwright install --with-deps chromium
+      - name: Serve isolated TEST frontend and run desktop/mobile smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 4179 --strictPort &
+          node --test --test-reporter=tap qa/browser-smoke.test.mjs | tee qa-browser-smoke.tap
+      - name: Save QA browser report and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-browser-smoke
+          path: |
+            qa-browser-smoke.tap
+            qa-browser-artifacts/
+          retention-days: 14
+
   two-tenant-concurrency:
     needs: test-api-smoke
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
