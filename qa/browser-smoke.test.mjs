@@ -243,7 +243,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       const modalTitle=page.locator('h3').filter({hasText:'New Inventory Item'}).first();
       await modalTitle.waitFor({timeout:15000});
       let writeCalls=0;
-      const onRequest=req=>{if(req.method()==='POST' && /\\/rest\\/v1\\/rpc\\/fn_add_initial_stock/.test(req.url())) writeCalls++;};
+      const onRequest=req=>{if(req.method()==='POST' && req.url().includes('/rest/v1/rpc/fn_add_initial_stock')) writeCalls++;};
       page.on('request',onRequest);
       try{
         await page.getByText('Item Name',{exact:true}).locator('..').locator('input').fill('QA_INPUT_VALIDATION_NOT_SAVED');
