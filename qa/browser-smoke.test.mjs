@@ -319,6 +319,13 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
         await qty.fill('1');
         await cost.fill('-2');
         await purchasePage.getByText('Save as Draft',{exact:true}).first().click();
+        console.log('QA_P005_DIAG_NEGATIVE_COST '+JSON.stringify({
+          quantity:await qty.inputValue(),cost:await cost.inputValue(),
+          itemId:await purchasePage.locator('div.flex-1 select').first().inputValue(),
+          itemOptions:await purchasePage.locator('div.flex-1 select').first().locator('option').count(),
+          supplier:await purchasePage.getByText('Supplier',{exact:true}).locator('..').locator('select').inputValue(),
+          errors:await purchasePage.locator('div.text-xs.font-semibold.mb-3.px-3.py-2.rounded-xl').allTextContents()
+        }));
         await purchasePage.getByText(/Unit cost must be a valid number greater than or equal to zero/i).first().waitFor({timeout:12000});
         assert.equal(writeCalls,0);
       });
@@ -326,6 +333,12 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
         await cost.fill('1');
         await purchasePage.getByText('Discount ($)',{exact:true}).locator('..').locator('input').fill('999999');
         await purchasePage.getByText('Save as Draft',{exact:true}).first().click();
+        console.log('QA_P005_DIAG_DISCOUNT '+JSON.stringify({
+          quantity:await qty.inputValue(),cost:await cost.inputValue(),
+          itemId:await purchasePage.locator('div.flex-1 select').first().inputValue(),
+          discount:await purchasePage.getByText('Discount ($)',{exact:true}).locator('..').locator('input').inputValue(),
+          errors:await purchasePage.locator('div.text-xs.font-semibold.mb-3.px-3.py-2.rounded-xl').allTextContents()
+        }));
         await purchasePage.getByText(/Discount can't make the purchase order total negative/i).first().waitFor({timeout:12000});
         assert.equal(writeCalls,0);
       });
