@@ -50,3 +50,21 @@ Security advisor recheck: 1 informational `rls_enabled_no_policy`, 41 warnings f
 - https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 
 Note: No new GitHub Actions run was triggered by the migration/doc commits because the workflow path filter does not include `migrations/**` or `docs/**`. Do not claim CI #80 validates the changed TEST database.
+
+
+## Separate-session close-versus-sale attempt (not accepted)
+
+A dedicated TEST OWNER B register was opened with zero opening cash as fixture `1499f777-cf0b-4704-a8f2-19bebd0371df` (note `QA_CONCURRENT_CASH_GUARD_20261013`). Two independent Supabase connector SQL requests were dispatched concurrently: one closed the register while holding its row lock for four seconds, the other tried to sell for Cash and measured how long it waited.
+
+- **PASS:** the closing transaction committed a register state of `closed` with expected cash `0.00`.
+- **INCONCLUSIVE:** the sale-side test did not observe the required >=1-second lock contention; its deliberate contention assertion failed. It is *not* acceptable as proof of simultaneous close/sale serialization.
+- **PASS (post-check):** no sales or cash-flow entries were left by the attempted race and zero registers remained open.
+- One ordinary **closed QA register and its audit trail remain** in TEST intentionally; no destructive cleanup performed. Earlier 20-register read-only baseline therefore became 21.
+
+This is not a production modification. A deterministic separate-connection concurrency harness with synchronization barriers remains an open P0 requirement. Do not retry by weakening the minimum contention assertion just to obtain a green result.
+
+## Source control finalization
+
+The migration file was completed with a SQL statement terminator in QA branch commit `dc3266667c00fba753b949f0575e7807b71c88ca`. It is a TEST-only source snapshot; do not include this in production deployment without separate approval.
+
+**Release status: P0.03 server guard implemented and validated with reversible SQL transactions, but HTTP authenticated regression, browser test, deterministic concurrency and post-migration full CI remain outstanding.**
