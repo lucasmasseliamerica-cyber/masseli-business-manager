@@ -243,3 +243,12 @@ Next: authorized TEST-only migration installation; inspect exposure/roles, real 
 - Browser job: **37/37 passed**, including the newly added minimum-stock-greater-than-maximum-stock validation; 0 failed, 0 skipped.
 - Other jobs: static security 6, API 5, authenticated concurrency 1, access regression 100, authentication lifecycle 12, financial replay 7, post-commit network 6, performance reads 3, two-tenant concurrency 1. Combined 178 including browser 37.
 - This supersedes the in-progress status above, but **does not certify P0.03–P0.05** end-to-end success paths.
+
+
+## P0.03 — sale discount overflow browser validation (2026-10-13)
+
+- QA-only commit [`653de79`](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/commit/653de799b507b29890b177711cf9730ac5375603) added a permanent Playwright negative-form test in `qa/browser-smoke.test.mjs` under real TEST OWNER B login.
+- Scenario: open New Sale, enter manual discount `999999999`, click Complete Sale / Charge Card, require exact application error `Discount can't make the sale total negative.`, and assert **zero POST requests** to `fn_create_sale`.
+- No successful sale is submitted by this test. This is only input validation; full valid UI checkout, cash, payment methods and reversal remain open.
+- [GitHub Actions #80](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38393907159) triggered by the test commit. **Status when entered: queued/running; do not count this assertion as approved until CI logs are reviewed.**
+- Purchase idempotency remains disabled/uninstalled. No production changes.
