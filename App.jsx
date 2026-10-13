@@ -6568,6 +6568,19 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   const [items, setItems] = useState(
     prefill?.items?.length ? prefill.items.map((it) => ({ itemId: it.itemId, qty: it.qty, unitCost: it.unitCost })) : [{ itemId: inventory[0]?.id || "", qty: 1, unitCost: inventory[0]?.costPerUnit || 0 }]
   );
+  // Inventory can finish loading after this modal mounts. React useState's initializer
+  // does not run again, so populate only genuinely blank product selections once
+  // the first inventory item is available. Never replace an explicit selection.
+  useEffect(() => {
+    const first = inventory[0];
+    if (!first) return;
+    setItems(previous => {
+      if (!previous.some(it => !it.itemId)) return previous;
+      return previous.map(it => !it.itemId
+        ? { ...it, itemId: first.id, unitCost: Number(it.unitCost) === 0 ? (first.costPerUnit ?? 0) : it.unitCost }
+        : it);
+    });
+  }, [inventory]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   // Preserve this id for all retries while this purchase form remains open.
