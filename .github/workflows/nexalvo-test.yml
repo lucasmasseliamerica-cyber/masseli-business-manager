@@ -111,7 +111,7 @@ jobs:
           node-version: '22'
       - name: Authenticated multi-tenant reads and rejection of invalid writes
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/access-regression.test.mjs qa/p0-isolation-matrix.test.mjs qa/p0-write-isolation.test.mjs qa/p0-validation-boundaries.test.mjs | tee qa-access-regression.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-access-regression.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/access-regression.test.mjs qa/p0-isolation-matrix.test.mjs qa/p0-write-isolation.test.mjs qa/p0-validation-boundaries.test.mjs qa/p0-cash-register-http.test.mjs | tee qa-access-regression.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-access-regression.tap
       - name: Archive tenant/access regression report
         if: always()
         uses: actions/upload-artifact@v4
