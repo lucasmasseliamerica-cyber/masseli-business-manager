@@ -276,10 +276,10 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     }
   });
   // Fake supplier exists ONLY as an intercepted GET in this separate TEST browser page.
-  // We never create a supplier and explicitly abort every purchase-create POST.
-  await t.test('P0.05 UI purchase input validation with mocked supplier and zero write RPC',async t=>{
+  // No supplier is persisted, and even valid purchase writes are intercepted and simulated.
+  await t.test('P0.05 UI purchase form validates bad inputs and submits mocked valid order',async t=>{
     const purchasePage=await browser.newPage({viewport:{width:1366,height:768}});
-    let writeCalls=0;
+    let writeCalls=0, allowMockSuccess=false, recordedPurchase=null;
     const qaBusiness='3849b750-20f7-4929-8699-737a4e1983c8';
     const supplierLabel='QA_UI_ONLY_SUPPLIER_NOT_PERSISTED';
     try{
@@ -295,7 +295,14 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       });
       await purchasePage.route('**/rest/v1/rpc/fn_create_purchase_order*',async route=>{
         writeCalls++;
-        await route.abort();
+        const req=route.request();
+        const target=new URL(req.url());
+        if(target.hostname!==HOST || req.method()!=='POST') return route.abort();
+        if(!allowMockSuccess) return route.abort();
+        recordedPurchase=req.postDataJSON();
+        return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
+          id:'10000000-0000-4000-8000-000000000098',business_id:qaBusiness,status:'Ordered',po_number:990099
+        })});
       });
       await purchasePage.goto('http://127.0.0.1:4179/',{waitUntil:'domcontentloaded',timeout:30000});
       await purchasePage.locator('input[name=email]').fill(process.env.QA_TWO_TENANT_B_EMAIL);
@@ -343,6 +350,25 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
         assert.equal(writeCalls,0);
       });
       assert.equal(writeCalls,0,'No purchase-create RPC should be sent in any invalid scenario');
+      await t.test('valid purchase form submits correct payload and confirms mocked success, with zero DB writes',async()=>{
+        const expectedItem='b226d34d-650d-46ae-a81d-5bd48c611c68';
+        await purchasePage.locator('div.flex-1 select').first().selectOption(expectedItem);
+        await qty.fill('2');
+        await cost.fill('3.50');
+        await purchasePage.getByText('Discount ($)',{exact:true}).locator('..').locator('input').fill('0');
+        allowMockSuccess=true;
+        await purchasePage.getByText('Submit Order',{exact:true}).first().click();
+        await modal.waitFor({state:'detached',timeout:15000});
+        assert.equal(writeCalls,1,'One mocked creation request expected');
+        assert.equal(recordedPurchase?.p_business_id,qaBusiness,'Must not submit a purchase to another tenant');
+        assert.equal(recordedPurchase?.p_supplier_id,'10000000-0000-4000-8000-000000000099');
+        assert.equal(recordedPurchase?.p_status,'Ordered');
+        assert.equal(recordedPurchase?.p_request_id,undefined,'TEST purchase idempotency flag must remain OFF');
+        assert.equal(recordedPurchase?.p_items?.length,1);
+        assert.equal(recordedPurchase.p_items[0].inventory_item_id,expectedItem);
+        assert.equal(recordedPurchase.p_items[0].qty,2);
+        assert.equal(recordedPurchase.p_items[0].unit_cost,3.5);
+      });
     }finally{
       await purchasePage.close();
     }
