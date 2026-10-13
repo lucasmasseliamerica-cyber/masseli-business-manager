@@ -176,6 +176,24 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       await modalTitle.locator('..').locator('button').first().click();
     }
   });
+  await t.test('P0.03 UI sale rejects discount greater than subtotal without write RPC',async()=>{
+    await page.getByText('Sales',{exact:true}).first().click();
+    await page.getByText('New Sale',{exact:true}).first().click();
+    const modalTitle=page.locator('h3').filter({hasText:'New Sale'}).first();
+    await modalTitle.waitFor({timeout:15000});
+    let writes=0;
+    const onRequest=req=>{if(req.method()==='POST'&&req.url().includes('/rest/v1/rpc/fn_create_sale'))writes++;};
+    page.on('request',onRequest);
+    try{
+      await page.getByText('Discount ($)',{exact:true}).locator('..').locator('input').fill('999999999');
+      await page.getByText(/Complete Sale|Charge Card/i).last().click();
+      await page.getByText(/Discount can't make the sale total negative/i).first().waitFor({timeout:12000});
+      assert.equal(writes,0,'Excessive sale discount must be rejected before transaction RPC');
+    }finally{
+      page.off('request',onRequest);
+      await modalTitle.locator('..').locator('button').first().click();
+    }
+  });
   await t.test('P0.04 UI inventory form rejects unnamed new stock item without write RPC',async()=>{
     await page.getByText('Inventory',{exact:true}).first().click();
     await page.getByText('New Item',{exact:true}).first().click();
