@@ -2904,7 +2904,7 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
     let lines = [], payments = [];
     if (ids.length) {
       [lines, payments] = await Promise.all([
-        supabaseRest.select("purchase_order_items", `select=*&purchase_order_id=in.(${ids.join(",")})`),
+        supabaseRest.select("rpc/fn_read_purchase_order_items_secure", `select=*&purchase_order_id=in.(${ids.join(",")})`),
         supabaseRest.select("purchase_order_payments", `select=*&purchase_order_id=in.(${ids.join(",")})&order=paid_at.desc`),
       ]);
     }
