@@ -193,6 +193,26 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       await modalTitle.locator('..').locator('button').first().click();
     }
   });
+  await t.test('P0.04 UI inventory rejects minimum stock greater than maximum without RPC',async()=>{
+    await page.getByText('Inventory',{exact:true}).first().click();
+    await page.getByText('New Item',{exact:true}).first().click();
+    const modalTitle=page.locator('h3').filter({hasText:'New Inventory Item'}).first();
+    await modalTitle.waitFor({timeout:15000});
+    let writes=0;
+    const onRequest=req=>{if(req.method()==='POST'&&req.url().includes('/rest/v1/rpc/'))writes++;};
+    page.on('request',onRequest);
+    try{
+      await page.getByText('Item Name',{exact:true}).locator('..').locator('input').fill('QA_VALIDATION_ONLY_UNSAVED');
+      await page.getByText('Minimum Stock',{exact:true}).locator('..').locator('input').fill('10');
+      await page.getByText('Maximum Stock',{exact:true}).locator('..').locator('input').fill('5');
+      await page.getByText('Save Item',{exact:true}).first().click();
+      await page.getByText(/Minimum stock can't exceed maximum stock/i).first().waitFor({timeout:12000});
+      assert.equal(writes,0,'Inconsistent stock bounds must not submit any write RPC');
+    }finally{
+      page.off('request',onRequest);
+      await modalTitle.locator('..').locator('button').first().click();
+    }
+  });
   await t.test('P0.05 UI purchase form rejects invalid order locally without creation RPC',async()=>{
     await page.getByText('Purchases',{exact:true}).first().click();
     await page.getByText('New Purchase',{exact:true}).first().click();
