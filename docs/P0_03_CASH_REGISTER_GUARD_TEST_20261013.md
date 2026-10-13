@@ -34,3 +34,19 @@ Function fingerprint after migration: `aabbddc8a9c4a37a171b8a269e9c3139` (MD5 of
 6. Review function-security advisories separately; no global `SECURITY DEFINER` or privilege changes were made.
 
 **NOT FULLY HOMOLOGATED.** Production unchanged. Purchase-idempotency migration is still disabled/uninstalled.
+
+
+## Additional rollback regression — cash method normalization and payment routing
+
+Transaction-scoped TEST OWNER B SQL checks passed (all rolled back):
+- `Cash`, `cash` and ` CASH ` were rejected with the explicit closed-register error and left no sale or income ledger.
+- `Credit Card`, `Debit Card`, `Zelle` and `Other` followed their existing sale RPC database paths without requiring a physical cash drawer and each created exactly one expected income row during the rolled-back test. **This is not terminal/payment-provider authorization verification.**
+
+Post-test read-only state: 0 open / 20 total registers, 0 QA residual sales/registers, recipe ingredient stock 15.000 unchanged. Purchase-idempotency table and RPC still absent from TEST.
+
+Security advisor recheck: 1 informational `rls_enabled_no_policy`, 41 warnings for authenticated-callable `SECURITY DEFINER` functions, and 1 warning for leaked-password protection; treat these as separate platform security review items, not evidence that the register guard failed. Advisory references:
+- https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
+- https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+- https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
+
+Note: No new GitHub Actions run was triggered by the migration/doc commits because the workflow path filter does not include `migrations/**` or `docs/**`. Do not claim CI #80 validates the changed TEST database.
