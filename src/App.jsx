@@ -2429,7 +2429,7 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
     const items = await supabaseRest.select("inventory_items", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
     const ids = (items || []).map((i) => i.id);
     let stock = [];
-    if (ids.length) stock = await supabaseRest.select("inventory_stock", `select=*&inventory_item_id=in.(${ids.join(",")})&order=created_at.asc`);
+    if (ids.length) stock = await supabaseRest.select("rpc/fn_read_inventory_stock_secure", `select=*&inventory_item_id=in.(${ids.join(",")})&order=created_at.asc`);
     const stockByItem = new Map();
     for (const st of stock || []) if (!stockByItem.has(st.inventory_item_id)) stockByItem.set(st.inventory_item_id, st);
     const mapped = (items || []).map((i) => {
@@ -2443,7 +2443,7 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
         expiresAt: i.expires_at || "", notes: i.notes || "", active: i.active !== false,
       };
     });
-    const txRows = await supabaseRest.select("inventory_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=500`);
+    const txRows = await supabaseRest.select("rpc/fn_read_inventory_transactions_secure", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=500`);
     setTransactions((txRows || []).map((t) => ({
       id: t.id, date: t.created_at, itemId: t.inventory_item_id, type: inventoryTxTypeLabel(t.type), qty: Number(t.qty_change || 0),
       unit: t.unit || "", unitCost: t.unit_cost == null ? null : Number(t.unit_cost), totalCost: t.total_cost == null ? null : Number(t.total_cost),
