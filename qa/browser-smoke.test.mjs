@@ -314,6 +314,13 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       const modal=purchasePage.locator('h3').filter({hasText:'New Purchase Order'}).first();
       await modal.waitFor({timeout:15000});
       await purchasePage.locator('option').filter({hasText:supplierLabel}).first().waitFor({state:'attached',timeout:10000});
+      // Supplier and inventory arrive asynchronously; the first list being ready
+      // does NOT prove the other is ready. Require the actual isolated TEST item
+      // before testing any purchase form validation or simulated submission.
+      const expectedQaItem='b226d34d-650d-46ae-a81d-5bd48c611c68';
+      const itemSelect=purchasePage.locator('div.flex-1 select').first();
+      await itemSelect.locator('option[value="'+expectedQaItem+'"]').waitFor({state:'attached',timeout:25000});
+      await itemSelect.selectOption(expectedQaItem);
       const qty=purchasePage.locator('.w-20 input[type="number"]').first();
       const cost=purchasePage.locator('.w-24 input[type="number"]').first();
       await t.test('zero purchase quantity is rejected before RPC',async()=>{
