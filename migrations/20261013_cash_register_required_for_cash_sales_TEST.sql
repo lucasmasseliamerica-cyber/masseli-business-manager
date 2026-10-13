@@ -72,5 +72,4 @@ BEGIN
  insert into audit_logs(business_id,user_id,user_name_snapshot,role_snapshot,action,details)
  select p_business_id,u.id,u.name,u.role,'Sale Created','Order #'||v_order_no||' - '||v_sale.total from users u where u.id=auth.uid() and u.business_id=p_business_id;
  return v_sale;
-end;$function$
-
+end;$function$;
