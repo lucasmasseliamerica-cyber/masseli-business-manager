@@ -231,6 +231,32 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       await modalTitle.locator('..').locator('button').first().click();
     }
   });
+  // UI-only validation against the TEST tenant: malformed inventory inputs must never reach the write API.
+  for (const {label,negative,error} of [
+    {label:'Starting Quantity',negative:'-5',error:/Starting quantity must be a valid nonnegative number/i},
+    {label:'Minimum Stock',negative:'-1',error:/Minimum stock must be a valid nonnegative number/i},
+    {label:'Cost per Unit ($)',negative:'-2',error:/Cost per unit must be a valid nonnegative number/i}
+  ]) {
+    await t.test('P0.04 UI inventory rejects invalid negative numeric fields: '+label,async()=>{
+      await page.getByText('Inventory',{exact:true}).first().click();
+      await page.getByText('New Item',{exact:true}).first().click();
+      const modalTitle=page.locator('h3').filter({hasText:'New Inventory Item'}).first();
+      await modalTitle.waitFor({timeout:15000});
+      let writeCalls=0;
+      const onRequest=req=>{if(req.method()==='POST' && /\\/rest\\/v1\\/rpc\\/fn_add_initial_stock/.test(req.url())) writeCalls++;};
+      page.on('request',onRequest);
+      try{
+        await page.getByText('Item Name',{exact:true}).locator('..').locator('input').fill('QA_INPUT_VALIDATION_NOT_SAVED');
+        await page.getByText(label,{exact:true}).locator('..').locator('input').fill(negative);
+        await page.getByText('Save Item',{exact:true}).first().click();
+        await page.getByText(error).first().waitFor({timeout:12000});
+        assert.equal(writeCalls,0,'Invalid '+label+' must be rejected before stock-creation RPC');
+      } finally {
+        page.off('request',onRequest);
+        await modalTitle.locator('..').locator('button').first().click();
+      }
+    });
+  }
   await t.test('P0.05 UI purchase form rejects invalid order locally without creation RPC',async()=>{
     await page.getByText('Purchases',{exact:true}).first().click();
     await page.getByText('New Purchase',{exact:true}).first().click();
