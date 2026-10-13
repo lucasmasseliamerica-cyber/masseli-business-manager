@@ -6588,8 +6588,9 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     if (!can("managePurchases")) { setError("You don't have permission to create purchase orders."); return; }
     if (!supplierId) { setError("Select a supplier."); return; }
     if (!locationId) { setError("Select a location."); return; }
-    if (lineData.length === 0 || lineData.some((l) => !l.item || !l.qty || l.qty <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
+    if (lineData.length === 0 || lineData.some((l) => !l.item || !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
     if (lineData.some((l) => String(l.unitCost).trim() === "" || !Number.isFinite(Number(l.unitCost)) || Number(l.unitCost) < 0)) { setError("Unit cost must be a valid number greater than or equal to zero."); return; }
+    if (!Number.isFinite(Number(discount)) || !Number.isFinite(Number(tax)) || Number(discount) < 0 || Number(tax) < 0 || !Number.isFinite(grandTotal)) { setError("Discount and tax must be valid nonnegative amounts."); return; }
     if (new Set(lineData.map((l) => l.itemId)).size !== lineData.length) { setError("The same inventory item can't appear more than once on a purchase order."); return; }
     if (grandTotal < 0) { setError("Discount can't make the purchase order total negative."); return; }
     setSubmitting(true);
