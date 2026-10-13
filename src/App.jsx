@@ -6003,6 +6003,14 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
     if (submitting) return;
     if (!can("adjustInventory")) { setError("You don't have permission to add inventory items."); return; }
     if (!name.trim()) { setError("Item name is required."); return; }
+    // Reject invalid inputs rather than silently converting negative stock/cost to zero.
+    for (const [value, label] of [[qty, "Starting quantity"], [minQty, "Minimum stock"], [maxQty, "Maximum stock"], [costPerUnit, "Cost per unit"]]) {
+      if (value === "" || !Number.isFinite(Number(value)) || Number(value) < 0) {
+        setError(`${label} must be a valid nonnegative number.`);
+        return;
+      }
+    }
+    if (!locationId) { setError("Select a storage location."); return; }
     if (Number(minQty) > Number(maxQty) && Number(maxQty) > 0) { setError("Minimum stock can't exceed maximum stock."); return; }
     setSubmitting(true);
     try {
