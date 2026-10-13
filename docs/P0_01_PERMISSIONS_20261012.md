@@ -223,3 +223,14 @@ Next: authorized TEST-only migration installation; inspect exposure/roles, real 
 - Browser job 36/36 TAP checks passed; previous API, permissions, auth, financial replay and network after commit suites remain green.
 - Limitations: these are browser input-rejection paths, **not real successful sale/stock/purchase form submissions**, payment-terminal integration, user-role permission flows, or recovery from live input submission failures. Continue P0.03–P0.05 as partial.
 - Production database and deployment untouched. Purchase idempotency migration remains blocked and feature flag remains off.
+
+
+## P0.04 — inventory bound validation extended (2026-10-13)
+
+- Commit [`00d3941`](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/commit/00d3941e69fa4c2990c777c42ed575b8223d0c17), QA branch only.
+- Extended `qa/browser-smoke.test.mjs` with a new Playwright negative path using authenticated TEST owner B: supply a nonempty new item name, minimum stock 10 and maximum stock 5; click Save Item; require explicit minimum/maximum error and **zero POST calls to stock RPCs**.
+- This test is non-destructive and does not submit a valid create operation. Regression is triggered automatically by branch push: [workflow #79](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38392373364).
+- **Status when documented: workflow #79 in progress; test is NOT yet marked passed.** Confirm all jobs, TAP totals, failures and skips from final logs before declaring acceptance.
+- Existing run #78 remains the last confirmed fully green baseline: 10/10 jobs, 177/177 TAP (including parent assertions), 0 failures and skips.
+- Purchase-idempotency migration remains *uninstalled* on TEST and flag *disabled*. No production changes.
+- P0.03–P0.05 not homologated: real valid UI transactions, debit/credit/cash and stock/purchase completions, failed submit reconciliation, manager/employee sessions and multi-company integration still pending.
