@@ -275,6 +275,65 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       await modalTitle.locator('..').locator('button').first().click();
     }
   });
+  // Fake supplier exists ONLY as an intercepted GET in this separate TEST browser page.
+  // We never create a supplier and explicitly abort every purchase-create POST.
+  await t.test('P0.05 UI purchase input validation with mocked supplier and zero write RPC',async t=>{
+    const purchasePage=await browser.newPage({viewport:{width:1366,height:768}});
+    let writeCalls=0;
+    const qaBusiness='3849b750-20f7-4929-8699-737a4e1983c8';
+    const supplierLabel='QA_UI_ONLY_SUPPLIER_NOT_PERSISTED';
+    try{
+      await purchasePage.route('**/rest/v1/suppliers?*',async route=>{
+        if(route.request().method()!=='GET') return route.continue();
+        const target=new URL(route.request().url());
+        assert.equal(target.hostname,HOST,'Supplier route must be TEST only');
+        assert.equal(target.searchParams.get('business_id'), 'eq.'+qaBusiness,'Do not fake suppliers for another tenant');
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+          id:'10000000-0000-4000-8000-000000000099',
+          business_id:qaBusiness,name:supplierLabel,active:true,created_at:'2026-10-13T00:00:00Z'
+        }])});
+      });
+      await purchasePage.route('**/rest/v1/rpc/fn_create_purchase_order*',async route=>{
+        writeCalls++;
+        await route.abort();
+      });
+      await purchasePage.goto('http://127.0.0.1:4179/',{waitUntil:'domcontentloaded',timeout:30000});
+      await purchasePage.locator('input[name=email]').fill(process.env.QA_TWO_TENANT_B_EMAIL);
+      await purchasePage.locator('input[name=password]').fill(process.env.QA_TWO_TENANT_B_PASSWORD);
+      await purchasePage.locator('button[type=submit]').click();
+      await purchasePage.getByText('ZZ_QA_PLATFORM_20261009_AUTO',{exact:false}).first().waitFor({timeout:40000});
+      await purchasePage.getByText('Purchases',{exact:true}).first().click();
+      await purchasePage.getByText('New Purchase',{exact:true}).first().click();
+      const modal=purchasePage.locator('h3').filter({hasText:'New Purchase Order'}).first();
+      await modal.waitFor({timeout:15000});
+      await purchasePage.locator('option').filter({hasText:supplierLabel}).first().waitFor({state:'attached',timeout:10000});
+      const qty=purchasePage.locator('.w-20 input[type="number"]').first();
+      const cost=purchasePage.locator('.w-24 input[type="number"]').first();
+      await t.test('zero purchase quantity is rejected before RPC',async()=>{
+        await qty.fill('0');
+        await purchasePage.getByText('Save as Draft',{exact:true}).first().click();
+        await purchasePage.getByText(/at least one item with a quantity greater than zero/i).first().waitFor({timeout:12000});
+        assert.equal(writeCalls,0);
+      });
+      await t.test('negative supplier unit cost is rejected before RPC',async()=>{
+        await qty.fill('1');
+        await cost.fill('-2');
+        await purchasePage.getByText('Save as Draft',{exact:true}).first().click();
+        await purchasePage.getByText(/Unit cost must be a valid number greater than or equal to zero/i).first().waitFor({timeout:12000});
+        assert.equal(writeCalls,0);
+      });
+      await t.test('discount greater than subtotal is rejected before RPC',async()=>{
+        await cost.fill('1');
+        await purchasePage.getByText('Discount ($)',{exact:true}).locator('..').locator('input').fill('999999');
+        await purchasePage.getByText('Save as Draft',{exact:true}).first().click();
+        await purchasePage.getByText(/Discount can't make the purchase order total negative/i).first().waitFor({timeout:12000});
+        assert.equal(writeCalls,0);
+      });
+      assert.equal(writeCalls,0,'No purchase-create RPC should be sent in any invalid scenario');
+    }finally{
+      await purchasePage.close();
+    }
+  });
   await t.test('dashboard desktop screenshot was captured',async()=>{
    const {stat}=await import('node:fs/promises');
    const shot=await stat('qa-browser-artifacts/dashboard-desktop.png');
