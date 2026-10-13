@@ -234,3 +234,12 @@ Next: authorized TEST-only migration installation; inspect exposure/roles, real 
 - Existing run #78 remains the last confirmed fully green baseline: 10/10 jobs, 177/177 TAP (including parent assertions), 0 failures and skips.
 - Purchase-idempotency migration remains *uninstalled* on TEST and flag *disabled*. No production changes.
 - P0.03–P0.05 not homologated: real valid UI transactions, debit/credit/cash and stock/purchase completions, failed submit reconciliation, manager/employee sessions and multi-company integration still pending.
+
+
+### CI acceptance update for run #79 — confirmed
+
+[GitHub Actions #79](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38392373364) completed **successfully** after the P0.04 test commit `00d3941`.
+- **10/10 jobs passed; 178/178 TAP checks passed (including parent assertions); 0 failed; 0 skipped**, confirmed by the final logs for each of the ten jobs.
+- Browser job: **37/37 passed**, including the newly added minimum-stock-greater-than-maximum-stock validation; 0 failed, 0 skipped.
+- Other jobs: static security 6, API 5, authenticated concurrency 1, access regression 100, authentication lifecycle 12, financial replay 7, post-commit network 6, performance reads 3, two-tenant concurrency 1. Combined 178 including browser 37.
+- This supersedes the in-progress status above, but **does not certify P0.03–P0.05** end-to-end success paths.
