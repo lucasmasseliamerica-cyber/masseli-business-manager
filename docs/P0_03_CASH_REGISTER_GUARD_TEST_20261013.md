@@ -68,3 +68,12 @@ This is not a production modification. A deterministic separate-connection concu
 The migration file was completed with a SQL statement terminator in QA branch commit `dc3266667c00fba753b949f0575e7807b71c88ca`. It is a TEST-only source snapshot; do not include this in production deployment without separate approval.
 
 **Release status: P0.03 server guard implemented and validated with reversible SQL transactions, but HTTP authenticated regression, browser test, deterministic concurrency and post-migration full CI remain outstanding.**
+
+
+## Permanent TEST regression additions and post-migration CI
+
+- [GitHub Actions #81](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38397275048) **10/10 jobs success, 179/179 TAP checks, zero failures or skips** on TEST after the migration; all ten job log TAP totals were inspected. This was the existing suite only, before permanent cash HTTP coverage.
+- Added runnable reversible QA SQL script `qa/sql/p0_03_cash_register_guard_rollback_TEST.sql` (commit `28006d3`), executed once directly against TEST: **PASS**, both blocks rolled back, TEST-only fixture guards confirmed.
+- Added permanent authenticated owner-B HTTP regression `qa/p0-cash-register-http.test.mjs` (commits `f004bd5`, `0e72c35`): hard-stop if the token identity or absence of an open QA register cannot be confirmed; expect explicit `fn_create_sale` rejection and verify no sale or cash ledger. Unexpected successful sale triggers a QA-only compensating reversal in a `finally` block. No credentials are stored in source.
+- Workflow `.github/workflows/nexalvo-test.yml` adds the HTTP suite to `access-regression` (commit `cb96463`), TEST environment only. [Actions #84](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38397501037) is **pending verification at documentation time**; do not claim HTTP approval until job logs prove it.
+- Still not proven: Playwright closed-drawer scenario, actual payment processor behavior, deterministic close/sale contention, real MANAGER and EMPLOYEE accounts. No production modification.
