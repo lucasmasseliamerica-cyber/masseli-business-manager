@@ -252,3 +252,11 @@ Next: authorized TEST-only migration installation; inspect exposure/roles, real 
 - No successful sale is submitted by this test. This is only input validation; full valid UI checkout, cash, payment methods and reversal remain open.
 - [GitHub Actions #80](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38393907159) triggered by the test commit. **Status when entered: queued/running; do not count this assertion as approved until CI logs are reviewed.**
 - Purchase idempotency remains disabled/uninstalled. No production changes.
+
+
+### CI #80 — acceptance confirmed
+
+- [GitHub Actions #80](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38393907159) finished **successfully, 10/10 jobs green**; logs for browser smoke explicitly show the new sale-discount scenario approved.
+- Browser suite **38/38 passed, zero failures, zero skips** (previously 37/37).
+- Existing other job suite totals from CI #79 were 141 checks combined; with browser 38, the #80 total is **179/179 TAP checks** (including parent assertions). Full job conclusions green. No P0 end-to-end certification implied.
+- No production modifications or purchase-idempotency activation.
