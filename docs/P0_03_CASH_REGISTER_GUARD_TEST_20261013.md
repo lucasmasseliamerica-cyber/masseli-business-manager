@@ -77,3 +77,13 @@ The migration file was completed with a SQL statement terminator in QA branch co
 - Added permanent authenticated owner-B HTTP regression `qa/p0-cash-register-http.test.mjs` (commits `f004bd5`, `0e72c35`): hard-stop if the token identity or absence of an open QA register cannot be confirmed; expect explicit `fn_create_sale` rejection and verify no sale or cash ledger. Unexpected successful sale triggers a QA-only compensating reversal in a `finally` block. No credentials are stored in source.
 - Workflow `.github/workflows/nexalvo-test.yml` adds the HTTP suite to `access-regression` (commit `cb96463`), TEST environment only. [Actions #84](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38397501037) is **pending verification at documentation time**; do not claim HTTP approval until job logs prove it.
 - Still not proven: Playwright closed-drawer scenario, actual payment processor behavior, deterministic close/sale contention, real MANAGER and EMPLOYEE accounts. No production modification.
+
+
+## CI #84 — permanent owner JWT HTTP guard accepted
+
+[GitHub Actions #84](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38397501037) completed **SUCCESS** with **10/10 jobs, 181/181 TAP checks passed (including nested parent assertions), 0 failures, 0 skips**. All ten job TAP logs were reviewed:
+- static security 6; API smoke 5; browser smoke 38; authenticated concurrency 1; authentication lifecycle 12; two-tenant concurrency 1; performance read 3; financial replay 7; after-commit network 6; access regression **102**.
+- The new access-regression HTTP test ran and passed its real TEST OWNER B JWT/cash-closed guard and post-request zero-sale/zero-ledger assertions.
+- Independent read-only SQL after the test confirms 0 persisted HTTP-rejected sale rows, 0 rejected financial rows, 0 open registers, dedicated QA race fixture remains closed, and recipe ingredient QA stock remains 15.000.
+
+**P0.03 is still partial (not fully homologated):** closed-register Playwright UI test not added due earlier write safety restriction; separate-session close-vs-sale race remains inconclusive; real MANAGER/EMPLOYEE credentials and broader end-to-end payments/checkout remain outside this proof. Do not claim complete system readiness. Production unchanged and staged purchase idempotency remains OFF/uninstalled.
