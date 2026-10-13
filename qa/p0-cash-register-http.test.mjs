@@ -39,16 +39,14 @@ test('P0.03 TEST: real OWNER HTTP cash payment is refused if register closed',{s
  assert.equal(login.status,200,'TEST owner login failed');
  const token=login.value?.access_token;
  assert.ok(token,'TEST owner token missing');
- await t.test('real JWT identifies the expected isolated TEST owner',async()=>{
-   const who=await send(c,'/auth/v1/user',token);
-   assert.equal(who.status,200,'Cannot verify authenticated identity');
-   assert.equal(who.value?.id,OWNER,'Unexpected TEST identity; never run sale test');
- });
- await t.test('closed register fixture confirmed before write attempt',async()=>{
-   const opened=await send(c,'/rest/v1/cash_registers?select=id&business_id=eq.'+BIZ+'&location_id=eq.'+LOC+'&status=eq.open',token);
-   assert.equal(opened.status,200,'Cannot verify TEST cash register fixture');
-   assert.deepEqual(opened.value,[],'An open drawer appeared; cash negative test must not run');
- });
+ // Fail the parent test *before* any RPC POST, even if a preflight check fails.
+ // A failed nested node:test assertion must not allow code to keep executing.
+ const who=await send(c,'/auth/v1/user',token);
+ assert.equal(who.status,200,'Cannot verify authenticated identity');
+ assert.equal(who.value?.id,OWNER,'Unexpected TEST identity; never run sale test');
+ const opened=await send(c,'/rest/v1/cash_registers?select=id&business_id=eq.'+BIZ+'&location_id=eq.'+LOC+'&status=eq.open',token);
+ assert.equal(opened.status,200,'Cannot verify TEST cash register fixture');
+ assert.deepEqual(opened.value,[],'An open drawer appeared; cash negative test must not run');
  const id=randomUUID();
  const payload={
    p_sale_id:id,p_business_id:BIZ,p_location_id:LOC,
