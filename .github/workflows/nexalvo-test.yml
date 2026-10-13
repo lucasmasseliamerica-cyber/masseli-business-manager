@@ -7,6 +7,7 @@ on:
       - '.github/workflows/nexalvo-test.yml'
       - 'qa/**'
       - 'src/**'
+      - 'App.jsx'
       - 'package*.json'
 permissions:
   contents: read
