@@ -70,6 +70,21 @@ test('P0.05 real HTTP: purchase lines use tenant-safe cost-redacted read RPC',{s
   assert.equal(lines.status,200);
   assert.deepEqual(lines.data,[],'Cross-business purchase line leaked');
  });
+ await t.test('P0.05 real browser lifecycle preflight: QA A supplier and inventory fixture are tenant-owned',async()=>{
+  const suppliers=await request(c,'/rest/v1/suppliers?select=id,business_id,active&id=eq.f85b4931-6877-4664-969d-0ba59fe4feff&business_id=eq.'+A_BUSINESS,a);
+  assert.equal(suppliers.status,200,'Authorized QA supplier read must succeed');
+  assert.equal(suppliers.data?.length,1,'Expected dedicated TEST supplier missing');
+  assert.equal(suppliers.data[0].business_id,A_BUSINESS);
+  assert.equal(suppliers.data[0].active,true,'QA supplier must be active before any browser write test');
+  const items=await request(c,'/rest/v1/inventory_items?select=id,business_id,active&id=eq.bb80c25b-5fd0-4716-8460-82202a2d74a9&business_id=eq.'+A_BUSINESS,a);
+  assert.equal(items.status,200,'Authorized QA inventory item read must succeed');
+  assert.equal(items.data?.length,1,'Expected dedicated TEST inventory item missing');
+  assert.equal(items.data[0].business_id,A_BUSINESS);
+  assert.equal(items.data[0].active,true,'QA inventory item must be active before any browser write test');
+  const foreign=await request(c,'/rest/v1/suppliers?select=id&business_id=eq.'+A_BUSINESS+'&id=eq.f85b4931-6877-4664-969d-0ba59fe4feff',b);
+  assert.equal(foreign.status,200);
+  assert.deepEqual(foreign.data,[],'QA A supplier visible to QA B');
+ });
  await t.test('owner B cannot read company A supplier payment history',async()=>{
   assert.ok(qaAOrderId,'Missing QA A purchase fixture; abort isolation assertion');
   const payments=await request(c,'/rest/v1/purchase_order_payments?select=id,purchase_order_id,status&purchase_order_id=eq.'+qaAOrderId,b);
