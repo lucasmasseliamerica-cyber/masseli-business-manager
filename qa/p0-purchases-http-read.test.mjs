@@ -70,6 +70,12 @@ test('P0.05 real HTTP: purchase lines use tenant-safe cost-redacted read RPC',{s
   assert.equal(lines.status,200);
   assert.deepEqual(lines.data,[],'Cross-business purchase line leaked');
  });
+ await t.test('owner B cannot read company A supplier payment history',async()=>{
+  assert.ok(qaAOrderId,'Missing QA A purchase fixture; abort isolation assertion');
+  const payments=await request(c,'/rest/v1/purchase_order_payments?select=id,purchase_order_id,status&purchase_order_id=eq.'+qaAOrderId,b);
+  assert.equal(payments.status,200,'Tenant-safe payment history query must succeed');
+  assert.deepEqual(payments.data,[],'Cross-company supplier payment history leaked');
+ });
  await t.test('secure lines and permitted payment history remain readable without a mutation',async()=>{
   const all=await request(c,'/rest/v1/rpc/fn_read_purchase_order_items_secure?select=id,purchase_order_id,unit_cost&limit=500',a);
   assert.equal(all.status,200);
