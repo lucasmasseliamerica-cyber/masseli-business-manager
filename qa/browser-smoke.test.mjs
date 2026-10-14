@@ -301,7 +301,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
         if(!allowMockSuccess) return route.abort();
         recordedPurchase=req.postDataJSON();
         return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({
-          id:'10000000-0000-4000-8000-000000000098',business_id:qaBusiness,status:'Ordered',po_number:990099
+          id:'10000000-0000-4000-8000-000000000098',business_id:qaBusiness,status:recordedPurchase.p_status,po_number:990099
         })});
       });
       await purchasePage.goto('http://127.0.0.1:4179/',{waitUntil:'domcontentloaded',timeout:30000});
@@ -375,6 +375,28 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
         assert.equal(recordedPurchase.p_items[0].inventory_item_id,expectedItem);
         assert.equal(recordedPurchase.p_items[0].qty,2);
         assert.equal(recordedPurchase.p_items[0].unit_cost,3.5);
+      });
+      await t.test('valid draft purchase submits once and stays isolated to mocked HTTP',async()=>{
+        // Reopen a fresh modal, so the draft has an independent request ID and status.
+        await purchasePage.getByText('New Purchase',{exact:true}).first().click();
+        await modal.waitFor({state:'visible',timeout:15000});
+        await purchasePage.locator('option').filter({hasText:supplierLabel}).first().waitFor({state:'attached',timeout:10000});
+        const draftItem=purchasePage.locator('div.flex-1 select').first();
+        await draftItem.locator('option[value="'+expectedQaItem+'"]').waitFor({state:'attached',timeout:15000});
+        await draftItem.selectOption(expectedQaItem);
+        await purchasePage.locator('.w-20 input[type="number"]').first().fill('3');
+        await purchasePage.locator('.w-24 input[type="number"]').first().fill('2');
+        const before=writeCalls;
+        await purchasePage.getByText('Save as Draft',{exact:true}).first().click();
+        await modal.waitFor({state:'detached',timeout:15000});
+        assert.equal(writeCalls,before+1,'Exactly one mocked draft-creation request expected');
+        assert.equal(recordedPurchase.p_business_id,qaBusiness);
+        assert.equal(recordedPurchase.p_status,'Draft');
+        assert.equal(recordedPurchase.p_request_id,undefined,'Purchase idempotency migration must remain OFF');
+        assert.equal(recordedPurchase.p_items.length,1);
+        assert.equal(recordedPurchase.p_items[0].inventory_item_id,expectedQaItem);
+        assert.equal(recordedPurchase.p_items[0].qty,3);
+        assert.equal(recordedPurchase.p_items[0].unit_cost,2);
       });
     }finally{
       await purchasePage.close();
