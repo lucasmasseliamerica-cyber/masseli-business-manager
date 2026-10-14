@@ -1,0 +1,101 @@
+# NEXALVO — Checklist macro/micro para 100% de conclusão
+Atualizado: 2026-10-14. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #112.
+Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
+
+## Regras de status
+- [x] = **VERDE: concluído e comprovado** por teste/execução com evidência.
+- [ ] = **PENDENTE ou BLOQUEADO**; o texto identifica o motivo. Nenhuma inferência de homologação por simples abertura de tela ou mock.
+- Macro concluído somente quando **todos** os seus micros obrigatórios forem concluídos, houver regressão verde e aceite humano.
+- Não confundir SQL com JWT simulado, browser com RPC mockado e browser com gravação real.
+
+## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
+- [x] Branch de QA isolada e workflow TEST configurado. [CI #112](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38504160792).
+- [x] CI #112: 10/10 jobs, 197/197 TAP, 0 falhas, 0 skips, incluindo 47 Playwright smoke e 109 access regression.
+- [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
+- [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
+- [ ] Validação de backup restaurado em ambiente isolado e plano de recuperação.
+- [ ] Aceite humano da release candidata, critérios de go/no-go e checklist de publicação (sem executar publicação automaticamente).
+
+## M1 — P0.01 Autenticação, perfis e permissões (aberto)
+- [x] Matriz SQL de 20 permissões por 4 perfis: 80/80, mais 8/8 casos especiais, sob ROLLBACK. [Relatório](./P0_01_PERMISSIONS_20261012.md).
+- [x] Login real de OWNER A/B e isolamento HTTP entre empresas, incluindo operações privilegiadas rejeitadas.
+- [ ] **BLOQUEADO:** contas MANAGER e EMPLOYEE com credenciais independentes e segredos TEST configurados com segurança.
+- [ ] Login real e testes HTTP/RLS/RPC completos para MANAGER e EMPLOYEE.
+- [ ] Playwright real para botões, páginas, restrições e operações por perfil.
+- [ ] Overrides personalizados, desativação e revogação de acesso durante sessão, auditoria.
+
+## M2 — P0.02 Convites e ciclo de autenticação (aberto)
+- [x] Login/logout, refresh, refresh revogado após logout, credenciais inválidas e JWT malformado.
+- [x] UI rejeita links de convite/recuperação expirados simulados, sem expor token.
+- [ ] Convite real por e-mail, aceitação e primeiro login de QA.
+- [ ] Recuperação de senha real por e-mail e validação de nova senha.
+- [ ] Expiração real de token e revogação de sessão ativa; múltiplos dispositivos.
+
+## M3 — P0.03 Vendas, pedidos, caixa e financeiro (aberto)
+- [x] RPC TEST de venda/reversão idempotente, compensação financeira e replay, com CI verde.
+- [x] OWNER B impedido de vender em caixa fechado, sem efeitos financeiros.
+- [ ] Jornada completa de venda real pela interface, carrinho, descontos, impostos e cliente.
+- [ ] Todos os métodos de pagamento, pagamentos mistos, cancelamentos e devoluções.
+- [ ] Abertura/fechamento, sangria/suprimento e conciliação de caixa pela interface.
+- [ ] Concorrência determinística venda vs. fechamento e falha de rede durante commit.
+- [ ] Conferência de relatórios financeiros e isolamento por perfil/empresa.
+
+## M4 — P0.04 Estoque e movimentações (aberto)
+- [x] Ajuste, perda, transferência, saldo e ledger testados via SQL reversível.
+- [x] Leitura segura de estoque e transações corrigida no frontend; regressão de interface.
+- [ ] Cadastro/edição de itens, ajustes, perdas e transferências completos no Playwright real.
+- [ ] Estoque insuficiente, unidades, locais, duplicidade e histórico vinculado pela interface.
+- [ ] Concorrência de múltiplos usuários, replay e timeout de gravações.
+- [ ] Conciliação de saldos/custos médios e trilha de auditoria persistente.
+
+## M5 — P0.05 Compras e fornecedores (aberto)
+- [x] SQL reversível: pedido Ordered, recebimento parcial/total, pagamento, sobre-recebimento/sobrepagamento rejeitados, reversão e cancelamento.
+- [x] Leitura segura de pedidos/itens e isolamento HTTP de histórico de pagamentos.
+- [x] Validações negativas no formulário de compras (quantidade zero, custo negativo, desconto excessivo).
+- [x] Contrato positivo de criação Ordered/Draft na UI com RPC interceptada (MOCK — não prova persistência).
+- [x] Teste Playwright persistente TEST escrito, opt-in e sintaxe verificada em CI #112 (não executado).
+- [ ] **BLOQUEADO:** executar criação persistente via browser com OWNER TEST e compensação controlada; runner autorizado indisponível.
+- [ ] Recebimento parcial e total real via UI, pagamento e reversão, estoque restaurado e financeiro líquido zero.
+- [ ] Reversão/cancelamento em erro parcial, atraso de commit, falha de rede e repetição; confirmar audit trail.
+- [ ] Corrida de recebimentos simultâneos e verificação de transições proibidas.
+- [ ] Decidir/testar migração de idempotência de compras em TEST; atualmente OFF/não instalada.
+
+## M6 — P0.06 Rede, resiliência e concorrência (aberto)
+- [x] Browser offline/reconexão e sessão preservada em smoke.
+- [x] Testes de replay financeiro e falha simulada após commit.
+- [ ] Interrupção real no envio e na resposta durante gravações de venda, estoque e compra.
+- [ ] Retry seguro após timeout, prevenção de duplicidade e recuperação consistente da UI.
+- [ ] Testes de contenção simultânea de operações críticas, reconciliação e telemetria.
+
+## M7 — P0.07 Arquivos, fotos e isolamento multiempresa (aberto)
+- [ ] Upload de imagens de produtos com formato, tamanho, segurança e mensagens de erro.
+- [ ] Leitura/download/remoção de arquivos autorizados; isolamento real entre empresas.
+- [ ] Testar URL pública/assinada, cache, revogação, substituição e exclusão.
+- [ ] Permissões de Storage e políticas RLS, incluindo tentativa de acesso cruzado.
+
+## M8 — P1 Cadastros, operação e UX (aberto)
+- [ ] Produtos: criação, edição, desativação, foto, SKU, preço, receita, custos e duplicidades.
+- [ ] Clientes: ação editar, nome, telefone, e-mail, notas, validação e histórico.
+- [ ] Fornecedores: edição, duplicidades, exclusão/desativação e vínculos históricos.
+- [ ] Funcionários: convite, perfis, permissões, ponto, pausas e desligamento.
+- [ ] Tarefas: criação, atribuição, status, conclusão, edição e permissões.
+- [ ] Relatórios: totais, filtros, períodos, exportação, consistência com ledger.
+- [ ] Configurações: persistência, permissões, idioma, fuso, regras e preferências.
+- [ ] Responsividade desktop/tablet/mobile, acessibilidade, rolagem, estados vazios e erros.
+- [ ] Performance com volumes realistas, carga, paginação e degradação.
+- [ ] Backup/restauração isolados e ensaio de recuperação.
+
+## M9 — P2 Produto SaaS, lançamento e operação (aberto)
+- [ ] Onboarding de empresa, usuários, localizações e configurações iniciais.
+- [ ] Planos, limites, assinatura, faturamento e inadimplência.
+- [ ] Administração SaaS e observabilidade sem acesso indevido a tenants.
+- [ ] Suporte, logs, incidentes, monitoramento e alertas.
+- [ ] Privacidade, termos, documentação de uso e operação.
+- [ ] Piloto real supervisionado, correção de feedback e aceite final.
+- [ ] Revisão de segurança, backups, plano de rollback e aprovação explícita para lançamento.
+
+## Critério para 100%
+Todos os macros M0–M9 precisam estar completos, com evidências reproduzíveis, regressão sem falhas/skips, testes E2E reais, isolamento entre empresas, restauração validada e aceite humano. A CI #112 NÃO constitui homologação de 100%.
+
+## Atualização operacional
+A cada tarefa concluída: (1) verificar execução real e logs; (2) trocar somente o micro correspondente para `[x]`; (3) anexar commit/CI/SQL ou evidência; (4) atualizar a Issue #1; (5) só então marcar macro completo. Não assinalar tarefas por promessa ou mock.
