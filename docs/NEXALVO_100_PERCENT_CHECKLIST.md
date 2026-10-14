@@ -27,9 +27,10 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 ## M2 — P0.02 Convites e ciclo de autenticação (aberto)
 - [x] Login/logout, refresh, refresh revogado após logout, credenciais inválidas e JWT malformado.
 - [x] UI rejeita links de convite/recuperação expirados simulados, sem expor token.
-- [ ] Convite real por e-mail, aceitação e primeiro login de QA.
-- [ ] Recuperação de senha real por e-mail e validação de nova senha.
-- [ ] Expiração real de token e revogação de sessão ativa; múltiplos dispositivos.
+- [ ] Convite real por e-mail, aceitação e primeiro login de QA: houve tentativas/relatos anteriores, mas ainda falta evidência inequívoca de aprovação ponta a ponta na matriz atual.
+- [x] **Recuperação de senha e troca de credencial, conforme registro de teste manual anterior (06/10):** senha antiga recusada e senha nova aceitou login no Dashboard. **Evidência histórica conversacional, não reproduzida na CI TEST #112; entrega de e-mail não confirmada por artefato independente.**
+- [x] **Expiração real de JWT, conforme teste anterior de 06/10:** fora da tolerância de ~30 segundos, REST 401 `JWT expired` e Auth 403. **Evidência histórica conversacional; não integrante da CI TEST #112.**
+- [ ] Revogação durante sessão ativa, comportamento multi-dispositivo e regressão autenticada no TEST.
 
 ## M3 — P0.03 Vendas, pedidos, caixa e financeiro (aberto)
 - [x] RPC TEST de venda/reversão idempotente, compensação financeira e replay, com CI verde.
@@ -99,3 +100,7 @@ Todos os macros M0–M9 precisam estar completos, com evidências reproduzíveis
 
 ## Atualização operacional
 A cada tarefa concluída: (1) verificar execução real e logs; (2) trocar somente o micro correspondente para `[x]`; (3) anexar commit/CI/SQL ou evidência; (4) atualizar a Issue #1; (5) só então marcar macro completo. Não assinalar tarefas por promessa ou mock.
+
+## Reconciliação de evidência histórica M2 (2026-10-14)
+
+Consulta a registros de conversas anteriores encontrou resultados de 05–06/10/2026: recuperação de senha com rejeição da antiga e acesso ao Dashboard com a nova; expiração real de JWT com HTTP 401/403 após tolerância. Essas duas tarefas passam a ter marca verde **com qualificação explícita de evidência manual histórica**, não como novos testes automatizados na CI #112. Convite real/aceitação e revogação em sessão ativa não foram comprovados nessa busca. Reexecutar na instância TEST isolada para homologação formal; não confundir a instância ou identidade histórica com as fixtures atuais sem verificar. Nenhuma alteração em autenticação ou banco foi realizada nesta reconciliação.
