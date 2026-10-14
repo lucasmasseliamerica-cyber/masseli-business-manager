@@ -56,8 +56,10 @@ async function waitStock(token,expected){
  throw new Error('Inventory did not reach expected '+expected);
 }
 async function cleanup(token){
- const po=await findOrder(token);
- if(!po)return {status:'no order persisted'};
+ let po=null;
+ // A timed-out create may still commit. Allow bounded settlement before deciding no PO exists.
+ for(let i=0;i<20;i++){po=await findOrder(token);if(po)break;await sleep(750)}
+ if(!po)return {status:'no order persisted after bounded settlement'};
  if(po.status==='Reversed'||po.status==='Cancelled')return {status:po.status,id:po.id};
  const lines=await api('/rest/v1/rpc/fn_read_purchase_order_items_secure?select=id,received_qty&purchase_order_id=eq.'+po.id,token);
  const received=lines.some(l=>Number(l.received_qty)>0);
@@ -103,9 +105,8 @@ test('P0.05 REAL TEST browser purchase -> receipt -> payment -> reversal',{timeo
   const po=await waitForOrder(token);poId=po.id;
   assert.equal(po.status,'Ordered');assert.equal(po.business_id,BUSINESS);
   await modal.waitFor({state:'detached',timeout:15000});
-  await page.getByText('Purchases',{exact:true}).first().click();
   await page.getByText('All',{exact:true}).first().click();
-  await page.getByText(String(po.po_number),{exact:false}).first().click();
+  await page.getByText('PO-'+po.po_number,{exact:false}).first().click();
   await page.getByText('Receive Items',{exact:true}).first().click();
   await page.getByText('Confirm Receipt',{exact:true}).first().click();
   await waitStatus(token,poId,'Received');
