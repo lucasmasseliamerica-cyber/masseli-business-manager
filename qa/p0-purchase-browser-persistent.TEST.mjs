@@ -118,6 +118,19 @@ test('P0.05 REAL TEST browser purchase -> receipt -> payment -> reversal',{timeo
    if(i===14)throw new Error('Supplier payment not persisted');
    await sleep(700);
   }
+  // Exercise reversal through the actual UI. The finally block is an independent
+  // authenticated API compensation fallback if UI reversal fails or the page crashes.
+  await page.getByText('Reverse Purchase',{exact:true}).first().click();
+  await page.getByText('Reverse Purchase',{exact:true}).last().click();
+  await waitStatus(token,poId,'Reversed');
+  await waitStock(token,before);
+  const payments=await api('/rest/v1/purchase_order_payments?select=id,amount,status&purchase_order_id=eq.'+poId,token);
+  assert.equal(payments.length,1,'Expected exactly one supplier payment');
+  assert.equal(payments[0].status,'reversed','Supplier payment must be reversed');
+  const entries=await api('/rest/v1/cash_flow?select=type,amount&purchase_order_payment_id=eq.'+payments[0].id,token);
+  assert.equal(entries.length,2,'Payment and compensating cash-flow entries must both remain in audit history');
+  const net=entries.reduce((sum,e)=>sum+(e.type==='income'?1:-1)*Number(e.amount),0);
+  assert.ok(Math.abs(net)<0.001,'Purchase payment cash flow must net to zero after reversal');
   // A successful browser test still invokes compensation in finally.
  }catch(e){primaryError=e}
  finally{
