@@ -111,6 +111,8 @@ test('P0.05 REAL TEST browser purchase -> receipt -> payment -> reversal',{timeo
   await waitStatus(token,poId,'Received');
   await waitStock(token,before+1);
   await page.getByText('Record Payment',{exact:true}).first().click();
+  // Avoid Cash: its reversal requires an open register, which is not a stable QA fixture.
+  await page.getByText('Payment Method',{exact:true}).last().locator('..').locator('select').selectOption('Zelle');
   await page.getByText('Record Payment',{exact:true}).last().click();
   for(let i=0;i<15;i++){
    const pays=await api('/rest/v1/purchase_order_payments?select=id,amount,status&purchase_order_id=eq.'+poId,token);
