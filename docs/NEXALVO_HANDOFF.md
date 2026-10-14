@@ -33,7 +33,14 @@ Este arquivo é o ponto de entrada para retomar o NEXALVO em uma nova conversa d
 - P0.3–P0.6: jornadas completas de vendas/caixa, estoque, compras e interrupções reais de rede.
 - P0.7: isolamento de arquivos/imagens multiempresa.
 - P1/P2: seguir a fila da Issue #1.
-- Falhas de testes de compras (custo negativo/desconto excessivo) foram relatadas em conversa anterior; verificar novamente o run mais recente antes de tratá-las como atuais.
+- As falhas anteriores de custo negativo/desconto excessivo foram corrigidas e verificadas em Actions #96; não tratá-las como pendências atuais sem nova evidência.
+- O teste positivo de pedido e rascunho pela interface usa interceptação/mock, não comprova persistência de pedido real no TEST.
+
+## Último marco confirmado na Issue #1 (revalidar a cada retomada)
+- [GitHub Actions #105](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38497772341): 10/10 jobs concluídos com sucesso; Issue #1 registra 195/195 TAP, zero falhas e skips, Playwright 47/47.
+- Commit `961168412280382d5a0a9bc01352b3701d171e1a`: cenários de formulário Ordered e Draft usando RPC simulada. Não houve pedido real persistido nesses testes.
+- Próxima lacuna P0.05: ciclo real de compra persistida com compensação segura; concorrência determinística e validações P0.01/P0.02 permanecem abertas.
+- Esta seção é um checkpoint histórico, **não** garantia de que #105 continue sendo a última execução. Conferir Actions e comentários atuais antes de atuar.
 
 ## Prompt curto para uma conversa nova
 > Continue o NEXALVO lendo `docs/NEXALVO_HANDOFF.md` na branch `automation/nexalvo-qa-actions`, Issue #1, `docs/P0_01_PERMISSIONS_20261012.md` e a última execução do GitHub Actions. Trabalhe P0 → P1 → P2 somente na branch de QA e Supabase TEST. Respeite integralmente as restrições do handoff. Execute apenas tarefas seguras, registre commits/runs e informe bloqueios reais, sem declarar homologação prematura.
