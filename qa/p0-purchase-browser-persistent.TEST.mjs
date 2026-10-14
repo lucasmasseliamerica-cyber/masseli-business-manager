@@ -36,7 +36,8 @@ async function findOrder(token){
  return rows[0]||null;
 }
 async function stock(token){
- const rows=await api('/rest/v1/inventory_stock?select=qty&inventory_item_id=eq.'+ITEM+'&location_id=eq.'+LOCATION,token);
+ // Direct inventory_stock SELECT is intentionally restricted; use the tenant-scoped secure read RPC.
+ const rows=await api('/rest/v1/rpc/fn_read_inventory_stock_secure?select=qty&inventory_item_id=eq.'+ITEM+'&location_id=eq.'+LOCATION,token);
  assert.equal(rows.length,1);return Number(rows[0].qty);
 }
 async function waitForOrder(token){
