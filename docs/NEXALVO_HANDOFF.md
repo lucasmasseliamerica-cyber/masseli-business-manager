@@ -47,3 +47,7 @@ Este arquivo é o ponto de entrada para retomar o NEXALVO em uma nova conversa d
 
 ## Manutenção
 Atualizar os relatórios de QA e a Issue #1 a cada unidade de trabalho. Atualizar este arquivo apenas quando mudarem o protocolo, as fontes ou os bloqueios estruturais; não gravar tokens, senhas, chaves, PII ou logs sensíveis.
+
+## Latest published continuation — CI #116
+
+Source `83bac13b201916a8504e44b827e369be437da3ce`, [run #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976): Success; all ten job conclusions inspected on public pages, no new remote TAP recount due log access restrictions. See [delivery](./QA_DELIVERY_CI_116.md) and [secure A/B setup/preflight](./QA_SECURE_CREDENTIALS_PREFLIGHT.md). This supersedes earlier local-only publication status. Persistent purchase browser remains OFF, requires real recovery/login, live preflight and separate explicit controlled authorization. Online Windows notebook is not automatically accessible to this Linux runner. Recheck HEAD and newest run before continuing.

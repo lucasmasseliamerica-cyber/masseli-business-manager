@@ -146,3 +146,9 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 - [x] Guards previamente confirmados de papel desconhecido e refresh concorrente reintegrados ao HEAD atual da QA, junto dos testes de recuperação/compensação: **33/33 checks locais, zero falhas/skips**, build e sintaxe do runner persistente aprovados. Evidências e limites em [QA_CONTINUATION_BLOCKERS_20261014.md](./QA_CONTINUATION_BLOCKERS_20261014.md). Não representa login/recuperação reais ou nova CI.
 - [ ] Recuperação real OWNER QA, autenticação/isolation com perfis independentes, grants authenticated employees/sale_items e compras persistentes continuam bloqueados por configuração segura/autorizações indicadas no relatório.
 - [ ] Sete entradas npm de desenvolvimento/build persistem na nova auditoria; runtime reporta zero. Não há correção compatível oferecida pela simulação nesta execução.
+
+## Entrega publicada — CI #116
+
+- [x] Correções de autenticação, diagnóstico de recuperação e guards de compensação publicadas em `83bac13b201916a8504e44b827e369be437da3ce`; [CI #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976) terminou Success com **10/10 conclusões de jobs verificadas**, incluindo build/static e browser com regressões novas. Totais TAP remotos não recontados; suite estática local: 37/37, zero falhas/skips. [Evidências](./QA_DELIVERY_CI_116.md).
+- [x] Procedimento seguro QA A/B e preflight fail-closed preparados, com quatro guards locais e sintaxe Node aprovados. Não significa configuração concluída no notebook nem preflight autenticado executado.
+- [ ] Preflight real no runner local/Windows, recuperação real OWNER QA e compras persistentes continuam bloqueados nos gates documentados; compras não foram habilitadas.

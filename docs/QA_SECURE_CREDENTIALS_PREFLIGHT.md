@@ -12,7 +12,7 @@ git pull --ff-only origin automation/nexalvo-qa-actions
 git rev-parse HEAD
 ```
 
-Compare that SHA to the published code commit in the delivery report. Stop on conflicts/divergence; do not force push. This cloud session cannot operate Desktop Commander: no such tool is connected, even though the notebook is reported online. GitHub is the code synchronization point.
+Confirm the published code commit `83bac13b201916a8504e44b827e369be437da3ce` from the delivery report is present in the history; HEAD may be a later documentation-only commit. Stop on conflicts/divergence; do not force push. This cloud session cannot operate Desktop Commander: no such tool is connected, even though the notebook is reported online. GitHub is the code synchronization point.
 
 ## Configure without credential files
 
