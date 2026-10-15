@@ -26,11 +26,25 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Require zero runtime dependency vulnerabilities
+        run: npm audit --omit=dev --audit-level=moderate
+      - name: Track the known Tailwind 3 build-only advisories
+        shell: bash
+        run: |
+          set +e
+          npm audit --json > npm-audit-full.json
+          audit_exit=$?
+          set -e
+          if [[ "$audit_exit" -gt 1 ]]; then
+            echo "npm audit infrastructure failure (exit $audit_exit)"
+            exit "$audit_exit"
+          fi
+          node qa/npm-audit-policy.mjs npm-audit-full.json
       - name: Parse opt-in P0.05 persistent browser test without executing any writes
         run: node --check qa/p0-purchase-browser-persistent.TEST.mjs
       - name: Run static security checks and save report
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs qa/npm-audit-policy.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
       - name: Upload build and static QA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -39,6 +53,7 @@ jobs:
           path: |
             dist/
             qa-static-results.tap
+            npm-audit-full.json
           retention-days: 14
   test-api-smoke:
     needs: build-and-security
