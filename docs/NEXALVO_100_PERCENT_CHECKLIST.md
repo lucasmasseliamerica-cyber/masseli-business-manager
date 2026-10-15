@@ -25,6 +25,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Overrides personalizados, desativação e revogação de acesso durante sessão, auditoria.
 
 ## M2 — P0.02 Convites e ciclo de autenticação (aberto)
+- [x] **Diagnóstico local de recuperação:** corrigido descarte do campo `message` do Supabase; 8 regressões unitárias (duas cópias App) e 3 browser com HTTP interceptado aprovadas nesta sessão. Isso não altera senha real nem comprova e-mail/login. [Evidência e limites](./P0_02_RECOVERY_P005_GATE_20261014.md).
+- [ ] **BLOQUEADO — tentativa atual OWNER QA TEST:** reproduzir recuperação com link novo e login real bem-sucedido. E-mail recebido e formulário aberto foram relatados; a tentativa terminou em erro genérico, sem status/código coletado. O marco manual histórico abaixo não homologa este incidente.
 - [x] Login/logout, refresh, refresh revogado após logout, credenciais inválidas e JWT malformado.
 - [x] UI rejeita links de convite/recuperação expirados simulados, sem expor token.
 - [ ] Convite real por e-mail, aceitação e primeiro login de QA: houve tentativas/relatos anteriores, mas ainda falta evidência inequívoca de aprovação ponta a ponta na matriz atual.
@@ -50,6 +52,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Conciliação de saldos/custos médios e trilha de auditoria persistente.
 
 ## M5 — P0.05 Compras e fornecedores (aberto)
+- [x] **Guard local de compensação:** fallback do teste persistente agora exige pagamentos revertidos e ledger financeiro líquido zero; cinco regressões unitárias aprovadas. **Não significa compensação executada no banco.** [Evidência](./P0_02_RECOVERY_P005_GATE_20261014.md).
 - [x] SQL reversível: pedido Ordered, recebimento parcial/total, pagamento, sobre-recebimento/sobrepagamento rejeitados, reversão e cancelamento.
 - [x] Leitura segura de pedidos/itens e isolamento HTTP de histórico de pagamentos.
 - [x] Validações negativas no formulário de compras (quantidade zero, custo negativo, desconto excessivo).
@@ -137,3 +140,9 @@ Consulta a registros de conversas anteriores encontrou resultados de 05–06/10/
 
 ### Regra de deduplicação
 Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente + usuário/role + interface/API/SQL + ação + caso + resultado** já possui evidência. Se existir, reutilizar a evidência e testar apenas a lacuna específica (por exemplo, não repetir recebimento SQL já aprovado quando falta recebimento Playwright real). Testes históricos de produção não autorizam novos acessos ou alterações na produção. Não marcar como concluído um macro com base em micros parciais.
+
+## Continuação automatizada — integração local dos guards de autenticação
+
+- [x] Guards previamente confirmados de papel desconhecido e refresh concorrente reintegrados ao HEAD atual da QA, junto dos testes de recuperação/compensação: **33/33 checks locais, zero falhas/skips**, build e sintaxe do runner persistente aprovados. Evidências e limites em [QA_CONTINUATION_BLOCKERS_20261014.md](./QA_CONTINUATION_BLOCKERS_20261014.md). Não representa login/recuperação reais ou nova CI.
+- [ ] Recuperação real OWNER QA, autenticação/isolation com perfis independentes, grants authenticated employees/sale_items e compras persistentes continuam bloqueados por configuração segura/autorizações indicadas no relatório.
+- [ ] Sete entradas npm de desenvolvimento/build persistem na nova auditoria; runtime reporta zero. Não há correção compatível oferecida pela simulação nesta execução.

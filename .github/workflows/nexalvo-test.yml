@@ -30,7 +30,7 @@ jobs:
         run: node --check qa/p0-purchase-browser-persistent.TEST.mjs
       - name: Run static security checks and save report
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
       - name: Upload build and static QA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -237,7 +237,7 @@ jobs:
         run: |
           set -euo pipefail
           npm run dev -- --host 127.0.0.1 --port 4179 --strictPort &
-          node --test --test-reporter=tap qa/browser-smoke.test.mjs | tee qa-browser-smoke.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-browser-smoke.tap
+          node --test --test-reporter=tap qa/browser-smoke.test.mjs qa/password-recovery-browser.TEST.mjs | tee qa-browser-smoke.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-browser-smoke.tap
       - name: Save QA browser report and screenshots
         if: always()
         uses: actions/upload-artifact@v4

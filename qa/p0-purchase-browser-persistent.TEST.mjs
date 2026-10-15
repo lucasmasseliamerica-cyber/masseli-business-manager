@@ -69,6 +69,21 @@ async function cleanup(token){
  const final=await waitStatus(token,po.id,received?'Reversed':'Cancelled');
  return {status:final.status,id:po.id,resultStatus:result?.status};
 }
+// Verify the failure path too: restored stock alone does not prove financial compensation.
+async function verifyPaymentCompensation(token,poId){
+ const payments=await api('/rest/v1/purchase_order_payments?select=id,amount,status&purchase_order_id=eq.'+poId,token);
+ for(const payment of payments){
+  assert.equal(payment.status,'reversed','Compensation left a non-reversed supplier payment');
+  const entries=await api('/rest/v1/cash_flow?select=type,amount&purchase_order_payment_id=eq.'+payment.id,token);
+  assert.ok(entries.length>=2,'Compensated payment is missing ledger entries');
+  const net=entries.reduce((sum,e)=>{
+   assert.ok(['income','expense'].includes(e.type),'Unexpected payment ledger type');
+   const amount=Number(e.amount);assert.ok(Number.isFinite(amount),'Invalid payment ledger amount');
+   return sum+(e.type==='income'?1:-1)*amount;
+  },0);
+  assert.ok(Math.abs(net)<0.001,'Failure compensation left a nonzero financial impact');
+ }
+}
 test('P0.05 REAL TEST browser purchase -> receipt -> payment -> reversal',{timeout:180000},async()=>{
  let browser,token,before,poId,primaryError=null,cleanupError=null;
  try{
@@ -143,7 +158,10 @@ test('P0.05 REAL TEST browser purchase -> receipt -> payment -> reversal',{timeo
     const result=await cleanup(token);
     if(before!==undefined)await waitStock(token,before);
     const final=await findOrder(token);
-    if(final)assert.ok(['Reversed','Cancelled'].includes(final.status),'Active QA purchase left behind');
+    if(final){
+     assert.ok(['Reversed','Cancelled'].includes(final.status),'Active QA purchase left behind');
+     await verifyPaymentCompensation(token,final.id);
+    }
     console.log('P0.05 COMPENSATION '+JSON.stringify({tag:TAG,poId,status:result.status,stockRestored:before!==undefined}));
    }
   }catch(e){cleanupError=e;console.error('P0.05 CRITICAL: compensation failed; investigate QA tag '+TAG+': '+e.message)}

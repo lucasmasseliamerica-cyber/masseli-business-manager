@@ -221,11 +221,11 @@ const ROLE_DEFAULTS = {
 
 // Central permission gate — used everywhere a mutating or sensitive action happens, not just to hide buttons.
 function can(user, permKey) {
-  if (!user) return false;
+  if (!user || typeof user.role !== "string" || !Object.prototype.hasOwnProperty.call(ROLE_DEFAULTS, user.role)) return false;
   if (user.role === "OWNER") return true;
   const override = user.permissions && user.permissions[permKey];
   if (override !== undefined) return !!override;
-  const base = ROLE_DEFAULTS[user.role] || ROLE_DEFAULTS.EMPLOYEE;
+  const base = ROLE_DEFAULTS[user.role];
   return !!base[permKey];
 }
 
@@ -2043,7 +2043,7 @@ const supabaseAuth = {
     // invalid/expired refresh token — either way, returning `_supabaseSession` here reproduces
     // exactly the same fallback behavior this function always had.
     try {
-      return await refreshSupabaseSession();
+      return await triggerSupabaseRefresh();
     } catch {
       return _supabaseSession;
     }
@@ -2063,7 +2063,7 @@ const supabaseAuth = {
     });
     const body = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error(body?.error_description || body?.msg || body?.error || "Could not update your password. The link may have expired — request a new one.");
+      throw new Error(body?.error_description || body?.msg || body?.message || body?.error || "Could not update your password. The link may have expired — request a new one.");
     }
     return body;
   },
