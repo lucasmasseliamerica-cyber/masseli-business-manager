@@ -1036,8 +1036,10 @@ function cashRegisterBreakdown(register, cashTx) {
 // matching paymentService/printingService's existing result convention. ----
 
 async function openCashRegister({ locationId, openingCash, notes }, ctx) {
+  const amt = round2(Number(openingCash));
+  if (!Number.isFinite(amt) || amt < 0) return { success: false, error: "Opening cash must be zero or a positive finite amount." };
   if (ctx.cashRegisterOps?.remote) {
-    try { return await ctx.cashRegisterOps.open({ locationId, openingCash, notes }); }
+    try { return await ctx.cashRegisterOps.open({ locationId, openingCash: amt, notes }); }
     catch (e) {
       // rpcSucceeded (set by useSupabaseCashRegisters.open) means fn_open_cash_register itself
       // already committed — only the subsequent screen refresh failed. This must be reported as
@@ -1052,8 +1054,6 @@ async function openCashRegister({ locationId, openingCash, notes }, ctx) {
   if (!locationId) return { success: false, error: "Select a location." };
   const existingOpen = findOpenRegister(cashRegisters, locationId);
   if (existingOpen) return { success: true, register: existingOpen }; // idempotent — never create a second open register for the same location
-  const amt = round2(Number(openingCash));
-  if (Number.isNaN(amt) || amt < 0) return { success: false, error: "Opening cash must be zero or a positive amount." };
   const now = nowISO();
   const loc = (locations || []).find((l) => l.id === locationId);
   const register = {
@@ -1978,13 +1978,23 @@ const supabaseRest = {
   // by any live write path yet — that rerouting is explicitly deferred, see Finding F.
   async rpc(fnName, args = {}) {
     const harmless = ["current_business_id", "user_can", "fn_user_controls_employee", "fn_write_audit", "fn_reconcile_business_alerts"].includes(fnName);
+    const replaySafe = ["fn_create_sale", "fn_create_purchase_order_idempotent", "fn_create_expense_idempotent"].includes(fnName);
     if (_unconfirmedRpcWrite && !harmless) { const error = new Error("A previous operation could not be confirmed. Refresh and check the history before making another change."); error.commitUncertain = true; throw error; }
     let res;
     try { res = await supabaseFetch("/rest/v1/rpc/" + fnName, { method: "POST", body: JSON.stringify(args) }); }
     catch (cause) {
-      if (!harmless && fnName !== "fn_create_sale") _unconfirmedRpcWrite = { fnName, at: Date.now() };
-      const error = new Error(fnName === "fn_create_sale" ? "Connection interrupted. The sale may already have been saved. Retry saving this same sale without taking another payment." : "Connection interrupted. This operation may already have been saved. Refresh and check the history before trying again.");
-      error.commitUncertain = true; error.cause = cause; throw error;
+      if (!harmless && !replaySafe) _unconfirmedRpcWrite = { fnName, at: Date.now() };
+      const error = new Error(fnName === "fn_create_sale"
+        ? "Connection interrupted. The sale may already have been saved. Retry saving this same sale without taking another payment."
+        : replaySafe
+          ? "Connection interrupted. Retry this same request; its request ID prevents a duplicate."
+          : "Connection interrupted. This operation may already have been saved. Refresh and check the history before trying again.");
+      // Sales have their own explicit retry UI keyed by sale ID. Other request-ID RPCs remain
+      // directly retryable with the same stable key and therefore must not trip the global latch.
+      error.commitUncertain = !replaySafe || fnName === "fn_create_sale";
+      error.retrySafe = replaySafe;
+      error.cause = cause;
+      throw error;
     }
     const body = await res.json().catch(() => null);
     if (!res.ok) throw new Error(`rpc ${fnName} failed (${res.status}): ${JSON.stringify(body)}`);
@@ -2923,9 +2933,12 @@ function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearL
   useEffect(() => { reload().catch((e) => { console.error("Supabase expenses load failed", e); reportLoadError?.("expenses", "initial", e.message); }); }, [reload, reportLoadError]);
   const ops = useMemo(() => ({ remote: true, reload,
     async create(x) {
-      // fn_create_expense itself is NOT wrapped here — a failure there must keep throwing
-      // normally, so the caller's existing "create failed" handling is unchanged.
-      const row = await supabaseRest.rpc("fn_create_expense", {
+      // The rollout is opt-in: the legacy RPC remains active until the TEST migration is approved.
+      // Both RPCs throw normally so the caller keeps its existing create/retry handling.
+      const idempotent = import.meta.env.VITE_EXPENSE_IDEMPOTENCY_ENABLED === "true";
+      if (idempotent && !isUuid(x.requestId)) throw new Error("Expense request ID is required");
+      const row = await supabaseRest.rpc(idempotent ? "fn_create_expense_idempotent" : "fn_create_expense", {
+        ...(idempotent ? { p_request_id: x.requestId } : {}),
         p_business_id: businessId, p_location_id: x.locationId, p_expense_date: x.date,
         p_category: x.category, p_vendor: x.vendor || null, p_amount: Number(x.amount),
         p_payment_method: x.paymentMethod || null, p_recurring: !!x.recurring, p_notes: x.description || null,
@@ -7668,20 +7681,23 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  // Preserve one request ID for every retry while this expense form remains open. The ID is sent
+  // only when the TEST-only idempotency feature flag is enabled.
+  const requestIdRef = useRef(newDbId());
   useEffect(() => { if (!submitting && !uncertain && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting, uncertain]);
 
   const submit = async () => {
     if (submitting || uncertain) return;
     if (!can("manageExpenses")) { setError("You don't have permission to add expenses."); return; }
     const amt = Number(amount);
-    if (!amt || amt <= 0) { setError("Enter a valid amount."); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { setError("Enter a valid amount."); return; }
     setSubmitting(true);
     try {
       const loc = (locations || []).find((l) => l.id === locationId);
       if (expenseOps?.remote) {
         if (!locationId) { setError("Select a location."); return; }
         try {
-          await expenseOps.create({ amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
+          await expenseOps.create({ requestId: requestIdRef.current, amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
           showToast(`Expense added: ${fmtMoney(amt)}`); onClose();
         } catch (e) {
           // rpcSucceeded (set by useSupabaseExpenses.ops.create) means fn_create_expense itself
