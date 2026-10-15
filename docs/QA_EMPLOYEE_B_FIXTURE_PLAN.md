@@ -1,6 +1,6 @@
 # QA employee B fixture plan
 
-This plan addresses `BLOCKED [FIXTURE_EMPLOYEE_B]` from CI #118 attempt 2 and CIs #121–#126. CI #126 collected the independent stock, purchase and `sale_items` evidence before reaching this blocker. It does not change the preflight or treat an empty tenant as a passing isolation test.
+This plan addressed `BLOCKED [FIXTURE_EMPLOYEE_B]` from CI #118 attempt 2 and CIs #121–#126. The user reported the exact fixture created and confirmed in TEST. CI #126 attempt 2 then passed the complete preflight and all downstream jobs. Do not rerun the apply script while the exact active fixture remains valid; retain the compensation procedure for an explicitly authorized cleanup window.
 
 ## Prepared artifacts
 
@@ -18,4 +18,4 @@ Both scripts are manual and intentionally absent from GitHub Actions. They conta
 5. Rerun the existing QA workflow once. Do not enable P0.05 persistent purchases.
 6. Retain the fixture while it supports repeatable read-only CI. If removal is required, first confirm no test/business record references it, then run only the compensation script. A foreign-key failure must be investigated; never add `CASCADE`.
 
-The apply script is a database write and remains unexecuted until explicit authorization. The fixture is not a MANAGER/EMPLOYEE login account and does not replace the independent real-role tests still required by the main checklist.
+The apply script is a database write. The user reported that it was explicitly authorized and the exact fixture was created in TEST; CI #126 attempt 2 confirmed the expected visibility and isolation. The fixture is not a MANAGER/EMPLOYEE login account and does not replace the independent real-role tests still required by the main checklist.

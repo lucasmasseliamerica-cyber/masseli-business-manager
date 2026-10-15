@@ -57,7 +57,9 @@ Observed result on 2026-10-15: [CI #118](https://github.com/lucasmasseliamerica-
 
 Commits `04ff861` and `f436a76` moved independent stock, purchase and sale-item checks ahead of employee fixtures. [CI #126](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506) reached the later `FIXTURE_EMPLOYEE_B` stage. Under the sequential fail-closed runner, this establishes PASS for secure stock A, purchase A visibility with B denial, and both A/B `sale_items` secure/direct reads with cross-tenant denial. The employee B positive/direct/foreign checks remain unexecuted, as do all eight downstream authenticated jobs.
 
-A guarded apply/compensation procedure is prepared in [QA employee B fixture plan](./QA_EMPLOYEE_B_FIXTURE_PLAN.md). It is a persistent TEST write, is absent from CI and has not been executed.
+A guarded apply/compensation procedure was prepared in [QA employee B fixture plan](./QA_EMPLOYEE_B_FIXTURE_PLAN.md). The persistent apply remains absent from CI; it was later reported as explicitly authorized and executed externally in TEST.
+
+Update on 2026-10-15: the user reported the guarded employee B fixture created and confirmed in TEST, then requested a rerun. [CI #126 attempt 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506) returned `PASS [OK] - read-only QA A/B checks completed`; all downstream jobs ran, and the aggregate reported **274/274 PASS, 0 FAIL, 0 SKIPPED**. This cloud session did not perform the fixture write. The compensation script remains available and unexecuted. Do not rerun the apply script while the exact fixture remains valid.
 
 ## Before any persistent P0.05 run
 

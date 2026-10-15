@@ -1,5 +1,5 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
-Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126 e [entrega corrente](./QA_AUTOMATION_CI_124_20261015.md).
+Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126 e [CI #126 tentativa 2](./QA_DELIVERY_CI_126_ATTEMPT2_20261015.md).
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 
 ## Regras de status
@@ -9,8 +9,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - Não confundir SQL com JWT simulado, browser com RPC mockado e browser com gravação real.
 
 ## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
-- [x] Branch de QA isolada e workflow TEST configurado. Última baseline publicada integralmente recontada: [CI #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976).
-- [x] CI #116: 10/10 jobs, 231/231 TAP, 0 falhas, 0 skips; build/static 37, API 5, network 6, auth 12, performance 3, access 109, two-tenant 1, authenticated concurrency 1, browser 50 e replay 7.
+- [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #126 tentativa 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506).
+- [x] CI #126 tentativa 2: 12/12 jobs, 274/274 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados. CI #116 permanece como baseline histórica anterior.
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
 - [x] Gate de dependências publicado: runtime exige zero alertas moderados ou superiores; auditoria completa falha para pacote/advisory novo, severidade crítica ou aumento sobre o teto conhecido. CI #124 aprovou o gate.
@@ -21,6 +21,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 ## M1 — P0.01 Autenticação, perfis e permissões (aberto)
 - [x] Matriz SQL de 20 permissões por 4 perfis: 80/80, mais 8/8 casos especiais, sob ROLLBACK. [Relatório](./P0_01_PERMISSIONS_20261012.md).
 - [x] Login real de OWNER A/B e isolamento HTTP entre empresas, incluindo operações privilegiadas rejeitadas.
+- [x] Preflight OWNER A/B completo após fixture Employee B: employees e sale_items por facade/SELECT direto, negação cruzada, estoque e isolamento de compra. CI #126 tentativa 2.
 - [ ] **BLOQUEADO:** contas MANAGER e EMPLOYEE com credenciais independentes e segredos TEST configurados com segurança.
 - [ ] Login real e testes HTTP/RLS/RPC completos para MANAGER e EMPLOYEE.
 - [ ] Playwright real para botões, páginas, restrições e operações por perfil.
@@ -155,28 +156,35 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 ## Entrega publicada — CI #116
 
 - [x] Correções de autenticação, diagnóstico de recuperação e guards de compensação publicadas em `83bac13b201916a8504e44b827e369be437da3ce`; [CI #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976) terminou Success com **10/10 jobs e 231/231 TAP**, zero falhas/skips. [Evidências](./QA_DELIVERY_CI_116.md).
-- [x] Procedimento seguro QA A/B e preflight fail-closed preparados. A entrega corrente amplia os guards locais para **8/8** e separa `PASS`/`FAIL`/`BLOCKED`; isso ainda não significa preflight autenticado real aprovado.
-- [ ] Preflight real no runner local/Windows, recuperação real OWNER QA e compras persistentes continuam bloqueados nos gates documentados; compras não foram habilitadas.
+- [x] Procedimento seguro QA A/B e preflight fail-closed preparados; CI #126 tentativa 2 comprovou o preflight autenticado no runner GitHub.
+- [ ] Execução local/Windows do preflight, recuperação real OWNER QA e compras persistentes continuam pendentes nos gates documentados; compras não foram habilitadas.
 
 ## Candidato corrente — despesas Cash, recuperação e preflight (2026-10-15)
 
 - [x] Validação local: **54/54 testes estáticos**, **4/4 browser de recuperação interceptado**, build Vite aprovado, zero falhas e zero skips; `App.jsx` e `src/App.jsx` idênticos. [Evidências e limites](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
 - [x] Preflight convertido em gate autenticado somente leitura antes de todos os jobs autenticados; valida OWNER A/B, fixtures positivas, isolamento e SELECT direto de `employees`/`sale_items`. O runner persistente P0.05 continua ausente da execução padrão.
-- [ ] **BLOQUEADO — preflight real:** [CI #118, tentativa 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38752124497), SHA `0130df45852708b15ec128d3b3156551817f1197`, autenticou OWNER A/B e aprovou identidade, empresa/contexto, isolamento bidirecional de produtos e os checks A de `employees`/`sale_items`; parou em `FIXTURE_EMPLOYEE_B`. `build-and-security` e `test-api-smoke` passaram; 8 jobs autenticados foram pulados pelo gate e `qa-summary` registrou somente 2/10 TAP reports. Confirmar ou provisionar uma fixture ativa de funcionário B no TEST por processo autorizado; os checks B seguintes, estoque e compra ainda não foram executados.
+- [x] **Histórico resolvido:** [CI #118, tentativa 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38752124497) identificou `FIXTURE_EMPLOYEE_B`; a fixture foi posteriormente criada por processo autorizado e a CI #126 tentativa 2 aprovou o preflight completo.
 - [ ] Migração Cash e prova SQL não executadas. Recuperação SMTP/troca/login real, idempotência de despesa, catálogo completo Supabase, MANAGER/EMPLOYEE e compra persistente permanecem abertos.
 
 ## Automação P0.03 publicada — CI #121
 
 - [x] Código opt-in e regressões para idempotência de despesas, retry seguro e bloqueio de valores não finitos no caixa publicados em `6ab4f48774f2d4dff6b34cb9acc77e54e017898e`; nenhuma migração aplicada. [Evidência](./QA_DELIVERY_EXPENSE_REPLAY_CI_121_20261015.md).
 - [x] [CI #121](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38759292268): build/static e API anônima passaram, total parcial **70/70**, zero falhas/skips nesses produtores.
-- [ ] Preflight segue `BLOCKED [FIXTURE_EMPLOYEE_B]`; oito jobs autenticados não executaram e o agregado ficou `INCOMPLETE` com 2/10 relatórios. O [plano de fixture com compensação](./QA_EMPLOYEE_B_FIXTURE_PLAN.md) está preparado, não executado, e exige autorização de escrita no TEST.
+- [x] **Bloqueio histórico resolvido:** o plano de fixture foi autorizado e executado externamente no TEST; CI #126 tentativa 2 liberou os oito jobs autenticados e o agregado completo.
 - [ ] Aplicação das migrações P0.03, provas rollback e concorrência real exigem autorização específica no Supabase TEST. O rollout de despesas permanece desligado.
 
 ## Continuação automatizada — CI #124
 
-- [x] Plano persistente e compensável da fixture `employees` B publicado em `189610f`, fora da CI e ainda não executado. [Procedimento](./QA_EMPLOYEE_B_FIXTURE_PLAN.md).
+- [x] Plano persistente e compensável da fixture `employees` B publicado em `189610f`; o usuário informou execução autorizada no TEST e a CI confirmou sua visibilidade/isolamento. [Procedimento](./QA_EMPLOYEE_B_FIXTURE_PLAN.md).
 - [x] Export canônico somente leitura de policies, grants, ACLs e definições de funções publicado em `45f67f2`, com quatro regressões estáticas. [Procedimento](./QA_SECURITY_CATALOG_EXPORT.md). O catálogo implantado ainda não foi exportado/revisado.
 - [x] Gate de auditoria publicado em `9600dea`; validação local **78/78**, build PASS, runtime audit zero e full audit 7 conhecidos. [CI #124](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38761093906) aprovou **83/83 TAP parciais** (78 static + 5 API), zero falhas/skips nesses produtores.
-- [ ] O resultado integral da CI #124 é **BLOQUEADO**, não aprovado: `FIXTURE_EMPLOYEE_B`, oito jobs autenticados ignorados pelo gate e agregador `INCOMPLETE` com 2/10 relatórios. A fixture requer autorização explícita de escrita somente no TEST.
+- [x] Registro histórico: CI #124 bloqueou corretamente em `FIXTURE_EMPLOYEE_B`; o bloqueio foi resolvido e revalidado na CI #126 tentativa 2.
 - [x] Preflight reordenado sem skips em `04ff861`/`f436a76`: [CI #126](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506) aprovou **84/84 TAP parciais** e, antes de alcançar `FIXTURE_EMPLOYEE_B`, comprovou estoque A, isolamento da compra A→B e `sale_items` A/B direto/entre empresas.
-- [ ] O bloqueio efetivo restante do preflight é a fixture positiva `employees` B. Os oito jobs seguintes continuam não executados; o resultado integral não está aprovado.
+- [x] Bloqueio `employees` B resolvido: preflight e oito jobs seguintes aprovados na CI #126 tentativa 2.
+
+## Aprovação do preflight — CI #126 tentativa 2
+
+- [x] Fixture Employee B ativa foi informada como criada e confirmada no TEST; esta sessão não executou a escrita.
+- [x] [CI #126 tentativa 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506): preflight `PASS [OK]`, **12/12 jobs**, **274/274 PASS**, zero falhas e zero skips.
+- [x] OWNER A/B, tenant, produtos, `employees`, `sale_items`, estoque e isolamento de compra aprovados no preflight somente leitura; os oito jobs autenticados foram liberados e aprovados.
+- [ ] MANAGER/EMPLOYEE independentes, SMTP recovery/invite, catálogo implantado, migrações P0.03 e P0.05 persistente continuam pendentes. A aprovação OWNER A/B não cobre esses fluxos.
