@@ -1,0 +1,15 @@
+# QA real-role read-only preflight
+
+`qa/p0-role-preflight-readonly.TEST.mjs` is a standalone fail-closed check for independent TEST-only MANAGER and EMPLOYEE accounts in business A. It does not create users, send invitations, change passwords, mutate business rows or run persistent purchases. It is intentionally absent from standard CI until both accounts and fixtures exist.
+
+Configure only through the GitHub `nexalvo-test` environment or transient process environment:
+
+- existing `QA_SUPABASE_URL` and public `QA_SUPABASE_ANON_KEY`;
+- `QA_ROLE_MANAGER_EMAIL` and `QA_ROLE_MANAGER_PASSWORD`;
+- `QA_ROLE_EMPLOYEE_EMAIL` and `QA_ROLE_EMPLOYEE_PASSWORD`.
+
+Never commit these bindings, place them in `.env`, print them, or send them through chat. The runner prints only safe stage classifications. Exit 0 is PASS, exit 1 is a demonstrated permission/isolation FAIL, and exit 2 is BLOCKED by configuration, login or fixture readiness.
+
+The runner confirms distinct Auth identities, exact active profile roles in TEST business A, linked employee fixtures, `current_business_id`, positive own product/employee reads, product and employee cross-tenant denial, OWNER-only export denial, MANAGER positive financial visibility, EMPLOYEE denial of the same ledger row, and absence of another employee's hourly rate. It performs password login and read-only requests; `fn_export_business_data` is invoked only to require authorization denial and must not return a payload.
+
+Before enabling a CI job, provision the dedicated accounts by the approved invitation/admin process, confirm both are active and linked to distinct employees in business A, and store the secrets in the protected GitHub environment. A PASS does not prove browser controls, custom overrides, deactivation/revocation, write RPC authorization or all RLS policies. Those remain separate tests.
