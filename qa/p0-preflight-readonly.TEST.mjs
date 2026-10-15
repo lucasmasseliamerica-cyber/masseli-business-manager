@@ -139,22 +139,10 @@ async function main() {
     verify(Array.isArray(foreignOrder) && foreignOrder.length === 0, 'ISOLATION_PURCHASE_A_TO_B');
     console.log('PASS: existing OWNER A purchase is visible to A and denied to B');
 
+    // Sale items do not depend on the employee fixture. Check both tenants
+    // before employee validation so one missing employee does not hide them.
     for (const actor of actors) {
       const other = actors.find((candidate) => candidate !== actor);
-      const employeeFacade = await request('/rest/v1/rpc/fn_read_employees_secure?select=id,business_id&business_id=eq.'
-        + actor.business + '&limit=1', actor.token, undefined, 'EMPLOYEE_FACADE_' + actor.label);
-      fixture(Array.isArray(employeeFacade) && employeeFacade.length === 1
-        && employeeFacade[0].business_id === actor.business && typeof employeeFacade[0].id === 'string',
-      'FIXTURE_EMPLOYEE_' + actor.label);
-      const employeePath = '/rest/v1/employees?select=id,business_id&id=eq.' + employeeFacade[0].id;
-      const ownEmployee = await request(employeePath, actor.token, undefined, 'EMPLOYEE_DIRECT_' + actor.label);
-      verify(Array.isArray(ownEmployee) && ownEmployee.length === 1
-        && ownEmployee[0].id === employeeFacade[0].id && ownEmployee[0].business_id === actor.business,
-      'AUTHENTICATED_GRANT_EMPLOYEES_' + actor.label);
-      const foreignEmployee = await request(employeePath, other.token, undefined, 'EMPLOYEE_FOREIGN_' + other.label);
-      verify(Array.isArray(foreignEmployee) && foreignEmployee.length === 0,
-        'ISOLATION_EMPLOYEES_' + actor.label + '_TO_' + other.label);
-
       const itemFacade = await request('/rest/v1/rpc/fn_read_sale_items_secure?select=id,sale_id&limit=1',
         actor.token, undefined, 'SALE_ITEM_FACADE_' + actor.label);
       fixture(Array.isArray(itemFacade) && itemFacade.length === 1
@@ -172,7 +160,25 @@ async function main() {
       const foreignItem = await request(itemPath, other.token, undefined, 'SALE_ITEM_FOREIGN_' + other.label);
       verify(Array.isArray(foreignItem) && foreignItem.length === 0,
         'ISOLATION_SALE_ITEMS_' + actor.label + '_TO_' + other.label);
-      console.log('PASS: OWNER ' + actor.label + ' direct employee/sale_items SELECT and cross-company denial');
+      console.log('PASS: OWNER ' + actor.label + ' direct sale_items SELECT and cross-company denial');
+    }
+
+    for (const actor of actors) {
+      const other = actors.find((candidate) => candidate !== actor);
+      const employeeFacade = await request('/rest/v1/rpc/fn_read_employees_secure?select=id,business_id&business_id=eq.'
+        + actor.business + '&limit=1', actor.token, undefined, 'EMPLOYEE_FACADE_' + actor.label);
+      fixture(Array.isArray(employeeFacade) && employeeFacade.length === 1
+        && employeeFacade[0].business_id === actor.business && typeof employeeFacade[0].id === 'string',
+      'FIXTURE_EMPLOYEE_' + actor.label);
+      const employeePath = '/rest/v1/employees?select=id,business_id&id=eq.' + employeeFacade[0].id;
+      const ownEmployee = await request(employeePath, actor.token, undefined, 'EMPLOYEE_DIRECT_' + actor.label);
+      verify(Array.isArray(ownEmployee) && ownEmployee.length === 1
+        && ownEmployee[0].id === employeeFacade[0].id && ownEmployee[0].business_id === actor.business,
+      'AUTHENTICATED_GRANT_EMPLOYEES_' + actor.label);
+      const foreignEmployee = await request(employeePath, other.token, undefined, 'EMPLOYEE_FOREIGN_' + other.label);
+      verify(Array.isArray(foreignEmployee) && foreignEmployee.length === 0,
+        'ISOLATION_EMPLOYEES_' + actor.label + '_TO_' + other.label);
+      console.log('PASS: OWNER ' + actor.label + ' direct employees SELECT and cross-company denial');
     }
     console.log('PREFLIGHT PASS [OK]: read-only checks complete; persistent purchase run remains separately gated.');
   } finally {

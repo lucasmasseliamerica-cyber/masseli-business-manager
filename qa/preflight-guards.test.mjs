@@ -109,6 +109,7 @@ test('independent stock and purchase isolation run before an employee B fixture 
  assert.equal(result.status,2);assert.match(result.output,/FIXTURE_EMPLOYEE_B/);
  assert.match(result.output,/secure stock read and reversal prerequisite/);
  assert.match(result.output,/existing OWNER A purchase is visible to A and denied to B/);
+ assert.match(result.output,/OWNER B direct sale_items SELECT and cross-company denial/);
  assert.doesNotMatch(result.output,/PREFLIGHT PASS/);
 });
 test('tenant mismatch and authenticated grant failure are FAIL',()=>{
@@ -123,6 +124,7 @@ test('cross-company employee and sale-item exposure are FAIL',()=>{
 });
 test('valid non-vacuous fixtures, direct grants and isolation pass',()=>{
  const result=runMock('valid');assert.equal(result.status,0);assert.match(result.output,/PREFLIGHT PASS \[OK\]/);
- assert.match(result.output,/direct employee\/sale_items SELECT and cross-company denial/);
+ assert.match(result.output,/direct employees SELECT and cross-company denial/);
+ assert.match(result.output,/direct sale_items SELECT and cross-company denial/);
  assert.match(result.output,/existing OWNER A purchase is visible to A and denied to B/);
 });
