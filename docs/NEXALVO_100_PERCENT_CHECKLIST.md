@@ -1,5 +1,5 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
-Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#124 e [entrega corrente](./QA_AUTOMATION_CI_124_20261015.md).
+Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126 e [entrega corrente](./QA_AUTOMATION_CI_124_20261015.md).
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 
 ## Regras de status
@@ -178,3 +178,5 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 - [x] Export canônico somente leitura de policies, grants, ACLs e definições de funções publicado em `45f67f2`, com quatro regressões estáticas. [Procedimento](./QA_SECURITY_CATALOG_EXPORT.md). O catálogo implantado ainda não foi exportado/revisado.
 - [x] Gate de auditoria publicado em `9600dea`; validação local **78/78**, build PASS, runtime audit zero e full audit 7 conhecidos. [CI #124](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38761093906) aprovou **83/83 TAP parciais** (78 static + 5 API), zero falhas/skips nesses produtores.
 - [ ] O resultado integral da CI #124 é **BLOQUEADO**, não aprovado: `FIXTURE_EMPLOYEE_B`, oito jobs autenticados ignorados pelo gate e agregador `INCOMPLETE` com 2/10 relatórios. A fixture requer autorização explícita de escrita somente no TEST.
+- [x] Preflight reordenado sem skips em `04ff861`/`f436a76`: [CI #126](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506) aprovou **84/84 TAP parciais** e, antes de alcançar `FIXTURE_EMPLOYEE_B`, comprovou estoque A, isolamento da compra A→B e `sale_items` A/B direto/entre empresas.
+- [ ] O bloqueio efetivo restante do preflight é a fixture positiva `employees` B. Os oito jobs seguintes continuam não executados; o resultado integral não está aprovado.

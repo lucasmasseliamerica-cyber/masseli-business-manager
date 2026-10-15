@@ -26,3 +26,9 @@ The workflow now fails if runtime dependencies have a moderate-or-higher advisor
 2. The catalog export requires execution through an approved read-only Supabase TEST integration; the raw function-source output must be kept restricted and scanned for embedded secrets before sharing.
 3. P0.03 migrations, rollback/concurrency proofs and feature enablement require separate TEST authorization.
 4. Real recovery e-mail, MANAGER/EMPLOYEE accounts and persistent P0.05 purchases require the documented human/configuration gates. P0.05 remains disabled in standard CI.
+
+## Read-only follow-up — CI #126
+
+Commits `04ff861` and `f436a76` moved independent stock, purchase-isolation and `sale_items` A/B checks before the known employee B fixture gate; no check was weakened or converted into a skip. Local regression passed **79/79**.
+
+[GitHub Actions #126](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506) passed build/security with 79 TAP tests and API smoke with 5, totaling **84/84 partial TAP tests** with zero failures/skips in those producers. The preflight again reached `BLOCKED [FIXTURE_EMPLOYEE_B]`. Because the runner is sequential and fail-closed, reaching that exact later stage proves the preceding stock A, purchase A→B isolation and `sale_items` A/B direct-grant/isolation checks passed on TEST. Eight downstream jobs remained skipped and the aggregate remained incomplete; the overall workflow is still blocked.

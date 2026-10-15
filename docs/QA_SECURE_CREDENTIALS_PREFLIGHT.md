@@ -55,6 +55,8 @@ Observed result on 2026-10-15: [CI #118](https://github.com/lucasmasseliamerica-
 
 [CI #122](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38760191846), [CI #123](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38760647609) and [CI #124](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38761093906) repeated the same classified blocker. CI #124 passed 78 static and 5 anonymous API TAP tests before the gate. These repetitions establish stability only; they do not execute the unqualified B checks or convert skipped authenticated jobs into passes.
 
+Commits `04ff861` and `f436a76` moved independent stock, purchase and sale-item checks ahead of employee fixtures. [CI #126](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506) reached the later `FIXTURE_EMPLOYEE_B` stage. Under the sequential fail-closed runner, this establishes PASS for secure stock A, purchase A visibility with B denial, and both A/B `sale_items` secure/direct reads with cross-tenant denial. The employee B positive/direct/foreign checks remain unexecuted, as do all eight downstream authenticated jobs.
+
 A guarded apply/compensation procedure is prepared in [QA employee B fixture plan](./QA_EMPLOYEE_B_FIXTURE_PLAN.md). It is a persistent TEST write, is absent from CI and has not been executed.
 
 ## Before any persistent P0.05 run

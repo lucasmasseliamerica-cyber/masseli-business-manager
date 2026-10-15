@@ -1,6 +1,6 @@
 # QA employee B fixture plan
 
-This plan addresses `BLOCKED [FIXTURE_EMPLOYEE_B]` from CI #118 attempt 2 and CIs #121–#124. It does not change the preflight or treat an empty tenant as a passing isolation test.
+This plan addresses `BLOCKED [FIXTURE_EMPLOYEE_B]` from CI #118 attempt 2 and CIs #121–#126. CI #126 collected the independent stock, purchase and `sale_items` evidence before reaching this blocker. It does not change the preflight or treat an empty tenant as a passing isolation test.
 
 ## Prepared artifacts
 
