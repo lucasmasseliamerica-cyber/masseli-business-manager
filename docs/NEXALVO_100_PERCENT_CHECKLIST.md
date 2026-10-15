@@ -9,8 +9,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - Não confundir SQL com JWT simulado, browser com RPC mockado e browser com gravação real.
 
 ## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
-- [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #126 tentativa 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38762019506).
-- [x] CI #126 tentativa 2: 12/12 jobs, 274/274 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados. CI #116 permanece como baseline histórica anterior.
+- [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #127](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38776559766).
+- [x] CI #127: 12/12 jobs, 281/281 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
 - [x] Gate de dependências publicado: runtime exige zero alertas moderados ou superiores; auditoria completa falha para pacote/advisory novo, severidade crítica ou aumento sobre o teto conhecido. CI #124 aprovou o gate.
@@ -26,6 +26,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Login real e testes HTTP/RLS/RPC completos para MANAGER e EMPLOYEE.
 - [ ] Playwright real para botões, páginas, restrições e operações por perfil.
 - [ ] Overrides personalizados, desativação e revogação de acesso durante sessão, auditoria.
+- [x] Runner somente leitura MANAGER/EMPLOYEE e sete regressões fail-closed preparados em `edead39`; [CI #127](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38776559766) aprovou os guards. [Procedimento](./QA_REAL_ROLE_PREFLIGHT.md).
+- [ ] **BLOQUEADO:** execução real do runner de perfis depende das duas contas TEST ativas, ligadas a employees distintos da empresa A, e quatro segredos armazenados no GitHub Environment. O runner live continua fora da CI padrão.
 
 ## M2 — P0.02 Convites e ciclo de autenticação (aberto)
 - [x] **Diagnóstico local de recuperação:** mensagens/status/códigos sanitizados, destino restrito ao TEST, chave pública validada, resposta 2xx verificada e sessão normal anterior removida após sucesso. **14/14 regressões unitárias e 4/4 browser com HTTP interceptado** aprovadas; isso não altera senha real nem comprova e-mail/login. [Evidência corrente](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
