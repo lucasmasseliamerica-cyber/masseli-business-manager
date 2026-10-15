@@ -2,9 +2,9 @@
 
 ## Escopo e restrições observadas
 
-Trabalho realizado somente na branch `automation/nexalvo-qa-actions`, sobre a baseline documental `f646bd7b4e0bba34a1708133709a9a9e73e0adee`, para o Supabase TEST `msinksoilkluooxenecy`. Nenhuma migração, SQL, alteração de credencial, deploy ou operação de produção foi executada. A branch `main` não foi alterada. O teste persistente P0.05 permaneceu desativado.
+Trabalho realizado somente na branch `automation/nexalvo-qa-actions`, sobre a baseline documental `f646bd7b4e0bba34a1708133709a9a9e73e0adee`, para o Supabase TEST `msinksoilkluooxenecy`. O código foi publicado em `efff3ab35b05dce1802b82418100b9e84a71cf04`; a anotação segura do preflight foi publicada em `0130df45852708b15ec128d3b3156551817f1197`. Nenhuma migração, SQL, alteração de credencial, deploy ou operação de produção foi executada. A branch `main` não foi alterada. O teste persistente P0.05 permaneceu desativado.
 
-Este relatório será atualizado depois do push com o SHA publicado e a execução exata do GitHub Actions. Até lá, os resultados remotos permanecem **BLOCKED**, independentemente dos testes locais.
+As execuções remotas foram [CI #117](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38751480929) e [CI #118](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38752124497). A #118 substitui a #117 como diagnóstico: ambas preservaram o gate, e a segunda publicou a categoria sanitizada exata sem expor valores.
 
 ## Revisão da correção TEST-only de despesas em dinheiro
 
@@ -40,7 +40,16 @@ O preflight é somente leitura e classifica:
 
 Os 8/8 testes locais do classificador passaram, incluindo bloqueios de host/porta/chave, rede, credenciais, serviço e fixtures, além de falhas reais de contexto, grants e vazamento entre empresas. Valores, tokens, payloads e erros nativos não são emitidos. O workflow possui um job `authenticated-preflight` entre o smoke anônimo e todos os jobs autenticados. Ele testa OWNER A/B, produtos positivos, fixtures A, estoque, compra A→B e SELECT direto de `employees`/`sale_items` nos dois sentidos após confirmar rows pelas facades seguras. Um job final `qa-summary` baixa os artefatos da própria execução, exige exatamente dez relatórios TAP raiz e publica a soma observada; ele falha se houver relatório ausente, falha ou skip.
 
-O ambiente Linux desta sessão não possui os seis bindings `QA_*` interativos, então o preflight real local permanece **BLOCKED**. O GitHub environment já sustentou as suítes autenticadas da CI #116; a nova CI determinará se credenciais e fixtures também satisfazem o preflight ampliado. O launcher PowerShell continua sem validação runtime nesta sessão porque não há PowerShell/Desktop Commander conectado aqui.
+O ambiente Linux desta sessão não possui os seis bindings `QA_*` interativos, então o preflight real local permanece **BLOCKED**. O GitHub environment sustentou as suítes autenticadas da CI #116, mas a CI #118 classificou o login atual da conta A como `BLOCKED [AUTH_REJECTED_A]`. Isso não prova a causa exata e não autoriza solicitar ou expor a credencial: conta/binding A deve ser validado no gerenciador seguro. O launcher PowerShell continua sem validação runtime nesta sessão porque não há PowerShell/Desktop Commander conectado aqui.
+
+## GitHub Actions publicado
+
+| Execução | SHA | Resultado verificável | Classificação |
+|---|---|---|---|
+| [#117](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38751480929) | `efff3ab35b05dce1802b82418100b9e84a71cf04` | build/static e API anônima PASS; preflight exit 2; oito jobs autenticados pulados; agregador incompleto | **BLOCKED**, categoria ainda não exposta na anotação original |
+| [#118](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38752124497) | `0130df45852708b15ec128d3b3156551817f1197` | 12 jobs: 2 PASS, preflight bloqueado, 8 pulados pelo gate e `qa-summary` FAIL por 2/10 relatórios | **BLOCKED [AUTH_REJECTED_A]** |
+
+Na #118, os dois produtores executados aprovaram **59 testes**: 54 estáticos e 5 de API anônima, sem falha/skip nos próprios jobs. Esse número é parcial; o agregador registrou `INCOMPLETE`, pois os oito relatórios autenticados não foram produzidos. O `qa-summary` e o job de preflight aparecem como falhos no estado bruto do GitHub para fazer o gate falhar fechado; semanticamente, a causa é **BLOCKED por autenticação A**, não uma falha comprovada de permissão, RLS ou aplicação. OWNER B, fixtures positivas, grants diretos e isolamento não chegaram a ser testados.
 
 ## Verificações locais concluídas
 
@@ -64,8 +73,8 @@ O catálogo completo implantado de 31 tabelas, 53 políticas, 50 funções e 391
 
 ## Pendências após publicação
 
-1. Observar a nova CI no SHA exato e registrar job de preflight como `PASS`, `FAIL` ou `BLOCKED`; não inferir a causa sem a categoria sanitizada.
-2. Se a CI passar, manter a migração e o P0.05 sem execução; a próxima prioridade segura é desenhar idempotência de despesas e revisar o catálogo implantado.
+1. Validar no gerenciador seguro a conta/binding OWNER A que produziu `AUTH_REJECTED_A` e reexecutar o preflight; não enviar valores por chat nem alterar OWNER B.
+2. Mesmo após um futuro PASS, manter a migração e o P0.05 sem execução; a próxima prioridade segura é desenhar idempotência de despesas e revisar o catálogo implantado.
 3. Homologar recuperação real OWNER QA com link novo, troca e login, preservando as demais contas.
 4. Somente com preflight PASS e autorização específica, executar o ciclo persistente de compras com compensação e pós-verificação.
 5. Criar/validar sessões independentes MANAGER e EMPLOYEE e completar a matriz real por perfil.

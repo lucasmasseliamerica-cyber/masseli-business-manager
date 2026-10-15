@@ -49,6 +49,8 @@ Permissions scope: the positive direct reads detect a missing authenticated SELE
 
 The QA workflow runs this script in a dedicated `authenticated-preflight` job after anonymous API smoke and before every authenticated job. Its sanitized log is retained as an artifact and the GitHub step summary records `PASS`, `FAIL` or `BLOCKED`. A non-PASS result blocks downstream authenticated jobs. Local Windows execution through `Invoke-QaPreflight.ps1` additionally requires the exact QA branch, a clean worktree and the validated ancestor; it never resets or cleans local changes and restores prior process variables and native-command preference in `finally`.
 
+Observed result on 2026-10-15: [CI #118](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38752124497), SHA `0130df45852708b15ec128d3b3156551817f1197`, returned `BLOCKED [AUTH_REJECTED_A]`. This proves only that TEST rejected OWNER A authentication at the first login stage. It does not establish whether the e-mail binding, password, account state or a credential rotation is the cause, and it does not evaluate OWNER B or any later fixture/isolation check. Confirm the dedicated OWNER A account and refresh only its GitHub environment bindings through the approved secret manager; never place the values in Git, logs, screenshots or chat.
+
 ## Before any persistent P0.05 run
 
 Require a fresh real recovery/login acceptance, preflight PASS on the exact synchronized SHA, controlled TEST window, explicit authorization identifying the staged runner/fixtures and historical records retained, compensation review and post-check of stock/financial net zero. Never enable the persistent test in default push CI. No purchases were performed to prepare this procedure.
