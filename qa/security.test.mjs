@@ -15,7 +15,10 @@ test('QA workflow is confined to isolated branch and TEST environment',()=>{
 test('authenticated TEST jobs are gated by the classified read-only preflight',()=>{
  assert.match(workflow,/authenticated-preflight:\s*\n\s*needs: test-api-smoke/);
  assert.match(workflow,/node qa\/p0-preflight-readonly\.TEST\.mjs/);
- assert.match(workflow,/PREFLIGHT_EXIT_CODE[\s\S]*Authenticated preflight: PASS[\s\S]*Authenticated preflight: FAIL[\s\S]*Authenticated preflight: BLOCKED/);
+ assert.match(workflow,/classification="\$\(sed -n '[^']*PREFLIGHT/);
+ assert.match(workflow,/reason_code="\$\(sed -n '[^']*\[A-Z0-9_\]/);
+ assert.match(workflow,/PREFLIGHT_EXIT_CODE[\s\S]*PREFLIGHT_CLASSIFICATION[\s\S]*PREFLIGHT_REASON_CODE/);
+ assert.match(workflow,/Authenticated preflight: PASS \[\$PREFLIGHT_REASON_CODE\][\s\S]*Authenticated preflight: FAIL \[\$PREFLIGHT_REASON_CODE\][\s\S]*Authenticated preflight: BLOCKED \[\$PREFLIGHT_REASON_CODE\]/);
  for(const job of ['authenticated-concurrency','access-regression','auth-lifecycle','replay-financial','network-after-commit','browser-smoke','performance-read','two-tenant-concurrency']){
   assert.match(workflow,new RegExp('\\n  '+job+':\\n    needs: authenticated-preflight'),job);
  }

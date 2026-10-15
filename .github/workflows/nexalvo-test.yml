@@ -91,7 +91,15 @@ jobs:
           node qa/p0-preflight-readonly.TEST.mjs 2>&1 | tee qa-preflight-readonly.log
           code=${PIPESTATUS[0]}
           set -e
+          classification="$(sed -n 's/^PREFLIGHT \(PASS\|FAIL\|BLOCKED\) \[\([A-Z0-9_][A-Z0-9_]*\)\].*/\1/p' qa-preflight-readonly.log | tail -n 1)"
+          reason_code="$(sed -n 's/^PREFLIGHT \(PASS\|FAIL\|BLOCKED\) \[\([A-Z0-9_][A-Z0-9_]*\)\].*/\2/p' qa-preflight-readonly.log | tail -n 1)"
+          if [[ ! "$classification" =~ ^(PASS|FAIL|BLOCKED)$ || ! "$reason_code" =~ ^[A-Z0-9_]+$ ]]; then
+            classification=BLOCKED
+            reason_code=RUNNER_RESULT_UNAVAILABLE
+          fi
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          echo "classification=$classification" >> "$GITHUB_OUTPUT"
+          echo "reason_code=$reason_code" >> "$GITHUB_OUTPUT"
       - name: Archive sanitized authenticated preflight report
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,25 +112,27 @@ jobs:
         shell: bash
         env:
           PREFLIGHT_EXIT_CODE: ${{ steps.preflight.outputs.exit_code }}
+          PREFLIGHT_CLASSIFICATION: ${{ steps.preflight.outputs.classification }}
+          PREFLIGHT_REASON_CODE: ${{ steps.preflight.outputs.reason_code }}
         run: |
-          case "$PREFLIGHT_EXIT_CODE" in
-            0)
-              echo "### Authenticated preflight: PASS" >> "$GITHUB_STEP_SUMMARY"
-              echo "::notice title=NEXALVO authenticated preflight::PASS - read-only QA A/B checks completed"
+          case "$PREFLIGHT_EXIT_CODE:$PREFLIGHT_CLASSIFICATION" in
+            0:PASS)
+              echo "### Authenticated preflight: PASS [$PREFLIGHT_REASON_CODE]" >> "$GITHUB_STEP_SUMMARY"
+              echo "::notice title=NEXALVO authenticated preflight::PASS [$PREFLIGHT_REASON_CODE] - read-only QA A/B checks completed"
               ;;
-            1)
-              echo "### Authenticated preflight: FAIL" >> "$GITHUB_STEP_SUMMARY"
-              echo "::error title=NEXALVO authenticated preflight::FAIL - inspect the sanitized preflight artifact"
+            1:FAIL)
+              echo "### Authenticated preflight: FAIL [$PREFLIGHT_REASON_CODE]" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=NEXALVO authenticated preflight::FAIL [$PREFLIGHT_REASON_CODE] - inspect the sanitized preflight artifact"
               exit 1
               ;;
-            2)
-              echo "### Authenticated preflight: BLOCKED" >> "$GITHUB_STEP_SUMMARY"
-              echo "::error title=NEXALVO authenticated preflight::BLOCKED - inspect the sanitized preflight artifact"
+            2:BLOCKED)
+              echo "### Authenticated preflight: BLOCKED [$PREFLIGHT_REASON_CODE]" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=NEXALVO authenticated preflight::BLOCKED [$PREFLIGHT_REASON_CODE] - inspect the sanitized preflight artifact"
               exit 2
               ;;
             *)
-              echo "### Authenticated preflight: BLOCKED (runner result unavailable)" >> "$GITHUB_STEP_SUMMARY"
-              echo "::error title=NEXALVO authenticated preflight::BLOCKED - runner result unavailable"
+              echo "### Authenticated preflight: BLOCKED [RUNNER_RESULT_UNAVAILABLE]" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=NEXALVO authenticated preflight::BLOCKED [RUNNER_RESULT_UNAVAILABLE]"
               exit 2
               ;;
           esac
