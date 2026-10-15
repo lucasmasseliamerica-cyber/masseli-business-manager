@@ -1,5 +1,5 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
-Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121 e [entrega corrente](./QA_DELIVERY_EXPENSE_REPLAY_CI_121_20261015.md).
+Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#124 e [entrega corrente](./QA_AUTOMATION_CI_124_20261015.md).
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 
 ## Regras de status
@@ -13,6 +13,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] CI #116: 10/10 jobs, 231/231 TAP, 0 falhas, 0 skips; build/static 37, API 5, network 6, auth 12, performance 3, access 109, two-tenant 1, authenticated concurrency 1, browser 50 e replay 7.
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
+- [x] Gate de dependências publicado: runtime exige zero alertas moderados ou superiores; auditoria completa falha para pacote/advisory novo, severidade crítica ou aumento sobre o teto conhecido. CI #124 aprovou o gate.
+- [ ] Sete alertas de build/desenvolvimento permanecem (5 altos, 2 moderados); migração Tailwind 4 e regressão visual continuam pendentes, sem `npm audit fix --force`.
 - [ ] Validação de backup restaurado em ambiente isolado e plano de recuperação.
 - [ ] Aceite humano da release candidata, critérios de go/no-go e checklist de publicação (sem executar publicação automaticamente).
 
@@ -169,3 +171,10 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 - [x] [CI #121](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38759292268): build/static e API anônima passaram, total parcial **70/70**, zero falhas/skips nesses produtores.
 - [ ] Preflight segue `BLOCKED [FIXTURE_EMPLOYEE_B]`; oito jobs autenticados não executaram e o agregado ficou `INCOMPLETE` com 2/10 relatórios. O [plano de fixture com compensação](./QA_EMPLOYEE_B_FIXTURE_PLAN.md) está preparado, não executado, e exige autorização de escrita no TEST.
 - [ ] Aplicação das migrações P0.03, provas rollback e concorrência real exigem autorização específica no Supabase TEST. O rollout de despesas permanece desligado.
+
+## Continuação automatizada — CI #124
+
+- [x] Plano persistente e compensável da fixture `employees` B publicado em `189610f`, fora da CI e ainda não executado. [Procedimento](./QA_EMPLOYEE_B_FIXTURE_PLAN.md).
+- [x] Export canônico somente leitura de policies, grants, ACLs e definições de funções publicado em `45f67f2`, com quatro regressões estáticas. [Procedimento](./QA_SECURITY_CATALOG_EXPORT.md). O catálogo implantado ainda não foi exportado/revisado.
+- [x] Gate de auditoria publicado em `9600dea`; validação local **78/78**, build PASS, runtime audit zero e full audit 7 conhecidos. [CI #124](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38761093906) aprovou **83/83 TAP parciais** (78 static + 5 API), zero falhas/skips nesses produtores.
+- [ ] O resultado integral da CI #124 é **BLOQUEADO**, não aprovado: `FIXTURE_EMPLOYEE_B`, oito jobs autenticados ignorados pelo gate e agregador `INCOMPLETE` com 2/10 relatórios. A fixture requer autorização explícita de escrita somente no TEST.

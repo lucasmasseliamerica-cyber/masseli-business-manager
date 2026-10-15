@@ -53,6 +53,8 @@ Observed result on 2026-10-15: [CI #118](https://github.com/lucasmasseliamerica-
 
 [CI #121](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38759292268), SHA `6ab4f48774f2d4dff6b34cb9acc77e54e017898e`, repeated `BLOCKED [FIXTURE_EMPLOYEE_B]`. This confirms the blocker is stable after the unrelated P0.03 code change; it does not add coverage beyond the passed stages listed above.
 
+[CI #122](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38760191846), [CI #123](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38760647609) and [CI #124](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38761093906) repeated the same classified blocker. CI #124 passed 78 static and 5 anonymous API TAP tests before the gate. These repetitions establish stability only; they do not execute the unqualified B checks or convert skipped authenticated jobs into passes.
+
 A guarded apply/compensation procedure is prepared in [QA employee B fixture plan](./QA_EMPLOYEE_B_FIXTURE_PLAN.md). It is a persistent TEST write, is absent from CI and has not been executed.
 
 ## Before any persistent P0.05 run

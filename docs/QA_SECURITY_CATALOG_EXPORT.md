@@ -13,3 +13,5 @@ The output contains complete public function source. Before saving or committing
 5. Compare observed counts to the known baseline, then review every policy/grant/function rather than treating counts or linter alerts as vulnerabilities.
 
 The query remains unexecuted in this cloud session because no approved catalog connection or Supabase connector is available here. No database credential is required in Git or chat.
+
+The canonical export and four static regression checks were published in `45f67f2`; [CI #123](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38760647609) passed those checks before the authenticated preflight encountered the independent employee B fixture blocker. This proves the export guardrails, not the deployed catalog contents.
