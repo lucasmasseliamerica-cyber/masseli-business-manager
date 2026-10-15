@@ -12,6 +12,15 @@ test('QA workflow is confined to isolated branch and TEST environment',()=>{
  assert.match(workflow,/QA_SUPABASE_ANON_KEY:\s*\$\{\{ secrets\.QA_SUPABASE_ANON_KEY \}\}/);
  assert.doesNotMatch(workflow,/\b(deploy|db push|migration up|service.role)\b/i);
 });
+test('authenticated TEST jobs are gated by the classified read-only preflight',()=>{
+ assert.match(workflow,/authenticated-preflight:\s*\n\s*needs: test-api-smoke/);
+ assert.match(workflow,/node qa\/p0-preflight-readonly\.TEST\.mjs/);
+ assert.match(workflow,/PREFLIGHT_EXIT_CODE[\s\S]*Authenticated preflight: PASS[\s\S]*Authenticated preflight: FAIL[\s\S]*Authenticated preflight: BLOCKED/);
+ for(const job of ['authenticated-concurrency','access-regression','auth-lifecycle','replay-financial','network-after-commit','browser-smoke','performance-read','two-tenant-concurrency']){
+  assert.match(workflow,new RegExp('\\n  '+job+':\\n    needs: authenticated-preflight'),job);
+ }
+ assert.doesNotMatch(workflow,/node\s+qa\/p0-purchase-browser-persistent\.TEST\.mjs/);
+});
 test('all QA test scripts reject production host and privileged keys',()=>{
  for(const file of qaFiles){
   const body=readFileSync('qa/'+file,'utf8');

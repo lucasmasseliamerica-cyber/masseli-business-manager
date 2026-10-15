@@ -12,7 +12,7 @@ git pull --ff-only origin automation/nexalvo-qa-actions
 git rev-parse HEAD
 ```
 
-Confirm the published code commit `83bac13b201916a8504e44b827e369be437da3ce` from the delivery report is present in the history; HEAD may be a later documentation-only commit. Stop on conflicts/divergence; do not force push. This cloud session cannot operate Desktop Commander: no such tool is connected, even though the notebook is reported online. GitHub is the code synchronization point.
+Confirm the current code commit recorded in [the 2026-10-15 delivery](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md) is present in the history. The launcher also requires the validated ancestor `83bac13b201916a8504e44b827e369be437da3ce`; HEAD may include later documentation-only commits. Stop on conflicts/divergence; do not force push. This cloud session cannot operate Desktop Commander because no such tool is connected here, even though the notebook is reported online. GitHub is the code synchronization point.
 
 ## Configure without credential files
 
@@ -41,11 +41,13 @@ With bindings securely injected on Linux or Windows:
 node qa/p0-preflight-readonly.TEST.mjs
 ```
 
-Missing bindings exit **2** (BLOCKED), not a passing skip. Failed checks exit **1**. PASS exits **0** and still does not enable business writes. Do not upload headers, browser storage, auth responses, terminal screenshots of secret configuration, or session dumps as evidence. Retain sanitized PASS/FAIL lines and exact code SHA only.
+The runner has one classified result: exit **0** is `PASS`; exit **1** is `FAIL` after the TEST endpoint proves a tenant-context, permission or isolation defect; exit **2** is `BLOCKED` for configuration, identity binding, DNS/network, rejected QA credentials, unavailable service or missing fixture. These are not passing skips. Messages contain only safe category/stage names and optional HTTP status, never values or response bodies. Do not upload headers, browser storage, auth responses, terminal screenshots of secret configuration, or session dumps as evidence. Retain the sanitized classification and exact code SHA only.
 
-Checks: exact TEST URL and public key guard; independent OWNER A/B login; Auth identity and active OWNER profile/business; current_business_id; dedicated active supplier/item/location visible to A and inaccessible to B; secure stock read with quantity at least one; cross-company purchase reads in both directions. Authentication creates temporary sessions and may produce normal Supabase auth metadata; it is not a database rollback. Tokens stay in memory, are not saved or reused by the script, and no global sign-out is performed (which could revoke other QA sessions).
+Checks: exact TEST URL/port and anon/publishable-key guard; independent OWNER A/B login; Auth identity and active OWNER profile/business; `current_business_id`; positive products A/B visible to their owner and hidden from the other; supplier/item/location A visible to A and hidden from B; secure stock A with quantity at least one; a real purchase A visible to A and the exact ID hidden from B; and, for both A and B, positive secure-facade rows followed by direct authenticated SELECT and cross-company denial on `employees` and `sale_items`. Authentication creates temporary sessions and may produce normal Supabase auth metadata; it is not a database rollback. Tokens stay in memory, are deleted from the runner objects, are not saved or reused, and no global sign-out is performed.
 
-Permissions scope: confirms active OWNER role, helper execution and required read access. It does **not** prove grants or permission logic for mutating RPCs, MANAGER/EMPLOYEE, or all tables. Cross-company fixture checks compare a record first confirmed visible to its rightful owner; empty purchase results alone are not a full isolation proof. Session/refresh expiry, SMTP recovery and persistent transactions remain separate gates.
+Permissions scope: the positive direct reads detect a missing authenticated SELECT/RLS path for `employees` and `sale_items`; the exact ACL membership still requires the read-only catalog export. Product and direct-table isolation are tested in both directions. Purchase isolation is A→B only and does not prove B→A. The preflight does **not** prove mutating RPCs, MANAGER/EMPLOYEE, all tables, session/refresh expiry, SMTP recovery or persistent transactions.
+
+The QA workflow runs this script in a dedicated `authenticated-preflight` job after anonymous API smoke and before every authenticated job. Its sanitized log is retained as an artifact and the GitHub step summary records `PASS`, `FAIL` or `BLOCKED`. A non-PASS result blocks downstream authenticated jobs. Local Windows execution through `Invoke-QaPreflight.ps1` additionally requires the exact QA branch, a clean worktree and the validated ancestor; it never resets or cleans local changes and restores prior process variables and native-command preference in `finally`.
 
 ## Before any persistent P0.05 run
 

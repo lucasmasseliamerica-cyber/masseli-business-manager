@@ -30,7 +30,7 @@ jobs:
         run: node --check qa/p0-purchase-browser-persistent.TEST.mjs
       - name: Run static security checks and save report
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs qa/expense-cash-sql-regression.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
       - name: Upload build and static QA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -65,8 +65,70 @@ jobs:
           path: qa-api-results.tap
           retention-days: 14
 
-  authenticated-concurrency:
+  authenticated-preflight:
     needs: test-api-smoke
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_TWO_TENANT_A_EMAIL: ${{ secrets.QA_TWO_TENANT_A_EMAIL }}
+      QA_TWO_TENANT_A_PASSWORD: ${{ secrets.QA_TWO_TENANT_A_PASSWORD }}
+      QA_TWO_TENANT_B_EMAIL: ${{ secrets.QA_TWO_TENANT_B_EMAIL }}
+      QA_TWO_TENANT_B_PASSWORD: ${{ secrets.QA_TWO_TENANT_B_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run read-only QA A/B identity, grants, tenant and fixture preflight
+        id: preflight
+        shell: bash
+        run: |
+          set +e
+          node qa/p0-preflight-readonly.TEST.mjs 2>&1 | tee qa-preflight-readonly.log
+          code=${PIPESTATUS[0]}
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+      - name: Archive sanitized authenticated preflight report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-authenticated-preflight
+          path: qa-preflight-readonly.log
+          retention-days: 14
+      - name: Enforce authenticated preflight classification
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_EXIT_CODE: ${{ steps.preflight.outputs.exit_code }}
+        run: |
+          case "$PREFLIGHT_EXIT_CODE" in
+            0)
+              echo "### Authenticated preflight: PASS" >> "$GITHUB_STEP_SUMMARY"
+              echo "::notice title=NEXALVO authenticated preflight::PASS - read-only QA A/B checks completed"
+              ;;
+            1)
+              echo "### Authenticated preflight: FAIL" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=NEXALVO authenticated preflight::FAIL - inspect the sanitized preflight artifact"
+              exit 1
+              ;;
+            2)
+              echo "### Authenticated preflight: BLOCKED" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=NEXALVO authenticated preflight::BLOCKED - inspect the sanitized preflight artifact"
+              exit 2
+              ;;
+            *)
+              echo "### Authenticated preflight: BLOCKED (runner result unavailable)" >> "$GITHUB_STEP_SUMMARY"
+              echo "::error title=NEXALVO authenticated preflight::BLOCKED - runner result unavailable"
+              exit 2
+              ;;
+          esac
+
+  authenticated-concurrency:
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -94,7 +156,7 @@ jobs:
           retention-days: 14
 
   access-regression:
-    needs: test-api-smoke
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -124,7 +186,7 @@ jobs:
           retention-days: 14
 
   auth-lifecycle:
-    needs: test-api-smoke
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -154,7 +216,7 @@ jobs:
           retention-days: 14
 
   replay-financial:
-    needs: test-api-smoke
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -182,7 +244,7 @@ jobs:
           retention-days: 14
 
   network-after-commit:
-    needs: test-api-smoke
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -210,7 +272,7 @@ jobs:
           retention-days: 14
 
   browser-smoke:
-    needs: test-api-smoke
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -249,7 +311,7 @@ jobs:
           retention-days: 14
 
   performance-read:
-    needs: test-api-smoke
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -277,7 +339,7 @@ jobs:
           retention-days: 14
 
   two-tenant-concurrency:
-    needs: test-api-smoke
+    needs: authenticated-preflight
     if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     environment: nexalvo-test
     runs-on: ubuntu-latest
@@ -305,3 +367,59 @@ jobs:
           name: nexalvo-two-tenant-concurrency
           path: qa-two-tenants-results.tap
           retention-days: 14
+
+  qa-summary:
+    needs:
+      - build-and-security
+      - test-api-smoke
+      - authenticated-preflight
+      - authenticated-concurrency
+      - access-regression
+      - auth-lifecycle
+      - replay-financial
+      - network-after-commit
+      - browser-smoke
+      - performance-read
+      - two-tenant-concurrency
+    if: always() && github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Download this run's QA artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: qa-artifacts
+      - name: Publish exact root TAP totals
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t tap_files < <(find qa-artifacts -type f -name '*.tap' -print | sort)
+          if (( ${#tap_files[@]} != 10 )); then
+            echo "### QA TAP summary: INCOMPLETE (${#tap_files[@]}/10 reports)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=NEXALVO QA TAP summary::INCOMPLETE - expected 10 TAP reports, found ${#tap_files[@]}"
+            exit 1
+          fi
+          total_tests=0
+          total_pass=0
+          total_fail=0
+          total_skipped=0
+          for file in "${tap_files[@]}"; do
+            mapfile -t tests < <(sed -n 's/^# tests \([0-9][0-9]*\)$/\1/p' "$file")
+            mapfile -t passes < <(sed -n 's/^# pass \([0-9][0-9]*\)$/\1/p' "$file")
+            mapfile -t failures < <(sed -n 's/^# fail \([0-9][0-9]*\)$/\1/p' "$file")
+            mapfile -t skipped < <(sed -n 's/^# skipped \([0-9][0-9]*\)$/\1/p' "$file")
+            if (( ${#tests[@]} != 1 || ${#passes[@]} != 1 || ${#failures[@]} != 1 || ${#skipped[@]} != 1 )); then
+              echo "::error title=NEXALVO QA TAP summary::Invalid root TAP summary in $(basename "$file")"
+              exit 1
+            fi
+            total_tests=$((total_tests + tests[0]))
+            total_pass=$((total_pass + passes[0]))
+            total_fail=$((total_fail + failures[0]))
+            total_skipped=$((total_skipped + skipped[0]))
+          done
+          echo "### QA TAP summary: $total_pass/$total_tests PASS; $total_fail FAIL; $total_skipped SKIPPED" >> "$GITHUB_STEP_SUMMARY"
+          if (( total_tests != total_pass || total_fail != 0 || total_skipped != 0 )); then
+            echo "::error title=NEXALVO QA TAP summary::$total_pass/$total_tests PASS; $total_fail FAIL; $total_skipped SKIPPED"
+            exit 1
+          fi
+          echo "::notice title=NEXALVO QA TAP summary::$total_pass/$total_tests PASS; 0 FAIL; 0 SKIPPED"

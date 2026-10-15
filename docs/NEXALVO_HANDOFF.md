@@ -36,7 +36,7 @@ Este arquivo é o ponto de entrada para retomar o NEXALVO em uma nova conversa d
 - As falhas anteriores de custo negativo/desconto excessivo foram corrigidas e verificadas em Actions #96; não tratá-las como pendências atuais sem nova evidência.
 - O teste positivo de pedido e rascunho pela interface usa interceptação/mock, não comprova persistência de pedido real no TEST.
 
-## Último marco confirmado na Issue #1 (revalidar a cada retomada)
+## Marco histórico registrado na Issue #1 (revalidar a cada retomada)
 - [GitHub Actions #105](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38497772341): 10/10 jobs concluídos com sucesso; Issue #1 registra 195/195 TAP, zero falhas e skips, Playwright 47/47.
 - Commit `961168412280382d5a0a9bc01352b3701d171e1a`: cenários de formulário Ordered e Draft usando RPC simulada. Não houve pedido real persistido nesses testes.
 - Próxima lacuna P0.05: ciclo real de compra persistida com compensação segura; concorrência determinística e validações P0.01/P0.02 permanecem abertas.
@@ -50,4 +50,8 @@ Atualizar os relatórios de QA e a Issue #1 a cada unidade de trabalho. Atualiza
 
 ## Latest published continuation — CI #116
 
-Source `83bac13b201916a8504e44b827e369be437da3ce`, [run #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976): Success; all ten job conclusions inspected on public pages, no new remote TAP recount due log access restrictions. See [delivery](./QA_DELIVERY_CI_116.md) and [secure A/B setup/preflight](./QA_SECURE_CREDENTIALS_PREFLIGHT.md). This supersedes earlier local-only publication status. Persistent purchase browser remains OFF, requires real recovery/login, live preflight and separate explicit controlled authorization. Online Windows notebook is not automatically accessible to this Linux runner. Recheck HEAD and newest run before continuing.
+Source `83bac13b201916a8504e44b827e369be437da3ce`, [run #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976): Success; all ten job logs were independently recontados, **231/231 TAP**, zero falhas/skips. See [delivery](./QA_DELIVERY_CI_116.md) and [secure A/B setup/preflight](./QA_SECURE_CREDENTIALS_PREFLIGHT.md). This supersedes earlier local-only publication status. Persistent purchase browser remains OFF and requires real recovery/login, live preflight and separate explicit controlled authorization. The online Windows notebook is not connected to this Linux session; do not infer global availability from this limitation. Recheck HEAD and newest run before continuing.
+
+## Current candidate — 2026-10-15
+
+Read [cash/recovery/preflight delivery](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md) before continuing. Local evidence is 54/54 static checks, 4/4 intercepted recovery browser checks and a successful build. The TEST-only Cash migration and rollback proof were prepared but never executed; expense replay idempotency remains failed/open. The workflow now places a classified, read-only A/B preflight before every authenticated job and leaves persistent P0.05 outside normal CI. Do not call the candidate published or remote-green until that report contains the exact pushed SHA and new Actions run.

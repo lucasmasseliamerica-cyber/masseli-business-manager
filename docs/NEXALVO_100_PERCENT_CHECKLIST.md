@@ -1,5 +1,5 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
-Atualizado: 2026-10-14. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #112.
+Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116 e [entrega corrente](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 
 ## Regras de status
@@ -9,8 +9,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - Não confundir SQL com JWT simulado, browser com RPC mockado e browser com gravação real.
 
 ## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
-- [x] Branch de QA isolada e workflow TEST configurado. [CI #112](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38504160792).
-- [x] CI #112: 10/10 jobs, 197/197 TAP, 0 falhas, 0 skips, incluindo 47 Playwright smoke e 109 access regression.
+- [x] Branch de QA isolada e workflow TEST configurado. Última baseline publicada integralmente recontada: [CI #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976).
+- [x] CI #116: 10/10 jobs, 231/231 TAP, 0 falhas, 0 skips; build/static 37, API 5, network 6, auth 12, performance 3, access 109, two-tenant 1, authenticated concurrency 1, browser 50 e replay 7.
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
 - [ ] Validação de backup restaurado em ambiente isolado e plano de recuperação.
@@ -25,18 +25,21 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Overrides personalizados, desativação e revogação de acesso durante sessão, auditoria.
 
 ## M2 — P0.02 Convites e ciclo de autenticação (aberto)
-- [x] **Diagnóstico local de recuperação:** corrigido descarte do campo `message` do Supabase; 8 regressões unitárias (duas cópias App) e 3 browser com HTTP interceptado aprovadas nesta sessão. Isso não altera senha real nem comprova e-mail/login. [Evidência e limites](./P0_02_RECOVERY_P005_GATE_20261014.md).
+- [x] **Diagnóstico local de recuperação:** mensagens/status/códigos sanitizados, destino restrito ao TEST, chave pública validada, resposta 2xx verificada e sessão normal anterior removida após sucesso. **14/14 regressões unitárias e 4/4 browser com HTTP interceptado** aprovadas; isso não altera senha real nem comprova e-mail/login. [Evidência corrente](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
 - [ ] **BLOQUEADO — tentativa atual OWNER QA TEST:** reproduzir recuperação com link novo e login real bem-sucedido. E-mail recebido e formulário aberto foram relatados; a tentativa terminou em erro genérico, sem status/código coletado. O marco manual histórico abaixo não homologa este incidente.
 - [x] Login/logout, refresh, refresh revogado após logout, credenciais inválidas e JWT malformado.
 - [x] UI rejeita links de convite/recuperação expirados simulados, sem expor token.
 - [ ] Convite real por e-mail, aceitação e primeiro login de QA: houve tentativas/relatos anteriores, mas ainda falta evidência inequívoca de aprovação ponta a ponta na matriz atual.
-- [x] **Recuperação de senha e troca de credencial, conforme registro de teste manual anterior (06/10):** senha antiga recusada e senha nova aceitou login no Dashboard. **Evidência histórica conversacional, não reproduzida na CI TEST #112; entrega de e-mail não confirmada por artefato independente.**
-- [x] **Expiração real de JWT, conforme teste anterior de 06/10:** fora da tolerância de ~30 segundos, REST 401 `JWT expired` e Auth 403. **Evidência histórica conversacional; não integrante da CI TEST #112.**
+- [x] **Recuperação de senha e troca de credencial, conforme registro de teste manual anterior (06/10):** senha antiga recusada e senha nova aceitou login no Dashboard. **Evidência histórica conversacional, ainda não reproduzida na matriz QA atual; entrega de e-mail não confirmada por artefato independente.**
+- [x] **Expiração real de JWT, conforme teste anterior de 06/10:** fora da tolerância de ~30 segundos, REST 401 `JWT expired` e Auth 403. **Evidência histórica conversacional; não equivale à homologação da matriz atual.**
 - [ ] Revogação durante sessão ativa, comportamento multi-dispositivo e regressão autenticada no TEST.
 
 ## M3 — P0.03 Vendas, pedidos, caixa e financeiro (aberto)
 - [x] RPC TEST de venda/reversão idempotente, compensação financeira e replay, com CI verde.
 - [x] OWNER B impedido de vender em caixa fechado, sem efeitos financeiros.
+- [x] **Correção preparada e revisão estática de despesa Cash:** normalização do meio de pagamento, lock do caixa, isolamento antes de mutações, saldo por tipo contábil, rejeição de valores/saldos especiais e audit log atômico; 6/6 regressões locais. O artefato é TEST-only e **não foi aplicado**. [Relatório](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
+- [ ] **BLOQUEADO:** executar a prova SQL `BEGIN/ROLLBACK` somente depois de autorização para aplicar a correção no TEST; confirmar também a fórmula implantada de fechamento/reversão e os grants efetivos.
+- [ ] **FALHOU o critério de replay idempotente para despesas:** `fn_create_expense` não recebe operation/request ID. O lock serializa saldo concorrente, mas não deduplica reenvio após resposta incerta.
 - [ ] Jornada completa de venda real pela interface, carrinho, descontos, impostos e cliente.
 - [ ] Todos os métodos de pagamento, pagamentos mistos, cancelamentos e devoluções.
 - [ ] Abertura/fechamento, sangria/suprimento e conciliação de caixa pela interface.
@@ -58,7 +61,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Validações negativas no formulário de compras (quantidade zero, custo negativo, desconto excessivo).
 - [x] Contrato positivo de criação Ordered/Draft na UI com RPC interceptada (MOCK — não prova persistência).
 - [x] Teste Playwright persistente TEST escrito, opt-in e sintaxe verificada em CI #112 (não executado).
-- [ ] **BLOQUEADO:** executar criação persistente via browser com OWNER TEST e compensação controlada; runner autorizado indisponível.
+- [ ] **BLOQUEADO:** executar criação persistente via browser com OWNER TEST e compensação controlada; exige preflight autenticado PASS no SHA publicado e autorização específica. O teste permanece fora da CI padrão.
 - [ ] Recebimento parcial e total real via UI, pagamento e reversão, estoque restaurado e financeiro líquido zero.
 - [ ] Reversão/cancelamento em erro parcial, atraso de commit, falha de rede e repetição; confirmar audit trail.
 - [ ] Corrida de recebimentos simultâneos e verificação de transições proibidas.
@@ -99,7 +102,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Revisão de segurança, backups, plano de rollback e aprovação explícita para lançamento.
 
 ## Critério para 100%
-Todos os macros M0–M9 precisam estar completos, com evidências reproduzíveis, regressão sem falhas/skips, testes E2E reais, isolamento entre empresas, restauração validada e aceite humano. A CI #112 NÃO constitui homologação de 100%.
+Todos os macros M0–M9 precisam estar completos, com evidências reproduzíveis, regressão sem falhas/skips, testes E2E reais, isolamento entre empresas, restauração validada e aceite humano. A CI #116 NÃO constitui homologação de 100%.
 
 ## Atualização operacional
 A cada tarefa concluída: (1) verificar execução real e logs; (2) trocar somente o micro correspondente para `[x]`; (3) anexar commit/CI/SQL ou evidência; (4) atualizar a Issue #1; (5) só então marcar macro completo. Não assinalar tarefas por promessa ou mock.
@@ -144,11 +147,18 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 ## Continuação automatizada — integração local dos guards de autenticação
 
 - [x] Guards previamente confirmados de papel desconhecido e refresh concorrente reintegrados ao HEAD atual da QA, junto dos testes de recuperação/compensação: **33/33 checks locais, zero falhas/skips**, build e sintaxe do runner persistente aprovados. Evidências e limites em [QA_CONTINUATION_BLOCKERS_20261014.md](./QA_CONTINUATION_BLOCKERS_20261014.md). Não representa login/recuperação reais ou nova CI.
-- [ ] Recuperação real OWNER QA, autenticação/isolation com perfis independentes, grants authenticated employees/sale_items e compras persistentes continuam bloqueados por configuração segura/autorizações indicadas no relatório.
+- [ ] Recuperação real OWNER QA, autenticação/isolation com perfis independentes MANAGER/EMPLOYEE, revalidação autenticada dos grants `employees`/`sale_items` e compras persistentes continuam bloqueados até a evidência da CI/preflight corrente e as autorizações indicadas no relatório.
 - [ ] Sete entradas npm de desenvolvimento/build persistem na nova auditoria; runtime reporta zero. Não há correção compatível oferecida pela simulação nesta execução.
 
 ## Entrega publicada — CI #116
 
-- [x] Correções de autenticação, diagnóstico de recuperação e guards de compensação publicadas em `83bac13b201916a8504e44b827e369be437da3ce`; [CI #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976) terminou Success com **10/10 conclusões de jobs verificadas**, incluindo build/static e browser com regressões novas. Totais TAP remotos não recontados; suite estática local: 37/37, zero falhas/skips. [Evidências](./QA_DELIVERY_CI_116.md).
-- [x] Procedimento seguro QA A/B e preflight fail-closed preparados, com quatro guards locais e sintaxe Node aprovados. Não significa configuração concluída no notebook nem preflight autenticado executado.
+- [x] Correções de autenticação, diagnóstico de recuperação e guards de compensação publicadas em `83bac13b201916a8504e44b827e369be437da3ce`; [CI #116](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38674528976) terminou Success com **10/10 jobs e 231/231 TAP**, zero falhas/skips. [Evidências](./QA_DELIVERY_CI_116.md).
+- [x] Procedimento seguro QA A/B e preflight fail-closed preparados. A entrega corrente amplia os guards locais para **8/8** e separa `PASS`/`FAIL`/`BLOCKED`; isso ainda não significa preflight autenticado real aprovado.
 - [ ] Preflight real no runner local/Windows, recuperação real OWNER QA e compras persistentes continuam bloqueados nos gates documentados; compras não foram habilitadas.
+
+## Candidato corrente — despesas Cash, recuperação e preflight (2026-10-15)
+
+- [x] Validação local: **54/54 testes estáticos**, **4/4 browser de recuperação interceptado**, build Vite aprovado, zero falhas e zero skips; `App.jsx` e `src/App.jsx` idênticos. [Evidências e limites](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
+- [x] Preflight convertido em gate autenticado somente leitura antes de todos os jobs autenticados; valida OWNER A/B, fixtures positivas, isolamento e SELECT direto de `employees`/`sale_items`. O runner persistente P0.05 continua ausente da execução padrão.
+- [ ] Resultado real do novo preflight e regressão remota: aguarda publicação/execução da nova GitHub Actions. Atualizar este item somente com SHA, run e conclusão observados.
+- [ ] Migração Cash e prova SQL não executadas. Recuperação SMTP/troca/login real, idempotência de despesa, catálogo completo Supabase, MANAGER/EMPLOYEE e compra persistente permanecem abertos.

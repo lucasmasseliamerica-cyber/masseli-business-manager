@@ -974,8 +974,14 @@ function cashRegisterEntries(register, cashTx) {
   const start = new Date(register.openedAt).getTime();
   const end = register.closedAt ? new Date(register.closedAt).getTime() : Infinity;
   return (cashTx || []).filter((t) => {
-    if ((t.paymentMethod || "").toLowerCase() !== "cash") return false; // card/Zelle/Other never affect physical cash
-    if (t.category === CASH_REGISTER_CATEGORIES.OPENING) return false;
+    if ((t.paymentMethod || "").trim().toLowerCase() !== "cash") return false; // card/Zelle/Other never affect physical cash
+    // `category` is user-configurable (an expense may legitimately use the opening label), so
+    // prefer the database discriminator. The narrow second branch handles local opening rows
+    // saved by older app versions before ledgerType existed without hiding a real expense.
+    const isLegacyOpening = !t.ledgerType && t.type === "income"
+      && t.category === CASH_REGISTER_CATEGORIES.OPENING
+      && t.description === "Register opened" && !t.relatedExpenseId && !t.relatedSaleId;
+    if (t.ledgerType === "opening_balance" || isLegacyOpening) return false;
 
     // Supabase cash-register RPCs stamp related_cash_register_id on every drawer movement.
     // Prefer that authoritative relationship because it is exactly what fn_close_cash_register
@@ -1058,7 +1064,7 @@ async function openCashRegister({ locationId, openingCash, notes }, ctx) {
     createdAt: now, updatedAt: now,
   };
   await setCashRegisters([register, ...cashRegisters]);
-  await persistCash([{ id: uid("cash"), date: now, type: "income", category: CASH_REGISTER_CATEGORIES.OPENING, amount: amt, paymentMethod: "Cash", locationId, location: loc?.name || "", description: "Register opened", relatedCashRegisterId: register.id }, ...cashTx]);
+  await persistCash([{ id: uid("cash"), date: now, type: "income", ledgerType: "opening_balance", category: CASH_REGISTER_CATEGORIES.OPENING, amount: amt, paymentMethod: "Cash", locationId, location: loc?.name || "", description: "Register opened", relatedCashRegisterId: register.id }, ...cashTx]);
   await logAudit(auditLog, setAuditLog, currentUser, "Cash Register Opened", `${loc?.name || locationId} · Opening ${fmtMoney(amt)}`);
   return { success: true, register };
 }
@@ -1717,10 +1723,8 @@ const authService = {
  * because Row Level Security (02_rls.sql, already deployed) is what actually protects data, not
  * the key itself.
  *
- * SUPABASE_URL is derived from the dashboard project URL you provided (project ref
- * "ebhlfghbdfqgrgmtzpti") using Supabase's standard "<project-ref>.supabase.co" pattern — this
- * inference could not be verified from this environment (no network access here); confirm it
- * matches your project's actual API URL on the API Keys page before relying on it.
+ * The runtime project is selected exclusively through the Vite environment bindings below.
+ * Sensitive recovery requests validate that configuration before sending their bearer token.
  * ============================================================================== */
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
@@ -1757,12 +1761,13 @@ function parseSupabaseAuthHash() {
   const params = new URLSearchParams(raw.slice(1));
   const errorDescription = params.get("error_description") || params.get("error");
   if (errorDescription) {
-    return { error: errorDescription };
+    const code = sanitizeRecoveryCode(params.get("error_code"));
+    return { error: sanitizeRecoveryMessage(errorDescription, "This password reset link is invalid or has expired."), ...(code ? { code } : {}) };
   }
   if (!["recovery", "invite"].includes(params.get("type"))) return null;
   const accessToken = params.get("access_token");
   if (!accessToken) return null;
-  return { accessToken, refreshToken: params.get("refresh_token") || null };
+  return { accessToken };
 }
 
 // Real Supabase JWT session. It is persisted locally and refreshed from the refresh token so a
@@ -1987,6 +1992,67 @@ const supabaseRest = {
   },
 };
 
+function sanitizeRecoveryCode(value) {
+  const code = typeof value === "string" ? value.trim() : "";
+  return /^[a-z0-9_-]{1,64}$/i.test(code) ? code : null;
+}
+
+function sanitizeRecoveryMessage(value, fallback) {
+  const message = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  return message
+    .replace(/\bBearer\s+[^\s]+/gi, "Bearer [redacted]")
+    .replace(/\b(access_token|refresh_token|token)=([^\s&]+)/gi, "$1=[redacted]")
+    .replace(/\beyJ[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}\.[a-z0-9_-]{10,}\b/gi, "[redacted token]")
+    .slice(0, 500);
+}
+
+function recoveryError(message, { status = null, code = null } = {}) {
+  const error = new Error(message);
+  if (Number.isInteger(status) && status >= 100 && status <= 599) error.status = status;
+  const safeCode = sanitizeRecoveryCode(code);
+  if (safeCode) error.code = safeCode;
+  return error;
+}
+
+function recoveryDiagnostic(error) {
+  const parts = [];
+  if (Number.isInteger(error?.status) && error.status >= 100 && error.status <= 599) parts.push(`HTTP ${error.status}`);
+  const code = sanitizeRecoveryCode(error?.code);
+  if (code) parts.push(`Code: ${code}`);
+  return parts.join(" · ");
+}
+
+const QA_RECOVERY_SUPABASE_HOST = "msinksoilkluooxenecy.supabase.co";
+
+function isQaSupabasePublicKey(value) {
+  if (/^sb_publishable_[a-z0-9_-]+$/i.test(value)) return true;
+  const parts = value.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    const encoded = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+    const claims = JSON.parse(atob(padded));
+    return claims?.role === "anon" && claims?.ref === "msinksoilkluooxenecy";
+  } catch {
+    return false;
+  }
+}
+
+function safeSupabaseRecoveryConfig() {
+  const rawUrl = String(SUPABASE_URL || "").trim();
+  let url;
+  try { url = new URL(rawUrl); }
+  catch { throw recoveryError("Password recovery is not safely configured.", { code: "invalid_recovery_config" }); }
+  const validHost = url.hostname === QA_RECOVERY_SUPABASE_HOST;
+  const validUrl = url.protocol === "https:" && validHost && !url.port && url.pathname === "/"
+    && !url.username && !url.password && !url.search && !url.hash && !rawUrl.includes("?") && !rawUrl.includes("#");
+  const publicKey = typeof SUPABASE_ANON_KEY === "string" ? SUPABASE_ANON_KEY.trim() : "";
+  if (!validUrl || !publicKey || !isQaSupabasePublicKey(publicKey)) {
+    throw recoveryError("Password recovery is not safely configured.", { code: "invalid_recovery_config" });
+  }
+  return { baseUrl: url.origin, publicKey };
+}
+
 const supabaseAuth = {
   async signUp(email, password) {
     try {
@@ -2049,6 +2115,7 @@ const supabaseAuth = {
     }
   },
   signOut() { persistSupabaseSession(null); },
+  clearLocalSession() { persistSupabaseSession(null); },
   hasSession() { return !!_supabaseSession; },
   getSession() { return _supabaseSession; },
   // Used ONLY by the password-recovery screen, with the short-lived recovery access_token from
@@ -2056,14 +2123,25 @@ const supabaseAuth = {
   // Supabase Auth REST endpoint for updating the current (bearer-authenticated) user, the same one
   // the supabase-js SDK's updateUser({ password }) calls under the hood. Never logs the token.
   async updateUserPassword(accessToken, newPassword) {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    const { baseUrl, publicKey } = safeSupabaseRecoveryConfig();
+    const res = await fetch(`${baseUrl}/auth/v1/user`, {
       method: "PUT",
-      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+      headers: { apikey: publicKey, Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
       body: JSON.stringify({ password: newPassword }),
     });
     const body = await res.json().catch(() => null);
     if (!res.ok) {
-      throw new Error(body?.error_description || body?.msg || body?.message || body?.error || "Could not update your password. The link may have expired — request a new one.");
+      const rawMessage = body?.error_description || body?.msg || body?.message || body?.error;
+      throw recoveryError(sanitizeRecoveryMessage(rawMessage, "Could not update your password. The link may have expired — request a new one."), {
+        status: res.status,
+        code: body?.code || body?.error_code,
+      });
+    }
+    if (!body || typeof body.id !== "string" || !body.id.trim()) {
+      throw recoveryError("Password update response could not be verified. Sign in before retrying the recovery flow.", {
+        status: res.status,
+        code: "invalid_success_response",
+      });
     }
     return body;
   },
@@ -2809,8 +2887,10 @@ function useSupabaseCashFlow(businessId, reportLoadError, clearLoadError) {
     const mapped = (rows || []).map((r) => ({
       id: r.id, date: r.transaction_date || r.created_at, locationId: r.location_id || "",
       // Location is required by cashRegisterEntries so live register balances match the backend.
-      // The UI treats the opening line as positive cash but excludes its category from register sums.
+      // Keep the authoritative database type so an expense whose custom category happens to use
+      // the opening label is never excluded from the drawer balance.
       type: r.type === "opening_balance" ? "income" : r.type,
+      ledgerType: r.type,
       category: r.category, amount: Number(r.amount || 0), paymentMethod: r.payment_method || "",
       description: r.description || "", relatedSaleId: r.sale_id || "", relatedExpenseId: r.expense_id || "",
       purchasePaymentId: r.purchase_order_payment_id || "", relatedPOId: poByPayment[r.purchase_order_payment_id] || "",
@@ -3658,6 +3738,15 @@ function AppBody() {
 
   useEffect(() => {
     let cancelled = false;
+    if (passwordRecovery) {
+      // Recovery is intentionally isolated from any session already stored for this origin. Do
+      // not restore it or derive a businessId while a recovery bearer is active; otherwise another
+      // QA/user session could load tenant data behind this screen and reappear after the reset.
+      setSupabaseSessionInvalidHandler(null);
+      setAuthProfile(null);
+      setCurrentUserId(null);
+      return () => { cancelled = true; };
+    }
     // Phase 6.1: registers the one hook non-React session code (refreshSupabaseSession, on a
     // definitively failed refresh) uses to cleanly return the app to the login screen — reuses
     // exactly the same state setters signOut already relies on, no second session system.
@@ -3680,7 +3769,7 @@ function AppBody() {
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [passwordRecovery]);
   const login = useCallback(async (email, password) => {
     const result = await authService.signIn(email, password);
     if (!result.ok) return result;
@@ -3693,6 +3782,15 @@ function AppBody() {
     await authService.clearSession();
     setAuthProfile(null);
     setCurrentUserId(null);
+  }, []);
+  const leavePasswordRecovery = useCallback(() => {
+    // This removes only NEXALVO's local session for this browser origin. It deliberately does not
+    // call Supabase /logout, revoke refresh tokens, or affect sessions in other browser profiles.
+    supabaseAuth.clearLocalSession();
+    setAuthStartupError("");
+    setAuthProfile(null);
+    setCurrentUserId(null);
+    setPasswordRecovery(null);
   }, []);
   const businessId = authProfile?.businessId || null;
 
@@ -3765,7 +3863,8 @@ function AppBody() {
   // or login form while a recovery token is waiting to be used. `requireNewPassword` closing the
   // loop (clearing passwordRecovery) is the only way back to the normal app from here.
   if (passwordRecovery) {
-    return <SetNewPasswordScreen dark={dark} bg={bg} recovery={passwordRecovery} onDone={() => setPasswordRecovery(null)} />;
+    return <SetNewPasswordScreen dark={dark} bg={bg} recovery={passwordRecovery}
+      onRecovered={() => setPasswordRecovery({ completed: true })} onDone={leavePasswordRecovery} />;
   }
 
   if (loading) {
@@ -4017,33 +4116,43 @@ function LoginScreen({ dark, onLogin, bg, startupError = "" }) {
 
 // NEXALVO-TEST only, per the current task — this screen is reached exclusively via the
 // password-recovery early-return in App() (see parseSupabaseAuthHash/passwordRecovery above),
-// never through normal navigation. `recovery` is either { accessToken, refreshToken } from a
+// never through normal navigation. `recovery` is either { accessToken } from a
 // valid, unused recovery link, or { error } when Supabase's own redirect already reported the
 // link as invalid/expired (e.g. otp_expired) — never both.
-function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
+function SetNewPasswordScreen({ dark, bg, recovery, onRecovered, onDone }) {
   const { translateUI } = useLanguage();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(recovery?.error || "");
+  const [diagnostic, setDiagnostic] = useState(() => recoveryDiagnostic({ code: recovery?.code }));
   const [done, setDone] = useState(false);
   const hasValidLink = !!recovery?.accessToken;
 
   const submit = async (event) => {
     event?.preventDefault?.();
     if (submitting || !hasValidLink) return;
-    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
-    if (password !== confirmPassword) { setError("Passwords don't match."); return; }
+    if (password.length < 8) { setError("Password must be at least 8 characters."); setDiagnostic(""); return; }
+    if (password !== confirmPassword) { setError("Passwords don't match."); setDiagnostic(""); return; }
     setSubmitting(true);
     setError("");
+    setDiagnostic("");
     try {
       // The official Supabase Auth REST endpoint for updating the bearer-authenticated user —
       // the recovery access_token from the email link is used ONLY for this one request, never
       // persisted, never logged, and never treated as a normal app session.
       await supabaseAuth.updateUserPassword(recovery.accessToken, password);
+      // A normal session stored before opening the recovery link must not reappear if this page
+      // is closed or reloaded after success. This is local-only; it does not call /logout or
+      // revoke sessions used by other QA browser profiles.
+      supabaseAuth.clearLocalSession();
+      setPassword("");
+      setConfirmPassword("");
       setDone(true);
+      onRecovered?.();
     } catch (e) {
       setError(e.message || "Could not update your password. The link may have expired — request a new one.");
+      setDiagnostic(recoveryDiagnostic(e));
     } finally {
       setSubmitting(false);
     }
@@ -4066,7 +4175,10 @@ function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
           </>
         ) : !hasValidLink ? (
           <>
-            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{error || "This password reset link is invalid or has expired."}</div>}
+            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>
+              <div>{error || "This password reset link is invalid or has expired."}</div>
+              {diagnostic && <div className="mt-1 text-[10px] opacity-80">{diagnostic}</div>}
+            </div>}
             <div className="text-xs text-center mb-5" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Request a new reset link from the sign-in screen and try again.")}</div>
             <button type="button" onClick={onDone} className="font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 active:scale-[0.98] transition w-full" style={{ background: C.lime, color: C.black }}>
               <Lock size={16} />{translateUI("Back to Sign In")}</button>
@@ -4074,12 +4186,15 @@ function SetNewPasswordScreen({ dark, bg, recovery, onDone }) {
         ) : (
           <form onSubmit={submit}>
             <Field dark={dark} label={translateUI("New password")}>
-              <Input dark={dark} type="password" autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); }} placeholder="••••••••" autoFocus />
+              <Input dark={dark} type="password" autoComplete="new-password" value={password} onChange={(e) => { setPassword(e.target.value); setError(""); setDiagnostic(""); }} placeholder="••••••••" autoFocus />
             </Field>
             <Field dark={dark} label={translateUI("Confirm new password")}>
-              <Input dark={dark} type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }} placeholder="••••••••" />
+              <Input dark={dark} type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => { setConfirmPassword(e.target.value); setError(""); setDiagnostic(""); }} placeholder="••••••••" />
             </Field>
-            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
+            {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>
+              <div>{translateUI(error)}</div>
+              {diagnostic && <div className="mt-1 text-[10px] opacity-80">{diagnostic}</div>}
+            </div>}
             <button
               type="submit"
               disabled={submitting}

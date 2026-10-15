@@ -38,7 +38,7 @@ The standalone preflight is prepared but **not enabled automatically in CI**. Lo
 
 Existing CI authenticated jobs passed using GitHub environment bindings; that does not inject credentials into Linux or Windows interactive sessions. On Windows, synchronize through GitHub, preserve local changes and use the hidden-prompt launcher, not .env files or literal credential assignments. The reported online LAPTOP-NLHRV0BA is not connected to a Desktop Commander tool in this session; no remote notebook operation was performed. PowerShell runtime validation remains pending Windows execution.
 
-Preflight verifies A/B identity, active OWNER/business, secure read permission, non-vacuous supplier/item/location fixture isolation and required stock, plus bidirectional purchase-read denial. It does not validate all mutating grants, replace MANAGER/EMPLOYEE testing, certify recovery or authorize persistent purchases. Login may create normal auth metadata/sessions; no purchase writes are made. Tokens remain in memory.
+At CI #116, the standalone preflight was prepared to verify A/B identity, active OWNER/business, secure read permission, non-vacuous supplier/item/location fixture isolation and required stock. Product isolation was bidirectional; the purchase proof was A→B only (one A purchase visible to A and the same ID hidden from B). It did not validate all mutating grants, replace MANAGER/EMPLOYEE testing, certify recovery or authorize persistent purchases. Login may create normal auth metadata/sessions; no purchase writes are made. Tokens remain in memory. The later 2026-10-15 delivery changes the workflow and is documented separately.
 
 ## Current gates
 
