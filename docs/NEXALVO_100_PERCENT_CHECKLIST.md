@@ -1,5 +1,5 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
-Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118 e [entrega corrente](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
+Atualizado: 2026-10-15. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121 e [entrega corrente](./QA_DELIVERY_EXPENSE_REPLAY_CI_121_20261015.md).
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 
 ## Regras de status
@@ -39,7 +39,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] OWNER B impedido de vender em caixa fechado, sem efeitos financeiros.
 - [x] **Correção preparada e revisão estática de despesa Cash:** normalização do meio de pagamento, lock do caixa, isolamento antes de mutações, saldo por tipo contábil, rejeição de valores/saldos especiais e audit log atômico; 6/6 regressões locais. O artefato é TEST-only e **não foi aplicado**. [Relatório](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
 - [ ] **BLOQUEADO:** executar a prova SQL `BEGIN/ROLLBACK` somente depois de autorização para aplicar a correção no TEST; confirmar também a fórmula implantada de fechamento/reversão e os grants efetivos.
-- [ ] **FALHOU o critério de replay idempotente para despesas:** `fn_create_expense` não recebe operation/request ID. O lock serializa saldo concorrente, mas não deduplica reenvio após resposta incerta.
+- [ ] **PREPARADO, AINDA NÃO HOMOLOGADO:** wrapper `fn_create_expense_idempotent`, chave empresa/request ID, payload completo, frontend opt-in e provas rollback foram publicados em `6ab4f48`. Migração não aplicada, flag desligada e replay/concorrência reais no TEST pendentes; o RPC implantado continua sem essa garantia.
 - [ ] Jornada completa de venda real pela interface, carrinho, descontos, impostos e cliente.
 - [ ] Todos os métodos de pagamento, pagamentos mistos, cancelamentos e devoluções.
 - [ ] Abertura/fechamento, sangria/suprimento e conciliação de caixa pela interface.
@@ -162,3 +162,10 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 - [x] Preflight convertido em gate autenticado somente leitura antes de todos os jobs autenticados; valida OWNER A/B, fixtures positivas, isolamento e SELECT direto de `employees`/`sale_items`. O runner persistente P0.05 continua ausente da execução padrão.
 - [ ] **BLOQUEADO — preflight real:** [CI #118, tentativa 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38752124497), SHA `0130df45852708b15ec128d3b3156551817f1197`, autenticou OWNER A/B e aprovou identidade, empresa/contexto, isolamento bidirecional de produtos e os checks A de `employees`/`sale_items`; parou em `FIXTURE_EMPLOYEE_B`. `build-and-security` e `test-api-smoke` passaram; 8 jobs autenticados foram pulados pelo gate e `qa-summary` registrou somente 2/10 TAP reports. Confirmar ou provisionar uma fixture ativa de funcionário B no TEST por processo autorizado; os checks B seguintes, estoque e compra ainda não foram executados.
 - [ ] Migração Cash e prova SQL não executadas. Recuperação SMTP/troca/login real, idempotência de despesa, catálogo completo Supabase, MANAGER/EMPLOYEE e compra persistente permanecem abertos.
+
+## Automação P0.03 publicada — CI #121
+
+- [x] Código opt-in e regressões para idempotência de despesas, retry seguro e bloqueio de valores não finitos no caixa publicados em `6ab4f48774f2d4dff6b34cb9acc77e54e017898e`; nenhuma migração aplicada. [Evidência](./QA_DELIVERY_EXPENSE_REPLAY_CI_121_20261015.md).
+- [x] [CI #121](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38759292268): build/static e API anônima passaram, total parcial **70/70**, zero falhas/skips nesses produtores.
+- [ ] Preflight segue `BLOCKED [FIXTURE_EMPLOYEE_B]`; oito jobs autenticados não executaram e o agregado ficou `INCOMPLETE` com 2/10 relatórios.
+- [ ] Aplicação das migrações P0.03, provas rollback e concorrência real exigem autorização específica no Supabase TEST. O rollout de despesas permanece desligado.
