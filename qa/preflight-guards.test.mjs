@@ -46,7 +46,7 @@ globalThis.fetch=async(input,options={})=>{
  }else if(['/rest/v1/suppliers','/rest/v1/inventory_items','/rest/v1/locations'].includes(url.pathname)){
   const table=url.pathname.slice('/rest/v1/'.length);value=label==='A'?[{id:fixed[table],business_id:fixtures.A.business,active:true}]:[];
  }else if(url.pathname==='/rest/v1/rpc/fn_read_employees_secure'){
-  value=scenario==='missing-employee'?[]:[{id:actor.employee,business_id:actor.business}];
+  value=scenario==='missing-employee'||(scenario==='missing-employee-b'&&label==='B')?[]:[{id:actor.employee,business_id:actor.business}];
  }else if(url.pathname==='/rest/v1/employees'){
   if(scenario==='employees-grant')return {status:403,json:async()=>({message:'private permission body'})};
   const id=url.searchParams.get('id')?.slice(3);
@@ -103,6 +103,13 @@ test('missing positive fixtures are BLOCKED, never PASS',()=>{
  for(const [scenario,code] of [['deny-all','FIXTURE_PRODUCT_A'],['missing-employee','FIXTURE_EMPLOYEE_A'],['missing-sale-item','FIXTURE_SALE_ITEM_A'],['zero-purchases','FIXTURE_PURCHASE_A']]){
   const result=runMock(scenario);assert.equal(result.status,2);assert.match(result.output,new RegExp(code));assert.doesNotMatch(result.output,/PREFLIGHT PASS/);
  }
+});
+test('independent stock and purchase isolation run before an employee B fixture blocker',()=>{
+ const result=runMock('missing-employee-b');
+ assert.equal(result.status,2);assert.match(result.output,/FIXTURE_EMPLOYEE_B/);
+ assert.match(result.output,/secure stock read and reversal prerequisite/);
+ assert.match(result.output,/existing OWNER A purchase is visible to A and denied to B/);
+ assert.doesNotMatch(result.output,/PREFLIGHT PASS/);
 });
 test('tenant mismatch and authenticated grant failure are FAIL',()=>{
  for(const [scenario,code] of [['wrong-business','TENANT_CONTEXT_MISMATCH_A'],['employees-grant','ENDPOINT_OR_PERMISSION_EMPLOYEE_DIRECT_A']]){

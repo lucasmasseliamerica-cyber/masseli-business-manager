@@ -121,6 +121,24 @@ async function main() {
       console.log('PASS: owned active ' + table + ' fixture and cross-company denial');
     }
 
+    // These A/B read-only prerequisites are independent from the employee and
+    // sale-item fixtures. Run them first so a later fixture blocker does not
+    // hide evidence that can be collected safely.
+    const stock = await request('/rest/v1/rpc/fn_read_inventory_stock_secure?select=qty&inventory_item_id=eq.bb80c25b-5fd0-4716-8460-82202a2d74a9&location_id=eq.a3e4b2ed-eb00-4963-afd0-38c256aff87d',
+      a.token, undefined, 'STOCK_A');
+    fixture(Array.isArray(stock) && stock.length === 1 && Number.isFinite(Number(stock[0].qty)) && Number(stock[0].qty) >= 1,
+      'FIXTURE_STOCK_A');
+    console.log('PASS: secure stock read and reversal prerequisite');
+
+    const ownOrders = await request('/rest/v1/purchase_orders?select=id,business_id&business_id=eq.' + a.business
+      + '&order=order_date.desc&limit=1', a.token, undefined, 'PURCHASE_A');
+    fixture(Array.isArray(ownOrders) && ownOrders.length === 1 && typeof ownOrders[0].id === 'string'
+      && ownOrders[0].business_id === a.business, 'FIXTURE_PURCHASE_A');
+    const foreignOrder = await request('/rest/v1/purchase_orders?select=id,business_id&id=eq.' + ownOrders[0].id,
+      b.token, undefined, 'PURCHASE_FOREIGN_B');
+    verify(Array.isArray(foreignOrder) && foreignOrder.length === 0, 'ISOLATION_PURCHASE_A_TO_B');
+    console.log('PASS: existing OWNER A purchase is visible to A and denied to B');
+
     for (const actor of actors) {
       const other = actors.find((candidate) => candidate !== actor);
       const employeeFacade = await request('/rest/v1/rpc/fn_read_employees_secure?select=id,business_id&business_id=eq.'
@@ -156,21 +174,6 @@ async function main() {
         'ISOLATION_SALE_ITEMS_' + actor.label + '_TO_' + other.label);
       console.log('PASS: OWNER ' + actor.label + ' direct employee/sale_items SELECT and cross-company denial');
     }
-
-    const stock = await request('/rest/v1/rpc/fn_read_inventory_stock_secure?select=qty&inventory_item_id=eq.bb80c25b-5fd0-4716-8460-82202a2d74a9&location_id=eq.a3e4b2ed-eb00-4963-afd0-38c256aff87d',
-      a.token, undefined, 'STOCK_A');
-    fixture(Array.isArray(stock) && stock.length === 1 && Number.isFinite(Number(stock[0].qty)) && Number(stock[0].qty) >= 1,
-      'FIXTURE_STOCK_A');
-    console.log('PASS: secure stock read and reversal prerequisite');
-
-    const ownOrders = await request('/rest/v1/purchase_orders?select=id,business_id&business_id=eq.' + a.business
-      + '&order=order_date.desc&limit=1', a.token, undefined, 'PURCHASE_A');
-    fixture(Array.isArray(ownOrders) && ownOrders.length === 1 && typeof ownOrders[0].id === 'string'
-      && ownOrders[0].business_id === a.business, 'FIXTURE_PURCHASE_A');
-    const foreignOrder = await request('/rest/v1/purchase_orders?select=id,business_id&id=eq.' + ownOrders[0].id,
-      b.token, undefined, 'PURCHASE_FOREIGN_B');
-    verify(Array.isArray(foreignOrder) && foreignOrder.length === 0, 'ISOLATION_PURCHASE_A_TO_B');
-    console.log('PASS: existing OWNER A purchase is visible to A and denied to B');
     console.log('PREFLIGHT PASS [OK]: read-only checks complete; persistent purchase run remains separately gated.');
   } finally {
     for (const actor of actors) delete actor.token;
