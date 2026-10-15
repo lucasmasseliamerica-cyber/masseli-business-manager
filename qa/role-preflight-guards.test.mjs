@@ -84,3 +84,13 @@ test('standard CI does not request role secrets or execute the live role preflig
  assert.doesNotMatch(workflow,/QA_ROLE_(?:MANAGER|EMPLOYEE)_(?:EMAIL|PASSWORD)/);
  assert.doesNotMatch(workflow,/node\s+qa\/p0-role-preflight-readonly\.TEST\.mjs/);
 });
+test('manual role workflow is confined to QA branch, TEST environment and read-only runner',()=>{
+ const workflow=readFileSync('.github/workflows/nexalvo-role-preflight.yml','utf8');
+ assert.match(workflow,/workflow_dispatch:/);
+ assert.doesNotMatch(workflow,/\bpush:/);
+ assert.match(workflow,/github\.ref == 'refs\/heads\/automation\/nexalvo-qa-actions'/);
+ assert.match(workflow,/environment: nexalvo-test/);
+ for(const name of names)assert.match(workflow,new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+':'));
+ assert.match(workflow,/node qa\/p0-role-preflight-readonly\.TEST\.mjs/);
+ assert.doesNotMatch(workflow,/purchase|migration|deploy/i);
+});

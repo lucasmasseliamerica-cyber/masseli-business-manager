@@ -1,0 +1,28 @@
+name: NEXALVO TEST - Real Role Preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  role-preflight:
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    environment: nexalvo-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
+      QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      QA_ROLE_MANAGER_EMAIL: ${{ secrets.QA_ROLE_MANAGER_EMAIL }}
+      QA_ROLE_MANAGER_PASSWORD: ${{ secrets.QA_ROLE_MANAGER_PASSWORD }}
+      QA_ROLE_EMPLOYEE_EMAIL: ${{ secrets.QA_ROLE_EMPLOYEE_EMAIL }}
+      QA_ROLE_EMPLOYEE_PASSWORD: ${{ secrets.QA_ROLE_EMPLOYEE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run fail-closed MANAGER and EMPLOYEE read-only preflight
+        run: node qa/p0-role-preflight-readonly.TEST.mjs
