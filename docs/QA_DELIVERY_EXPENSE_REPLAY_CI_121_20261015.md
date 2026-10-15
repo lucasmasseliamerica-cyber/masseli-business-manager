@@ -45,7 +45,7 @@ Os dois produtores executados somam **70/70 testes parciais aprovados**, sem fal
 
 ## Próximos gates
 
-1. Confirmar ou provisionar, mediante autorização e somente no TEST, uma linha ativa de `employees` da empresa B visível ao OWNER B por `fn_read_employees_secure`.
+1. Confirmar ou provisionar, mediante autorização e somente no TEST, uma linha ativa de `employees` da empresa B visível ao OWNER B por `fn_read_employees_secure`; o [plano apply/compensação](./QA_EMPLOYEE_B_FIXTURE_PLAN.md) está preparado e não foi executado.
 2. Reexecutar o preflight e os oito jobs autenticados sem enfraquecer o teste positivo.
 3. Revisar/aplicar as duas migrações P0.03 somente com autorização específica e na ordem documentada.
 4. Executar as provas SQL com rollback e depois um teste concorrente real de request ID no TEST.

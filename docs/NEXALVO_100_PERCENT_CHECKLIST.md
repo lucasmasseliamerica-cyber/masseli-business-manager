@@ -167,5 +167,5 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 
 - [x] Código opt-in e regressões para idempotência de despesas, retry seguro e bloqueio de valores não finitos no caixa publicados em `6ab4f48774f2d4dff6b34cb9acc77e54e017898e`; nenhuma migração aplicada. [Evidência](./QA_DELIVERY_EXPENSE_REPLAY_CI_121_20261015.md).
 - [x] [CI #121](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38759292268): build/static e API anônima passaram, total parcial **70/70**, zero falhas/skips nesses produtores.
-- [ ] Preflight segue `BLOCKED [FIXTURE_EMPLOYEE_B]`; oito jobs autenticados não executaram e o agregado ficou `INCOMPLETE` com 2/10 relatórios.
+- [ ] Preflight segue `BLOCKED [FIXTURE_EMPLOYEE_B]`; oito jobs autenticados não executaram e o agregado ficou `INCOMPLETE` com 2/10 relatórios. O [plano de fixture com compensação](./QA_EMPLOYEE_B_FIXTURE_PLAN.md) está preparado, não executado, e exige autorização de escrita no TEST.
 - [ ] Aplicação das migrações P0.03, provas rollback e concorrência real exigem autorização específica no Supabase TEST. O rollout de despesas permanece desligado.
