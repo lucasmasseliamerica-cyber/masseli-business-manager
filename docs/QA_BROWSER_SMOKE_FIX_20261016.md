@@ -19,3 +19,5 @@ O preflight autenticado continua responsável por comprovar as fixtures e o isol
 ## Continuação após CI #141
 
 A CI #141 aprovou build, segurança e preflight autenticado, mas o `browser-smoke` continuou falhando. Isso prova que a dependência de fixtures não era a única causa. O workflow agora publica apenas os títulos TAP `not ok` como anotações sanitizadas; nenhuma variável, credencial ou payload é incluído. A próxima execução deve identificar os subtestes exatos mesmo quando o download dos logs exigir autenticação.
+
+A primeira execução diagnóstica (#142) expôs somente o teste-pai porque os resultados TAP aninhados são indentados. O filtro foi ajustado para aceitar espaços à esquerda e publicar também o grupo e o caso folha.
