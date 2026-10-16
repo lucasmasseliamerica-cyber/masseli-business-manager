@@ -2,6 +2,8 @@
 
 `qa/p0-role-preflight-readonly.TEST.mjs` is a standalone fail-closed check for independent TEST-only MANAGER and EMPLOYEE accounts in business A. It does not create users, send invitations, change passwords, mutate business rows or run persistent purchases. It is intentionally absent from standard CI until both accounts and fixtures exist.
 
+Account preparation, Auth/application separation and exact compensation are defined in [QA real-role account plan](./QA_REAL_ROLE_ACCOUNT_PLAN.md).
+
 Configure only through the GitHub `nexalvo-test` environment or transient process environment:
 
 - existing `QA_SUPABASE_URL` and public `QA_SUPABASE_ANON_KEY`;

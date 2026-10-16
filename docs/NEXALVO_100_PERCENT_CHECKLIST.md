@@ -28,6 +28,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Overrides personalizados, desativação e revogação de acesso durante sessão, auditoria.
 - [x] Runner somente leitura MANAGER/EMPLOYEE e sete regressões fail-closed preparados em `edead39`; [CI #127](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38776559766) aprovou os guards. [Procedimento](./QA_REAL_ROLE_PREFLIGHT.md).
 - [x] Workflow manual de perfis restrito à branch QA e Environment TEST publicado em `ba4e7d4`; oitavo guard e [CI #128](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38777105413) aprovados. A execução live não foi disparada.
+- [x] Plano TEST-only para duas identidades independentes e dois vínculos ativos preparado com descoberta somente leitura, aplicação idempotente, auditoria e compensação exata; cinco regressões locais aprovadas. [Procedimento](./QA_REAL_ROLE_ACCOUNT_PLAN.md). Nenhum SQL, convite ou alteração de senha foi executado.
+- [ ] **BLOQUEADO:** executar a descoberta implantada e revisar o resultado sanitizado de constraints, RLS, grants, Auth e dependências antes de autorizar qualquer vínculo. O código local não contém o DDL completo implantado.
 - [ ] **BLOQUEADO:** execução real do runner de perfis depende das duas contas TEST ativas, ligadas a employees distintos da empresa A, e quatro segredos armazenados no GitHub Environment. O runner live continua fora da CI padrão.
 
 ## M2 — P0.02 Convites e ciclo de autenticação (aberto)
