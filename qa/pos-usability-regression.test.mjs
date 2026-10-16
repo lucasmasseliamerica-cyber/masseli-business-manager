@@ -46,6 +46,20 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(source, /<ProductImage product=\{product\} dark=\{dark\} size=\{72\}/);
   });
 
+  test(`${label}: POS catalog search is accent-insensitive and combines category filters`, () => {
+    const implementation = extractFunction(source, 'normalizeCatalogSearch');
+    const normalize = Function(`${implementation}; return normalizeCatalogSearch;`)();
+    assert.equal(normalize('  AÇAÍ Premium  '), 'acai premium');
+    assert.match(source, /const \[productQuery, setProductQuery\] = useState\(""\)/);
+    assert.match(source, /const \[productCategory, setProductCategory\] = useState\("all"\)/);
+    assert.match(source, /normalizeCatalogSearch\(`\$\{product\.name\} \$\{product\.sku \|\| ""\} \$\{product\.category \|\| ""\}`\)\.includes\(query\)/);
+    assert.match(source, /productCategory !== "all" && product\.category !== productCategory/);
+    assert.match(source, /Search products by name, SKU or category/);
+    assert.match(source, /visibleProducts\.map\(\(product\) =>/);
+    assert.match(source, /No products match these filters/);
+    assert.match(source, /setProductQuery\(""\); setProductCategory\("all"\)/);
+  });
+
   test(`${label}: invalid sale totals and stale selectors are rejected before persistence`, () => {
     assert.match(source, /Number\.isFinite\(manualDiscount\)/);
     assert.match(source, /Number\.isFinite\(taxAmt\)/);

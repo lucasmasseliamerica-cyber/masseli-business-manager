@@ -24,3 +24,10 @@ Data: 2026-10-15. Escopo: branch `automation/nexalvo-qa-actions`. Nenhuma venda 
 - Upload binário, substituição e remoção em Supabase Storage dependem da definição e validação das políticas de Storage; esta entrega suporta URLs HTTPS existentes.
 - Métodos de cartão continuam usando o simulador explicitamente identificado até existir integração autorizada com provedor/terminal.
 - A jornada persistente real no TEST continua fora desta entrega.
+
+## Continuação — busca e categorias (2026-10-16)
+
+- O catálogo rápido busca por nome, SKU e categoria com normalização de acentos e caixa.
+- Busca e categoria podem ser combinadas e limpas no estado sem resultados.
+- Filtrar a vitrine não remove nem duplica linhas já adicionadas ao carrinho.
+- Regressões afetadas: **35/35 PASS**, zero falhas/skips; build Vite PASS. Nenhuma venda ou escrita Supabase foi executada.

@@ -137,6 +137,10 @@ function normalizeProductImageUrl(value) {
   }
 }
 
+function normalizeCatalogSearch(value) {
+  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase();
+}
+
 function validateProductDraft(product, { products = [], inventory = null } = {}) {
   const name = String(product?.name || "").trim();
   const sku = String(product?.sku || "").trim();
@@ -5745,6 +5749,18 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     return () => { cancelled = true; };
   }, [businessId]);
   const activeProducts = products.filter((p) => p.active);
+  const [productQuery, setProductQuery] = useState("");
+  const [productCategory, setProductCategory] = useState("all");
+  const productCategories = useMemo(() => [...new Set(activeProducts.map((product) => String(product.category || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [activeProducts]);
+  const visibleProducts = useMemo(() => {
+    const query = normalizeCatalogSearch(productQuery);
+    return activeProducts.filter((product) => {
+      if (productCategory !== "all" && product.category !== productCategory) return false;
+      if (!query) return true;
+      return normalizeCatalogSearch(`${product.name} ${product.sku || ""} ${product.category || ""}`).includes(query);
+    });
+  }, [activeProducts, productCategory, productQuery]);
+  useEffect(() => { if (productCategory !== "all" && !productCategories.includes(productCategory)) setProductCategory("all"); }, [productCategories, productCategory]);
   const [items, setItems] = useState([]);
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState(availablePaymentMethods[0] || "Other");
@@ -6061,9 +6077,21 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       <>
       <div className="mb-4">
         <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("QUICK ADD PRODUCTS")}</div>
-        {activeProducts.length === 0 ? <EmptyState dark={dark} title={translateUI("No active products available")} /> : (
+        {activeProducts.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-2 mb-2">
+          <Input dark={dark} type="search" value={productQuery} onChange={(event) => setProductQuery(event.target.value)} placeholder={translateUI("Search products by name, SKU or category")} aria-label={translateUI("Search products")} />
+          <Select dark={dark} value={productCategory} onChange={(event) => setProductCategory(event.target.value)} aria-label={translateUI("Filter products by category")}>
+            <option value="all">{translateUI("All Categories")}</option>
+            {productCategories.map((category) => <option key={category} value={category}>{translateUI(category)}</option>)}
+          </Select>
+        </div>}
+        {activeProducts.length === 0 ? <EmptyState dark={dark} title={translateUI("No active products available")} /> : visibleProducts.length === 0 ? (
+          <div className="rounded-2xl p-3 text-center" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
+            <div className="text-sm font-semibold mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("No products match these filters.")}</div>
+            <GhostButton dark={dark} onClick={() => { setProductQuery(""); setProductCategory("all"); }}>{translateUI("Clear filters")}</GhostButton>
+          </div>
+        ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
-            {activeProducts.map((product) => {
+            {visibleProducts.map((product) => {
               const cartQty = items.find((item) => item.productId === product.id)?.qty || 0;
               return (
                 <button type="button" key={product.id} aria-label={interpolateUI("Add {0}",[product.name])} onClick={() => addProductToCart(product.id)} className="text-left rounded-2xl p-2 relative" style={{ background: dark ? C.surfaceDark : C.white, border: `1px solid ${cartQty ? C.lime : (dark ? C.borderDark : C.borderLight)}` }}>
