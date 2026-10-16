@@ -49,6 +49,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] **BLOQUEADO:** executar a prova SQL `BEGIN/ROLLBACK` somente depois de autorização para aplicar a correção no TEST; confirmar também a fórmula implantada de fechamento/reversão e os grants efetivos.
 - [ ] **PREPARADO, AINDA NÃO HOMOLOGADO:** wrapper `fn_create_expense_idempotent`, chave empresa/request ID, payload completo, frontend opt-in e provas rollback foram publicados em `6ab4f48`. Migração não aplicada, flag desligada e replay/concorrência reais no TEST pendentes; o RPC implantado continua sem essa garantia.
 - [ ] Jornada completa de venda real pela interface, carrinho, descontos, impostos e cliente.
+- [x] PDV utilizável aprimorado: cartões visuais com inclusão rápida e quantidade, fotos HTTPS com fallback, validação finita de descontos/impostos, seletores ativos e recuperação de falha do adaptador de cartão. **37/37 regressões afetadas** e build local aprovados. [Evidência](./QA_POS_USABILITY_20261015.md). Upload para Storage e venda persistente real continuam pendentes.
 - [ ] Todos os métodos de pagamento, pagamentos mistos, cancelamentos e devoluções.
 - [ ] Abertura/fechamento, sangria/suprimento e conciliação de caixa pela interface.
 - [ ] Concorrência determinística venda vs. fechamento e falha de rede durante commit.
@@ -90,6 +91,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 
 ## M8 — P1 Cadastros, operação e UX (aberto)
 - [ ] Produtos: criação, edição, desativação, foto, SKU, preço, receita, custos e duplicidades.
+- [x] Cadastro/edição preserva e valida URL HTTPS da foto, mostra prévia e persiste `image_url` pelo RPC existente; lista e PDV exibem a imagem com placeholder em erro. Upload binário/Storage permanece pendente.
 - [ ] Clientes: ação editar, nome, telefone, e-mail, notas, validação e histórico.
 - [ ] Fornecedores: edição, duplicidades, exclusão/desativação e vínculos históricos.
 - [ ] Funcionários: convite, perfis, permissões, ponto, pausas e desligamento.

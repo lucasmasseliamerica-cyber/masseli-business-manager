@@ -112,6 +112,17 @@ function downloadCSV(filename, headerRow, rows) {
   URL.revokeObjectURL(url);
 }
 
+function normalizeProductImageUrl(value) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw || raw.length > 2048) return "";
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
 /* ============================== SEED DATA ============================== */
 const seedLocations = () => ([
   { id: "loc-kiosk", name: "Kiosk", type: "Retail", active: true, sample: true },
@@ -5022,6 +5033,19 @@ function SectionHeader({ dark, title, sub, action }) {
   );
 }
 
+function ProductImage({ product, dark, size = 48 }) {
+  const source = normalizeProductImageUrl(product?.image || product?.imageUrl || "");
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [source]);
+  return (
+    <div className="shrink-0 overflow-hidden flex items-center justify-center" style={{ width: size, height: size, borderRadius: Math.max(12, Math.round(size * 0.24)), background: dark ? C.bgDark : C.bgLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
+      {source && !failed
+        ? <img src={source} alt={product?.name ? `${product.name} product` : "Product"} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="w-full h-full object-cover" />
+        : <Package size={Math.max(18, Math.round(size * 0.42))} color={dark ? C.textMutedDark : C.textMutedLight} aria-hidden="true" />}
+    </div>
+  );
+}
+
 /* ============================== SALES ============================== */
 // Orders / Production board — reads the SAME finalized sale records SalesView does, no second
 // order system. Purely operational: shows only what production staff needs (order#, elapsed
@@ -5528,7 +5552,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     return () => { cancelled = true; };
   }, [businessId]);
   const activeProducts = products.filter((p) => p.active);
-  const [items, setItems] = useState([{ productId: activeProducts[0]?.id || "", qty: 1 }]);
+  const [items, setItems] = useState([]);
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState(availablePaymentMethods[0] || "Other");
   const [channel, setChannel] = useState(settings.channels[0]);
@@ -5545,6 +5569,15 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const [showCustomerCreate, setShowCustomerCreate] = useState(false);
 
   const addItem = () => setItems([...items, { productId: activeProducts[0]?.id || "", qty: 1 }]);
+  const addProductToCart = (productId) => {
+    if (!productId) return;
+    const existingIndex = items.findIndex((item) => item.productId === productId);
+    if (existingIndex >= 0) {
+      setItems(items.map((item, index) => index === existingIndex ? { ...item, qty: Math.max(1, Number(item.qty) || 1) + 1 } : item));
+      return;
+    }
+    setItems([...items, { productId, qty: 1 }]);
+  };
   const updateItem = (idx, patch) => setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
 
@@ -5559,10 +5592,12 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const availableRewards = customerId ? eligibleRewards(loyaltyRewards, loyaltyBalance) : [];
   const selectedReward = selectedRewardId ? (loyaltyRewards || []).find((r) => r.id === selectedRewardId && availableRewards.some((a) => a.id === r.id)) : null;
   const rewardDiscountAmt = selectedReward ? rewardDiscountAmount(selectedReward, subtotal) : 0;
-  const totalDiscount = round2((Number(discount) || 0) + rewardDiscountAmt);
-
-  const taxAmt = settings.taxEnabled ? round2((subtotal - totalDiscount) * (settings.taxRate / 100)) : 0;
-  const total = round2(subtotal - totalDiscount + taxAmt);
+  const manualDiscount = Number(discount);
+  const totalDiscount = Number.isFinite(manualDiscount) ? round2(manualDiscount + rewardDiscountAmt) : NaN;
+  const taxableSubtotal = Number.isFinite(totalDiscount) ? Math.max(0, subtotal - totalDiscount) : NaN;
+  const taxRate = Number(settings.taxRate);
+  const taxAmt = settings.taxEnabled && Number.isFinite(taxableSubtotal) && Number.isFinite(taxRate) ? round2(taxableSubtotal * (taxRate / 100)) : settings.taxEnabled ? NaN : 0;
+  const total = Number.isFinite(totalDiscount) && Number.isFinite(taxAmt) ? round2(subtotal - totalDiscount + taxAmt) : NaN;
 
   const [submitting, setSubmitting] = useState(false);
   // The sale info awaiting payment — never persisted to `sales`/`cashTx`/inventory until the
@@ -5678,7 +5713,11 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     if (lineData.length === 0 || lineData.some((l) => !l.product)) { setError("Add at least one product."); return; }
     if (lineData.some((l) => !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Each sale item must have a quantity greater than zero."); return; }
     if (new Set(lineData.map((l) => l.productId)).size !== lineData.length) { setError("The same product can't appear more than once on a sale."); return; }
-    if (totalDiscount < 0 || total < 0) { setError("Discount can't make the sale total negative."); return; }
+    if (!paymentMethod || !availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
+    if (!channel || !(settings.channels || []).includes(channel)) { setError("Select a valid sales channel."); return; }
+    if (!locationId || !(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active sales location."); return; }
+    if (!Number.isFinite(manualDiscount) || manualDiscount < 0 || !Number.isFinite(totalDiscount) || !Number.isFinite(taxAmt) || !Number.isFinite(total)) { setError("Discount and tax must be valid finite amounts."); return; }
+    if (totalDiscount > subtotal || total < 0) { setError("Discount can't make the sale total negative."); return; }
     // Cash payments require an active register at this location — this only applies to genuine
     // physical-cash sales. Card (including the future Stripe Terminal flow) and Zelle/Other are
     // never blocked by the register's state.
@@ -5740,8 +5779,14 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       setPendingCardSale(pendingSale);
       setPaymentHandle(handle);
       setPaymentPhase("connecting");
-      handle.readyPromise.then(() => setPaymentPhase((phase) => (phase === "connecting" ? "awaiting_outcome" : phase)));
-      handle.promise.then((result) => handlePaymentResult(pendingSale, result));
+      handle.readyPromise.then(() => setPaymentPhase((phase) => (phase === "connecting" ? "awaiting_outcome" : phase))).catch(() => {});
+      handle.promise.then((result) => handlePaymentResult(pendingSale, result)).catch((e) => {
+        console.error("Card payment status could not be confirmed", e);
+        setPaymentHandle(null);
+        setPendingCardSale(null);
+        setPaymentPhase("idle");
+        setError("Card payment status could not be confirmed. Check the terminal or payment provider before trying again. NEXALVO did not record this sale.");
+      });
       return;
     }
 
@@ -5821,6 +5866,24 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
         </div>
       ) : (
       <>
+      <div className="mb-4">
+        <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("QUICK ADD PRODUCTS")}</div>
+        {activeProducts.length === 0 ? <EmptyState dark={dark} title={translateUI("No active products available")} /> : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-1">
+            {activeProducts.map((product) => {
+              const cartQty = items.find((item) => item.productId === product.id)?.qty || 0;
+              return (
+                <button type="button" key={product.id} aria-label={interpolateUI("Add {0}",[product.name])} onClick={() => addProductToCart(product.id)} className="text-left rounded-2xl p-2 relative" style={{ background: dark ? C.surfaceDark : C.white, border: `1px solid ${cartQty ? C.lime : (dark ? C.borderDark : C.borderLight)}` }}>
+                  <ProductImage product={product} dark={dark} size={72} />
+                  <div className="font-bold text-xs mt-2 line-clamp-2" style={{ color: dark ? C.white : C.black }}>{product.name}</div>
+                  <div className="text-xs font-extrabold" style={{ color: C.lime }}>{fmtMoney(product.price)}</div>
+                  {cartQty > 0 && <span className="absolute top-1 right-1 rounded-full min-w-6 h-6 px-1 flex items-center justify-center text-[11px] font-extrabold" style={{ background: C.lime, color: C.black }}>{cartQty}</span>}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
       {items.map((it, idx) => (
         <div key={idx} className="flex gap-2 mb-2 items-end">
           <div className="flex-1">
@@ -5835,7 +5898,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
               <Input dark={dark} type="number" min="1" value={it.qty} onChange={(e) => updateItem(idx, { qty: Math.max(1, Number(e.target.value)) })} />
             </Field>
           </div>
-          {items.length > 1 && (
+          {items.length > 0 && (
             <button onClick={() => removeItem(idx)} className="mb-3 w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#3A0F1E" }}>
               <Trash2 size={15} color="#FF6B85" />
             </button>
@@ -5904,7 +5967,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           </Card>
         )}
         <Field dark={dark} label={translateUI("Discount ($)")}>
-          <Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} />
+          <Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} />
         </Field>
       </div>
       <Field dark={dark} label={translateUI("Notes")}>
@@ -7361,16 +7424,19 @@ function ProductsView({ dark, products, setProducts, inventory, settings, curren
           const profit = round2(p.price - cost);
           const margin = p.price ? round2((profit / p.price) * 100) : 0;
           return (
-            <div key={p.id} onClick={() => { if (canEdit) { setEditing(p); setModal(true); } }} className="py-3 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight, cursor: canEdit ? "pointer" : "default" }}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{p.name}</div>
-                <div className="font-extrabold text-sm" style={{ color: dark ? C.white : C.black }}>{fmtMoney(p.price)}</div>
+            <div key={p.id} onClick={() => { if (canEdit) { setEditing(p); setModal(true); } }} className="py-3 border-b last:border-b-0 flex gap-3 items-center" style={{ borderColor: dark ? C.borderDark : C.borderLight, cursor: canEdit ? "pointer" : "default" }}>
+              <ProductImage product={p} dark={dark} size={58} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{p.name}</div>
+                  <div className="font-extrabold text-sm shrink-0" style={{ color: dark ? C.white : C.black }}>{fmtMoney(p.price)}</div>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs truncate" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI(p.category)}{canSeeCost ? interpolateUI(" · Cost {0}",[fmtMoney(cost)]) : ""}</span>
+                  {canSeeCost && <span className="text-xs font-bold shrink-0" style={{ color: margin >= 40 ? C.lime : margin >= 20 ? C.yellow : "#FF6B85" }}>{translateUI("Margin")}{" "}{fmtPct(margin)}</span>}
+                </div>
+                {!p.active && <Badge dark={dark} tone="warn">{translateUI("INACTIVE")}</Badge>}
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI(p.category)}{canSeeCost ? interpolateUI(" · Cost {0}",[fmtMoney(cost)]) : ""}</span>
-                {canSeeCost && <span className="text-xs font-bold" style={{ color: margin >= 40 ? C.lime : margin >= 20 ? C.yellow : "#FF6B85" }}>{translateUI("Margin")}{" "}{fmtPct(margin)}</span>}
-              </div>
-              {!p.active && <Badge dark={dark} tone="warn">{translateUI("INACTIVE")}</Badge>}
             </div>
           );
         })}
@@ -7393,6 +7459,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
   const [price, setPrice] = useState(product?.price ?? 0);
   const [active, setActive] = useState(product?.active ?? true);
   const [description, setDescription] = useState(product?.description || "");
+  const [image, setImage] = useState(product?.image || product?.imageUrl || "");
   const [recipe, setRecipe] = useState(product?.recipe || []);
 
   const cost = round2(recipe.reduce((sum, r) => { const it = inventory.find((i) => i.id === r.itemId); return sum + (it ? it.costPerUnit * r.qty : 0); }, 0));
@@ -7414,6 +7481,8 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     if (!name.trim()) { setError("Product name is required."); return; }
     const priceNum = Number(price);
     if (price === "" || !Number.isFinite(priceNum) || priceNum < 0) { setError("Selling price must be a valid number, zero or greater."); return; }
+    const imageUrl = normalizeProductImageUrl(image);
+    if (image.trim() && !imageUrl) { setError("Product image must be a valid HTTPS URL up to 2048 characters."); return; }
 
     // Every recipe row is validated explicitly here, before anything is sent anywhere. An
     // ingredient that doesn't resolve to a real inventory item, or has an invalid quantity, is
@@ -7435,7 +7504,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
 
     setSubmitting(true);
     try {
-      const payload = { id: product?.id || newDbId(), name, sku, category, price: round2(priceNum), active, description, recipe, image: product?.image || "" };
+      const payload = { id: product?.id || newDbId(), name: name.trim(), sku: sku.trim(), category, price: round2(priceNum), active, description: description.trim(), recipe, image: imageUrl };
       await setProducts(payload, "upsert");
       await logAudit(auditLog, setAuditLog, currentUser, product ? "Product Updated" : "Product Created", `${payload.name} · ${fmtMoney(payload.price)} · cost ${fmtMoney(cost)}`);
       showToast(product ? "Product updated" : "Product created");
@@ -7505,6 +7574,15 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
         <Field dark={dark} label={translateUI("Selling Price ($)")}><Input dark={dark} type="number" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} /></Field>
       </div>
       <Field dark={dark} label={translateUI("Description")}><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+      <Field dark={dark} label={translateUI("Product Image URL (HTTPS)")}>
+        <Input dark={dark} type="url" inputMode="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://…" />
+      </Field>
+      {image.trim() && normalizeProductImageUrl(image) && (
+        <div className="mb-4 flex items-center gap-3">
+          <ProductImage product={{ name: name || "Product", image }} dark={dark} size={88} />
+          <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Image preview. If the host blocks loading, the product placeholder will be shown.")}</div>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 mb-4">
         <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />

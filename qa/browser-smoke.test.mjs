@@ -168,6 +168,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     page.on('request',onRequest);
     try{
       await page.getByText('+ Add another product',{exact:true}).first().click();
+      await page.getByText('+ Add another product',{exact:true}).first().click();
       await page.getByText(/Complete Sale|Charge Card/i).last().click();
       await page.getByText(/same product can't appear more than once on a sale/i).first().waitFor({timeout:12000});
       assert.equal(writes,0,'Duplicate sale must be rejected locally before transaction RPC');

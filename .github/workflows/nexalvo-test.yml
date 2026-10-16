@@ -44,7 +44,7 @@ jobs:
         run: node --check qa/p0-purchase-browser-persistent.TEST.mjs
       - name: Run static security checks and save report
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs qa/role-preflight-guards.test.mjs qa/real-role-account-plan.test.mjs qa/reports-financial-permission.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs qa/npm-audit-policy.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs qa/role-preflight-guards.test.mjs qa/real-role-account-plan.test.mjs qa/reports-financial-permission.test.mjs qa/pos-usability-regression.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs qa/npm-audit-policy.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
       - name: Upload build and static QA report
         if: always()
         uses: actions/upload-artifact@v4
