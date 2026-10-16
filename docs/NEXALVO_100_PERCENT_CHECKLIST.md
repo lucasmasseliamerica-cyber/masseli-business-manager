@@ -69,6 +69,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] SQL reversível: pedido Ordered, recebimento parcial/total, pagamento, sobre-recebimento/sobrepagamento rejeitados, reversão e cancelamento.
 - [x] Leitura segura de pedidos/itens e isolamento HTTP de histórico de pagamentos.
 - [x] Validações negativas no formulário de compras (quantidade zero, custo negativo, desconto excessivo).
+- [x] Interface de compras endurecida: fornecedor/local ativos, método e datas válidos, valores não finitos rejeitados, resposta de commit incerta bloqueia reenvio; custos exigem `viewFinancials` e pagamentos exigem `paySuppliers`. **48/48 regressões afetadas**, build e audit runtime aprovados. [Evidência](./QA_PURCHASE_SUPPLIER_USABILITY_20261015.md). Não equivale à jornada persistente P0.05.
 - [x] Contrato positivo de criação Ordered/Draft na UI com RPC interceptada (MOCK — não prova persistência).
 - [x] Teste Playwright persistente TEST escrito, opt-in e sintaxe verificada em CI #112 (não executado).
 - [ ] **BLOQUEADO:** executar criação persistente via browser com OWNER TEST e compensação controlada; exige preflight autenticado PASS no SHA publicado e autorização específica. O teste permanece fora da CI padrão.
@@ -94,7 +95,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Produtos: criação, edição, desativação, foto, SKU, preço, receita, custos e duplicidades.
 - [x] Cadastro/edição preserva e valida URL HTTPS da foto, mostra prévia e persiste `image_url` pelo RPC existente; lista e PDV exibem a imagem com placeholder em erro. Upload binário/Storage permanece pendente.
 - [ ] Clientes: ação editar, nome, telefone, e-mail, notas, validação e histórico.
-- [ ] Fornecedores: edição, duplicidades, exclusão/desativação e vínculos históricos.
+- [x] Fornecedores: formulário de criação/edição valida duplicidade de nome/e-mail e site, normaliza campos, desativa quando há histórico e trata falhas de exclusão/alteração; valores históricos exigem `viewFinancials`. [Evidência](./QA_PURCHASE_SUPPLIER_USABILITY_20261015.md). Persistência real e matriz MANAGER/EMPLOYEE permanecem pendentes.
 - [ ] Funcionários: convite, perfis, permissões, ponto, pausas e desligamento.
 - [ ] Tarefas: criação, atribuição, status, conclusão, edição e permissões.
 - [ ] Relatórios: totais, filtros, períodos, exportação, consistência com ledger.

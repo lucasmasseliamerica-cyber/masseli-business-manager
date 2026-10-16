@@ -6657,6 +6657,7 @@ const PO_STATUS_TONE = { Draft: "default", Ordered: "warn", "Partially Received"
 
 function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, cashTx, persistCash, settings, locations, currentUser, can, auditLog, setAuditLog, showToast }) {
   const { translateUI , interpolateUI } = useLanguage();
+  const canFinance = can("viewFinancials");
   const [tabMode, setTabMode] = useState("open");
   const [newOpen, setNewOpen] = useState(false);
   const [viewing, setViewing] = useState(null);
@@ -6690,14 +6691,14 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
       <SectionHeader dark={dark} title={translateUI("Purchases")} sub={translateUI("Purchase orders, receiving & supplier payments")}
         action={can("managePurchases") ? <PrimaryButton onClick={() => setNewOpen(true)}><Plus size={16} />{translateUI("New Purchase")}</PrimaryButton> : null} />
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <StatCard dark={dark} label={translateUI("Purchases (30d)")} value={fmtMoney(purchases30d)} icon={PackagePlus} accent={C.purpleGlow} />
-        <StatCard dark={dark} label={translateUI("Outstanding Payables")} value={fmtMoney(outstandingPayables)} icon={AlertTriangle} accent={"#FF6B85"} />
+      <div className={`grid ${canFinance ? "grid-cols-3" : "grid-cols-1"} gap-3 mb-4`}>
+        {canFinance && <StatCard dark={dark} label={translateUI("Purchases (30d)")} value={fmtMoney(purchases30d)} icon={PackagePlus} accent={C.purpleGlow} />}
+        {canFinance && <StatCard dark={dark} label={translateUI("Outstanding Payables")} value={fmtMoney(outstandingPayables)} icon={AlertTriangle} accent={"#FF6B85"} />}
         <StatCard dark={dark} label={translateUI("Open Orders")} value={openCount} icon={Truck} accent={C.yellow} />
       </div>
 
       <div className="flex gap-2 mb-4 flex-wrap">
-        {[["open", "Open"], ["payables", "Payables"], ["received", "Received"], ["all", "All"], ["recommendations", interpolateUI("Recommendations{0}",[recommendations.length ? ` (${recommendations.length})` : ""])]].map(([id, label]) => (
+        {[["open", "Open"], ...(canFinance ? [["payables", "Payables"]] : []), ["received", "Received"], ["all", "All"], ["recommendations", interpolateUI("Recommendations{0}",[recommendations.length ? ` (${recommendations.length})` : ""])]].map(([id, label]) => (
           <button key={id} onClick={() => setTabMode(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: tabMode === id ? C.lime : (dark ? C.surfaceDark : C.white), color: tabMode === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
             {translateUI(label)}
@@ -6736,12 +6737,12 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
               title={`${po.poNumber} · ${supplier?.name || "Unknown supplier"}`}
               subtitle={`${dateStr(po.orderDate)} · ${po.items.length} item${po.items.length === 1 ? "" : "s"}`}
               badge={<Badge dark={dark} tone={PO_STATUS_TONE[po.status]}>{po.status.toUpperCase()}</Badge>}
-              right={fmtMoney(poGrandTotal(po))} rightSub={
+              right={canFinance ? fmtMoney(poGrandTotal(po)) : null} rightSub={canFinance ? (
                 po.status === "Reversed" ? "Reversed"
                   : po.status === "Cancelled" ? "Cancelled"
                   : due > 0.005 ? `${fmtMoney(due)} due`
                   : "Paid"
-              } />
+              ) : null} />
           );
         })}
       </Card>
@@ -6771,8 +6772,8 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   const [expectedDate, setExpectedDate] = useState(todayStr());
   const [paymentMethod, setPaymentMethod] = useState("Net Terms");
   const [notes, setNotes] = useState("");
-  const [discount, setDiscount] = useState(0);
-  const [tax, setTax] = useState(0);
+  const [discount, setDiscount] = useState("0");
+  const [tax, setTax] = useState("0");
   const [items, setItems] = useState(
     prefill?.items?.length ? prefill.items.map((it) => ({ itemId: it.itemId, qty: it.qty, unitCost: it.unitCost })) : [{ itemId: inventory[0]?.id || "", qty: 1, unitCost: inventory[0]?.costPerUnit || 0 }]
   );
@@ -6791,6 +6792,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   }, [inventory]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   // Preserve this id for all retries while this purchase form remains open.
   const requestIdRef = useRef(newDbId());
   useEffect(() => { if (!submitting && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting]);
@@ -6799,16 +6801,25 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   const updateItem = (idx, patch) => setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
 
-  const lineData = items.map((it) => ({ ...it, item: inventory.find((i) => i.id === it.itemId), lineTotal: round2(it.qty * it.unitCost) }));
+  const lineData = items.map((it) => {
+    const qty = Number(it.qty);
+    const unitCost = Number(it.unitCost);
+    return { ...it, item: inventory.find((i) => i.id === it.itemId), lineTotal: Number.isFinite(qty) && Number.isFinite(unitCost) ? round2(qty * unitCost) : NaN };
+  });
   const subtotal = round2(lineData.reduce((a, l) => a + l.lineTotal, 0));
-  const grandTotal = round2(subtotal - Number(discount || 0) + Number(tax || 0));
+  const discountNumber = Number(discount);
+  const taxNumber = Number(tax);
+  const grandTotal = Number.isFinite(subtotal) && Number.isFinite(discountNumber) && Number.isFinite(taxNumber) ? round2(subtotal - discountNumber + taxNumber) : NaN;
 
   const submit = async (status) => {
-    if (submitting) return;
+    if (submitting || uncertain) return;
     setError("");
     if (!can("managePurchases")) { setError("You don't have permission to create purchase orders."); return; }
-    if (!supplierId) { setError("Select a supplier."); return; }
-    if (!locationId) { setError("Select a location."); return; }
+    if (!suppliers.some((supplier) => supplier.id === supplierId && supplier.active !== false)) { setError("Select an active supplier."); return; }
+    if (!(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active location."); return; }
+    if (!availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(orderDate) || !/^\d{4}-\d{2}-\d{2}$/.test(expectedDate)) { setError("Enter valid order and delivery dates."); return; }
+    if (expectedDate < orderDate) { setError("Expected delivery can't be before the order date."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.item || !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
     if (lineData.some((l) => String(l.unitCost).trim() === "" || !Number.isFinite(Number(l.unitCost)) || Number(l.unitCost) < 0)) { setError("Unit cost must be a valid number greater than or equal to zero."); return; }
     if (!Number.isFinite(Number(discount)) || !Number.isFinite(Number(tax)) || Number(discount) < 0 || Number(tax) < 0 || !Number.isFinite(grandTotal)) { setError("Discount and tax must be valid nonnegative amounts."); return; }
@@ -6819,7 +6830,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
       if (purchaseOps?.remote) {
         try {
           await purchaseOps.create({ requestId: requestIdRef.current, supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
-            discount: Number(discount) || 0, tax: Number(tax) || 0,
+            discount: discountNumber, tax: taxNumber,
             items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)) })) });
           showToast(`Purchase order created · ${fmtMoney(grandTotal)}`);
           onClose();
@@ -6829,20 +6840,26 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
           // shown as "create failed", or the user could be misled into creating a duplicate
           // purchase order for the same items.
           if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
-          else { setError(e?.message || "Could not create this purchase order."); }
+          else {
+            if (e?.commitUncertain) setUncertain(true);
+            setError(e?.message || "Could not create this purchase order.");
+          }
         }
         return;
       }
       const poNumber = `PO-${1000 + purchaseOrders.length + 1}`;
       const po = {
         id: uid("po"), poNumber, supplierId, orderDate: parseLocalDate(orderDate).toISOString(), expectedDate: parseLocalDate(expectedDate).toISOString(),
-        status, paymentMethod, notes, amountPaid: 0, discount: Number(discount) || 0, tax: Number(tax) || 0, createdBy: currentUser?.id,
+        status, paymentMethod, notes: notes.trim(), amountPaid: 0, discount: discountNumber, tax: taxNumber, createdBy: currentUser?.id,
         items: lineData.map((l) => ({ id: uid("poi"), itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)), receivedQty: 0 })),
       };
       await persistPO([po, ...purchaseOrders]);
       await logAudit(auditLog, setAuditLog, currentUser, "Purchase Order Created", `${poNumber} · ${suppliers.find((s) => s.id === supplierId)?.name || ""} · ${fmtMoney(grandTotal)}`);
       showToast(`${poNumber} created · ${fmtMoney(grandTotal)}`);
       onClose();
+    } catch (e) {
+      if (e?.commitUncertain) setUncertain(true);
+      setError(e?.message || "Could not create this purchase order.");
     } finally {
       setSubmitting(false);
     }
@@ -6880,9 +6897,9 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
                 {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)})</option>)}
               </Select>
             </div>
-            <div className="w-20"><Input dark={dark} type="number" min="0.01" step="0.01" value={it.qty} onChange={(e) => updateItem(idx, { qty: Math.max(0, Number(e.target.value)) })} /></div>
+            <div className="w-20"><Input dark={dark} type="number" min="0.01" step="0.01" value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} /></div>
             <div className="w-24"><Input dark={dark} type="number" min="0" step="0.01" value={it.unitCost} onChange={(e) => updateItem(idx, { unitCost: e.target.value })} /></div>
-            <div className="w-16 text-xs text-right font-semibold pb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{invItem ? fmtMoney(it.qty * it.unitCost) : ""}</div>
+            <div className="w-16 text-xs text-right font-semibold pb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{invItem && Number.isFinite(Number(it.qty)) && Number.isFinite(Number(it.unitCost)) ? fmtMoney(Number(it.qty) * Number(it.unitCost)) : "—"}</div>
             {items.length > 1 && (
               <button onClick={() => removeItem(idx)} className="mb-0 w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#3A0F1E" }}>
                 <Trash2 size={14} color="#FF6B85" />
@@ -6894,23 +6911,23 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
       <button onClick={addItem} className="text-xs font-bold mb-4" style={{ color: C.lime }}>{translateUI("+ Add another item")}</button>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field dark={dark} label={translateUI("Discount ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))} /></Field>
-        <Field dark={dark} label={translateUI("Tax ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={tax} onChange={(e) => setTax(Math.max(0, Number(e.target.value)))} /></Field>
+        <Field dark={dark} label={translateUI("Discount ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Tax ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} /></Field>
       </div>
       <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
       <div className="rounded-2xl p-3 mb-4" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
         <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(subtotal)} />
-        <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(discount)}`} />
-        <Row dark={dark} label={translateUI("Tax")} value={fmtMoney(tax)} />
+        <Row dark={dark} label={translateUI("Discount")} value={Number.isFinite(discountNumber) ? `-${fmtMoney(discountNumber)}` : "—"} />
+        <Row dark={dark} label={translateUI("Tax")} value={Number.isFinite(taxNumber) ? fmtMoney(taxNumber) : "—"} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label={translateUI("Grand Total")} value={fmtMoney(grandTotal)} bold />
+        <Row dark={dark} label={translateUI("Grand Total")} value={Number.isFinite(grandTotal) ? fmtMoney(grandTotal) : "—"} bold />
       </div>
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
-        <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Draft")}>{translateUI("Save as Draft")}</GhostButton>
-        <PrimaryButton style={{ flex: 1 }} disabled={submitting} onClick={() => submit("Ordered")}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Submit Order")}</PrimaryButton>
+        <GhostButton dark={dark} style={{ flex: 1 }} disabled={submitting || uncertain} onClick={() => submit("Draft")}>{uncertain ? translateUI("Refresh required") : translateUI("Save as Draft")}</GhostButton>
+        <PrimaryButton style={{ flex: 1 }} disabled={submitting || uncertain} onClick={() => submit("Ordered")}><Check size={16} /> {submitting ? translateUI("Saving…") : uncertain ? translateUI("Refresh required") : translateUI("Submit Order")}</PrimaryButton>
       </div>
       <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Inventory only increases once items are marked Received — creating this order does not change stock or cash flow yet.")}</div>
     </Modal>
@@ -6919,6 +6936,8 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
 
 function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppliers, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, cashTx, persistCash, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
   const { translateUI , interpolateUI } = useLanguage();
+  const canFinance = can("viewFinancials");
+  const canPaySuppliers = can("paySuppliers");
   const [receiving, setReceiving] = useState(false);
   const [paying, setPaying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -7075,24 +7094,26 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
           const remaining = round2(l.qty - l.receivedQty);
           return (
             <div key={l.id} className="py-2 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
-              <Row dark={dark} label={`${invItem?.name || l.itemId} — ${l.qty} × ${fmtMoney(l.unitCost)}`} value={fmtMoney(poLineTotal(l))} />
+              <Row dark={dark} label={canFinance ? `${invItem?.name || l.itemId} — ${l.qty} × ${fmtMoney(l.unitCost)}` : `${invItem?.name || l.itemId} — ${l.qty} ${translateUI(l.unit)}`} value={canFinance ? fmtMoney(poLineTotal(l)) : null} />
               <div className="text-xs" style={{ color: remaining > 0 ? C.yellow : C.lime }}>
                 {l.receivedQty}{" "}{translateUI("of")}{" "}{l.qty} {translateUI(l.unit)}{" "}{translateUI("received")}{remaining > 0 ? interpolateUI(" · {0} remaining",[remaining]) : translateUI(" · complete")}
               </div>
             </div>
           );
         })}
-        <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(poSubtotal(po))} />
-        <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(po.discount)}`} />
-        <Row dark={dark} label={translateUI("Tax")} value={fmtMoney(po.tax)} />
-        <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
-        <Row dark={dark} label={translateUI("Grand Total")} value={fmtMoney(grandTotal)} bold />
-        <Row dark={dark} label={translateUI("Paid")} value={fmtMoney(po.amountPaid)} />
-        <Row dark={dark} label={translateUI("Amount Due")} value={fmtMoney(amountDue)} bold />
+        {canFinance && <>
+          <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
+          <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(poSubtotal(po))} />
+          <Row dark={dark} label={translateUI("Discount")} value={`-${fmtMoney(po.discount)}`} />
+          <Row dark={dark} label={translateUI("Tax")} value={fmtMoney(po.tax)} />
+          <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
+          <Row dark={dark} label={translateUI("Grand Total")} value={fmtMoney(grandTotal)} bold />
+          <Row dark={dark} label={translateUI("Paid")} value={fmtMoney(po.amountPaid)} />
+          <Row dark={dark} label={translateUI("Amount Due")} value={fmtMoney(amountDue)} bold />
+        </>}
       </Card>
 
-      {payments.length > 0 && (
+      {(canFinance || canPaySuppliers) && payments.length > 0 && (
         <Card dark={dark} className="mb-4">
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Payment History")}</div>
           {payments.map((p) => (
@@ -7101,7 +7122,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
                 <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(p.amount)} · {translateUI(p.paymentMethod)}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(p.date)}{p.status === "reversed" ? translateUI(" · reversed") : ""}</div>
               </div>
-              {p.status !== "reversed" && !reversed && can("paySuppliers") && (
+              {p.status !== "reversed" && !reversed && canPaySuppliers && (
                 <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setReversingPaymentId(p.id)}>
                   <Undo2 size={13} />{translateUI("Reverse")}</GhostButton>
               )}
@@ -7117,7 +7138,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
         {!fullyReceived && !reversed && po.status !== "Cancelled" && can("receivePurchases") && (
           <PrimaryButton style={{ flex: 1 }} onClick={() => setReceiving(true)}><PackagePlus size={16} />{" "}{translateUI("Receive Items")}</PrimaryButton>
         )}
-        {!reversed && (po.status === "Received" || po.status === "Partially Received") && amountDue > 0.005 && can("paySuppliers") && (
+        {!reversed && (po.status === "Received" || po.status === "Partially Received") && amountDue > 0.005 && canPaySuppliers && (
           <GhostButton dark={dark} style={{ flex: 1 }} onClick={() => setPaying(true)}>{translateUI("Record Payment")}</GhostButton>
         )}
         {!anyReceived && po.status !== "Cancelled" && can("managePurchases") && (
@@ -8041,6 +8062,7 @@ function LocationFormModal({ dark, location, onClose, onSave }) {
 
 function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentUser, can, auditLog, setAuditLog, showToast }) {
   const { translateUI , interpolateUI } = useLanguage();
+  const canFinance = can("viewFinancials");
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
@@ -8062,7 +8084,7 @@ function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentU
           const stats = supplierStats(s);
           return (
             <ListRow key={s.id} dark={dark} onClick={() => setViewing(s)}
-              title={s.name} subtitle={`${s.contact} · ${stats.poCount} order${stats.poCount === 1 ? "" : "s"} · ${fmtMoney(stats.total)} total`}
+              title={s.name} subtitle={`${s.contact || "No contact"} · ${stats.poCount} order${stats.poCount === 1 ? "" : "s"}${canFinance ? ` · ${fmtMoney(stats.total)} total` : ""}`}
               badge={s.active === false ? <Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge> : null}
               right={<ChevronRight size={16} color={dark ? C.textMutedDark : C.textMutedLight} />} />
           );
@@ -8093,9 +8115,27 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
     if (!can("manageSuppliers")) { setError("You don't have permission to manage suppliers."); return; }
     if (!form.name?.trim()) { setError("Supplier name is required."); return; }
     if (form.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) { setError("Enter a valid email address."); return; }
+    const normalizedName = form.name.trim().toLocaleLowerCase();
+    const normalizedEmail = (form.email || "").trim().toLocaleLowerCase();
+    if (suppliers.some((candidate) => candidate.id !== supplier?.id && candidate.name?.trim().toLocaleLowerCase() === normalizedName)) { setError("A supplier with this name already exists."); return; }
+    if (normalizedEmail && suppliers.some((candidate) => candidate.id !== supplier?.id && candidate.email?.trim().toLocaleLowerCase() === normalizedEmail)) { setError("A supplier with this email already exists."); return; }
+    if (form.website?.trim()) {
+      try {
+        const website = new URL(form.website.trim());
+        if (!["http:", "https:"].includes(website.protocol)) throw new Error("unsupported protocol");
+      } catch {
+        setError("Enter a valid website beginning with http:// or https://.");
+        return;
+      }
+    }
     setSubmitting(true);
     try {
-      const payload = { ...form, name: form.name.trim(), email: (form.email || "").trim(), id: supplier?.id || newDbId(), active: form.active !== false };
+      const payload = {
+        ...form,
+        ...Object.fromEntries(["name", "contact", "phone", "email", "address", "website", "taxId", "terms", "defaultCurrency", "products", "notes"].map((key) => [key, String(form[key] || "").trim()])),
+        id: supplier?.id || newDbId(),
+        active: form.active !== false,
+      };
       const next = supplier ? suppliers.map((s) => (s.id === supplier.id ? payload : s)) : [payload, ...suppliers];
       await setSuppliers(next);
       await logAudit(auditLog, setAuditLog, currentUser, supplier ? "Supplier Updated" : "Supplier Added", payload.name);
@@ -8135,7 +8175,9 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
 
 function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchaseOrders, onClose, onEdit, currentUser, can, auditLog, setAuditLog, showToast }) {
   const { translateUI } = useLanguage();
+  const canFinance = can("viewFinancials");
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
+  const [busy, setBusy] = useState(false);
   const pos = purchaseOrders.filter((po) => po.supplierId === supplier.id).sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
   const activePOs = pos.filter((po) => !["Cancelled", "Reversed"].includes(po.status));
   const total = round2(activePOs.reduce((a, po) => a + poGrandTotal(po), 0));
@@ -8143,20 +8185,28 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
   const hasHistory = pos.length > 0;
 
   const toggleActive = async () => {
+    if (busy) return;
     if (!can("manageSuppliers")) { showToast("You don't have permission to manage suppliers.", "danger"); setConfirmingDeactivate(false); return; }
     const nextActive = !(supplier.active !== false);
-    await setSuppliers(suppliers.map((s) => (s.id === supplier.id ? { ...s, active: nextActive } : s)));
-    await logAudit(auditLog, setAuditLog, currentUser, nextActive ? "Supplier Reactivated" : "Supplier Deactivated", supplier.name);
-    showToast(supplier.active === false ? "Supplier reactivated" : "Supplier deactivated");
-    setConfirmingDeactivate(false);
-    onClose();
+    setBusy(true);
+    try {
+      await setSuppliers(suppliers.map((s) => (s.id === supplier.id ? { ...s, active: nextActive } : s)));
+      await logAudit(auditLog, setAuditLog, currentUser, nextActive ? "Supplier Reactivated" : "Supplier Deactivated", supplier.name);
+      showToast(supplier.active === false ? "Supplier reactivated" : "Supplier deactivated");
+      setConfirmingDeactivate(false);
+      onClose();
+    } catch (e) {
+      showToast(e?.message || "Unable to update supplier.", "danger");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Modal title={supplier.name} onClose={onClose} dark={dark} wide>
       {supplier.active === false && <div className="mb-3"><Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge></div>}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        <StatCard dark={dark} label={translateUI("Total Purchased")} value={fmtMoney(total)} />
+      <div className={`grid ${canFinance ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-4`}>
+        {canFinance && <StatCard dark={dark} label={translateUI("Total Purchased")} value={fmtMoney(total)} />}
         <StatCard dark={dark} label={translateUI("Purchase Orders")} value={activePOs.length} />
         <StatCard dark={dark} label={translateUI("Last Purchase")} value={last ? dateStr(last) : "—"} />
       </div>
@@ -8172,7 +8222,7 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
       <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Purchase History")}</div>
       <Card dark={dark} className="mb-4">
         {pos.length === 0 ? <EmptyState dark={dark} title={translateUI("No purchases yet")} /> : pos.slice(0, 10).map((po) => (
-          <ListRow key={po.id} dark={dark} title={po.poNumber} subtitle={`${dateStr(po.orderDate)} · ${po.status}`} right={fmtMoney(poGrandTotal(po))} />
+          <ListRow key={po.id} dark={dark} title={po.poNumber} subtitle={`${dateStr(po.orderDate)} · ${po.status}`} right={canFinance ? fmtMoney(poGrandTotal(po)) : null} />
         ))}
       </Card>
 
@@ -8197,11 +8247,19 @@ function SupplierDetailModal({ dark, supplier, suppliers, setSuppliers, purchase
           confirmLabel={hasHistory ? (supplier.active === false ? "Reactivate" : "Deactivate") : translateUI("Delete")}
           onConfirm={async () => {
             if (!can("manageSuppliers")) { showToast("You don't have permission to manage suppliers.", "danger"); setConfirmingDeactivate(false); return; }
+            if (busy) return;
             if (hasHistory) { await toggleActive(); }
             else {
-              await setSuppliers(suppliers.filter((s) => s.id !== supplier.id));
-              await logAudit(auditLog, setAuditLog, currentUser, "Supplier Deleted", supplier.name);
-              showToast("Supplier deleted", "danger"); setConfirmingDeactivate(false); onClose();
+              setBusy(true);
+              try {
+                await setSuppliers(suppliers.filter((s) => s.id !== supplier.id));
+                await logAudit(auditLog, setAuditLog, currentUser, "Supplier Deleted", supplier.name);
+                showToast("Supplier deleted", "danger"); setConfirmingDeactivate(false); onClose();
+              } catch (e) {
+                showToast(e?.message || "Unable to delete supplier.", "danger");
+              } finally {
+                setBusy(false);
+              }
             }
           }}
           onCancel={() => setConfirmingDeactivate(false)} />
