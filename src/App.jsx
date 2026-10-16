@@ -1598,7 +1598,9 @@ function renderCustomerReceiptBody(sale, ctx) {
   const itemsHtml = (sale.items || []).map((it) =>
     `<div class="item"><div class="row bold"><span>${escHtml(it.qty)}x ${escHtml(it.name)}</span><span>${escHtml(fmtMoney(it.unitPrice * it.qty))}</span></div></div>`
   ).join("");
-  const status = (getPaymentStatus(sale) || "paid").toUpperCase();
+  const status = sale.status === "cancelled"
+    ? (getPaymentStatus(sale) === "failed" ? "PAYMENT FAILED" : "REVERSED")
+    : (getPaymentStatus(sale) || "paid").toUpperCase();
   return `
     <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
     <div class="center muted">${escHtml(translateCurrent("Order Receipt"))}</div>
@@ -1619,6 +1621,7 @@ function renderCustomerReceiptBody(sale, ctx) {
     <div class="divider"></div>
     <div class="row"><span>${escHtml(translateCurrent("Payment Method"))}</span><span>${escHtml(translateCurrent(sale.paymentMethod))}</span></div>
     <div class="row"><span>${escHtml(translateCurrent("Payment Status"))}</span><span class="bold">${escHtml(translateCurrent(status))}</span></div>
+    ${sale.status === "cancelled" && sale.cancelledAt ? `<div class="row"><span>${escHtml(translateCurrent("Reversed At"))}</span><span>${escHtml(dateStr(sale.cancelledAt))} ${escHtml(timeStr(sale.cancelledAt))}</span></div>` : ""}
     ${sale.stripePaymentIntentId ? `<div class="row"><span>${escHtml(translateCurrent("Transaction"))}</span><span>${escHtml(sale.stripePaymentIntentId)}</span></div>` : ""}
     <div class="divider-solid"></div>
     <div class="center">${escHtml(translateCurrent("Thank you!"))}</div>
@@ -1653,7 +1656,9 @@ function renderKitchenTicketBody(sale, ctx) {
 // track data (those fields do not exist anywhere in this app's data model, by design).
 function renderPaymentReceiptBody(sale, ctx) {
   const { settings } = ctx;
-  const status = getPaymentStatus(sale) === "paid" ? "APPROVED" : (getPaymentStatus(sale) || "").toUpperCase();
+  const status = sale.status === "cancelled"
+    ? (getPaymentStatus(sale) === "failed" ? "DECLINED" : "REVERSED IN NEXALVO")
+    : getPaymentStatus(sale) === "paid" ? "APPROVED" : (getPaymentStatus(sale) || "").toUpperCase();
   return `
     <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
     <div class="center muted">${escHtml(translateCurrent("Payment Receipt"))}</div>
@@ -1777,7 +1782,7 @@ function dispatchPrint(type, html) {
 // `sale` — none of them can create, modify, or finalize anything.
 const printingService = {
   printCustomerReceipt(sale, ctx) {
-    return dispatchPrint("customer_receipt", printDocumentHtml(`Receipt - Order #${sale.orderNo}`, renderCustomerReceiptBody(sale, ctx)));
+    return dispatchPrint("customer_receipt", printDocumentHtml(`${sale.status === "cancelled" ? "Reversal Receipt" : "Receipt"} - Order #${sale.orderNo}`, renderCustomerReceiptBody(sale, ctx)));
   },
   printKitchenTicket(sale, ctx) {
     return dispatchPrint("kitchen_ticket", printDocumentHtml(`Kitchen Ticket - Order #${sale.orderNo}`, renderKitchenTicketBody(sale, ctx)));
@@ -1793,7 +1798,8 @@ const printingService = {
   // in this sandboxed environment. This is what the UI calls now; the preview it opens is always
   // guaranteed to actually render.
   prepareCustomerReceipt(sale, ctx) {
-    return { type: "customer_receipt", title: `Customer Receipt — Order #${sale.orderNo}`, html: printDocumentHtml(`Receipt - Order #${sale.orderNo}`, renderCustomerReceiptBody(sale, ctx)) };
+    const label = sale.status === "cancelled" ? "Reversal Receipt" : "Customer Receipt";
+    return { type: "customer_receipt", title: `${label} — Order #${sale.orderNo}`, html: printDocumentHtml(`${label} - Order #${sale.orderNo}`, renderCustomerReceiptBody(sale, ctx)) };
   },
   prepareKitchenTicket(sale, ctx) {
     return { type: "kitchen_ticket", title: `Kitchen Ticket — Order #${sale.orderNo}`, html: printDocumentHtml(`Kitchen Ticket - Order #${sale.orderNo}`, renderKitchenTicketBody(sale, ctx)) };
@@ -5634,12 +5640,12 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
         <Row dark={dark} label={translateUI("Total")} value={fmtMoney(sale.total)} bold />
       </div>
       {sale.notes && <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Notes:")}{" "}{sale.notes}</div>}
-      {!cancelled && can("manageSales") && (
+      {can("manageSales") && (
         <div className="mb-4 pt-4" style={{ borderTop: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
           <div className="text-xs font-bold mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("PRINT / REPRINT")}</div>
           <div className="flex flex-col gap-2">
-            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, "Customer Receipt")}><Receipt size={15} />{" "}{translateUI("Customer Receipt")}</GhostButton>
-            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} />{" "}{translateUI("Kitchen Ticket")}</GhostButton>
+            <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, cancelled ? "Reversal Receipt" : "Customer Receipt")}><Receipt size={15} />{" "}{translateUI(cancelled ? "Reversal Receipt" : "Customer Receipt")}</GhostButton>
+            {!cancelled && <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} />{" "}{translateUI("Kitchen Ticket")}</GhostButton>}
             {CARD_PAYMENT_METHODS.includes(sale.paymentMethod) && (
               <GhostButton dark={dark} onClick={() => doPrint(printingService.preparePaymentReceipt, "Payment Receipt")}><Wallet size={15} />{" "}{translateUI("Payment Receipt")}</GhostButton>
             )}
