@@ -44,19 +44,33 @@ const nowISO = () => new Date().toISOString();
  * on the browser's timezone (e.g. it flips in the evening in US timezones). Everything below instead
  * reads the LOCAL calendar date (getFullYear/getMonth/getDate), which matches what a business owner
  * actually means by "today".
- * businessNow() is the one function that would need to change to support a configurable
- * settings.timezone later (e.g. via Intl.DateTimeFormat with a `timeZone` option) — nothing else
- * in the app would need to change, since everything else is built on top of this single funnel.
+ * The configured business timezone is applied by localDateStr(); absolute timestamps remain Date
+ * values while every calendar-day boundary is derived through this single formatter.
  */
 const businessNow = () => new Date();
+const BUSINESS_TIMEZONES = [
+  "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+  "America/Sao_Paulo", "America/Manaus", "UTC", "Europe/London", "Europe/Lisbon",
+];
+let _activeTimezone = "America/New_York";
+function isValidTimezone(value) {
+  if (typeof value !== "string" || !value) return false;
+  try { new Intl.DateTimeFormat("en-US", { timeZone: value }).format(); return true; } catch { return false; }
+}
+const setActiveTimezone = (value) => { _activeTimezone = isValidTimezone(value) ? value : "America/New_York"; };
 const localDateStr = (d) => {
-  const yr = d.getFullYear(), mo = String(d.getMonth() + 1).padStart(2, "0"), da = String(d.getDate()).padStart(2, "0");
-  return `${yr}-${mo}-${da}`;
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: _activeTimezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 };
 // "Today" as the business's local calendar day, e.g. "2026-08-16".
 const todayStr = () => localDateStr(businessNow());
 // A calendar day offset from today by n days (local), e.g. dateStrOffset(-1) = yesterday.
-const dateStrOffset = (n) => { const d = businessNow(); d.setDate(d.getDate() + n); return localDateStr(d); };
+const dateStrOffset = (n) => {
+  const [year, month, day] = todayStr().split("-").map(Number);
+  const cursor = new Date(Date.UTC(year, month - 1, day + n));
+  return cursor.toISOString().slice(0, 10);
+};
 // Does this ISO timestamp fall on the given local calendar day ("YYYY-MM-DD")?
 const isSameDay = (iso, ymd) => { if (!iso) return false; return localDateStr(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)) === ymd; };
 // Parses a bare "YYYY-MM-DD" as a local calendar date — `new Date("2026-08-14")` would instead
@@ -2423,6 +2437,24 @@ const SETTINGS_LIST_MAP = {
   paymentMethods: "payment_method", channels: "channel", expenseCategories: "expense_category",
   productCategories: "product_category", inventoryCategories: "inventory_category", units: "unit",
 };
+function validateBusinessSettings(settings) {
+  const businessName = String(settings?.businessName || "").trim();
+  if (!businessName) return { ok: false, error: "Business name is required." };
+  if (businessName.length > 120) return { ok: false, error: "Business name must have 120 characters or fewer." };
+  if (!Object.prototype.hasOwnProperty.call(CURRENCY_SYMBOLS, settings?.currency)) return { ok: false, error: "Choose a supported currency." };
+  const taxRate = Number(settings?.taxRate);
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) return { ok: false, error: "Tax rate must be a number from 0 to 100." };
+  if (!isValidTimezone(settings?.timezone)) return { ok: false, error: "Choose a valid business timezone." };
+  const normalized = { ...settings, businessName, taxRate, timezone: settings.timezone };
+  for (const appKey of Object.keys(SETTINGS_LIST_MAP)) {
+    const values = (settings?.[appKey] || []).map((value) => String(value).trim()).filter(Boolean);
+    if (!values.length) return { ok: false, error: "Each business list must contain at least one option." };
+    if (values.some((value) => value.length > 80)) return { ok: false, error: "Business list options must have 80 characters or fewer." };
+    if (new Set(values.map((value) => value.toLowerCase())).size !== values.length) return { ok: false, error: "Business list options must be unique." };
+    normalized[appKey] = values;
+  }
+  return { ok: true, value: normalized };
+}
 function useSupabaseBusinessSettings(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
@@ -2461,10 +2493,13 @@ function useSupabaseBusinessSettings(businessId, reportLoadError, clearLoadError
   }, [reload, reportLoadError]);
   const persist = useCallback(async (next) => {
     if (!businessId) throw new Error("No authenticated business is available.");
-    await supabaseRest.updateOne("businesses", businessId, { name: next.businessName, currency: next.currency || "USD", tax_rate: Number(next.taxRate || 0), tax_enabled: next.taxEnabled !== false, allow_negative_inventory: !!next.allowNegativeInventory, timezone: next.timezone || "America/New_York", updated_at: nowISO() });
+    const validation = validateBusinessSettings(next);
+    if (!validation.ok) throw new Error(validation.error);
+    const safe = validation.value;
+    await supabaseRest.updateOne("businesses", businessId, { name: safe.businessName, currency: safe.currency, tax_rate: safe.taxRate, tax_enabled: safe.taxEnabled !== false, allow_negative_inventory: !!safe.allowNegativeInventory, timezone: safe.timezone, updated_at: nowISO() });
     const existing = await supabaseRest.select("business_settings_lists", `select=*&business_id=eq.${encodeURIComponent(businessId)}`);
     for (const [appKey, dbType] of Object.entries(SETTINGS_LIST_MAP)) {
-      const wanted = new Set((next[appKey] || []).map(String));
+      const wanted = new Set((safe[appKey] || []).map(String));
       const current = (existing || []).filter((r) => r.list_type === dbType);
       const currentByValue = new Map(current.map((r) => [r.value, r]));
       const upserts = [...wanted].map((value, idx) => {
@@ -3958,6 +3993,10 @@ function AppBody() {
   // Supabase; every write path (SettingsView.save, the _locationMigrationV1 effect below) uses the
   // real `settings` value, not this one, and is guarded against it being null.
   const displaySettings = settings || seedSettings();
+  useEffect(() => {
+    setActiveCurrency(displaySettings.currency);
+    setActiveTimezone(displaySettings.timezone);
+  }, [displaySettings.currency, displaySettings.timezone]);
 
   const bg = dark ? `radial-gradient(1200px 600px at 100% -10%, ${C.purple700}55, transparent), linear-gradient(180deg, ${C.black}, ${C.purple900})` : C.bgLight;
 
@@ -10409,10 +10448,14 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
     // that fallback must never be written back over the tenant's actual configuration. This is
     // the one and only place a save is blocked; nothing else in this component changes.
     if (settingsUnavailable) { showToast("Settings could not be loaded — saving is disabled until this is resolved. Try reloading the page.", "danger"); return; }
+    const validation = validateBusinessSettings(form);
+    if (!validation.ok) { showToast(validation.error, "danger"); return; }
     setSubmitting(true);
     try {
-      await setSettings(form);
-      await logAudit(auditLog, setAuditLog, currentUser, "Settings Updated", `Tax ${form.taxEnabled ? form.taxRate + "%" : "disabled"} · Negative inventory ${form.allowNegativeInventory ? "allowed" : "blocked"}`);
+      const safe = validation.value;
+      await setSettings(safe);
+      setForm(safe);
+      await logAudit(auditLog, setAuditLog, currentUser, "Settings Updated", `Tax ${safe.taxEnabled ? safe.taxRate + "%" : "disabled"} · Timezone ${safe.timezone} · Negative inventory ${safe.allowNegativeInventory ? "allowed" : "blocked"}`);
       showToast("Settings saved");
     } catch (e) {
       showToast(e?.message || "Could not save settings.", e?.rpcSucceeded ? "good" : "danger");
@@ -10441,6 +10484,12 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
               {Object.keys(CURRENCY_SYMBOLS).map((c) => <option key={c} value={c}>{translateUI(c)} ({CURRENCY_SYMBOLS[c]})</option>)}
             </Select>
           </Field>
+          <Field dark={dark} label={translateUI("Business Timezone")}>
+            <Select dark={dark} value={form.timezone || "America/New_York"} onChange={(e) => setForm({ ...form, timezone: e.target.value })}>
+              {!BUSINESS_TIMEZONES.includes(form.timezone) && isValidTimezone(form.timezone) && <option value={form.timezone}>{form.timezone}</option>}
+              {BUSINESS_TIMEZONES.map((timezone) => <option key={timezone} value={timezone}>{timezone}</option>)}
+            </Select>
+          </Field>
         </Card>
 
         <Card dark={dark} className="mb-4">
@@ -10449,7 +10498,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
             <input type="checkbox" checked={form.taxEnabled} onChange={(e) => setForm({ ...form, taxEnabled: e.target.checked })} />
             <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Enable tax on sales")}</span>
           </div>
-          <Field dark={dark} label={translateUI("Tax Rate (%)")}><Input dark={dark} type="number" min="0" step="0.01" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: Math.max(0, Number(e.target.value)) })} /></Field>
+          <Field dark={dark} label={translateUI("Tax Rate (%)")}><Input dark={dark} type="number" min="0" max="100" step="0.01" value={form.taxRate} onChange={(e) => setForm({ ...form, taxRate: e.target.value })} /></Field>
         </Card>
 
         <Card dark={dark} className="mb-4">
