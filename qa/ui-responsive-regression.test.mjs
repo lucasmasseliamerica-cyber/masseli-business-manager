@@ -22,6 +22,10 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(modal, /env\(safe-area-inset-bottom\)/);
     assert.match(modal, /role="dialog"/);
     assert.match(modal, /aria-label=\{translateUI\("Close"\)\}/);
+    assert.match(modal, /document\.addEventListener\("keydown", closeOnEscape\)/);
+    assert.match(modal, /if \(event\.key === "Escape"\) onClose\(\)/);
+    assert.match(modal, /closeButtonRef\.current\?\.focus\(\)/);
+    assert.match(modal, /previousFocus\?\.focus\?\.\(\)/);
   });
 
   test(`${label}: shared buttons and fields preserve disabled and responsive behavior`, () => {
@@ -57,6 +61,9 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(empty, /typeof sub === "string" \? translateUI\(sub\) : sub/);
     assert.match(list, /right !== undefined && right !== null && right !== ""/);
     assert.match(list, /text-xs break-words/);
+    assert.match(list, /role=\{onClick \? "button" : undefined\}/);
+    assert.match(list, /tabIndex=\{onClick \? 0 : undefined\}/);
+    assert.match(list, /\["Enter", " "\]\.includes\(event\.key\)/);
   });
 }
 

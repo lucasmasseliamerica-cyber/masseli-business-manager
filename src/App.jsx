@@ -3619,10 +3619,19 @@ function StatCard({ label, value, sub, icon: Icon, accent, dark }) {
 
 function Modal({ title, onClose, children, dark, wide }) {
   const { translateUI } = useLanguage();
+  const closeButtonRef = useRef(null);
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
+    const previousFocus = document.activeElement;
+    const closeOnEscape = (event) => { if (event.key === "Escape") onClose(); };
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previousOverflow; };
+    document.addEventListener("keydown", closeOnEscape);
+    closeButtonRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+      previousFocus?.focus?.();
+    };
   }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
@@ -3636,7 +3645,7 @@ function Modal({ title, onClose, children, dark, wide }) {
       >
         <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3 shrink-0" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight }}>
           <h3 className="text-lg font-bold min-w-0 break-words" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</h3>
-          <button type="button" aria-label={translateUI("Close")} onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: dark ? "#2A1B44" : "#EFE9FA" }}>
+          <button ref={closeButtonRef} type="button" aria-label={translateUI("Close")} onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: dark ? "#2A1B44" : "#EFE9FA" }}>
             <X size={16} color={dark ? C.white : C.black} />
           </button>
         </div>
@@ -3810,8 +3819,13 @@ function EmptyState({ title, sub, dark }) {
 
 function ListRow({ title, subtitle, right, rightSub, badge, dark, onClick }) {
   const { translateUI } = useLanguage();
+  const activateFromKeyboard = (event) => {
+    if (!onClick || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    onClick(event);
+  };
   return (
-    <div onClick={onClick} className="flex items-center justify-between py-3 border-b last:border-b-0 gap-3" style={{ borderColor: dark ? C.borderDark : C.borderLight, cursor: onClick ? "pointer" : "default" }}>
+    <div onClick={onClick} onKeyDown={activateFromKeyboard} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} className="flex items-center justify-between py-3 border-b last:border-b-0 gap-3" style={{ borderColor: dark ? C.borderDark : C.borderLight, cursor: onClick ? "pointer" : "default" }}>
       <div className="min-w-0">
         <div className="font-semibold text-sm break-words" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</div>
         {subtitle && <div className="text-xs break-words" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{subtitle}</div>}
@@ -8409,7 +8423,7 @@ function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentU
       <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_180px] gap-2 mb-3">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" color={dark ? C.textMutedDark : C.textMutedLight} />
-          <Input dark={dark} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translateUI("Search suppliers…")} style={{ paddingLeft: 36 }} />
+          <Input dark={dark} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translateUI("Search suppliers…")} aria-label={translateUI("Search suppliers")} style={{ paddingLeft: 36 }} />
         </div>
         <Select dark={dark} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label={translateUI("Supplier status")}>
           <option value="active">{translateUI("Active suppliers")}</option>
@@ -8847,7 +8861,7 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
       </div>
 
       <div className="flex gap-2 mb-3">
-        <Input dark={dark} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={translateUI("Search name, phone, or email…")} style={{ flex: 1 }} />
+        <Input dark={dark} value={query} onChange={(e) => setQuery(e.target.value)} placeholder={translateUI("Search name, phone, or email…")} aria-label={translateUI("Search customers")} style={{ flex: 1 }} />
         {canManage && <PrimaryButton onClick={() => setCreating(true)}><Plus size={16} />{translateUI("New Customer")}</PrimaryButton>}
       </div>
       <GhostButton dark={dark} onClick={() => setShowArchived((s) => !s)} style={{ marginBottom: 12 }}>{showArchived ? translateUI("Showing Archived — Show Active") : translateUI("Show Archived")}</GhostButton>
@@ -8857,7 +8871,7 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
           const stats = getCustomerStats(c.id, sales);
           const balance = getLoyaltyBalance(c.id, loyaltyTransactions);
           return (
-            <div key={c.id} className="py-3 border-b last:border-b-0 cursor-pointer flex items-center justify-between" style={{ borderColor: dark ? C.borderDark : C.borderLight }} onClick={() => setDetailId(c.id)}>
+            <button type="button" key={c.id} className="w-full py-3 border-b last:border-b-0 cursor-pointer flex items-center justify-between text-left" style={{ borderColor: dark ? C.borderDark : C.borderLight, background: "transparent" }} onClick={() => setDetailId(c.id)}>
               <div>
                 <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{c.name}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{c.phone || "—"}{c.email ? ` · ${c.email}` : ""}</div>
@@ -8866,7 +8880,7 @@ function CustomersView({ dark, customers, setCustomers, sales, products, invento
                 <div className="text-xs font-bold" style={{ color: C.lime }}>{balance}{" "}{translateUI("pts")}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{stats.totalOrders}{" "}{translateUI("orders")}{showSpend ? ` · ${fmtMoney(stats.totalSpent)}` : ""}</div>
               </div>
-            </div>
+            </button>
           );
         })}
       </Card>

@@ -62,6 +62,13 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(detail, /can\("viewFinancials"\) \? ` · \$\{translateUI\(s\.paymentMethod\)\}` : ""/);
     assert.match(detail, /can\("viewFinancials"\) && <div[^>]+>\{fmtMoney\(s\.total\)\}/);
   });
+
+  test(`${label}: customer catalog search and rows are keyboard accessible`, () => {
+    const view = section(source, 'function CustomersView(', '// Formats minutes as');
+    assert.match(view, /aria-label=\{translateUI\("Search customers"\)\}/);
+    assert.match(view, /<button type="button" key=\{c\.id\}/);
+    assert.match(view, /onClick=\{\(\) => setDetailId\(c\.id\)\}/);
+  });
 }
 
 test('root and src application copies remain identical after customer changes', () => {

@@ -112,6 +112,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Configurações agora validam nome, moeda, imposto e listas antes da escrita; moeda e fuso carregados alimentam os formatadores compartilhados, e o fuso pode ser selecionado na interface. [Evidência](./QA_SETTINGS_USABILITY_20261016.md). Persistência autenticada e preferências completas ainda permanecem no item amplo acima.
 - [ ] Responsividade desktop/tablet/mobile, acessibilidade, rolagem, estados vazios e erros.
 - [x] Base responsiva compartilhada corrigida: modal com rolagem/safe area, botão desabilitado efetivo, formulários adaptáveis, sidebar rolável, ações móveis visíveis, textos longos e valores zero preservados, mensagens comuns traduzidas e ARIA básico. **77/77 regressões afetadas** e build aprovados. [Evidência](./QA_RESPONSIVE_UI_20261015.md). Revisão visual autenticada e acessibilidade completa permanecem no item amplo acima.
+- [x] Acessibilidade de teclado: modais fecham com `Escape`, gerenciam/restauram foco, linhas acionáveis compartilhadas respondem a `Enter`/`Espaço`, clientes usam botão semântico e buscas possuem nome acessível. **40/40 regressões afetadas** e build local aprovados. [Evidência](./QA_KEYBOARD_ACCESSIBILITY_20261016.md). Auditoria assistiva integral permanece pendente.
 - [ ] Performance com volumes realistas, carga, paginação e degradação.
 - [ ] Backup/restauração isolados e ensaio de recuperação.
 

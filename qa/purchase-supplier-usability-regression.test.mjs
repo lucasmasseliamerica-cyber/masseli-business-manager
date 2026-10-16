@@ -64,6 +64,7 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(suppliers, /value="all"/);
     assert.match(suppliers, /visibleSuppliers\.map/);
     assert.match(suppliers, /No suppliers match these filters/);
+    assert.match(suppliers, /aria-label=\{translateUI\("Search suppliers"\)\}/);
   });
 
   test(`${label}: supplier financial history is permission-gated and mutations report failure`, () => {
