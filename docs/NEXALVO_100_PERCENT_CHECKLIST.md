@@ -95,6 +95,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Funcionários: convite, perfis, permissões, ponto, pausas e desligamento.
 - [ ] Tarefas: criação, atribuição, status, conclusão, edição e permissões.
 - [ ] Relatórios: totais, filtros, períodos, exportação, consistência com ledger.
+- [x] Relatórios respeitam `viewFinancials` na interface: P&L, receita, margens, custos, valores e exports financeiros não são renderizados sem permissão; contagens operacionais permanecem disponíveis. Cinco regressões novas e build local aprovados. [Evidência](./QA_REPORT_FINANCIAL_GUARD_20261015.md). Isso não substitui RLS/API nem conclui a homologação integral de relatórios.
 - [ ] Configurações: persistência, permissões, idioma, fuso, regras e preferências.
 - [ ] Responsividade desktop/tablet/mobile, acessibilidade, rolagem, estados vazios e erros.
 - [ ] Performance com volumes realistas, carga, paginação e degradação.

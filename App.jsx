@@ -9554,6 +9554,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
   const fmtDelta = (pct) => pct === null ? "New activity" : `${pct > 0 ? "+" : ""}${pct}%`;
   const deltaColor = (pct) => pct === null ? (dark ? C.textMutedDark : C.textMutedLight) : pct > 0 ? C.lime : pct < 0 ? "#FF6B85" : (dark ? C.textMutedDark : C.textMutedLight);
+  const displayedProducts = canFinance ? (productSort === "revenue" ? productPerf.byRevenue : productPerf.byQty) : productPerf.byQty;
 
   const exportCSV = () => {
     downloadCSV("nexalvo-pl-report.csv", ["Metric", "Value"], [
@@ -9601,8 +9602,8 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Reports")} sub={translateUI("Profit & Loss and business performance")}
-        action={<GhostButton dark={dark} onClick={exportCSV}>{translateUI("Export P&L CSV")}</GhostButton>} />
+      <SectionHeader dark={dark} title={translateUI("Reports")} sub={translateUI(canFinance ? "Profit & Loss and business performance" : "Operational performance")}
+        action={canFinance ? <GhostButton dark={dark} onClick={exportCSV}>{translateUI("Export P&L CSV")}</GhostButton> : undefined} />
 
       <div className="flex gap-2 mb-2 flex-wrap">
         {REPORT_RANGE_PRESETS.map((p) => (
@@ -9628,27 +9629,34 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Sales Performance")}</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {canFinance && (
           <div>
             <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("REVENUE")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(salesCmp.current.totalRevenue)}</div>
             <div className="text-xs font-semibold" style={{ color: deltaColor(salesCmp.revenueChangePct) }}>{fmtDelta(salesCmp.revenueChangePct)}{" "}{translateUI("vs prior period")}</div>
           </div>
+          )}
           <div>
             <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("ORDERS")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{salesCmp.current.orders}</div>
             <div className="text-xs font-semibold" style={{ color: deltaColor(salesCmp.ordersChangePct) }}>{fmtDelta(salesCmp.ordersChangePct)}{" "}{translateUI("vs prior period")}</div>
           </div>
+          {canFinance && (
           <div>
             <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("AVG ORDER VALUE")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{salesCmp.current.avgOrderValue !== null ? fmtMoney(salesCmp.current.avgOrderValue) : "—"}</div>
           </div>
+          )}
+          {canFinance && (
           <div>
             <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("DISCOUNTS")}</div>
             <div className="text-lg font-extrabold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(salesCmp.current.discounts)}</div>
           </div>
+          )}
         </div>
       </Card>
 
+      {canFinance && (
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Profit & Loss")}</div>
         <Row dark={dark} label={translateUI("Revenue")} value={fmtMoney(revenue)} />
@@ -9661,14 +9669,18 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
         <Row dark={dark} label={translateUI("Net Profit")} value={fmtMoney(netProfit)} bold />
         <Row dark={dark} label={translateUI("Net Margin")} value={fmtPct(netMargin)} />
       </Card>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <StatCard dark={dark} label={translateUI("Orders")} value={rSales.length} icon={ShoppingCart} accent={C.lime} />
+        {canFinance && <>
         <StatCard dark={dark} label={translateUI("Avg Ticket")} value={fmtMoney(rSales.length ? round2(revenue / rSales.length) : 0)} icon={BarChart2} accent={C.yellow} />
         <StatCard dark={dark} label={translateUI("Inventory Value")} value={fmtMoney(inventoryValue)} icon={Boxes} accent={C.purpleGlow} />
         <StatCard dark={dark} label={translateUI("Waste Cost")} value={fmtMoney(waste)} icon={AlertTriangle} accent={"#FF6B85"} />
+        </>}
       </div>
 
+      {canFinance && (
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Revenue Trend")}{" "}{trend.bucketType === "day" ? translateUI("(Daily)") : trend.bucketType === "week" ? translateUI("(Weekly)") : translateUI("(Monthly)")}</div>
         {trend.points.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : (
@@ -9682,30 +9694,31 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
           </div>
         )}
       </Card>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         <Card dark={dark}>
           <div className="flex items-center justify-between mb-2">
             <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Top Products")}</div>
-            <div className="flex gap-1">
+            {canFinance && <div className="flex gap-1">
               {[["revenue", "Revenue"], ["qty", "Qty"]].map(([id, label]) => (
                 <button key={id} onClick={() => setProductSort(id)} className="px-2 py-1 rounded-full text-[10px] font-bold"
                   style={{ background: productSort === id ? C.lime : "transparent", color: productSort === id ? C.black : (dark ? C.textMutedDark : C.textMutedLight), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
                   {translateUI(label)}
                 </button>
               ))}
-            </div>
+            </div>}
           </div>
-          <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11, marginBottom: 8 }} onClick={exportProducts}>{translateUI("Export CSV")}</GhostButton>
-          {(productSort === "revenue" ? productPerf.byRevenue : productPerf.byQty).length === 0 ? <EmptyState dark={dark} title={translateUI("No sales in this range")} /> :
-            (productSort === "revenue" ? productPerf.byRevenue : productPerf.byQty).slice(0, 10).map((p) => (
-              <ListRow key={p.productId} dark={dark} title={p.name} subtitle={`${p.qty} units · ${fmtPct(p.pctOfSales)} of sales`} right={fmtMoney(p.revenue)} />
+          {canFinance && <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11, marginBottom: 8 }} onClick={exportProducts}>{translateUI("Export CSV")}</GhostButton>}
+          {displayedProducts.length === 0 ? <EmptyState dark={dark} title={translateUI("No sales in this range")} /> :
+            displayedProducts.slice(0, 10).map((p) => (
+              <ListRow key={p.productId} dark={dark} title={p.name} subtitle={canFinance ? `${p.qty} units · ${fmtPct(p.pctOfSales)} of sales` : `${p.qty} units`} right={canFinance ? fmtMoney(p.revenue) : `${p.qty} units`} />
             ))}
         </Card>
         <Card dark={dark}>
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Sales by Channel")}</div>
           {channelPerf.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : channelPerf.map((c) => (
-            <ListRow key={c.key} dark={dark} title={c.key} subtitle={`${c.orders} orders · avg ${c.avgOrderValue !== null ? fmtMoney(c.avgOrderValue) : "—"}`} right={fmtMoney(c.revenue)} rightSub={fmtPct(c.pctOfSales)} />
+            <ListRow key={c.key} dark={dark} title={c.key} subtitle={canFinance ? `${c.orders} orders · avg ${c.avgOrderValue !== null ? fmtMoney(c.avgOrderValue) : "—"}` : undefined} right={canFinance ? fmtMoney(c.revenue) : `${c.orders} orders`} rightSub={canFinance ? fmtPct(c.pctOfSales) : undefined} />
           ))}
         </Card>
       </div>
@@ -9714,28 +9727,28 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
         <Card dark={dark}>
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Sales by Location")}</div>
           {locationPerf.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : locationPerf.map((l) => (
-            <ListRow key={l.key} dark={dark} title={l.key} subtitle={`${l.orders} orders`} right={fmtMoney(l.revenue)} rightSub={fmtPct(l.pctOfSales)} />
+            <ListRow key={l.key} dark={dark} title={l.key} subtitle={canFinance ? `${l.orders} orders` : undefined} right={canFinance ? fmtMoney(l.revenue) : `${l.orders} orders`} rightSub={canFinance ? fmtPct(l.pctOfSales) : undefined} />
           ))}
         </Card>
         <Card dark={dark}>
           <div className="flex items-center justify-between mb-2">
             <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Payment Methods")}</div>
-            <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportPayments}>{translateUI("Export CSV")}</GhostButton>
+            {canFinance && <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportPayments}>{translateUI("Export CSV")}</GhostButton>}
           </div>
           {paymentPerf.length === 0 ? <EmptyState dark={dark} title={translateUI("No data available for this period")} /> : paymentPerf.map((p) => (
-            <ListRow key={p.key} dark={dark} title={p.key} subtitle={`${p.orders} transactions`} right={fmtMoney(p.revenue)} rightSub={fmtPct(p.pctOfSales)} />
+            <ListRow key={p.key} dark={dark} title={p.key} subtitle={canFinance ? `${p.orders} transactions` : undefined} right={canFinance ? fmtMoney(p.revenue) : `${p.orders} transactions`} rightSub={canFinance ? fmtPct(p.pctOfSales) : undefined} />
           ))}
         </Card>
       </div>
 
-      <Card dark={dark} className="mb-4">
+      {canFinance && <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Discounts")}</div>
         <div className="grid grid-cols-3 gap-3">
           <StatCard dark={dark} label={translateUI("Total Discounted")} value={fmtMoney(discountA.totalDiscount)} />
           <StatCard dark={dark} label={translateUI("Discounted Orders")} value={discountA.discountedOrders} />
           <StatCard dark={dark} label={translateUI("Avg per Order")} value={discountA.avgDiscountPerOrder !== null ? fmtMoney(discountA.avgDiscountPerOrder) : "—"} />
         </div>
-      </Card>
+      </Card>}
 
       {canFinance && (
       <div className="grid md:grid-cols-2 gap-4 mb-4">
@@ -9854,7 +9867,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
         </Card>
       )}
 
-      {purchaseOrders && (
+      {canFinance && purchaseOrders && (
         <Card dark={dark} className="mb-4">
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Purchases by Supplier")}</div>
           {(() => {
@@ -9871,7 +9884,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
         </Card>
       )}
 
-      {purchaseOrders && (
+      {canFinance && purchaseOrders && (
         <Card dark={dark}>
           <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Outstanding Payables")}</div>
           {(() => {
