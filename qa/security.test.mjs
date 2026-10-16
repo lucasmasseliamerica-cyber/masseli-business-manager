@@ -12,6 +12,14 @@ test('QA workflow is confined to isolated branch and TEST environment',()=>{
  assert.match(workflow,/QA_SUPABASE_ANON_KEY:\s*\$\{\{ secrets\.QA_SUPABASE_ANON_KEY \}\}/);
  assert.doesNotMatch(workflow,/\b(deploy|db push|migration up|service.role)\b/i);
 });
+test('QA workflow tracks build configuration and critical local regressions',()=>{
+ assert.match(workflow,/^\s*-\s*'vite\.config\.js'$/m);
+ for(const file of [
+  'qa/inventory-catalog-regression.test.mjs',
+  'qa/sales-receipt-regression.test.mjs',
+  'qa/cash-register-validation-regression.test.mjs',
+ ]) assert.match(workflow,new RegExp(file.replaceAll('.','\\.')),file);
+});
 test('authenticated TEST jobs are gated by the classified read-only preflight',()=>{
  assert.match(workflow,/authenticated-preflight:\s*\n\s*needs: test-api-smoke/);
  assert.match(workflow,/node qa\/p0-preflight-readonly\.TEST\.mjs/);
