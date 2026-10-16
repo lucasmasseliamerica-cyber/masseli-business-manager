@@ -15,3 +15,7 @@ O subfluxo anterior interceptava somente fornecedor e criação, mas continuava 
 O browser-smoke continua fazendo login real como OWNER B. Apenas a página separada dedicada à validação do formulário P0.05 passou a interceptar todas as dependências mutáveis: fornecedor, localização, item, saldo e histórico. Cada rota confirma hostname TEST e empresa B antes de responder. As chamadas de criação continuam abortadas nos casos inválidos e simuladas nos casos válidos, portanto o teste não grava compras.
 
 O preflight autenticado continua responsável por comprovar as fixtures e o isolamento reais antes de liberar o job. O teste persistente P0.05 permanece desativado.
+
+## Continuação após CI #141
+
+A CI #141 aprovou build, segurança e preflight autenticado, mas o `browser-smoke` continuou falhando. Isso prova que a dependência de fixtures não era a única causa. O workflow agora publica apenas os títulos TAP `not ok` como anotações sanitizadas; nenhuma variável, credencial ou payload é incluído. A próxima execução deve identificar os subtestes exatos mesmo quando o download dos logs exigir autenticação.

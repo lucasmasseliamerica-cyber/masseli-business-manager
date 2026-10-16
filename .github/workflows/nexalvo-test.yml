@@ -324,7 +324,18 @@ jobs:
         run: |
           set -euo pipefail
           npm run dev -- --host 127.0.0.1 --port 4179 --strictPort &
-          node --test --test-reporter=tap qa/browser-smoke.test.mjs qa/password-recovery-browser.TEST.mjs | tee qa-browser-smoke.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-browser-smoke.tap
+          set +e
+          node --test --test-reporter=tap qa/browser-smoke.test.mjs qa/password-recovery-browser.TEST.mjs | tee qa-browser-smoke.tap
+          test_code=${PIPESTATUS[0]}
+          set -e
+          while IFS= read -r failed_test; do
+            echo "::error title=NEXALVO browser-smoke TAP::${failed_test}"
+          done < <(grep -E '^not ok ' qa-browser-smoke.tap || true)
+          if grep -Eq '^# skipped [1-9][0-9]*' qa-browser-smoke.tap; then
+            echo "::error title=NEXALVO browser-smoke TAP::One or more browser tests were skipped"
+            exit 1
+          fi
+          exit "$test_code"
       - name: Save QA browser report and screenshots
         if: always()
         uses: actions/upload-artifact@v4
