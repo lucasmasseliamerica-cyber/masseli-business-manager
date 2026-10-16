@@ -6076,7 +6076,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
 
   return (
     <div className="pb-6">
-      <SectionHeader dark={dark} title={translateUI("Inventory")} sub={interpolateUI("Total value {0}",[fmtMoney(totalValue)])}
+      <SectionHeader dark={dark} title={translateUI("Inventory")} sub={can("viewFinancials") ? interpolateUI("Total value {0}",[fmtMoney(totalValue)]) : interpolateUI("{0} active items",[withStatus.length])}
         action={can("adjustInventory") ? <PrimaryButton onClick={() => { setSelected(null); setModal("new"); }}><Plus size={16} />{translateUI("New Item")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 items-center flex-wrap">
@@ -6294,9 +6294,10 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   const available = (item.stocks || []).find((s) => s.locationId === fromId)?.qty || 0;
   const submit = async () => {
-    if (submitting) return;
+    if (submitting || uncertain) return;
     setError("");
     if (!can("adjustInventory")) { setError("You don't have permission to transfer stock."); return; }
     if (!fromId || !toId || fromId === toId) { setError("Select different source and destination locations."); return; }
@@ -6309,7 +6310,7 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
       showToast("Stock transferred"); onClose();
     } catch (e) {
       if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
-      else setError(e.message || "Unable to transfer stock.");
+      else { setUncertain(!!e?.commitUncertain); setError(e.message || "Unable to transfer stock."); }
     } finally { setSubmitting(false); }
   };
   return <Modal title={translateUI("Transfer Stock")} dark={dark} onClose={onClose}>
@@ -6319,7 +6320,7 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
     <Field dark={dark} label={interpolateUI("Quantity ({0}) - available {1}",[translateUI(item.unit),available])}><Input dark={dark} type="number" min="0" step="0.001" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
     <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
     {error && <div role="alert" className="text-sm mb-3" style={{ color: "#FF6B85" }}>{translateUI(error)}</div>}
-    <PrimaryButton full disabled={submitting} onClick={submit}>{submitting ? translateUI("Transferring?") : translateUI("Transfer Stock")}</PrimaryButton>
+    <PrimaryButton full disabled={submitting || uncertain} onClick={submit}>{submitting ? translateUI("Transferring…") : uncertain ? translateUI("Refresh required") : translateUI("Transfer Stock")}</PrimaryButton>
   </Modal>;
 }
 
@@ -6423,7 +6424,7 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
       }
       if (mode === "receive") {
         const addQty = Number(qty);
-        if (!addQty || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+        if (!Number.isFinite(addQty) || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
         const opId = `stockop-receive-${itemId}-${addQty}`;
 
         const { changed, nextInventory } = applyInventoryOpIfNeeded(inventory, opId, { [itemId]: addQty });
@@ -6436,7 +6437,10 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
         await logAudit(auditLog, setAuditLog, currentUser, "Stock Received (manual)", `${current.name} +${addQty} ${current.unit}`);
         showToast(`Received ${addQty} ${current.unit} of ${current.name}`);
       } else if (mode === "adjust") {
-        const nq = clamp0(round2(Number(newQty)));
+        const parsedQty = Number(newQty);
+        if (newQty === "" || !Number.isFinite(parsedQty)) { setError("Enter a valid counted quantity."); return; }
+        if (parsedQty < 0) { setError("Counted quantity cannot be negative."); return; }
+        const nq = round2(parsedQty);
         const opId = `stockop-adjust-${itemId}-${nq}`;
         const alreadyApplied = (current.appliedOps || []).includes(opId);
         // "No change to save" only makes sense when the inventory step genuinely has not run yet
@@ -6470,7 +6474,7 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
         // reload), current.qty already reflects the deduction, so re-checking against it here
         // could wrongly block completion of the still-missing records.
         if (!alreadyApplied) {
-          if (!wasteQty || wasteQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+          if (!Number.isFinite(wasteQty) || wasteQty <= 0) { setError("Enter a quantity greater than zero."); return; }
           if (wasteQty > current.qty) { setError(`Only ${current.qty} ${current.unit} in stock — can't waste more than that.`); return; }
         }
 
@@ -6539,8 +6543,13 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
 function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, onClose, can }) {
   const { translateUI , interpolateUI } = useLanguage();
   const showCosts = !can || can("viewFinancials");
+  const [moveFilter, setMoveFilter] = useState("all");
+  const [showAllMoves, setShowAllMoves] = useState(false);
   const purchases = (invTx || []).filter((t) => t.itemId === item.id && t.type === "Purchase").sort((a, b) => new Date(b.date) - new Date(a.date));
-  const allMoves = (invTx || []).filter((t) => t.itemId === item.id).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 20);
+  const itemMoves = (invTx || []).filter((t) => t.itemId === item.id).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const movementTypes = [...new Set(itemMoves.map((move) => move.type).filter(Boolean))].sort();
+  const filteredMoves = moveFilter === "all" ? itemMoves : itemMoves.filter((move) => move.type === moveFilter);
+  const visibleMoves = showAllMoves ? filteredMoves : filteredMoves.slice(0, 20);
 
   // Historical ledger stays immutable, but purchase-price analytics must not treat a reversed or
   // cancelled PO as an active commercial purchase. Purchases without a resolvable PO are kept so
@@ -6585,18 +6594,33 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
       {suggestedOrderQty(item) > 0 && <Row dark={dark} label={translateUI("Recommended reorder")} value={`${suggestedOrderQty(item)} ${item.unit}`} bold />}
     </Card>
   );
+  const movementCard = (
+    <Card dark={dark}>
+      <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recent Stock Movements")}</div>
+      {movementTypes.length > 1 && (
+        <div className="flex gap-2 mb-3 overflow-x-auto">
+          {["all", ...movementTypes].map((type) => (
+            <button type="button" key={type} onClick={() => { setMoveFilter(type); setShowAllMoves(false); }} className="px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap" style={{ background: moveFilter === type ? C.lime : (dark ? C.surfaceDark : C.white), color: moveFilter === type ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
+              {translateUI(type === "all" ? "All" : type)}
+            </button>
+          ))}
+        </div>
+      )}
+      {visibleMoves.length === 0 ? <EmptyState dark={dark} title={translateUI("No transactions yet")} /> : visibleMoves.map((t) => (
+        <ListRow key={t.id} dark={dark} title={`${t.type} ${t.qty > 0 ? "+" : ""}${t.qty} ${t.unit}`}
+          subtitle={`${dateStr(t.date)} ${timeStr(t.date)}${t.referenceLabel ? " · " + t.referenceLabel : ""}${t.note ? " · " + t.note : ""}`}
+          right={showCosts && t.totalCost != null ? fmtMoney(Math.abs(t.totalCost)) : ""} />
+      ))}
+      {!showAllMoves && filteredMoves.length > 20 && <GhostButton dark={dark} full onClick={() => setShowAllMoves(true)} style={{ marginTop: 10 }}>{interpolateUI("Show all {0} movements",[filteredMoves.length])}</GhostButton>}
+      {showAllMoves && filteredMoves.length > 20 && <GhostButton dark={dark} full onClick={() => setShowAllMoves(false)} style={{ marginTop: 10 }}>{translateUI("Show latest 20")}</GhostButton>}
+    </Card>
+  );
 
   if (!showCosts) {
     return (
       <Modal title={interpolateUI("{0} — History",[item.name])} onClose={onClose} dark={dark}>
         {consumptionCard}
-        <Card dark={dark}>
-          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recent Stock Movements")}</div>
-          {allMoves.length === 0 ? <EmptyState dark={dark} title={translateUI("No transactions yet")} /> : allMoves.map((t) => (
-            <ListRow key={t.id} dark={dark} title={`${t.type} ${t.qty > 0 ? "+" : ""}${t.qty} ${t.unit}`}
-              subtitle={`${dateStr(t.date)} ${timeStr(t.date)}${t.note ? " · " + t.note : ""}`} />
-          ))}
-        </Card>
+        {movementCard}
         <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Cost details are restricted to accounts with financial access.")}</div>
       </Modal>
     );
@@ -6623,14 +6647,7 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
         </Card>
       )}
 
-      <Card dark={dark}>
-        <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recent Transactions")}</div>
-        {allMoves.length === 0 ? <EmptyState dark={dark} title={translateUI("No transactions yet")} /> : allMoves.map((t) => (
-          <ListRow key={t.id} dark={dark} title={`${t.type} ${t.qty > 0 ? "+" : ""}${t.qty} ${t.unit}`}
-            subtitle={`${dateStr(t.date)} ${timeStr(t.date)}${t.referenceLabel ? " · " + t.referenceLabel : ""}${t.note ? " · " + t.note : ""}`}
-            right={t.totalCost != null ? fmtMoney(Math.abs(t.totalCost)) : ""} />
-        ))}
-      </Card>
+      {movementCard}
     </Modal>
   );
 }
