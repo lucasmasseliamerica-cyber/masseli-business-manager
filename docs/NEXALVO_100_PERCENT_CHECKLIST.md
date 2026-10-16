@@ -115,6 +115,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Base responsiva compartilhada corrigida: modal com rolagem/safe area, botão desabilitado efetivo, formulários adaptáveis, sidebar rolável, ações móveis visíveis, textos longos e valores zero preservados, mensagens comuns traduzidas e ARIA básico. **77/77 regressões afetadas** e build aprovados. [Evidência](./QA_RESPONSIVE_UI_20261015.md). Revisão visual autenticada e acessibilidade completa permanecem no item amplo acima.
 - [x] Acessibilidade de teclado: modais fecham com `Escape`, gerenciam/restauram foco, linhas/cartões acionáveis respondem a `Enter`/`Espaço`, históricos e tarefas usam botões semânticos e buscas possuem nome acessível. **47/47 regressões afetadas** e build local aprovados. [Evidência](./QA_KEYBOARD_ACCESSIBILITY_20261016.md). Auditoria assistiva integral permanece pendente.
 - [ ] Performance com volumes realistas, carga, paginação e degradação.
+- [x] Bundle de produção dividido: arquivo principal reduzido de 587,61 kB para 426,97 kB, com React e ícones em chunks cacheáveis; build sem alerta de chunk acima de 500 kB. [Evidência](./QA_BUILD_CODE_SPLITTING_20261016.md). Volumes realistas, paginação e métricas de campo permanecem pendentes.
 - [ ] Backup/restauração isolados e ensaio de recuperação.
 
 ## M9 — P2 Produto SaaS, lançamento e operação (aberto)
