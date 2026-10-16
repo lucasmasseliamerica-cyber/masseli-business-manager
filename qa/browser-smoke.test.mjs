@@ -283,7 +283,11 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     let writeCalls=0, allowMockSuccess=false, recordedPurchase=null;
     const qaBusiness='3849b750-20f7-4929-8699-737a4e1983c8';
     const supplierLabel='QA_UI_ONLY_SUPPLIER_NOT_PERSISTED';
+    const expectedQaItem='b226d34d-650d-46ae-a81d-5bd48c611c68';
+    const qaLocation='10000000-0000-4000-8000-000000000097';
     try{
+      // The authenticated preflight already proves the real tenant B fixtures and isolation.
+      // Keep every mutable form dependency deterministic on this separate UI-validation page.
       await purchasePage.route('**/rest/v1/suppliers?*',async route=>{
         if(route.request().method()!=='GET') return route.continue();
         const target=new URL(route.request().url());
@@ -293,6 +297,35 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
           id:'10000000-0000-4000-8000-000000000099',
           business_id:qaBusiness,name:supplierLabel,active:true,created_at:'2026-10-13T00:00:00Z'
         }])});
+      });
+      await purchasePage.route('**/rest/v1/locations?*',async route=>{
+        if(route.request().method()!=='GET') return route.continue();
+        const target=new URL(route.request().url());
+        assert.equal(target.hostname,HOST,'Location route must be TEST only');
+        assert.equal(target.searchParams.get('business_id'),'eq.'+qaBusiness,'Do not fake locations for another tenant');
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+          id:qaLocation,business_id:qaBusiness,name:'QA_UI_ONLY_LOCATION_NOT_PERSISTED',type:'Retail',active:true,created_at:'2026-10-13T00:00:00Z'
+        }])});
+      });
+      await purchasePage.route('**/rest/v1/inventory_items?*',async route=>{
+        if(route.request().method()!=='GET') return route.continue();
+        const target=new URL(route.request().url());
+        assert.equal(target.hostname,HOST,'Inventory route must be TEST only');
+        assert.equal(target.searchParams.get('business_id'),'eq.'+qaBusiness,'Do not fake inventory for another tenant');
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+          id:expectedQaItem,business_id:qaBusiness,name:'QA_UI_ONLY_ITEM_NOT_PERSISTED',sku:'QA-UI-ONLY',category:'QA',unit:'Units',
+          min_qty:0,max_qty:100,supplier_id:'10000000-0000-4000-8000-000000000099',active:true,created_at:'2026-10-13T00:00:00Z'
+        }])});
+      });
+      await purchasePage.route('**/rest/v1/rpc/fn_read_inventory_stock_secure?*',async route=>{
+        if(route.request().method()!=='GET') return route.continue();
+        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+          id:'10000000-0000-4000-8000-000000000096',inventory_item_id:expectedQaItem,location_id:qaLocation,qty:10,avg_cost_per_unit:3.5,created_at:'2026-10-13T00:00:00Z'
+        }])});
+      });
+      await purchasePage.route('**/rest/v1/rpc/fn_read_inventory_transactions_secure?*',async route=>{
+        if(route.request().method()!=='GET') return route.continue();
+        await route.fulfill({status:200,contentType:'application/json',body:'[]'});
       });
       await purchasePage.route('**/rest/v1/rpc/fn_create_purchase_order*',async route=>{
         writeCalls++;
@@ -318,7 +351,6 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
       // Supplier and inventory arrive asynchronously; the first list being ready
       // does NOT prove the other is ready. Require the actual isolated TEST item
       // before testing any purchase form validation or simulated submission.
-      const expectedQaItem='b226d34d-650d-46ae-a81d-5bd48c611c68';
       const itemSelect=purchasePage.locator('div.flex-1 select').first();
       await itemSelect.locator('option[value="'+expectedQaItem+'"]').waitFor({state:'attached',timeout:25000});
       await itemSelect.selectOption(expectedQaItem);

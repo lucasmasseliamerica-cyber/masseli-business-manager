@@ -79,6 +79,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Decidir/testar migração de idempotência de compras em TEST; atualmente OFF/não instalada.
 
 ## M6 — P0.06 Rede, resiliência e concorrência (aberto)
+- [x] Browser-smoke P0.05 tornado determinístico: login OWNER B continua real, fixtures exclusivas do formulário são interceptadas e validadas contra TEST/empresa B, e nenhuma compra persistente é executada. [Evidência](./QA_BROWSER_SMOKE_FIX_20261016.md).
 - [x] Browser offline/reconexão e sessão preservada em smoke.
 - [x] Testes de replay financeiro e falha simulada após commit.
 - [ ] Interrupção real no envio e na resposta durante gravações de venda, estoque e compra.
