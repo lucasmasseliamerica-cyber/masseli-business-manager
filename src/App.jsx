@@ -7886,14 +7886,20 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
 }
 
 /* ============================== SUPPLIERS / CUSTOMERS / EMPLOYEES (light CRUD) ============================== */
-function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, renderSub, showToast, canEdit = true, currentUser, auditLog, setAuditLog, auditAction }) {
+function SimpleCrudView({ dark, title, recordType, items, setItems, fields, renderTitle, renderSub, showToast, canEdit = true, currentUser, auditLog, setAuditLog, auditAction }) {
   const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  const openNew = () => { if (!canEdit) return; setEditing(null); setForm(Object.fromEntries(fields.map((f) => [f.key, f.default ?? (f.type === "select" ? (typeof f.options[0] === "object" ? f.options[0].value : f.options[0]) ?? "" : "")]))); setModal(true); };
+  const defaultFieldValue = (field) => {
+    if (field.default !== undefined) return field.default;
+    if (field.type !== "select") return "";
+    const option = field.options.find((candidate) => typeof candidate !== "object" || !candidate.disabled) ?? field.options[0];
+    return (typeof option === "object" ? option?.value : option) ?? "";
+  };
+  const openNew = () => { if (!canEdit) return; setEditing(null); setForm(Object.fromEntries(fields.map((f) => [f.key, defaultFieldValue(f)]))); setModal(true); };
   const openEdit = (item) => { setEditing(item); setForm(item); setModal(true); };
 
   const save = async () => {
@@ -7901,11 +7907,33 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
     if (!canEdit) { showToast("You don't have permission to make this change.", "danger"); return; }
     const name = form[fields[0].key];
     if (!name || !String(name).trim()) { showToast("Name is required", "danger"); return; }
-    if (title === "Employees" && (!Number.isFinite(Number(form.hourlyRate)) || Number(form.hourlyRate) < 0)) { showToast("Hourly rate must be a non-negative number.", "danger"); return; }
-    if (title === "Employees" && editing && form.managerId === editing.id) { showToast("An employee cannot report to themselves.", "danger"); return; }
+    if (recordType === "employee" && fields.some((field) => field.key === "hourlyRate") && (String(form.hourlyRate).trim() === "" || !Number.isFinite(Number(form.hourlyRate)) || Number(form.hourlyRate) < 0)) { showToast("Hourly rate must be a non-negative number.", "danger"); return; }
+    if (recordType === "employee" && editing && form.managerId === editing.id) { showToast("An employee cannot report to themselves.", "danger"); return; }
+    if (recordType === "employee" && form.managerId) {
+      const manager = items.find((item) => item.id === form.managerId);
+      if (!manager || manager.active === false) { showToast("Select an active manager.", "danger"); return; }
+      let cursor = manager;
+      const visited = new Set();
+      while (cursor?.managerId && !visited.has(cursor.id)) {
+        if (editing && cursor.managerId === editing.id) { showToast("This reporting line would create a management cycle.", "danger"); return; }
+        visited.add(cursor.id);
+        cursor = items.find((item) => item.id === cursor.managerId);
+      }
+    }
+    if (recordType === "employee" && form.location) {
+      const locationField = fields.find((field) => field.key === "location");
+      const selected = locationField?.options?.find((option) => (typeof option === "object" ? option.value : option) === form.location);
+      if (!selected || (typeof selected === "object" && selected.disabled && form.location !== editing?.location)) { showToast("Select an active location.", "danger"); return; }
+    }
     setSubmitting(true);
     try {
-      const payload = { ...form, [fields[0].key]: String(name).trim(), id: editing?.id || newDbId() };
+      const payload = {
+        ...form,
+        ...Object.fromEntries(fields.filter((field) => field.type !== "checkbox" && field.type !== "number").map((field) => [field.key, String(form[field.key] || "").trim()])),
+        ...(fields.some((field) => field.key === "hourlyRate") ? { hourlyRate: Number(form.hourlyRate) } : {}),
+        [fields[0].key]: String(name).trim(),
+        id: editing?.id || newDbId(),
+      };
       const next = editing ? items.map((i) => (i.id === editing.id ? payload : i)) : [payload, ...items];
       await setItems(next);
       if (auditAction && auditLog !== undefined) await logAudit(auditLog, setAuditLog, currentUser, `${auditAction} ${editing ? "Updated" : "Added"}`, name);
@@ -7918,11 +7946,19 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
     }
   };
   const remove = async () => {
+    if (submitting) return;
     if (!canEdit) { showToast("You don't have permission to make this change.", "danger"); return; }
-    await setItems(items.map((i) => i.id === editing.id ? { ...i, active: false } : i));
-    if (auditAction && auditLog !== undefined) await logAudit(auditLog, setAuditLog, currentUser, `${auditAction} Deactivated`, form[fields[0].key] || "");
-    showToast("Deactivated", "danger");
-    setModal(false);
+    setSubmitting(true);
+    try {
+      await setItems(items.map((i) => i.id === editing.id ? { ...i, active: false } : i));
+      if (auditAction && auditLog !== undefined) await logAudit(auditLog, setAuditLog, currentUser, `${auditAction} Deactivated`, form[fields[0].key] || "");
+      showToast("Deactivated", "danger");
+      setModal(false);
+    } catch (e) {
+      showToast(e?.message || "Unable to deactivate this record.", "danger");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -7941,21 +7977,21 @@ function SimpleCrudView({ dark, title, items, setItems, fields, renderTitle, ren
               <Field dark={dark} key={f.key} label={translateUI(f.label)}>
                 {f.type === "select" ? (
                   <Select dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}>
-                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value}>{translateUI(o.label)}</option> : <option key={o} value={o}>{translateUI(o)}</option>))}
+                    {f.options.map((o) => (typeof o === "object" ? <option key={o.value} value={o.value} disabled={!!o.disabled}>{translateUI(o.label)}</option> : <option key={o} value={o}>{translateUI(o)}</option>))}
                   </Select>
                 ) : f.type === "textarea" ? (
                   <TextArea dark={dark} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                 ) : f.type === "checkbox" ? (
                   <input type="checkbox" checked={!!form[f.key]} onChange={(e) => setForm({ ...form, [f.key]: e.target.checked })} />
                 ) : (
-                  <Input dark={dark} type={f.type || "text"} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: f.type === "number" ? Number(e.target.value) : e.target.value })} />
+                  <Input dark={dark} type={f.type || "text"} value={form[f.key] ?? ""} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })} />
                 )}
               </Field>
             ))}
           </fieldset>
           {canEdit && (
             <div className="flex gap-2 mt-2">
-              {editing && <GhostButton dark={dark} onClick={remove} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{translateUI("Delete")}</GhostButton>}
+              {editing && editing.active !== false && <GhostButton dark={dark} disabled={submitting} onClick={remove} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{translateUI("Deactivate")}</GhostButton>}
               <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save")}</PrimaryButton>
             </div>
           )}
@@ -8678,11 +8714,15 @@ function MyShiftCard({ dark, myEmployeeId, shifts, setShifts, locations, employe
   const [locationId, setLocationId] = useState((locations || []).find((l) => l.active !== false)?.id || "");
   const [submitting, setSubmitting] = useState(false);
   const [tick, setTick] = useState(0); // forces a re-render every 30s so the live duration stays current, without mutating shift data
+  const activeLocations = (locations || []).filter((location) => location.active !== false);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 30000);
     return () => clearInterval(id);
   }, []);
+  useEffect(() => {
+    if (activeLocations.length && !activeLocations.some((location) => location.id === locationId)) setLocationId(activeLocations[0].id);
+  }, [locations, locationId]);
 
   if (!myEmployeeId) return null; // no linked employee — fail safely, never fabricate one
 
@@ -8691,35 +8731,34 @@ function MyShiftCard({ dark, myEmployeeId, shifts, setShifts, locations, employe
   const openShift = findOpenShift(myEmployeeId, shifts);
   const activeBreak = openShift ? (openShift.breaks || []).find((b) => !b.endedAt) : null;
 
-  const doClockIn = async () => {
+  const runShiftAction = async (action, successMessage) => {
     if (submitting) return;
     setSubmitting(true);
     try {
-      const r = await clockIn({ employeeId: myEmployeeId, locationId: locationId || null }, shiftCtx);
+      const r = await action();
       if (!r.success) { showToast(r.error, "danger"); return; }
-      showToast("Clocked in");
-    } finally { setSubmitting(false); }
+      showToast(successMessage);
+    } catch (e) {
+      showToast(e?.message || "Unable to update this shift.", e?.rpcSucceeded ? "good" : "danger");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  const doClockIn = async () => {
+    if (activeLocations.length && !activeLocations.some((location) => location.id === locationId)) {
+      showToast("Select an active location before clocking in.", "danger");
+      return;
+    }
+    await runShiftAction(() => clockIn({ employeeId: myEmployeeId, locationId: locationId || null }, shiftCtx), "Clocked in");
   };
   const doClockOut = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    try {
-      const r = await clockOut({ employeeId: myEmployeeId }, shiftCtx);
-      if (!r.success) { showToast(r.error, "danger"); return; }
-      showToast("Clocked out");
-    } finally { setSubmitting(false); }
+    await runShiftAction(() => clockOut({ employeeId: myEmployeeId }, shiftCtx), "Clocked out");
   };
   const doStartBreak = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    try { await startBreak({ employeeId: myEmployeeId }, shiftCtx); showToast("Break started"); }
-    finally { setSubmitting(false); }
+    await runShiftAction(() => startBreak({ employeeId: myEmployeeId }, shiftCtx), "Break started");
   };
   const doEndBreak = async () => {
-    if (submitting) return;
-    setSubmitting(true);
-    try { await endBreak({ employeeId: myEmployeeId }, shiftCtx); showToast("Break ended"); }
-    finally { setSubmitting(false); }
+    await runShiftAction(() => endBreak({ employeeId: myEmployeeId }, shiftCtx), "Break ended");
   };
 
   const workedMinutes = openShift ? calculateWorkedMinutes(openShift) : 0;
@@ -8753,10 +8792,10 @@ function MyShiftCard({ dark, myEmployeeId, shifts, setShifts, locations, employe
         </>
       ) : (
         <>
-          {(locations || []).filter((l) => l.active !== false).length > 1 && (
+          {activeLocations.length > 1 && (
             <Field dark={dark} label={translateUI("Location")}>
               <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
-                {(locations || []).filter((l) => l.active !== false).map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                {activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
               </Select>
             </Field>
           )}
@@ -8827,13 +8866,14 @@ function EmployeesView({ dark, employees, setEmployees, locations, tasks, persis
               </Select>
             </Card>
           )}
-          <SimpleCrudView dark={dark} title={translateUI("Employees")} items={visibleEmployees} setItems={setEmployees} showToast={showToast}
+          <SimpleCrudView dark={dark} title={translateUI("Employees")} recordType="employee" items={visibleEmployees} setItems={setEmployees} showToast={showToast}
             canEdit={canEdit} currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog} auditAction="Employee Record"
             renderTitle={(e) => e.name} renderSub={(e) => `${e.role}${showRate ? ` · ${fmtMoney(e.hourlyRate)}/hr` : ""} · ${e.location}${e.active === false ? " · Inactive" : ""}`}
             fields={[
-              { key: "name", label: "Name" }, { key: "role", label: "Job Title" }, { key: "hourlyRate", label: "Hourly Rate ($)", type: "number" },
-              { key: "location", label: "Location", type: "select", options: locations.filter((l) => l.active !== false).map((l) => l.name) },
-              { key: "managerId", label: "Reports To", type: "select", options: [{ value: "", label: "— No manager (reports to Owner) —" }, ...employees.map((e) => ({ value: e.id, label: e.name }))] },
+              { key: "name", label: "Name" }, { key: "role", label: "Job Title" },
+              ...(showRate ? [{ key: "hourlyRate", label: "Hourly Rate ($)", type: "number" }] : []),
+              { key: "location", label: "Location", type: "select", options: locations.map((l) => ({ value: l.name, label: `${l.name}${l.active === false ? " (inactive)" : ""}`, disabled: l.active === false })) },
+              { key: "managerId", label: "Reports To", type: "select", options: [{ value: "", label: "— No manager (reports to Owner) —" }, ...employees.map((e) => ({ value: e.id, label: `${e.name}${e.active === false ? " (inactive)" : ""}`, disabled: e.active === false }))] },
               { key: "active", label: "Active", type: "checkbox", default: true }, { key: "notes", label: "Notes", type: "textarea" },
             ]} />
         </>
@@ -8855,6 +8895,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filter, setFilter] = useState("open");
+  const [busyTaskId, setBusyTaskId] = useState(null);
   const canManage = can("manageTasks");
   const myEmployeeId = currentUser?.employeeId || "";
   const today0 = dateStrOffset(0);
@@ -8873,6 +8914,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
   const logActivity = (task, action) => [{ date: nowISO(), userId: currentUser?.id, userName: currentUser?.name, action }, ...(task.activity || [])];
 
   const toggleDone = async (task) => {
+    if (busyTaskId) return;
     // Marking done is allowed for the assignee themselves, or anyone with manageTasks — checked
     // here against the freshest record, not just whether the checkbox happened to be reachable.
     const latest = tasks.find((t) => t.id === task.id) || task;
@@ -8881,8 +8923,15 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
     const next = latest.status === "done"
       ? { ...latest, status: "pending", completedAt: null, completedBy: null, activity: logActivity(latest, "Reopened") }
       : { ...latest, status: "done", completedAt: nowISO(), completedBy: currentUser?.id, activity: logActivity(latest, "Completed") };
-    await persistTasks(tasks.map((t) => (t.id === task.id ? next : t)));
-    showToast(next.status === "done" ? "Task completed" : "Task reopened");
+    setBusyTaskId(task.id);
+    try {
+      await persistTasks(tasks.map((t) => (t.id === task.id ? next : t)));
+      showToast(next.status === "done" ? "Task completed" : "Task reopened");
+    } catch (e) {
+      showToast(e?.message || "Unable to update this task.", e?.rpcSucceeded ? "good" : "danger");
+    } finally {
+      setBusyTaskId(null);
+    }
   };
 
   return (
@@ -8905,8 +8954,8 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
           const mine = t.assignedTo === myEmployeeId;
           return (
             <div key={t.id} className="flex items-center gap-3 py-3 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
-              <button onClick={() => toggleDone(t)} className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: t.status === "done" ? C.lime : "transparent", border: `2px solid ${t.status === "done" ? C.lime : (dark ? C.borderDark : C.borderLight)}` }}>
+              <button disabled={!!busyTaskId} onClick={() => toggleDone(t)} className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: t.status === "done" ? C.lime : "transparent", border: `2px solid ${t.status === "done" ? C.lime : (dark ? C.borderDark : C.borderLight)}`, opacity: busyTaskId && busyTaskId !== t.id ? 0.5 : 1 }}>
                 {t.status === "done" && <Check size={14} color={C.black} />}
               </button>
               <div className="min-w-0 flex-1 cursor-pointer" onClick={() => { setEditing(t); setModal(true); }}>
@@ -8937,6 +8986,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
   const [notes, setNotes] = useState(task?.notes || "");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const employeeName = (id) => employees.find((e) => e.id === id)?.name || "Unassigned";
 
   const save = async () => {
@@ -8945,26 +8995,42 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
     // opened read-only by the assignee, so the actual write is what must be gated.
     if (!canManage) { showToast("You don't have permission to edit tasks.", "danger"); return; }
     if (!title.trim()) { setError("Task title is required."); return; }
+    const assignee = employees.find((employee) => employee.id === assignedTo);
+    if (!assignee || (assignee.active === false && !(task?.status === "done" && task.assignedTo === assignedTo))) { setError("Select an active employee."); return; }
+    const parsedDueDate = new Date(`${dueDate}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || Number.isNaN(parsedDueDate.getTime()) || parsedDueDate.toISOString().slice(0, 10) !== dueDate) { setError("Enter a valid due date."); return; }
+    if (!["Low", "Medium", "High"].includes(priority)) { setError("Select a valid priority."); return; }
     setSubmitting(true);
     try {
       const activity = [{ date: nowISO(), userId: currentUser?.id, userName: currentUser?.name, action: task ? "Updated" : "Created" }, ...(task?.activity || [])];
-      const payload = { id: task?.id || uid("task"), title: title.trim(), assignedTo, dueDate, priority, notes, status: task?.status || "pending", createdAt: task?.createdAt || nowISO(), activity };
+      const payload = { id: task?.id || uid("task"), title: title.trim(), assignedTo, dueDate, priority, notes: notes.trim(), status: task?.status || "pending", createdAt: task?.createdAt || nowISO(), activity };
       const next = task ? tasks.map((t) => (t.id === task.id ? { ...t, ...payload } : t)) : [payload, ...tasks];
       await persistTasks(next);
       // Server RPC writes the immutable task audit/activity entries.
       showToast(task ? "Task updated" : "Task created");
       onClose();
+    } catch (e) {
+      setError(e?.message || "Unable to save this task.");
     } finally {
       setSubmitting(false);
     }
   };
 
   const remove = async () => {
+    if (submitting) return;
     if (!canManage) { showToast("You don't have permission to delete tasks.", "danger"); return; }
-    await persistTasks(tasks.filter((t) => t.id !== task.id));
-    // Server RPC writes the immutable deletion audit entry.
-    showToast("Task deleted", "danger");
-    onClose();
+    setSubmitting(true);
+    try {
+      await persistTasks(tasks.filter((t) => t.id !== task.id));
+      // Server RPC writes the immutable deletion audit entry.
+      showToast("Task deleted", "danger");
+      onClose();
+    } catch (e) {
+      setError(e?.message || "Unable to delete this task.");
+      setConfirmingDelete(false);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -9003,11 +9069,16 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       {canManage ? (
         <div className="flex gap-2">
-          {task && <GhostButton dark={dark} onClick={remove} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{translateUI("Delete")}</GhostButton>}
+          {task && <GhostButton dark={dark} disabled={submitting} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{translateUI("Delete")}</GhostButton>}
           <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Task")}</PrimaryButton>
         </div>
       ) : (
         <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Only a manager or owner can edit task details. Use the checkbox to mark it done.")}</div>
+      )}
+      {confirmingDelete && (
+        <ConfirmDialog dark={dark} title={translateUI("Delete this task?")}
+          message="The task will be removed, while its server audit entry remains available."
+          confirmLabel={translateUI("Delete")} onConfirm={remove} onCancel={() => setConfirmingDelete(false)} />
       )}
     </Modal>
   );
