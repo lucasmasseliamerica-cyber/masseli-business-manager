@@ -23,3 +23,7 @@ A CI #141 aprovou build, segurança e preflight autenticado, mas o `browser-smok
 A primeira execução diagnóstica (#142) expôs somente o teste-pai porque os resultados TAP aninhados são indentados. O filtro foi ajustado para aceitar espaços à esquerda e publicar também o grupo e o caso folha.
 
 A CI #143 identificou os dois casos folha reais. O teste de desconto abria o PDV com carrinho vazio e, portanto, atingia corretamente a validação anterior de produto ausente; agora adiciona uma linha válida antes de testar desconto maior que o subtotal. O teste de compra esperava a mensagem antiga `Select a supplier`, enquanto a aplicação passou a exigir explicitamente `Select an active supplier`; a asserção foi atualizada para o contrato atual. Ambas as correções mantêm a exigência de zero chamadas RPC.
+
+## Resultado final
+
+A [CI #144](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38899806097), no commit `22603c1`, aprovou os 12/12 jobs. O `browser-smoke` terminou com 51/51 testes aprovados, zero falhas e zero skips; o preflight autenticado e o agregador QA também foram aprovados.

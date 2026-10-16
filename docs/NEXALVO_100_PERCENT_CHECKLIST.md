@@ -80,6 +80,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 
 ## M6 — P0.06 Rede, resiliência e concorrência (aberto)
 - [x] Browser-smoke P0.05 tornado determinístico: login OWNER B continua real, fixtures exclusivas do formulário são interceptadas e validadas contra TEST/empresa B, e nenhuma compra persistente é executada. [Evidência](./QA_BROWSER_SMOKE_FIX_20261016.md).
+- [x] CI #144: `browser-smoke` 51/51, 12/12 jobs e agregador QA aprovados no commit `22603c1`, após corrigir os cenários desatualizados de desconto no PDV e fornecedor ativo em compras. [Execução](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38899806097).
 - [x] Browser offline/reconexão e sessão preservada em smoke.
 - [x] Testes de replay financeiro e falha simulada após commit.
 - [ ] Interrupção real no envio e na resposta durante gravações de venda, estoque e compra.
