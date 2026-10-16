@@ -2324,6 +2324,22 @@ function normalizePlatformBusiness(row) {
     activeUsers: Math.max(0, Number.isFinite(Number(row.active_users ?? row.activeUsers)) ? Math.trunc(Number(row.active_users ?? row.activeUsers)) : 0),
     createdAt: row.created_at || row.createdAt || null,
     licensedAt: row.licensed_at || row.licensedAt || null,
+    licenseRevokedAt: row.license_revoked_at || row.licenseRevokedAt || null,
+  };
+}
+
+function normalizePlatformAuditLog(row) {
+  if (!row || typeof row.id !== "string" || typeof row.business_id !== "string" || typeof row.operation !== "string") return null;
+  return {
+    id: row.id,
+    requestId: typeof row.request_id === "string" ? row.request_id : "",
+    actorUserId: typeof row.actor_user_id === "string" ? row.actor_user_id : "",
+    businessId: row.business_id,
+    businessName: typeof row.business_name === "string" && row.business_name.trim() ? row.business_name.trim() : row.business_id,
+    operation: row.operation,
+    previousValues: row.previous_values && typeof row.previous_values === "object" ? row.previous_values : {},
+    newValues: row.new_values && typeof row.new_values === "object" ? row.new_values : {},
+    createdAt: row.created_at || null,
   };
 }
 
@@ -10490,8 +10506,9 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 /* ============================== PLATFORM ADMINISTRATION ============================== */
 
 function PlatformAdminView({ dark, currentUser, showToast }) {
-  const { translateUI } = useLanguage();
+  const { translateUI, language } = useLanguage();
   const [businesses, setBusinesses] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -10500,11 +10517,16 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
   const loadBusinesses = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const response = await callPlatformAdmin("list_businesses");
-      if (!Array.isArray(response.businesses)) throw new Error("The platform service returned an invalid business list.");
-      setBusinesses(response.businesses.map(normalizePlatformBusiness).filter(Boolean));
+      const [businessResponse, auditResponse] = await Promise.all([
+        callPlatformAdmin("list_businesses"),
+        callPlatformAdmin("list_audit_logs"),
+      ]);
+      if (!Array.isArray(businessResponse.businesses) || !Array.isArray(auditResponse.audit_logs)) throw new Error("The platform service returned an invalid administration response.");
+      setBusinesses(businessResponse.businesses.map(normalizePlatformBusiness).filter(Boolean));
+      setAuditLogs(auditResponse.audit_logs.map(normalizePlatformAuditLog).filter(Boolean));
     } catch (e) {
       setBusinesses([]);
+      setAuditLogs([]);
       setError(e?.message || "Platform administration is currently unavailable.");
     } finally {
       setLoading(false);
@@ -10527,16 +10549,18 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
     if (!action) return;
     try {
       if (action.type === "lifetime") {
-        await callPlatformAdmin("grant_lifetime_license", { business_id: action.business.id });
+        await callPlatformAdmin("grant_lifetime_license", { request_id: action.requestId, business_id: action.business.id });
         showToast("Lifetime license granted");
+      } else if (action.type === "revoke") {
+        await callPlatformAdmin("revoke_license", { request_id: action.requestId, business_id: action.business.id });
+        showToast("License revoked");
       } else {
-        await callPlatformAdmin("update_business_status", { business_id: action.business.id, status: action.nextStatus });
+        await callPlatformAdmin("update_business_status", { request_id: action.requestId, business_id: action.business.id, status: action.nextStatus });
         showToast(action.nextStatus === "ACTIVE" ? "Business activated" : "Business suspended");
       }
       setPendingAction(null);
       await loadBusinesses();
     } catch (e) {
-      setPendingAction(null);
       showToast(e?.message || "The platform action failed.", "danger");
     }
   };
@@ -10584,8 +10608,10 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
                   </div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
-                  {business.licenseType !== "LIFETIME" && <GhostButton dark={dark} onClick={() => setPendingAction({ type: "lifetime", business })}>{translateUI("Grant lifetime")}</GhostButton>}
-                  <GhostButton dark={dark} onClick={() => setPendingAction({ type: "status", business, nextStatus: business.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE" })}>
+                  {business.licenseType !== "LIFETIME"
+                    ? <GhostButton dark={dark} onClick={() => setPendingAction({ type: "lifetime", business, requestId: newDbId() })}>{translateUI("Grant lifetime")}</GhostButton>
+                    : <GhostButton dark={dark} onClick={() => setPendingAction({ type: "revoke", business, requestId: newDbId() })}>{translateUI("Revoke license")}</GhostButton>}
+                  <GhostButton dark={dark} onClick={() => setPendingAction({ type: "status", business, nextStatus: business.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE", requestId: newDbId() })}>
                     {business.status === "ACTIVE" ? translateUI("Suspend") : translateUI("Activate")}
                   </GhostButton>
                 </div>
@@ -10595,11 +10621,23 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
         </div>
       )}
 
+      {!loading && !error && (
+        <Card dark={dark} className="mt-4">
+          <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Recent platform audit")}</div>
+          {auditLogs.length === 0 ? <EmptyState dark={dark} title={translateUI("No platform changes recorded")} /> : auditLogs.map((entry) => (
+            <ListRow key={entry.id} dark={dark}
+              title={entry.businessName}
+              subtitle={`${entry.operation} · ${entry.actorUserId}${entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString(language === "pt-BR" ? "pt-BR" : "en-US")}` : ""}`}
+              right={entry.newValues?.status || entry.newValues?.license_type || ""} />
+          ))}
+        </Card>
+      )}
+
       {pendingAction && (
-        <ConfirmDialog dark={dark} danger={pendingAction.type !== "lifetime" || pendingAction.nextStatus === "SUSPENDED"}
-          title={pendingAction.type === "lifetime" ? translateUI("Grant lifetime license?") : translateUI(pendingAction.nextStatus === "ACTIVE" ? "Activate this business?" : "Suspend this business?")}
-          message={pendingAction.type === "lifetime" ? `Grant a lifetime license to ${pendingAction.business.name}? The platform service will record the administrator and timestamp.` : `${pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend"} ${pendingAction.business.name}? The platform service will audit this change.`}
-          confirmLabel={translateUI(pendingAction.type === "lifetime" ? "Grant lifetime" : pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend")}
+        <ConfirmDialog dark={dark} danger={pendingAction.type === "revoke" || pendingAction.nextStatus === "SUSPENDED"}
+          title={pendingAction.type === "lifetime" ? translateUI("Grant lifetime license?") : pendingAction.type === "revoke" ? translateUI("Revoke this license?") : translateUI(pendingAction.nextStatus === "ACTIVE" ? "Activate this business?" : "Suspend this business?")}
+          message={pendingAction.type === "lifetime" ? `Grant a lifetime license to ${pendingAction.business.name}? The platform service will record the administrator and timestamp.` : pendingAction.type === "revoke" ? `Revoke the commercial license for ${pendingAction.business.name}? The platform service will preserve the audit history.` : `${pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend"} ${pendingAction.business.name}? The platform service will audit this change.`}
+          confirmLabel={translateUI(pendingAction.type === "lifetime" ? "Grant lifetime" : pendingAction.type === "revoke" ? "Revoke license" : pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend")}
           onConfirm={applyAction} onCancel={() => setPendingAction(null)} />
       )}
     </div>

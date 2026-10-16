@@ -49,7 +49,7 @@ for (const file of files) {
     assert.equal(context.normalize(null), null);
     assert.equal(context.normalize({ id: 'id', name: '' }), null);
     const unknown = context.normalize({ id: 'id', name: ' Tenant ', status: 'unknown', license_type: 'magic', active_users: -3 });
-    assert.deepEqual(JSON.parse(JSON.stringify(unknown)), { id: 'id', name: 'Tenant', status: 'SUSPENDED', licenseType: 'NONE', activeUsers: 0, createdAt: null, licensedAt: null });
+    assert.deepEqual(JSON.parse(JSON.stringify(unknown)), { id: 'id', name: 'Tenant', status: 'SUSPENDED', licenseType: 'NONE', activeUsers: 0, createdAt: null, licensedAt: null, licenseRevokedAt: null });
   });
 
   test(`${file}: platform navigation and mutations remain claim-gated and confirmed`, () => {
@@ -59,6 +59,10 @@ for (const file of files) {
     assert.match(view, /if \(!isPlatformAdmin\(currentUser\)\) return <RestrictedView/);
     assert.match(view, /<ConfirmDialog[\s\S]*onConfirm=\{applyAction\}/);
     assert.match(view, /No tenant data was loaded through the public client/);
+    assert.match(view, /callPlatformAdmin\("list_audit_logs"\)/);
+    assert.match(view, /callPlatformAdmin\("revoke_license", \{ request_id: action\.requestId/);
+    assert.match(view, /requestId: newDbId\(\)/);
+    assert.doesNotMatch(view, /catch \(e\) \{\s*setPendingAction\(null\)/);
   });
 }
 

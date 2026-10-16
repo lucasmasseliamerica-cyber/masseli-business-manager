@@ -15,7 +15,7 @@ A Edge Function protegida deverá:
 
 1. validar o JWT e a claim `app_metadata.nexalvo_platform_role` em cada chamada;
 2. rejeitar qualquer papel diferente de `SUPERADMIN`;
-3. aceitar somente as operações `list_businesses`, `grant_lifetime_license` e `update_business_status`;
+3. aceitar somente as operações `list_businesses`, `list_audit_logs`, `grant_lifetime_license`, `revoke_license` e `update_business_status`;
 4. para `update_business_status`, aceitar somente `ACTIVE` ou `SUSPENDED`;
 5. registrar administrador, instante, empresa, operação e valores anterior/novo em auditoria imutável;
 6. ser idempotente para reenvios da mesma alteração;
@@ -24,7 +24,11 @@ A Edge Function protegida deverá:
 
 Campos esperados na listagem: `id`, `name`, `status`, `license_type`, `active_users`, `created_at` e `licensed_at`. Valores desconhecidos falham de forma conservadora na interface: situação vira `SUSPENDED` e licença vira `NONE`.
 
-## Limites e bloqueios
+## Continuação implementada
+
+O backend, a revogação, a auditoria e a idempotência foram preparados posteriormente no repositório, sem aplicação ou deploy. Consulte [QA_PLATFORM_ADMIN_BACKEND_20261016.md](./QA_PLATFORM_ADMIN_BACKEND_20261016.md). A seção abaixo registra os limites da entrega original desta fundação.
+
+## Limites e bloqueios da fundação original
 
 - Nenhuma migração, Edge Function, claim administrativa ou dado foi criado/aplicado nesta entrega.
 - O painel mostrará **Platform service unavailable** até o backend protegido ser implantado e configurado.
