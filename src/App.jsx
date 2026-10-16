@@ -1164,8 +1164,13 @@ async function openCashRegister({ locationId, openingCash, notes }, ctx) {
 }
 
 async function recordCashMovement({ registerId, movementType, amount, reason, notes }, ctx) {
+  const def = CASH_MOVEMENT_TYPES.find((movement) => movement.key === movementType);
+  if (!def) return { success: false, error: "Unknown movement type." };
+  const amt = round2(Number(amount));
+  if (!Number.isFinite(amt) || amt <= 0) return { success: false, error: "Amount must be a positive finite number." };
+  if (!reason || !reason.trim()) return { success: false, error: "A reason is required." };
   if (ctx.cashRegisterOps?.remote) {
-    try { return await ctx.cashRegisterOps.movement({ registerId, movementType, amount, reason, notes }); }
+    try { return await ctx.cashRegisterOps.movement({ registerId, movementType, amount: amt, reason: reason.trim(), notes }); }
     catch (e) {
       // rpcSucceeded (set by useSupabaseCashRegisters.movement) means fn_record_cash_movement
       // itself already committed — only the subsequent screen refresh failed. This must be
@@ -1180,11 +1185,6 @@ async function recordCashMovement({ registerId, movementType, amount, reason, no
   const register = (cashRegisters || []).find((r) => r.id === registerId);
   if (!register) return { success: false, error: "Register not found." };
   if (register.status !== "open") return { success: false, error: "This register is closed." };
-  const def = CASH_MOVEMENT_TYPES.find((m) => m.key === movementType);
-  if (!def) return { success: false, error: "Unknown movement type." };
-  const amt = round2(Number(amount));
-  if (Number.isNaN(amt) || amt <= 0) return { success: false, error: "Amount must be greater than zero." };
-  if (!reason || !reason.trim()) return { success: false, error: "A reason is required." };
   const loc = (locations || []).find((l) => l.id === register.locationId);
   const entry = {
     id: uid("cash"), date: nowISO(), type: def.cashType, category: def.category, amount: amt,
@@ -1197,8 +1197,10 @@ async function recordCashMovement({ registerId, movementType, amount, reason, no
 }
 
 async function closeCashRegister({ registerId, actualCash, differenceReason, notes }, ctx) {
+  const actual = round2(Number(actualCash));
+  if (!Number.isFinite(actual) || actual < 0) return { success: false, error: "Enter a valid finite actual cash amount." };
   if (ctx.cashRegisterOps?.remote) {
-    try { return await ctx.cashRegisterOps.close({ registerId, actualCash, differenceReason, notes }); }
+    try { return await ctx.cashRegisterOps.close({ registerId, actualCash: actual, differenceReason, notes }); }
     catch (e) {
       // rpcSucceeded (set by useSupabaseCashRegisters.close) means fn_close_cash_register itself
       // already committed — only the subsequent screen refresh failed. `e.register` carries the
@@ -1214,8 +1216,6 @@ async function closeCashRegister({ registerId, actualCash, differenceReason, not
   const latest = (cashRegisters || []).find((r) => r.id === registerId);
   if (!latest) return { success: false, error: "Register not found." };
   if (latest.status === "closed") return { success: true, register: latest }; // idempotent — already closed, not an error, never duplicated
-  const actual = round2(Number(actualCash));
-  if (Number.isNaN(actual) || actual < 0) return { success: false, error: "Enter a valid actual cash amount." };
   const expected = calculateExpectedCash(latest, cashTx);
   const difference = round2(actual - expected);
   if (difference !== 0 && !(differenceReason && differenceReason.trim())) {
@@ -4509,7 +4509,7 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
   const [closeNotes, setCloseNotes] = useState("");
   const expectedNow = register ? calculateExpectedCash(register, cashTx) : 0;
   const breakdown = register ? cashRegisterBreakdown(register, cashTx) : null;
-  const previewDiff = register && actualCash !== "" && !Number.isNaN(Number(actualCash)) ? round2(Number(actualCash) - expectedNow) : null;
+  const previewDiff = register && actualCash !== "" && Number.isFinite(Number(actualCash)) ? round2(Number(actualCash) - expectedNow) : null;
   const doClose = async () => {
     if (submitting || !register) return;
     setError("");
