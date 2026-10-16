@@ -174,6 +174,34 @@ function validateProductDraft(product, { products = [], inventory = null } = {})
   return { ok: true, value: { ...product, name, sku, category, description, price: round2(price), image, recipe: safeRecipe } };
 }
 
+function validateInventoryCatalogDraft(item, { inventory = [], products = [] } = {}) {
+  const name = String(item?.name || "").trim();
+  const sku = String(item?.sku || "").trim();
+  const category = String(item?.category || "").trim();
+  const unit = String(item?.unit || "").trim();
+  const notes = String(item?.notes || "").trim();
+  const minQty = Number(item?.minQty);
+  const maxQty = Number(item?.maxQty);
+  const expiresAt = String(item?.expiresAt || "").trim();
+  if (!name) return { ok: false, error: "Item name is required." };
+  if (name.length > 160) return { ok: false, error: "Item name must be 160 characters or fewer." };
+  if (sku.length > 100) return { ok: false, error: "SKU must be 100 characters or fewer." };
+  if (!category) return { ok: false, error: "Category is required." };
+  if (!unit) return { ok: false, error: "Unit is required." };
+  if (item?.minQty === "" || item?.minQty === null || item?.minQty === undefined || !Number.isFinite(minQty) || minQty < 0) return { ok: false, error: "Minimum stock must be a valid nonnegative number." };
+  if (item?.maxQty === "" || item?.maxQty === null || item?.maxQty === undefined || !Number.isFinite(maxQty) || maxQty < 0) return { ok: false, error: "Maximum stock must be a valid nonnegative number." };
+  if (maxQty > 0 && minQty > maxQty) return { ok: false, error: "Minimum stock can't exceed maximum stock." };
+  if (expiresAt && !/^\d{4}-\d{2}-\d{2}$/.test(expiresAt)) return { ok: false, error: "Expiration date is invalid." };
+  if (notes.length > 2000) return { ok: false, error: "Notes must be 2000 characters or fewer." };
+  if (inventory.some((candidate) => candidate.id !== item?.id && String(candidate.name || "").trim().toLowerCase() === name.toLowerCase())) return { ok: false, error: "Another inventory item already uses this name." };
+  if (sku && inventory.some((candidate) => candidate.id !== item?.id && String(candidate.sku || "").trim().toLowerCase() === sku.toLowerCase())) return { ok: false, error: "Another inventory item already uses this SKU." };
+  if (item?.active === false) {
+    const usedBy = products.find((product) => product.active !== false && (product.recipe || []).some((row) => row.itemId === item.id));
+    if (usedBy) return { ok: false, error: `Deactivate or update product ${usedBy.name} before deactivating this ingredient.` };
+  }
+  return { ok: true, value: { ...item, name, sku, category, unit, notes, minQty: round2(minQty), maxQty: round2(maxQty), expiresAt } };
+}
+
 /* ============================== SEED DATA ============================== */
 const seedLocations = () => ([
   { id: "loc-kiosk", name: "Kiosk", type: "Retail", active: true, sample: true },
@@ -6210,20 +6238,37 @@ function CashFlowView({ dark, cashTx, showToast }) {
 }
 
 /* ============================== INVENTORY ============================== */
-function InventoryView({ dark, inventory, setInventory, settings, suppliers, showToast, wasteTx, persistWaste, invTx, setInvTx, purchaseOrders, persistPO, employees, locations, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
+function InventoryView({ dark, inventory, setInventory, products, settings, suppliers, showToast, wasteTx, persistWaste, invTx, setInvTx, purchaseOrders, persistPO, employees, locations, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
   const { translateUI , interpolateUI } = useLanguage();
   const [tabMode, setTabMode] = useState("all");
   const [modal, setModal] = useState(null); // 'receive' | 'adjust' | 'waste' | 'new' | 'history' | null
   const [selected, setSelected] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [catalogBusyId, setCatalogBusyId] = useState("");
   const [quickPO, setQuickPO] = useState(null); // pre-filled item for a quick "Create Purchase" flow
 
   const withStatus = inventory.filter((i) => i.active !== false).map((i) => ({ ...i, _status: stockStatus(i), _expiry: expiryStatus(i) }));
-  const filtered = tabMode === "low" ? withStatus.filter((i) => i._status !== "NORMAL" || i._expiry) : withStatus;
+  const inactiveItems = inventory.filter((i) => i.active === false);
+  const filtered = tabMode === "inactive" ? inactiveItems : tabMode === "low" ? withStatus.filter((i) => i._status !== "NORMAL" || i._expiry) : withStatus;
   const totalValue = round2(inventoryLocationRows(inventory).reduce((a, i) => a + i.qty * i.costPerUnit, 0));
   const reorderList = withStatus.filter((i) => i._status !== "NORMAL" && suggestedOrderQty(i) > 0);
   const expiringList = withStatus.filter((i) => i._expiry).sort((a, b) => new Date(a.expiresAt) - new Date(b.expiresAt));
 
   const openAction = (mode, item) => { setSelected(item); setModal(mode); };
+  const setItemActive = async (item, active) => {
+    if (catalogBusyId) return;
+    if (!can("adjustInventory")) { showToast("You don't have permission to edit inventory items.", "danger"); return; }
+    const validation = validateInventoryCatalogDraft({ ...item, active }, { inventory, products });
+    if (!validation.ok) { showToast(validation.error, "danger"); setDeactivateTarget(null); return; }
+    setCatalogBusyId(item.id);
+    try {
+      await setInventory(inventory.map((row) => row.id === item.id ? validation.value : row));
+      await logAudit(auditLog, setAuditLog, currentUser, active ? "Inventory Item Reactivated" : "Inventory Item Deactivated", item.name);
+      showToast(`${item.name} ${active ? "reactivated" : "deactivated"}`);
+      setDeactivateTarget(null);
+    } catch (e) { showToast(e?.message || "Could not update this inventory item.", "danger"); }
+    finally { setCatalogBusyId(""); }
+  };
   const canExport = can("viewFinancials");
   const exportCSV = () => {
     downloadCSV("nexalvo-inventory-valuation.csv",
@@ -6239,7 +6284,7 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
         action={can("adjustInventory") ? <PrimaryButton onClick={() => { setSelected(null); setModal("new"); }}><Plus size={16} />{translateUI("New Item")}</PrimaryButton> : null} />
 
       <div className="flex gap-2 mb-4 items-center flex-wrap">
-        {[["all", "All Items"], ["low", "Needs Attention"]].map(([id, label]) => (
+        {[["all", "All Items"], ["low", "Needs Attention"], ["inactive", `Inactive (${inactiveItems.length})`]].map(([id, label]) => (
           <button key={id} onClick={() => setTabMode(id)} className="px-3 py-1.5 rounded-full text-xs font-bold"
             style={{ background: tabMode === id ? C.lime : (dark ? C.surfaceDark : C.white), color: tabMode === id ? C.black : (dark ? C.white : C.black), border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
             {translateUI(label)}
@@ -6291,22 +6336,26 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
                 </div>
               </div>
               <div className="flex flex-col items-end gap-1">
-                {i._status !== translateUI("NORMAL") && <Badge dark={dark} tone={STOCK_STATUS_TONE[i._status]}>{STOCK_STATUS_LABEL[i._status]}</Badge>}
-                {i._expiry && <Badge dark={dark} tone={EXPIRY_TONE[i._expiry]}>{EXPIRY_LABEL[i._expiry]}</Badge>}
+                {i.active === false ? <Badge dark={dark} tone="danger">{translateUI("INACTIVE")}</Badge> : i._status !== translateUI("NORMAL") && <Badge dark={dark} tone={STOCK_STATUS_TONE[i._status]}>{STOCK_STATUS_LABEL[i._status]}</Badge>}
+                {i.active !== false && i._expiry && <Badge dark={dark} tone={EXPIRY_TONE[i._expiry]}>{EXPIRY_LABEL[i._expiry]}</Badge>}
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("receive", i)}><PackagePlus size={13} />{" "}{translateUI("Receive")}</GhostButton>}
-              {can("adjustInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("adjust", i)}><Edit2 size={13} />{" "}{translateUI("Adjust")}</GhostButton>}
-              {can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("waste", i)}><PackageMinus size={13} />{" "}{translateUI("Waste")}</GhostButton>}
-              {can("adjustInventory") && inventoryOps?.transfer && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("transfer", i)}>{translateUI("Transfer")}</GhostButton>}
+              {i.active !== false && can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("receive", i)}><PackagePlus size={13} />{" "}{translateUI("Receive")}</GhostButton>}
+              {i.active !== false && can("adjustInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("adjust", i)}><Edit2 size={13} />{" "}{translateUI("Adjust")}</GhostButton>}
+              {i.active !== false && can("manageInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("waste", i)}><PackageMinus size={13} />{" "}{translateUI("Waste")}</GhostButton>}
+              {i.active !== false && can("adjustInventory") && inventoryOps?.transfer && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("transfer", i)}>{translateUI("Transfer")}</GhostButton>}
+              {can("adjustInventory") && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("edit", i)}><Edit2 size={13} /> {translateUI("Edit Item")}</GhostButton>}
+              {can("adjustInventory") && (i.active === false
+                ? <GhostButton dark={dark} disabled={catalogBusyId === i.id} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => setItemActive(i, true)}>{translateUI("Reactivate")}</GhostButton>
+                : <GhostButton dark={dark} disabled={catalogBusyId === i.id} style={{ padding: "6px 10px", fontSize: 12, color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setDeactivateTarget(i)}>{translateUI("Deactivate")}</GhostButton>)}
               <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12 }} onClick={() => openAction("history", i)}>{translateUI("History")}</GhostButton>
             </div>
           </div>
         ))}
       </Card>
 
-      {modal && modal !== "new" && modal !== "history" && modal !== "transfer" && selected && (
+      {modal && modal !== "new" && modal !== "edit" && modal !== "history" && modal !== "transfer" && selected && (
         <StockActionModal mode={modal} item={selected} inventory={inventory} setInventory={setInventory} dark={dark}
           onClose={() => setModal(null)} suppliers={suppliers} locations={locations} showToast={showToast} wasteTx={wasteTx} persistWaste={persistWaste}
           invTx={invTx} setInvTx={setInvTx} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} inventoryOps={inventoryOps} />
@@ -6324,6 +6373,18 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
           invTx={invTx} setInvTx={setInvTx} locations={locations} inventoryOps={inventoryOps} />
       )}
 
+      {modal === "edit" && selected && (
+        <InventoryCatalogModal dark={dark} item={inventory.find((row) => row.id === selected.id) || selected} inventory={inventory} products={products}
+          settings={settings} suppliers={suppliers} setInventory={setInventory} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog}
+          showToast={showToast} onClose={() => setModal(null)} />
+      )}
+
+      {deactivateTarget && (
+        <ConfirmDialog dark={dark} title={translateUI("Deactivate inventory item?")}
+          message={`${deactivateTarget.name} will be hidden from new inventory operations. Its stock, movements and historical references will be preserved.`}
+          confirmLabel={translateUI("Deactivate")} onConfirm={() => setItemActive(deactivateTarget, false)} onCancel={() => setDeactivateTarget(null)} />
+      )}
+
       {quickPO && (
         <NewPurchaseModal dark={dark} onClose={() => setQuickPO(null)} inventory={inventory} suppliers={suppliers}
           purchaseOrders={purchaseOrders} persistPO={persistPO} showToast={showToast} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog}
@@ -6331,6 +6392,43 @@ function InventoryView({ dark, inventory, setInventory, settings, suppliers, sho
       )}
     </div>
   );
+}
+
+function InventoryCatalogModal({ dark, item, inventory, products, settings, suppliers, setInventory, currentUser, can, auditLog, setAuditLog, showToast, onClose }) {
+  const { translateUI } = useLanguage();
+  const [draft, setDraft] = useState(() => ({ ...item }));
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const update = (patch) => setDraft((current) => ({ ...current, ...patch }));
+  const save = async () => {
+    if (submitting) return;
+    if (!can("adjustInventory")) { setError("You don't have permission to edit inventory items."); return; }
+    const validation = validateInventoryCatalogDraft(draft, { inventory, products });
+    if (!validation.ok) { setError(validation.error); return; }
+    setSubmitting(true); setError("");
+    try {
+      await setInventory(inventory.map((row) => row.id === item.id ? validation.value : row));
+      await logAudit(auditLog, setAuditLog, currentUser, "Inventory Item Updated", validation.value.name);
+      showToast(`${validation.value.name} updated`); onClose();
+    } catch (e) { setError(e?.message || "Could not update this inventory item."); }
+    finally { setSubmitting(false); }
+  };
+  return <Modal title={translateUI("Edit Inventory Item")} dark={dark} onClose={onClose}>
+    <Field dark={dark} label={translateUI("Item Name")}><Input dark={dark} value={draft.name || ""} onChange={(e) => update({ name: e.target.value })} /></Field>
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={draft.sku || ""} onChange={(e) => update({ sku: e.target.value })} /></Field>
+      <Field dark={dark} label={translateUI("Category")}><Select dark={dark} value={draft.category || ""} onChange={(e) => update({ category: e.target.value })}>{settings.inventoryCategories.map((value) => <option key={value} value={value}>{translateUI(value)}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Unit")}><Select dark={dark} value={draft.unit || ""} onChange={(e) => update({ unit: e.target.value })}>{settings.units.map((value) => <option key={value} value={value}>{translateUI(value)}</option>)}</Select></Field>
+      <Field dark={dark} label={translateUI("Minimum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={draft.minQty ?? 0} onChange={(e) => update({ minQty: e.target.value })} /></Field>
+      <Field dark={dark} label={translateUI("Maximum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={draft.maxQty ?? 0} onChange={(e) => update({ maxQty: e.target.value })} /></Field>
+      <Field dark={dark} label={translateUI("Expiration Date")}><Input dark={dark} type="date" value={draft.expiresAt || ""} onChange={(e) => update({ expiresAt: e.target.value })} /></Field>
+      <Field dark={dark} label={translateUI("Preferred Supplier")}><Select dark={dark} value={draft.supplierId || ""} onChange={(e) => update({ supplierId: e.target.value })}><option value="">—</option>{suppliers.filter((supplier) => supplier.active !== false || supplier.id === draft.supplierId).map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}</Select></Field>
+    </div>
+    <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={draft.notes || ""} onChange={(e) => update({ notes: e.target.value })} /></Field>
+    <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Quantity, location balances and average cost are controlled by inventory movements and cannot be edited here.")}</div>
+    {error && <div role="alert" className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
+    <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Changes")}</PrimaryButton>
+  </Modal>;
 }
 
 function NewInventoryItemModal({ dark, onClose, inventory, setInventory, settings, suppliers, showToast, currentUser, can, auditLog, setAuditLog, invTx, setInvTx, locations, inventoryOps }) {
@@ -6345,6 +6443,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
   const [costPerUnit, setCostPerUnit] = useState(0);
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id || "");
   const [locationId, setLocationId] = useState((locations || []).find((l) => l.active !== false)?.id || "");
+  const [expiresAt, setExpiresAt] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -6361,16 +6460,17 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
       }
     }
     if (!locationId) { setError("Select a storage location."); return; }
-    if (Number(minQty) > Number(maxQty) && Number(maxQty) > 0) { setError("Minimum stock can't exceed maximum stock."); return; }
+    if (!(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active storage location."); return; }
+    const catalogValidation = validateInventoryCatalogDraft({ id: "new", name, sku, category, unit, minQty, maxQty, supplierId, expiresAt, notes, active: true }, { inventory });
+    if (!catalogValidation.ok) { setError(catalogValidation.error); return; }
     setSubmitting(true);
     try {
       const startQty = clamp0(round2(Number(qty)));
       const startCost = clamp0(round2(Number(costPerUnit)));
       const locName = (locations || []).find((l) => l.id === locationId)?.name || "";
       const item = {
-        id: newDbId(), name: name.trim(), sku, category, unit, qty: startQty,
-        minQty: clamp0(Number(minQty)), maxQty: clamp0(Number(maxQty)), costPerUnit: startCost,
-        supplierId, locationId, location: locName, notes,
+        ...catalogValidation.value, id: newDbId(), qty: startQty, costPerUnit: startCost,
+        locationId, location: locName,
       };
       if (inventoryOps?.remote) {
         try {
@@ -6426,9 +6526,10 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
         <Field dark={dark} label={translateUI("Preferred Supplier")}>
           <Select dark={dark} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             <option value="">—</option>
-            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {suppliers.filter((supplier) => supplier.active !== false).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </Select>
         </Field>
+        <Field dark={dark} label={translateUI("Expiration Date")}><Input dark={dark} type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} /></Field>
       </div>
       <Field dark={dark} label={translateUI("Storage Location")}>
         <Select dark={dark} value={locationId} onChange={(e) => setLocationId(e.target.value)}>
@@ -6459,7 +6560,7 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
     if (submitting || uncertain) return;
     setError("");
     if (!can("adjustInventory")) { setError("You don't have permission to transfer stock."); return; }
-    if (!fromId || !toId || fromId === toId) { setError("Select different source and destination locations."); return; }
+    if (!activeLocations.some((location) => location.id === fromId) || !activeLocations.some((location) => location.id === toId) || fromId === toId) { setError("Select different active source and destination locations."); return; }
     const amount = Number(qty);
     if (!Number.isFinite(amount) || amount <= 0) { setError("Enter a quantity greater than zero."); return; }
     if (amount > available) { setError("Transfer quantity exceeds stock at the source location."); return; }

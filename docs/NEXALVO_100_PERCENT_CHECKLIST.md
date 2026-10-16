@@ -60,6 +60,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Leitura segura de estoque e transações corrigida no frontend; regressão de interface.
 - [ ] Cadastro/edição de itens, ajustes, perdas e transferências completos no Playwright real.
 - [x] Interface de estoque endurecida: valor total protegido por `viewFinancials`, quantidades especiais/negativas rejeitadas também no fallback local, transferência incerta bloqueada até refresh e histórico filtrável/expansível. Nove regressões novas e build local aprovados. [Evidência](./QA_INVENTORY_USABILITY_20261015.md). Playwright autenticado e gravações reais permanecem pendentes.
+- [x] Cadastro de insumos agora permite editar metadados, desativar e reativar sem alterar quantidade/custo do ledger; preserva histórico, bloqueia operações em itens inativos, impede desativar ingrediente de produto ativo e exige locais ativos nas transferências. **40/40 regressões afetadas** e build local aprovados. [Evidência](./QA_INVENTORY_CATALOG_20261016.md). Persistência autenticada e revisão visual continuam pendentes.
 - [ ] Estoque insuficiente, unidades, locais, duplicidade e histórico vinculado pela interface.
 - [ ] Concorrência de múltiplos usuários, replay e timeout de gravações.
 - [ ] Conciliação de saldos/custos médios e trilha de auditoria persistente.
