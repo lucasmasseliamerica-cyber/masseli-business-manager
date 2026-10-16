@@ -100,6 +100,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Tarefas — interface: criação/edição valida funcionário ativo, data e prioridade; conclusão bloqueia concorrência, falhas são exibidas e exclusão exige confirmação. [Evidência](./QA_EMPLOYEE_WORKFLOWS_20261015.md). Persistência com perfis reais continua pendente.
 - [ ] Relatórios: totais, filtros, períodos, exportação, consistência com ledger.
 - [x] Relatórios respeitam `viewFinancials` na interface: P&L, receita, margens, custos, valores e exports financeiros não são renderizados sem permissão; contagens operacionais permanecem disponíveis. Cinco regressões novas e build local aprovados. [Evidência](./QA_REPORT_FINANCIAL_GUARD_20261015.md). Isso não substitui RLS/API nem conclui a homologação integral de relatórios.
+- [x] Fórmulas e filtros corrigidos: P&L exclui imposto da receita e o informa separadamente, descontos são rateados por produto, ranking de clientes respeita o período, tempos inválidos/cancelados são excluídos e datas personalizadas são validadas. **35/35 regressões afetadas** e build aprovados. [Evidência](./QA_REPORT_ACCURACY_20261015.md). Conciliação com fechamento contábil real ainda permanece pendente no item amplo acima.
 - [ ] Configurações: persistência, permissões, idioma, fuso, regras e preferências.
 - [ ] Responsividade desktop/tablet/mobile, acessibilidade, rolagem, estados vazios e erros.
 - [ ] Performance com volumes realistas, carga, paginação e degradação.

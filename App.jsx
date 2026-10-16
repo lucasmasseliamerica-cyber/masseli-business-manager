@@ -9142,6 +9142,17 @@ const withinRange = (iso, range) => { const t = (/^\d{4}-\d{2}-\d{2}$/.test(iso)
 const filterSalesByRange = (sales, range) => (sales || []).filter((s) => s.status !== "cancelled" && withinRange(s.date, range));
 const filterExpensesByRange = (expenses, range) => (expenses || []).filter((e) => e.status !== "reversed" && withinRange(e.date, range));
 
+// Sales tax is collected for the tax authority and must not inflate business revenue or profit.
+// Prefer the explicit subtotal/discount pair; the total-minus-tax fallback supports older rows.
+function saleNetRevenue(sale) {
+  const subtotal = Number(sale?.subtotal);
+  const discount = Number(sale?.discount || 0);
+  if (sale?.subtotal != null && Number.isFinite(subtotal) && Number.isFinite(discount)) return round2(subtotal - discount);
+  const total = Number(sale?.total);
+  const tax = Number(sale?.tax || 0);
+  return Number.isFinite(total) && Number.isFinite(tax) ? round2(total - tax) : 0;
+}
+
 // Safe percentage change — NEVER Infinity/NaN. previous=0 with current>0 returns null (the UI
 // shows "New activity" for null, never a fake percentage); previous=0 and current=0 returns 0.
 function percentChange(current, previous) {
@@ -9156,7 +9167,7 @@ function getSalesAnalytics(sales, range) {
   const discounts = round2(inRange.reduce((a, s) => a + (s.discount || 0), 0));
   const taxCollected = round2(inRange.reduce((a, s) => a + (s.tax || 0), 0));
   const netSales = round2(grossSales - discounts); // subtotal after discount, before tax
-  const totalRevenue = round2(netSales + taxCollected); // matches the existing P&L "Revenue" definition (sum of s.total)
+  const totalRevenue = netSales;
   const orders = inRange.length;
   const avgOrderValue = orders > 0 ? round2(totalRevenue / orders) : null; // null, never divide-by-zero
   return { grossSales, discounts, netSales, taxCollected, totalRevenue, orders, avgOrderValue };
@@ -9185,7 +9196,7 @@ function getRevenueTrend(sales, range) {
     else if (bucket === "week") { const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7)); key = localDateStr(monday); }
     else key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     if (!buckets[key]) buckets[key] = { key, revenue: 0, orders: 0 };
-    buckets[key].revenue = round2(buckets[key].revenue + s.total);
+    buckets[key].revenue = round2(buckets[key].revenue + saleNetRevenue(s));
     buckets[key].orders += 1;
   }
   return { bucketType: bucket, points: Object.values(buckets).sort((a, b) => a.key.localeCompare(b.key)) };
@@ -9194,13 +9205,17 @@ function getRevenueTrend(sales, range) {
 // ---- Product Performance ----
 function getProductPerformance(sales, range) {
   const inRange = filterSalesByRange(sales, range);
-  const totalRevenue = round2(inRange.reduce((a, s) => a + s.total, 0));
+  const totalRevenue = round2(inRange.reduce((a, s) => a + saleNetRevenue(s), 0));
   const map = {};
-  inRange.forEach((s) => s.items.forEach((it) => {
-    if (!map[it.productId]) map[it.productId] = { productId: it.productId, name: it.name, qty: 0, revenue: 0 };
-    map[it.productId].qty = round2(map[it.productId].qty + it.qty);
-    map[it.productId].revenue = round2(map[it.productId].revenue + it.qty * it.unitPrice);
-  }));
+  inRange.forEach((s) => {
+    const gross = Number(s.subtotal) || (s.items || []).reduce((sum, item) => sum + Number(item.qty || 0) * Number(item.unitPrice || 0), 0);
+    const discountFactor = gross > 0 ? saleNetRevenue(s) / gross : 0;
+    (s.items || []).forEach((it) => {
+      if (!map[it.productId]) map[it.productId] = { productId: it.productId, name: it.name, qty: 0, revenue: 0 };
+      map[it.productId].qty = round2(map[it.productId].qty + it.qty);
+      map[it.productId].revenue = round2(map[it.productId].revenue + it.qty * it.unitPrice * discountFactor);
+    });
+  });
   const arr = Object.values(map).map((p) => ({ ...p, pctOfSales: totalRevenue > 0 ? round2((p.revenue / totalRevenue) * 100) : 0 }));
   return { byRevenue: [...arr].sort((a, b) => b.revenue - a.revenue), byQty: [...arr].sort((a, b) => b.qty - a.qty) };
 }
@@ -9209,12 +9224,12 @@ function getProductPerformance(sales, range) {
 // exactly as stored; never hardcodes a channel/location list not present in the actual data. ----
 function groupSalesBy(sales, range, keyFn) {
   const inRange = filterSalesByRange(sales, range);
-  const totalRevenue = round2(inRange.reduce((a, s) => a + s.total, 0));
+  const totalRevenue = round2(inRange.reduce((a, s) => a + saleNetRevenue(s), 0));
   const map = {};
   inRange.forEach((s) => {
     const key = keyFn(s) || "—";
     if (!map[key]) map[key] = { key, revenue: 0, orders: 0 };
-    map[key].revenue = round2(map[key].revenue + s.total);
+    map[key].revenue = round2(map[key].revenue + saleNetRevenue(s));
     map[key].orders += 1;
   });
   return Object.values(map).map((g) => ({
@@ -9252,10 +9267,15 @@ function getCustomerAnalytics(customers, sales, range) {
     validSales.some((s) => s.customerId === cid && new Date(s.date).getTime() < range.start.getTime())
   );
   const anonymousSales = inRange.filter((s) => !s.customerId);
-  const customerRevenue = round2(inRange.filter((s) => s.customerId).reduce((a, s) => a + s.total, 0));
-  const anonymousRevenue = round2(anonymousSales.reduce((a, s) => a + s.total, 0));
+  const customerRevenue = round2(inRange.filter((s) => s.customerId).reduce((a, s) => a + saleNetRevenue(s), 0));
+  const anonymousRevenue = round2(anonymousSales.reduce((a, s) => a + saleNetRevenue(s), 0));
   const topCustomers = customerIdsInRange
-    .map((cid) => ({ customer: (customers || []).find((c) => c.id === cid), stats: getCustomerStats(cid, sales) }))
+    .map((cid) => {
+      const scopedSales = inRange.filter((sale) => sale.customerId === cid);
+      const totalSpent = round2(scopedSales.reduce((sum, sale) => sum + Number(sale.total || 0), 0));
+      const lastOrderDate = scopedSales.reduce((latest, sale) => !latest || new Date(sale.date) > new Date(latest) ? sale.date : latest, null);
+      return { customer: (customers || []).find((c) => c.id === cid), stats: { totalOrders: scopedSales.length, totalSpent, avgOrderValue: scopedSales.length ? round2(totalSpent / scopedSales.length) : 0, lastOrderDate } };
+    })
     .filter((r) => r.customer)
     .sort((a, b) => b.stats.totalSpent - a.stats.totalSpent)
     .slice(0, 10);
@@ -9331,10 +9351,16 @@ function getOrderAnalytics(sales, range) {
   const cancelled = inRangeAll.filter((s) => s.status === "cancelled").length;
   const completed = inRangeAll.filter((s) => s.status !== "cancelled" && (s.fulfillmentStatus || "Received") === "Completed").length;
 
-  const prepTimes = inRangeAll.filter((s) => s.productionStartedAt && s.readyAt).map((s) => (new Date(s.readyAt) - new Date(s.productionStartedAt)) / 60000);
+  const durationMinutes = (start, end) => {
+    const startMs = new Date(start).getTime();
+    const endMs = new Date(end).getTime();
+    return Number.isFinite(startMs) && Number.isFinite(endMs) && endMs >= startMs ? (endMs - startMs) / 60000 : null;
+  };
+  const operational = inRangeAll.filter((sale) => sale.status !== "cancelled");
+  const prepTimes = operational.map((sale) => durationMinutes(sale.productionStartedAt, sale.readyAt)).filter((minutes) => minutes !== null);
   const avgPrepMinutes = prepTimes.length > 0 ? round2(prepTimes.reduce((a, m) => a + m, 0) / prepTimes.length) : null;
 
-  const fulfillTimes = inRangeAll.filter((s) => s.completedAt).map((s) => (new Date(s.completedAt) - new Date(s.date)) / 60000);
+  const fulfillTimes = operational.map((sale) => durationMinutes(sale.date, sale.completedAt)).filter((minutes) => minutes !== null);
   const avgFulfillMinutes = fulfillTimes.length > 0 ? round2(fulfillTimes.reduce((a, m) => a + m, 0) / fulfillTimes.length) : null;
 
   const active = (sales || []).filter((s) => s.status !== "cancelled" && (s.fulfillmentStatus || "Completed") !== "Completed");
@@ -9493,7 +9519,7 @@ function getLaborSummary(employees, shifts, range) {
 function getEmployeePerformance(employeeId, sales, shifts, range) {
   const validSales = (sales || []).filter((s) => s.status !== "cancelled" && s.employeeId === employeeId && (!range || withinRange(s.date, range)));
   const salesCount = validSales.length;
-  const revenue = round2(validSales.reduce((a, s) => a + s.total, 0));
+  const revenue = round2(validSales.reduce((a, s) => a + saleNetRevenue(s), 0));
   const averageTicket = salesCount > 0 ? round2(revenue / salesCount) : null;
   const stats = getEmployeeShiftStats(employeeId, shifts, range);
   const workedHours = round2(stats.totalWorkedMinutes / 60);
@@ -9771,14 +9797,16 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
   const [productSort, setProductSort] = useState("revenue"); // "revenue" | "qty"
   const canFinance = can ? can("viewFinancials") : true;
 
-  const customRangeInvalid = rangeId === "custom" && customStart && customEnd && parseLocalDate(customStart).getTime() > parseLocalDate(customEnd).getTime();
+  const validDateInput = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && localDateStr(parseLocalDate(value)) === value;
+  const customRangeInvalid = rangeId === "custom" && (!validDateInput(customStart) || !validDateInput(customEnd) || parseLocalDate(customStart).getTime() > parseLocalDate(customEnd).getTime());
   const range = customRangeInvalid ? getDateRange("today") : getDateRange(rangeId, customStart, customEnd);
-  // Preserves the exact P&L formula already used (revenue/COGS/gross/net) — only the source
-  // range selection changed, never the accounting logic itself.
+  // P&L recognizes net sales before tax. Collected tax is shown separately because it is a
+  // liability, while COGS and operating expenses continue to drive gross and net profit.
   const rSales = filterSalesByRange(sales, range);
   const rExpenses = filterExpensesByRange(expenses, range);
 
-  const revenue = round2(rSales.reduce((a, s) => a + s.total, 0));
+  const revenue = round2(rSales.reduce((a, s) => a + saleNetRevenue(s), 0));
+  const taxCollected = round2(rSales.reduce((a, s) => a + (Number.isFinite(Number(s.tax)) ? Number(s.tax) : 0), 0));
   const cogs = round2(rSales.reduce((a, s) => a + s.items.reduce((x, i) => x + i.cost * i.qty, 0), 0));
   const grossProfit = round2(revenue - cogs);
   const grossMargin = revenue ? round2((grossProfit / revenue) * 100) : 0;
@@ -9816,7 +9844,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
   const exportCSV = () => {
     downloadCSV("nexalvo-pl-report.csv", ["Metric", "Value"], [
-      ["Revenue", revenue], ["COGS", cogs], ["Gross Profit", grossProfit], ["Gross Margin %", grossMargin],
+      ["Net Sales (excluding tax)", revenue], ["Tax Collected", taxCollected], ["COGS", cogs], ["Gross Profit", grossProfit], ["Gross Margin %", grossMargin],
       ["Operating Expenses", opEx], ["Net Profit", netProfit], ["Net Margin %", netMargin],
     ]);
     showToast("CSV exported");
@@ -9878,10 +9906,10 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
         </div>
       )}
       {customRangeInvalid && (
-        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI("Start date must be on or before end date. Showing Today until this is corrected.")}</div>
+        <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI("Enter valid start and end dates, with start on or before end. Showing Today until this is corrected.")}</div>
       )}
       <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-        {dateStr(range.start.toISOString())} – {dateStr(range.end.toISOString())}
+        {dateStrLocal(localDateStr(range.start))} – {dateStrLocal(localDateStr(range.end))}
       </div>
 
       <Card dark={dark} className="mb-4">
@@ -9917,7 +9945,8 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
       {canFinance && (
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Profit & Loss")}</div>
-        <Row dark={dark} label={translateUI("Revenue")} value={fmtMoney(revenue)} />
+        <Row dark={dark} label={translateUI("Net Sales (excluding tax)")} value={fmtMoney(revenue)} />
+        <Row dark={dark} label={translateUI("Tax Collected")} value={fmtMoney(taxCollected)} />
         <Row dark={dark} label={translateUI("Cost of Goods Sold")} value={`-${fmtMoney(cogs)}`} />
         <div className="h-px my-2" style={{ background: dark ? C.borderDark : C.borderLight }} />
         <Row dark={dark} label={translateUI("Gross Profit")} value={fmtMoney(grossProfit)} bold />
