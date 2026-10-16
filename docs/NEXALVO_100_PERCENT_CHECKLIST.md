@@ -111,6 +111,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Onboarding de empresa, usuários, localizações e configurações iniciais.
 - [ ] Planos, limites, assinatura, faturamento e inadimplência.
 - [ ] Administração SaaS e observabilidade sem acesso indevido a tenants.
+- [x] Fundação frontend da Administração Comercial separa SUPERADMIN de OWNER, confia somente em `app_metadata`, não enumera tenants pelo cliente público e exige Edge Function protegida para listagem e mutações confirmadas. Backend, auditoria persistente e regras comerciais permanecem pendentes. [Evidência](./QA_PLATFORM_ADMIN_FOUNDATION_20261016.md).
 - [ ] Suporte, logs, incidentes, monitoramento e alertas.
 - [ ] Privacidade, termos, documentação de uso e operação.
 - [ ] Piloto real supervisionado, correção de feedback e aceite final.

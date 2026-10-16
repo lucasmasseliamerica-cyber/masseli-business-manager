@@ -1733,14 +1733,14 @@ const authService = {
   async getSession() {
     const session = await supabaseAuth.restoreSession();
     if (!session?.user?.id) return null;
-    const profile = await loadAuthenticatedProfile(session.user.id);
+    const profile = await loadAuthenticatedProfile(session.user.id, session.user);
     return { userId: profile.id, profile, user: session.user };
   },
   async signIn(email, password) {
     const result = await supabaseAuth.signInWithPassword(email, password);
     if (!result.ok) return result;
     try {
-      const profile = await loadAuthenticatedProfile(result.user?.id);
+      const profile = await loadAuthenticatedProfile(result.user?.id, result.user);
       return { ...result, profile };
     } catch (e) {
       supabaseAuth.signOut();
@@ -2211,6 +2211,33 @@ async function callSupabaseFunction(functionName, payload = {}) {
   return body;
 }
 
+// The commercial control plane is intentionally exposed only through one server boundary. The
+// browser never queries all businesses through PostgREST and never receives a service-role key.
+// A missing function is a visible deployment prerequisite, not a reason to fall back to unsafe
+// client-side tenant enumeration.
+async function callPlatformAdmin(operation, payload = {}) {
+  const body = await callSupabaseFunction("platform-admin", { operation, ...payload });
+  if (!body || body.ok !== true) throw new Error(body?.error || "The platform administration request was not accepted.");
+  return body;
+}
+
+const PLATFORM_BUSINESS_STATUSES = new Set(["ACTIVE", "SUSPENDED"]);
+const PLATFORM_LICENSE_TYPES = new Set(["NONE", "TRIAL", "SUBSCRIPTION", "LIFETIME"]);
+function normalizePlatformBusiness(row) {
+  if (!row || typeof row.id !== "string" || !row.id || typeof row.name !== "string" || !row.name.trim()) return null;
+  const status = String(row.status || "ACTIVE").toUpperCase();
+  const licenseType = String(row.license_type || row.licenseType || "NONE").toUpperCase();
+  return {
+    id: row.id,
+    name: row.name.trim(),
+    status: PLATFORM_BUSINESS_STATUSES.has(status) ? status : "SUSPENDED",
+    licenseType: PLATFORM_LICENSE_TYPES.has(licenseType) ? licenseType : "NONE",
+    activeUsers: Math.max(0, Number.isFinite(Number(row.active_users ?? row.activeUsers)) ? Math.trunc(Number(row.active_users ?? row.activeUsers)) : 0),
+    createdAt: row.created_at || row.createdAt || null,
+    licensedAt: row.licensed_at || row.licensedAt || null,
+  };
+}
+
 function useSupabaseUsers(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
@@ -2263,13 +2290,25 @@ function appUserFromDb(row) {
   };
 }
 
-async function loadAuthenticatedProfile(userId) {
+const PLATFORM_ADMIN_ROLE = "SUPERADMIN";
+
+// Platform access is deliberately separate from the tenant role stored in public.users. Supabase
+// app_metadata is written by trusted server-side administration, while user_metadata can be
+// changed by the user and is therefore never considered here. This flag only controls whether the
+// navigation surface is shown; the platform-admin Edge Function must independently verify the
+// signed JWT claim on every request.
+function platformRoleFromAuthUser(authUser) {
+  return authUser?.app_metadata?.nexalvo_platform_role === PLATFORM_ADMIN_ROLE ? PLATFORM_ADMIN_ROLE : null;
+}
+function isPlatformAdmin(user) { return user?.platformRole === PLATFORM_ADMIN_ROLE; }
+
+async function loadAuthenticatedProfile(userId, authUser = null) {
   if (!userId) throw new Error("Authenticated user ID is missing.");
   const rows = await supabaseRest.select("users", `select=id,business_id,employee_id,name,username,role,permission_overrides,active&id=eq.${encodeURIComponent(userId)}&limit=1`);
   const row = rows?.[0];
   if (!row) throw new Error("Your login exists in Supabase Auth, but no NEXALVO user profile was found for it.");
   if (row.active === false) throw new Error("This NEXALVO account is inactive.");
-  return appUserFromDb(row);
+  return { ...appUserFromDb(row), platformRole: platformRoleFromAuthUser(authUser) };
 }
 
 
@@ -3688,6 +3727,7 @@ const NAV = [
   { id: "employees", label: "Employees", icon: UserCog },
   { id: "reports", label: "Reports", icon: BarChart2 },
   { id: "settings", label: "Settings", icon: SettingsIcon },
+  { id: "platform", label: "Platform Admin", icon: ShieldAlert },
 ];
 const MOBILE_MAIN = ["dashboard", "orders", "sales", "inventory"];
 // null = every logged-in user can open the tab (individual actions inside are still permission-gated).
@@ -3701,6 +3741,7 @@ const NAV_PERMISSION = {
   // gated by viewFinancials / manageUsers within EmployeesView and SimpleCrudView.
   reports: "viewReports",
   settings: (u) => true, // Settings tab always opens; sensitive sections inside are gated individually.
+  platform: (u) => isPlatformAdmin(u),
 };
 function navAllowed(user, tabId) {
   const rule = NAV_PERMISSION[tabId];
@@ -4004,6 +4045,7 @@ function AppBody() {
             {tab === "employees" && (navAllowed(currentUser, "employees") ? <EmployeesView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "reports" && (navAllowed(currentUser, "reports") ? <ReportsView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "settings" && <SettingsView {...ctx} settingsUnavailable={settings === null} onLogout={logout} />}
+            {tab === "platform" && (navAllowed(currentUser, "platform") ? <PlatformAdminView dark={dark} currentUser={currentUser} showToast={showToast} /> : <RestrictedView dark={dark} />)}
           </div>
         </main>
       </div>
@@ -10194,6 +10236,125 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
             ));
           })()}
         </Card>
+      )}
+    </div>
+  );
+}
+
+/* ============================== PLATFORM ADMINISTRATION ============================== */
+
+function PlatformAdminView({ dark, currentUser, showToast }) {
+  const { translateUI } = useLanguage();
+  const [businesses, setBusinesses] = useState([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [pendingAction, setPendingAction] = useState(null);
+
+  const loadBusinesses = useCallback(async () => {
+    setLoading(true); setError("");
+    try {
+      const response = await callPlatformAdmin("list_businesses");
+      if (!Array.isArray(response.businesses)) throw new Error("The platform service returned an invalid business list.");
+      setBusinesses(response.businesses.map(normalizePlatformBusiness).filter(Boolean));
+    } catch (e) {
+      setBusinesses([]);
+      setError(e?.message || "Platform administration is currently unavailable.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadBusinesses(); }, [loadBusinesses]);
+
+  if (!isPlatformAdmin(currentUser)) return <RestrictedView dark={dark} />;
+
+  const filtered = businesses.filter((business) => {
+    const needle = query.trim().toLowerCase();
+    return !needle || business.name.toLowerCase().includes(needle) || business.id.toLowerCase().includes(needle);
+  });
+  const lifetimeCount = businesses.filter((business) => business.licenseType === "LIFETIME").length;
+  const suspendedCount = businesses.filter((business) => business.status === "SUSPENDED").length;
+
+  const applyAction = async () => {
+    const action = pendingAction;
+    if (!action) return;
+    try {
+      if (action.type === "lifetime") {
+        await callPlatformAdmin("grant_lifetime_license", { business_id: action.business.id });
+        showToast("Lifetime license granted");
+      } else {
+        await callPlatformAdmin("update_business_status", { business_id: action.business.id, status: action.nextStatus });
+        showToast(action.nextStatus === "ACTIVE" ? "Business activated" : "Business suspended");
+      }
+      setPendingAction(null);
+      await loadBusinesses();
+    } catch (e) {
+      setPendingAction(null);
+      showToast(e?.message || "The platform action failed.", "danger");
+    }
+  };
+
+  return (
+    <div className="pb-6">
+      <SectionHeader dark={dark} title={translateUI("Platform Administration")} sub={translateUI("Commercial licenses and business access")} action={<GhostButton dark={dark} disabled={loading} onClick={loadBusinesses}>{loading ? translateUI("Loading…") : translateUI("Refresh")}</GhostButton>} />
+
+      <div className="mb-4 px-4 py-3 rounded-2xl text-xs" style={{ background: dark ? C.surfaceDark : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}`, color: dark ? C.textMutedDark : C.textMutedLight }}>
+        {translateUI("Platform access is separate from tenant Owner access. Every action is re-authorized and audited by the platform administration service.")}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <StatCard dark={dark} label="Businesses" value={businesses.length} icon={Users} accent={C.purpleGlow} />
+        <StatCard dark={dark} label="Lifetime licenses" value={lifetimeCount} icon={Check} accent={C.lime} />
+        <StatCard dark={dark} label="Suspended" value={suspendedCount} icon={Lock} accent="#FF6B85" />
+      </div>
+
+      {error && (
+        <div role="alert" className="mb-4 px-4 py-3 rounded-2xl text-xs font-semibold" style={{ background: "#3A0F1E", color: "#FF6B85", border: "1px solid #FF6B85" }}>
+          <div className="font-bold mb-1">{translateUI("Platform service unavailable")}</div>
+          <div>{translateUI(error)}</div>
+          <div className="mt-2 font-normal">{translateUI("No tenant data was loaded through the public client. Deploy and configure the protected platform-admin service before using this panel.")}</div>
+        </div>
+      )}
+
+      <Field dark={dark} label={translateUI("Search businesses")}>
+        <Input dark={dark} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translateUI("Business name or ID")} />
+      </Field>
+
+      {!loading && !error && filtered.length === 0 ? (
+        <Card dark={dark}><EmptyState dark={dark} title={query ? "No matching businesses" : "No businesses returned"} /></Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {filtered.map((business) => (
+            <Card key={business.id} dark={dark}>
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-bold text-sm break-words" style={{ color: dark ? C.white : C.black }}>{business.name}</div>
+                  <div className="text-xs break-all mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{business.id}</div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Badge dark={dark} tone={business.status === "ACTIVE" ? "good" : "danger"}>{business.status}</Badge>
+                    <Badge dark={dark} tone={business.licenseType === "LIFETIME" ? "good" : "warn"}>{business.licenseType}</Badge>
+                    <Badge dark={dark}>{business.activeUsers} {translateUI("active users")}</Badge>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+                  {business.licenseType !== "LIFETIME" && <GhostButton dark={dark} onClick={() => setPendingAction({ type: "lifetime", business })}>{translateUI("Grant lifetime")}</GhostButton>}
+                  <GhostButton dark={dark} onClick={() => setPendingAction({ type: "status", business, nextStatus: business.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE" })}>
+                    {business.status === "ACTIVE" ? translateUI("Suspend") : translateUI("Activate")}
+                  </GhostButton>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {pendingAction && (
+        <ConfirmDialog dark={dark} danger={pendingAction.type !== "lifetime" || pendingAction.nextStatus === "SUSPENDED"}
+          title={pendingAction.type === "lifetime" ? translateUI("Grant lifetime license?") : translateUI(pendingAction.nextStatus === "ACTIVE" ? "Activate this business?" : "Suspend this business?")}
+          message={pendingAction.type === "lifetime" ? `Grant a lifetime license to ${pendingAction.business.name}? The platform service will record the administrator and timestamp.` : `${pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend"} ${pendingAction.business.name}? The platform service will audit this change.`}
+          confirmLabel={translateUI(pendingAction.type === "lifetime" ? "Grant lifetime" : pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend")}
+          onConfirm={applyAction} onCancel={() => setPendingAction(null)} />
       )}
     </div>
   );
