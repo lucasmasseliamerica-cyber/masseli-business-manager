@@ -1188,6 +1188,26 @@ function findDuplicateCustomer(customers, { name, phone, email }) {
   return null;
 }
 
+function validateCustomerProfile(customers, { customerId = null, name, phone, email, birthday }) {
+  const trimmedName = (name || "").trim();
+  const trimmedPhone = (phone || "").trim();
+  const trimmedEmail = (email || "").trim();
+  const trimmedBirthday = (birthday || "").trim();
+  if (!trimmedName) return { success: false, error: "Enter a name." };
+  if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) return { success: false, error: "Enter a valid email address." };
+  const phoneDigits = normalizePhone(trimmedPhone);
+  if (trimmedPhone && (phoneDigits.length < 7 || phoneDigits.length > 15)) return { success: false, error: "Enter a valid phone number with 7 to 15 digits." };
+  const birthdayDate = trimmedBirthday ? new Date(`${trimmedBirthday}T00:00:00Z`) : null;
+  if (trimmedBirthday && (!/^\d{4}-\d{2}-\d{2}$/.test(trimmedBirthday) || Number.isNaN(birthdayDate.getTime()) || birthdayDate.toISOString().slice(0, 10) !== trimmedBirthday || trimmedBirthday > todayStr())) {
+    return { success: false, error: "Enter a valid birthday that is not in the future." };
+  }
+  const duplicate = findDuplicateCustomer((customers || []).filter((candidate) => candidate.id !== customerId), { name: trimmedName, phone: trimmedPhone, email: trimmedEmail });
+  if (duplicate?.matchType === "phone" || duplicate?.matchType === "email") {
+    return { success: false, error: `Another active customer already uses this ${duplicate.matchType}.` };
+  }
+  return { success: true, values: { name: trimmedName, phone: trimmedPhone, email: trimmedEmail, birthday: trimmedBirthday } };
+}
+
 function searchCustomers(customers, query) {
   const list = (customers || []).filter((c) => c.active !== false);
   const q = (query || "").trim().toLowerCase();
@@ -1213,13 +1233,13 @@ function getCustomerStats(customerId, sales) {
 
 async function createCustomer({ name, phone, email, birthday, notes }, ctx) {
   const { customers, setCustomers, currentUser, auditLog, setAuditLog } = ctx;
-  const trimmedName = (name || "").trim();
-  if (!trimmedName) return { success: false, error: "Enter a name." };
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return { success: false, error: "Enter a valid email address." };
+  const validation = validateCustomerProfile(customers, { name, phone, email, birthday });
+  if (!validation.success) return validation;
+  const values = validation.values;
   const now = nowISO();
-  const customer = { id: newDbId(), name: trimmedName, phone: (phone || "").trim(), email: (email || "").trim(), birthday: birthday || "", notes: notes || "", active: true, createdAt: now, updatedAt: now };
+  const customer = { id: newDbId(), ...values, notes: (notes || "").trim(), active: true, createdAt: now, updatedAt: now };
   await setCustomers([customer, ...customers]);
-  await logAudit(auditLog, setAuditLog, currentUser, "Customer Created", trimmedName);
+  await logAudit(auditLog, setAuditLog, currentUser, "Customer Created", customer.name);
   return { success: true, customer };
 }
 
@@ -1227,11 +1247,15 @@ async function updateCustomer(customerId, patch, ctx) {
   const { customers, setCustomers, currentUser, auditLog, setAuditLog } = ctx;
   const existing = customers.find((c) => c.id === customerId);
   if (!existing) return { success: false, error: "Customer not found." };
-  const name = (patch.name ?? existing.name ?? "").trim();
-  const email = (patch.email ?? existing.email ?? "").trim();
-  if (!name) return { success: false, error: "Enter a name." };
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { success: false, error: "Enter a valid email address." };
-  const updated = { ...existing, name, phone: (patch.phone ?? existing.phone ?? "").trim(), email, birthday: patch.birthday ?? existing.birthday, notes: patch.notes ?? existing.notes, updatedAt: nowISO() };
+  const validation = validateCustomerProfile(customers, {
+    customerId,
+    name: patch.name ?? existing.name,
+    phone: patch.phone ?? existing.phone,
+    email: patch.email ?? existing.email,
+    birthday: patch.birthday ?? existing.birthday,
+  });
+  if (!validation.success) return validation;
+  const updated = { ...existing, ...validation.values, notes: (patch.notes ?? existing.notes ?? "").trim(), updatedAt: nowISO() };
   await setCustomers(customers.map((c) => (c.id === customerId ? updated : c)));
   await logAudit(auditLog, setAuditLog, currentUser, "Customer Updated", updated.name);
   return { success: true, customer: updated };
@@ -1251,6 +1275,8 @@ async function restoreCustomer(customerId, ctx) {
   const { customers, setCustomers, currentUser, auditLog, setAuditLog } = ctx;
   const existing = customers.find((c) => c.id === customerId);
   if (!existing) return { success: false, error: "Customer not found." };
+  const validation = validateCustomerProfile(customers, { customerId, name: existing.name, phone: existing.phone, email: existing.email, birthday: existing.birthday });
+  if (!validation.success) return validation;
   await setCustomers(customers.map((c) => (c.id === customerId ? { ...c, active: true, updatedAt: nowISO() } : c)));
   await logAudit(auditLog, setAuditLog, currentUser, "Customer Restored", existing.name);
   return { success: true };
@@ -8351,20 +8377,28 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
 
   const doArchive = async () => {
     if (submitting) return;
+    if (!canManage) { setError("You don't have permission to manage customers."); return; }
     setSubmitting(true);
     try {
       const r = await archiveCustomer(customer.id, { customers, setCustomers, currentUser, auditLog, setAuditLog });
       if (r.success) { showToast("Customer archived"); onClose(); }
+      else setError(r.error);
+    } catch (e) {
+      setError(e?.message || "Unable to archive customer.");
     } finally {
       setSubmitting(false);
     }
   };
   const doRestore = async () => {
     if (submitting) return;
+    if (!canManage) { setError("You don't have permission to manage customers."); return; }
     setSubmitting(true);
     try {
       const r = await restoreCustomer(customer.id, { customers, setCustomers, currentUser, auditLog, setAuditLog });
       if (r.success) showToast("Customer restored");
+      else setError(r.error);
+    } catch (e) {
+      setError(e?.message || "Unable to restore customer.");
     } finally {
       setSubmitting(false);
     }
@@ -8409,9 +8443,9 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
           <div key={s.id} className="py-2 border-b last:border-b-0 cursor-pointer flex items-center justify-between" style={{ borderColor: dark ? C.borderDark : C.borderLight }} onClick={() => setViewingSale(s)}>
             <div>
               <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Order #")}{s.orderNo} {s.status === "cancelled" && <span style={{ color: "#FF6B85" }}>{translateUI("· CANCELLED")}</span>}</div>
-              <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(s.date)} · {s.location || "—"} · {translateUI(s.paymentMethod)}</div>
+              <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(s.date)} · {s.location || "—"}{can("viewFinancials") ? ` · ${translateUI(s.paymentMethod)}` : ""}</div>
             </div>
-            <div className="text-sm font-bold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(s.total)}</div>
+            {can("viewFinancials") && <div className="text-sm font-bold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(s.total)}</div>}
           </div>
         ))}
       </Card>

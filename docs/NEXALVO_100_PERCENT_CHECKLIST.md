@@ -94,7 +94,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 ## M8 — P1 Cadastros, operação e UX (aberto)
 - [ ] Produtos: criação, edição, desativação, foto, SKU, preço, receita, custos e duplicidades.
 - [x] Cadastro/edição preserva e valida URL HTTPS da foto, mostra prévia e persiste `image_url` pelo RPC existente; lista e PDV exibem a imagem com placeholder em erro. Upload binário/Storage permanece pendente.
-- [ ] Clientes: ação editar, nome, telefone, e-mail, notas, validação e histórico.
+- [x] Clientes: criação/edição de nome, telefone, e-mail, aniversário e notas compartilham validação; contatos duplicados são bloqueados, histórico permanece vinculado e valores exigem `viewFinancials`. **7/7 regressões locais** e build aprovados. [Evidência](./QA_CUSTOMER_USABILITY_20261015.md). Persistência autenticada e perfis reais continuam na homologação pendente.
 - [x] Fornecedores: formulário de criação/edição valida duplicidade de nome/e-mail e site, normaliza campos, desativa quando há histórico e trata falhas de exclusão/alteração; valores históricos exigem `viewFinancials`. [Evidência](./QA_PURCHASE_SUPPLIER_USABILITY_20261015.md). Persistência real e matriz MANAGER/EMPLOYEE permanecem pendentes.
 - [ ] Funcionários: convite, perfis, permissões, ponto, pausas e desligamento.
 - [ ] Tarefas: criação, atribuição, status, conclusão, edição e permissões.
