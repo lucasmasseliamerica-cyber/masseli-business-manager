@@ -8381,6 +8381,18 @@ function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentU
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("active");
+
+  const normalizedQuery = normalizeCatalogSearch(query);
+  const visibleSuppliers = suppliers.filter((supplier) => {
+    const active = supplier.active !== false;
+    if (statusFilter === "active" && !active) return false;
+    if (statusFilter === "inactive" && active) return false;
+    if (!normalizedQuery) return true;
+    return [supplier.name, supplier.contact, supplier.phone, supplier.email, supplier.products]
+      .some((value) => normalizeCatalogSearch(value).includes(normalizedQuery));
+  });
 
   const supplierStats = (s) => {
     const pos = purchaseOrders.filter((po) => po.supplierId === s.id && !["Cancelled", "Reversed"].includes(po.status));
@@ -8394,8 +8406,19 @@ function SuppliersView({ dark, suppliers, setSuppliers, purchaseOrders, currentU
   return (
     <div className="pb-6">
       <SectionHeader dark={dark} title={translateUI("Suppliers")} sub={interpolateUI("{0} on file",[suppliers.length])} action={can("manageSuppliers") ? <PrimaryButton onClick={openNew}><Plus size={16} />{" "}{translateUI("Add")}</PrimaryButton> : null} />
+      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_180px] gap-2 mb-3">
+        <div className="relative">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" color={dark ? C.textMutedDark : C.textMutedLight} />
+          <Input dark={dark} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={translateUI("Search suppliers…")} style={{ paddingLeft: 36 }} />
+        </div>
+        <Select dark={dark} value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label={translateUI("Supplier status")}>
+          <option value="active">{translateUI("Active suppliers")}</option>
+          <option value="inactive">{translateUI("Inactive suppliers")}</option>
+          <option value="all">{translateUI("All suppliers")}</option>
+        </Select>
+      </div>
       <Card dark={dark}>
-        {suppliers.length === 0 ? <EmptyState dark={dark} title={translateUI("No suppliers yet")} /> : suppliers.map((s) => {
+        {visibleSuppliers.length === 0 ? <EmptyState dark={dark} title={translateUI(suppliers.length === 0 ? "No suppliers yet" : "No suppliers match these filters")} /> : visibleSuppliers.map((s) => {
           const stats = supplierStats(s);
           return (
             <ListRow key={s.id} dark={dark} onClick={() => setViewing(s)}

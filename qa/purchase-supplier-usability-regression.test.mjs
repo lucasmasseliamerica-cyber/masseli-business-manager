@@ -16,6 +16,7 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
   const purchases = section(source, 'function PurchasesView(', 'function NewPurchaseModal(');
   const newPurchase = section(source, 'function NewPurchaseModal(', 'function PurchaseDetailModal(');
   const purchaseDetail = section(source, 'function PurchaseDetailModal(', 'function ReceivePurchaseModal(');
+  const suppliers = section(source, 'function SuppliersView(', 'function SupplierFormModal(');
   const supplierForm = section(source, 'function SupplierFormModal(', 'function SupplierDetailModal(');
   const supplierDetail = section(source, 'function SupplierDetailModal(', 'function CustomerCreateModal(');
 
@@ -52,6 +53,17 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(supplierForm, /new URL\(form\.website\.trim\(\)\)/);
     assert.match(supplierForm, /\["http:", "https:"\]\.includes/);
     assert.match(supplierForm, /Object\.fromEntries\(\["name", "contact", "phone", "email"/);
+  });
+
+  test(`${label}: supplier catalog supports normalized search and status filters`, () => {
+    assert.match(suppliers, /const \[query, setQuery\] = useState\(""\)/);
+    assert.match(suppliers, /const \[statusFilter, setStatusFilter\] = useState\("active"\)/);
+    assert.match(suppliers, /normalizeCatalogSearch\(query\)/);
+    assert.match(suppliers, /supplier\.name, supplier\.contact, supplier\.phone, supplier\.email, supplier\.products/);
+    assert.match(suppliers, /value="inactive"/);
+    assert.match(suppliers, /value="all"/);
+    assert.match(suppliers, /visibleSuppliers\.map/);
+    assert.match(suppliers, /No suppliers match these filters/);
   });
 
   test(`${label}: supplier financial history is permission-gated and mutations report failure`, () => {
