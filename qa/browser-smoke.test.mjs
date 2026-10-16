@@ -186,6 +186,9 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     const onRequest=req=>{if(req.method()==='POST'&&req.url().includes('/rest/v1/rpc/fn_create_sale'))writes++;};
     page.on('request',onRequest);
     try{
+      // The POS starts with an empty cart. Add one valid line so this test reaches the discount
+      // boundary instead of correctly stopping at the earlier "Add at least one product" guard.
+      await page.getByText('+ Add another product',{exact:true}).first().click();
       await page.getByText('Discount ($)',{exact:true}).locator('..').locator('input').fill('999999999');
       await page.getByText(/Complete Sale|Charge Card/i).last().click();
       await page.getByText(/Discount can't make the sale total negative/i).first().waitFor({timeout:12000});
@@ -269,7 +272,7 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
     try{
       await page.getByText('+ Add another item',{exact:true}).first().click();
       await page.getByText('Save as Draft',{exact:true}).first().click();
-      await page.getByText(/Select a supplier|same inventory item can't appear more than once on a purchase order/i).first().waitFor({timeout:12000});
+      await page.getByText(/Select an active supplier|same inventory item can't appear more than once on a purchase order/i).first().waitFor({timeout:12000});
       assert.equal(writes,0,'Missing supplier or duplicate lines must not create a PO');
     }finally{
       page.off('request',onRequest);

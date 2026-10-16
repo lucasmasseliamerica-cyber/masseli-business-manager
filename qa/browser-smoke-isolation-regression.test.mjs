@@ -34,3 +34,11 @@ test('browser smoke remains authenticated and persistent purchases stay absent',
  assert.match(source,/QA_TWO_TENANT_B_PASSWORD/);
  assert.doesNotMatch(source,/p0-purchase-browser-persistent\.TEST/);
 });
+
+test('boundary scenarios satisfy earlier guards before testing their intended rule',()=>{
+ const saleStart=source.indexOf("P0.03 UI sale rejects discount greater than subtotal without write RPC");
+ const saleEnd=source.indexOf("P0.04 UI inventory form rejects unnamed",saleStart);
+ const sale=source.slice(saleStart,saleEnd);
+ assert.ok(sale.indexOf("+ Add another product")<sale.indexOf("Discount ($)"),'sale must add a line before testing discount');
+ assert.match(source,/Select an active supplier\|same inventory item can't appear more than once/);
+});
