@@ -3459,7 +3459,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, dark }) {
         <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI(label)}</span>
         {Icon && <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: accent + "22" }}><Icon size={16} color={accent} /></div>}
       </div>
-      <div className="text-2xl font-extrabold truncate" style={{ color: dark ? C.white : C.black }}>{value}</div>
+      <div className="text-2xl font-extrabold break-words" style={{ color: dark ? C.white : C.black }}>{value}</div>
       {sub && <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{sub}</div>}
     </Card>
   );
@@ -3467,20 +3467,30 @@ function StatCard({ label, value, sub, icon: Icon, accent, dark }) {
 
 function Modal({ title, onClose, children, dark, wide }) {
   const { translateUI } = useLanguage();
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className={`w-full ${wide ? "md:max-w-2xl" : "md:max-w-md"} max-h-[92vh] overflow-y-auto rounded-t-3xl md:rounded-3xl p-5`}
-        style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}
+        role="dialog"
+        aria-modal="true"
+        aria-label={translateUI(title)}
+        className={`w-full ${wide ? "md:max-w-2xl" : "md:max-w-md"} max-h-[100dvh] md:max-h-[92dvh] overflow-hidden rounded-t-3xl md:rounded-3xl flex flex-col`}
+        style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}`, overscrollBehavior: "contain" }}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: dark ? "#2A1B44" : "#EFE9FA" }}>
+        <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3 shrink-0" style={{ background: dark ? C.surfaceDark2 : C.surfaceLight }}>
+          <h3 className="text-lg font-bold min-w-0 break-words" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</h3>
+          <button type="button" aria-label={translateUI("Close")} onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: dark ? "#2A1B44" : "#EFE9FA" }}>
             <X size={16} color={dark ? C.white : C.black} />
           </button>
         </div>
-        {children}
+        <div className="overflow-y-auto px-5 pb-6 min-h-0" style={{ WebkitOverflowScrolling: "touch", paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}>
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -3563,13 +3573,13 @@ function ConfirmDialog({ title, message, confirmLabel = "Confirm", danger = true
   };
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.65)" }} onClick={onCancel}>
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-3xl p-5"
+      <div onClick={(e) => e.stopPropagation()} role="alertdialog" aria-modal="true" aria-label={translateUI(title)} className="w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl p-5"
         style={{ background: dark ? C.surfaceDark2 : C.surfaceLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
         <div className="flex items-center gap-2 mb-2">
           <AlertTriangle size={18} color={danger ? "#FF6B85" : C.yellow} />
           <h3 className="text-base font-bold" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</h3>
         </div>
-        {message && <p className="text-sm mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{message}</p>}
+        {message && <p className="text-sm mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{typeof message === "string" ? translateUI(message) : message}</p>}
         <div className="flex gap-2">
           <GhostButton dark={dark} onClick={onCancel} style={{ flex: 1 }}>{translateUI("Cancel")}</GhostButton>
           <button onClick={run} disabled={busy} className="flex-1 font-bold rounded-2xl px-4 py-3 flex items-center justify-center gap-2"
@@ -3594,6 +3604,8 @@ function Field({ label, children, dark }) {
 
 const inputStyle = (dark) => ({
   width: "100%",
+  minWidth: 0,
+  boxSizing: "border-box",
   padding: "10px 12px",
   borderRadius: "12px",
   background: dark ? C.surfaceDark : C.bgLight,
@@ -3607,7 +3619,7 @@ const Input = ({ dark, style, ...props }) => {
   const { translateUI } = useLanguage();
   return <input {...props} placeholder={translateUI(props.placeholder)} style={{ ...inputStyle(dark), ...(style || {}) }} />;
 };
-const Select = ({ dark, children, ...props }) => <select {...props} style={inputStyle(dark)}>{children}</select>;
+const Select = ({ dark, children, style, ...props }) => <select {...props} style={{ ...inputStyle(dark), ...(style || {}) }}>{children}</select>;
 const TextArea = ({ dark, style, ...props }) => <textarea {...props} style={{ ...inputStyle(dark), minHeight: 70, ...(style || {}) }} />;
 
 function PrimaryButton({ children, onClick, full, style, disabled, type = "button" }) {
@@ -3624,11 +3636,11 @@ function PrimaryButton({ children, onClick, full, style, disabled, type = "butto
     </button>
   );
 }
-function GhostButton({ children, onClick, dark, style }) {
+function GhostButton({ children, onClick, dark, style, disabled = false, full = false, type = "button" }) {
   const { translateUI } = useLanguage();
   return (
-    <button onClick={onClick} className="font-semibold rounded-2xl px-4 py-3 flex items-center justify-center gap-2"
-      style={{ background: "transparent", border: `1px solid ${dark ? C.borderDark : C.borderLight}`, color: dark ? C.white : C.black, ...style }}>
+    <button type={type} disabled={disabled} onClick={onClick} className={`font-semibold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 ${full ? "w-full" : ""}`}
+      style={{ background: "transparent", border: `1px solid ${dark ? C.borderDark : C.borderLight}`, color: dark ? C.white : C.black, opacity: disabled ? 0.55 : 1, cursor: disabled ? "not-allowed" : "pointer", ...style }}>
       {typeof children === "string" ? translateUI(children) : children}
     </button>
   );
@@ -3639,7 +3651,7 @@ function EmptyState({ title, sub, dark }) {
   return (
     <div className="text-center py-10">
       <div className="text-sm font-bold mb-1" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</div>
-      {sub && <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{sub}</div>}
+      {sub && <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{typeof sub === "string" ? translateUI(sub) : sub}</div>}
     </div>
   );
 }
@@ -3649,12 +3661,12 @@ function ListRow({ title, subtitle, right, rightSub, badge, dark, onClick }) {
   return (
     <div onClick={onClick} className="flex items-center justify-between py-3 border-b last:border-b-0 gap-3" style={{ borderColor: dark ? C.borderDark : C.borderLight, cursor: onClick ? "pointer" : "default" }}>
       <div className="min-w-0">
-        <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</div>
-        {subtitle && <div className="text-xs truncate" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{subtitle}</div>}
+        <div className="font-semibold text-sm break-words" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</div>
+        {subtitle && <div className="text-xs break-words" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{subtitle}</div>}
         {badge}
       </div>
       <div className="text-right shrink-0">
-        {right && <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{right}</div>}
+        {right !== undefined && right !== null && right !== "" && <div className="font-bold text-sm break-words" style={{ color: dark ? C.white : C.black }}>{right}</div>}
         {rightSub && <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{rightSub}</div>}
       </div>
     </div>
@@ -3956,7 +3968,7 @@ function AppBody() {
     <div className="min-h-screen w-full" style={{ background: bg, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div className="flex">
         {/* Sidebar (desktop) */}
-        <aside className="hidden md:flex flex-col w-64 shrink-0 min-h-screen sticky top-0 p-4 gap-1" style={{ borderRight: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
+        <aside className="hidden md:flex flex-col w-64 shrink-0 h-screen overflow-y-auto sticky top-0 p-4 gap-1" style={{ borderRight: `1px solid ${dark ? C.borderDark : C.borderLight}`, overscrollBehavior: "contain" }}>
           <BrandHeader dark={dark} settings={displaySettings} />
           <LanguageSelector dark={dark} />
           <div className="mt-4 flex flex-col gap-1">
@@ -3997,7 +4009,7 @@ function AppBody() {
       </div>
 
       {/* Bottom nav (mobile) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-3">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 px-3" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
         <div className="rounded-3xl flex items-center justify-between px-2 py-2" style={{ background: dark ? C.surfaceDark2 : C.white, border: `1px solid ${dark ? C.borderDark : C.borderLight}`, boxShadow: "0 10px 30px rgba(0,0,0,0.35)" }}>
           {MOBILE_MAIN.map((id) => {
             const n = NAV.find((x) => x.id === id);
@@ -4019,14 +4031,14 @@ function AppBody() {
 
       {moreOpen && (
         <Modal title={translateUI("All sections")} onClose={() => setMoreOpen(false)} dark={dark}>
-          <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-3">
             {visibleNav.map((n) => {
               const Icon = n.icon;
               return (
-                <button key={n.id} onClick={() => { setTab(n.id); setMoreOpen(false); }} className="flex flex-col items-center gap-2 p-3 rounded-2xl"
+                <button key={n.id} onClick={() => { setTab(n.id); setMoreOpen(false); }} className="min-w-0 flex flex-col items-center gap-2 p-3 rounded-2xl"
                   style={{ background: dark ? C.surfaceDark : C.bgLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
                   <Icon size={20} color={tab === n.id ? C.lime : (dark ? C.white : C.black)} />
-                  <span className="text-[11px] font-semibold text-center" style={{ color: dark ? C.white : C.black }}>{translateUI(n.label)}</span>
+                  <span className="text-[11px] font-semibold text-center break-words w-full" style={{ color: dark ? C.white : C.black }}>{translateUI(n.label)}</span>
                 </button>
               );
             })}
@@ -4037,8 +4049,8 @@ function AppBody() {
       )}
 
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-3 rounded-2xl font-semibold text-sm shadow-lg"
-          style={{ background: toast.tone === "danger" ? "#FF4D6D" : C.lime, color: C.black }}>
+        <div role="status" aria-live="polite" className="fixed left-1/2 -translate-x-1/2 z-[70] px-4 py-3 rounded-2xl font-semibold text-sm shadow-lg text-center max-w-[calc(100vw-2rem)]"
+          style={{ top: "max(1rem, env(safe-area-inset-top))", background: toast.tone === "danger" ? "#FF4D6D" : C.lime, color: C.black }}>
           {translateUI(toast.msg)}
         </div>
       )}
@@ -4740,7 +4752,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
           <StatCard dark={dark} label={translateUI("Avg. Ticket")} value={fmtMoney(avgTicket)} sub={translateUI("Per order")} icon={BarChart2} accent={C.yellow} />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <StatCard dark={dark} label={translateUI("Orders Today")} value={orders} icon={ShoppingCart} accent={C.lime} />
           <StatCard dark={dark} label={translateUI("Low Stock Items")} value={lowStock.length} icon={AlertTriangle} accent={C.yellow} />
         </div>
@@ -4763,7 +4775,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
               <Badge dark={dark} tone={activeRegister ? "good" : "danger"}>{activeRegister ? translateUI("ACTIVE") : translateUI("CLOSED")}</Badge>
             </div>
             {activeRegister && canFinance && (
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <div>
                   <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("EXPECTED CASH")}</div>
                   <div className="text-sm font-extrabold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(expected)}</div>
@@ -4785,7 +4797,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
         );
       })()}
 
-      <div className="grid grid-cols-4 gap-2 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-5">
         {quickActions.map((a) => (
           <button key={a.label} onClick={() => setTab(a.tab)} className="flex flex-col items-center gap-1.5 py-3 rounded-2xl"
             style={{ background: dark ? C.surfaceDark : C.white, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
@@ -4810,7 +4822,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
         if (newCustomersToday === 0 && returningToday === 0 && pointsRedeemedToday === 0) return null; // keep the dashboard uncluttered on a quiet day
         return (
           <Card dark={dark} className="mb-4">
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("NEW CUSTOMERS TODAY")}</div>
                 <div className="text-sm font-extrabold" style={{ color: dark ? C.white : C.black }}>{newCustomersToday}</div>
@@ -4836,7 +4848,7 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
         return (
           <Card dark={dark} className="mb-4">
             <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Labor Today")}</div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
                 <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("CLOCKED IN")}</div>
                 <div className="text-sm font-extrabold" style={{ color: dark ? C.white : C.black }}>{laborToday.employeesClockedIn}</div>
@@ -5049,12 +5061,12 @@ function Dashboard({ dark, sales, cashTx, persistCash, expenses, products, inven
 function SectionHeader({ dark, title, sub, action }) {
   const { translateUI } = useLanguage();
   return (
-    <div className="flex items-center justify-between mb-4">
-      <div>
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div className="min-w-0">
         <h1 className="text-xl font-extrabold" style={{ color: dark ? C.white : C.black }}>{translateUI(title)}</h1>
-        {sub && <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{sub}</div>}
+        {sub && <div className="text-xs break-words" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{typeof sub === "string" ? translateUI(sub) : sub}</div>}
       </div>
-      {action}
+      {action && <div className="w-full sm:w-auto shrink-0 [&>button]:w-full sm:[&>button]:w-auto">{action}</div>}
     </div>
   );
 }
@@ -5171,7 +5183,7 @@ function OrdersView({ dark, sales, persistSales, customers, currentUser, can, sh
 
   return (
     <div>
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4">
         {[["New", counts.Received], ["In Production", counts.Preparing], ["Ready", counts.Ready]].map(([label, value]) => (
           <Card dark={dark} key={label} style={{ padding: 10 }}>
             <div className="text-[10px] font-semibold" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{label.toUpperCase()}</div>
@@ -5933,7 +5945,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       ))}
       <button onClick={addItem} className="text-xs font-bold mb-4" style={{ color: C.lime }}>{translateUI("+ Add another product")}</button>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Payment Method")}>
           <Select dark={dark} value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
             {availablePaymentMethods.map((m) => <option key={m} value={m}>{translateUI(m)}</option>)}
@@ -6061,7 +6073,7 @@ function CashFlowView({ dark, cashTx, showToast }) {
         ))}
         {merged.length > 0 && <GhostButton dark={dark} style={{ padding: "6px 12px", fontSize: 12, marginLeft: "auto" }} onClick={exportCSV}>{translateUI("Export CSV")}</GhostButton>}
       </div>
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
         <StatCard dark={dark} label={translateUI("Income")} value={fmtMoney(totalIncome)} icon={ArrowUpRight} accent={C.lime} />
         <StatCard dark={dark} label={translateUI("Expenses")} value={fmtMoney(totalExpense)} icon={ArrowDownRight} accent={"#FF6B85"} />
         <StatCard dark={dark} label={translateUI("Net Flow")} value={fmtMoney(net)} icon={Wallet} accent={net >= 0 ? C.lime : "#FF6B85"} />
@@ -6278,7 +6290,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
   return (
     <Modal title={translateUI("New Inventory Item")} onClose={onClose} dark={dark}>
       <Field dark={dark} label={translateUI("Item Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
           <Select dark={dark} value={category} onChange={(e) => setCategory(e.target.value)}>{settings.inventoryCategories.map((c) => <option key={c} value={c}>{translateUI(c)}</option>)}</Select>
@@ -6655,7 +6667,7 @@ function InventoryHistoryModal({ dark, item, invTx, suppliers, purchaseOrders, o
   return (
     <Modal title={interpolateUI("{0} — History",[item.name])} onClose={onClose} dark={dark} wide>
       {consumptionCard}
-      <div className="grid grid-cols-4 gap-2 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
         <StatCard dark={dark} label={translateUI("Avg Cost")} value={fmtMoney(avg)} />
         <StatCard dark={dark} label={translateUI("Last Cost")} value={fmtMoney(last)} />
         <StatCard dark={dark} label={translateUI("Highest")} value={fmtMoney(highest)} />
@@ -6893,7 +6905,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
 
   return (
     <Modal title={translateUI("New Purchase Order")} onClose={onClose} dark={dark} wide>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Supplier")}>
           <Select dark={dark} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             {suppliers.filter((s) => s.active !== false).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -6936,7 +6948,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
       })}
       <button onClick={addItem} className="text-xs font-bold mb-4" style={{ color: C.lime }}>{translateUI("+ Add another item")}</button>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Discount ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Tax ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={tax} onChange={(e) => setTax(e.target.value)} /></Field>
       </div>
@@ -7627,7 +7639,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
 
   return (
     <Modal title={product ? translateUI("Edit Product") : translateUI("New Product")} onClose={onClose} dark={dark} wide>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Product Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("SKU")}><Input dark={dark} value={sku} onChange={(e) => setSku(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Category")}>
@@ -8212,7 +8224,7 @@ function SupplierFormModal({ dark, onClose, supplier, suppliers, setSuppliers, c
 
   return (
     <Modal title={supplier ? translateUI("Edit Supplier") : translateUI("New Supplier")} onClose={onClose} dark={dark} wide>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Supplier Name")}><Input dark={dark} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
         <Field dark={dark} label={translateUI("Contact Person")}><Input dark={dark} value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} /></Field>
         <Field dark={dark} label={translateUI("Phone")}><Input dark={dark} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
@@ -9037,7 +9049,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
     <Modal title={task ? (canManage ? translateUI("Edit Task") : translateUI("Task Details")) : translateUI("New Task")} onClose={onClose} dark={dark}>
       <fieldset disabled={!canManage} style={{ opacity: canManage ? 1 : 0.65 }}>
         <Field dark={dark} label={translateUI("Task")}><Input dark={dark} value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field dark={dark} label={translateUI("Assign To")}>
             <Select dark={dark} value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
               {employees.filter((e) => e.active !== false || e.id === task?.assignedTo).map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? translateUI(" (inactive)") : ""}</option>)}
@@ -10030,7 +10042,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
       {canFinance && <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Discounts")}</div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <StatCard dark={dark} label={translateUI("Total Discounted")} value={fmtMoney(discountA.totalDiscount)} />
           <StatCard dark={dark} label={translateUI("Discounted Orders")} value={discountA.discountedOrders} />
           <StatCard dark={dark} label={translateUI("Avg per Order")} value={discountA.avgDiscountPerOrder !== null ? fmtMoney(discountA.avgDiscountPerOrder) : "—"} />
@@ -10098,7 +10110,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Inventory & Procurement")}</div>
-        <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <StatCard dark={dark} label={translateUI("Out of Stock")} value={invSummary.outOfStock} accent={"#FF6B85"} />
           <StatCard dark={dark} label={translateUI("Critical")} value={invSummary.critical} accent={"#FF6B85"} />
           <StatCard dark={dark} label={translateUI("Low Stock")} value={invSummary.low} accent={C.yellow} />
@@ -10116,7 +10128,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Orders & Production")}</div>
-        <div className="grid grid-cols-3 gap-3 mb-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
           <StatCard dark={dark} label={translateUI("Received")} value={orderA.received} />
           <StatCard dark={dark} label={translateUI("Completed")} value={orderA.completed} />
           <StatCard dark={dark} label={translateUI("Cancelled")} value={orderA.cancelled} />
@@ -10136,7 +10148,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
             <div className="font-bold text-sm" style={{ color: dark ? C.white : C.black }}>{translateUI("Labor")}</div>
             <GhostButton dark={dark} style={{ padding: "4px 10px", fontSize: 11 }} onClick={exportLabor}>{translateUI("Export CSV")}</GhostButton>
           </div>
-          <div className="grid grid-cols-3 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <StatCard dark={dark} label={translateUI("Worked Hours")} value={laborA.totalWorkedHours} />
             <StatCard dark={dark} label={translateUI("Employees Worked")} value={laborA.byEmployee.length} />
             <StatCard dark={dark} label={translateUI("Currently Clocked In")} value={laborA.employeesClockedIn} />
@@ -10583,7 +10595,7 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
 
   return (
     <Modal title={user ? translateUI("Edit User") : translateUI("Add Staff Login")} onClose={onClose} dark={dark} wide>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Field dark={dark} label={translateUI("Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Username")}><Input dark={dark} value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
         {!user && <Field dark={dark} label={translateUI("Email")}><Input dark={dark} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>}

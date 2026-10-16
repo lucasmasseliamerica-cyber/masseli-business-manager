@@ -103,6 +103,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Fórmulas e filtros corrigidos: P&L exclui imposto da receita e o informa separadamente, descontos são rateados por produto, ranking de clientes respeita o período, tempos inválidos/cancelados são excluídos e datas personalizadas são validadas. **35/35 regressões afetadas** e build aprovados. [Evidência](./QA_REPORT_ACCURACY_20261015.md). Conciliação com fechamento contábil real ainda permanece pendente no item amplo acima.
 - [ ] Configurações: persistência, permissões, idioma, fuso, regras e preferências.
 - [ ] Responsividade desktop/tablet/mobile, acessibilidade, rolagem, estados vazios e erros.
+- [x] Base responsiva compartilhada corrigida: modal com rolagem/safe area, botão desabilitado efetivo, formulários adaptáveis, sidebar rolável, ações móveis visíveis, textos longos e valores zero preservados, mensagens comuns traduzidas e ARIA básico. **77/77 regressões afetadas** e build aprovados. [Evidência](./QA_RESPONSIVE_UI_20261015.md). Revisão visual autenticada e acessibilidade completa permanecem no item amplo acima.
 - [ ] Performance com volumes realistas, carga, paginação e degradação.
 - [ ] Backup/restauração isolados e ensaio de recuperação.
 
