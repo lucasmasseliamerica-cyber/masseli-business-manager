@@ -32,7 +32,8 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
   test(`${label}: product photo is editable, previewed and persisted`, () => {
     assert.match(source, /Product Image URL \(HTTPS\)/);
     assert.match(source, /<ProductImage product=\{\{ name: name \|\| "Product", image \}\}/);
-    assert.match(source, /image: imageUrl/);
+    assert.match(source, /const payload = validation\.value/);
+    assert.match(source, /p_image_url: safeProduct\.image \|\| null/);
     assert.match(source, /ProductImage product=\{p\} dark=\{dark\} size=\{58\}/);
   });
 

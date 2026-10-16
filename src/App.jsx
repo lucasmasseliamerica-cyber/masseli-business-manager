@@ -137,6 +137,43 @@ function normalizeProductImageUrl(value) {
   }
 }
 
+function validateProductDraft(product, { products = [], inventory = null } = {}) {
+  const name = String(product?.name || "").trim();
+  const sku = String(product?.sku || "").trim();
+  const category = String(product?.category || "").trim();
+  const description = String(product?.description || "").trim();
+  if (!name) return { ok: false, error: "Product name is required." };
+  if (name.length > 120) return { ok: false, error: "Product name must have 120 characters or fewer." };
+  if (sku.length > 80) return { ok: false, error: "SKU must have 80 characters or fewer." };
+  if (!category) return { ok: false, error: "Product category is required." };
+  if (category.length > 80) return { ok: false, error: "Product category must have 80 characters or fewer." };
+  if (description.length > 1000) return { ok: false, error: "Description must have 1000 characters or fewer." };
+  const duplicateName = products.find((item) => item.id !== product?.id && item.name?.trim().toLowerCase() === name.toLowerCase());
+  if (duplicateName) return { ok: false, error: "Another product already uses this name." };
+  const duplicateSku = sku && products.find((item) => item.id !== product?.id && item.sku?.trim().toLowerCase() === sku.toLowerCase());
+  if (duplicateSku) return { ok: false, error: "Another product already uses this SKU." };
+  const price = Number(product?.price);
+  if (product?.price === "" || !Number.isFinite(price) || price < 0) return { ok: false, error: "Selling price must be a valid number, zero or greater." };
+  const rawImage = String(product?.image || product?.imageUrl || "").trim();
+  const image = normalizeProductImageUrl(rawImage);
+  if (rawImage && !image) return { ok: false, error: "Product image must be a valid HTTPS URL up to 2048 characters." };
+  const recipe = Array.isArray(product?.recipe) ? product.recipe : [];
+  const seen = new Set();
+  const safeRecipe = [];
+  for (const row of recipe) {
+    if (!row?.itemId) return { ok: false, error: "Every recipe ingredient must reference a valid inventory item." };
+    const item = inventory?.find((candidate) => candidate.id === row.itemId);
+    if (inventory && !item) return { ok: false, error: "Every recipe ingredient must reference a valid inventory item." };
+    if (product?.active !== false && item?.active === false) return { ok: false, error: "An active product cannot use an inactive inventory item." };
+    const quantity = Number(row.qty);
+    if (row.qty === "" || row.qty === null || row.qty === undefined || !Number.isFinite(quantity) || quantity <= 0) return { ok: false, error: "Every recipe ingredient needs a quantity greater than zero." };
+    if (seen.has(row.itemId)) return { ok: false, error: "The recipe lists the same ingredient more than once — remove the duplicate before saving." };
+    seen.add(row.itemId);
+    safeRecipe.push({ itemId: row.itemId, qty: quantity });
+  }
+  return { ok: true, value: { ...product, name, sku, category, description, price: round2(price), image, recipe: safeRecipe } };
+}
+
 /* ============================== SEED DATA ============================== */
 const seedLocations = () => ([
   { id: "loc-kiosk", name: "Kiosk", type: "Retail", active: true, sample: true },
@@ -2567,6 +2604,9 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
         p_name: null, p_sku: null, p_category: null, p_price: null, p_active: null,
         p_description: null, p_image_url: null, p_recipe: null };
     } else {
+      const validation = validateProductDraft(product, { products: previousRef.current || [] });
+      if (!validation.ok) throw new Error(validation.error);
+      const safeProduct = validation.value;
       // The form always carries the product's full desired recipe (populated from the existing
       // recipe on open, mutated via add/update/remove ingredient) — there is no "don't touch the
       // recipe" mode in the current UI, so this is never sent as null from save(). An empty array
@@ -2576,7 +2616,7 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
       // — ProductModal.save() already validates this before calling persist(), so this is defense
       // in depth for any future caller, not the primary check. A product must never be saved with
       // fewer ingredients than what was actually requested, without the caller finding out why.
-      const recipeRows = product.recipe || [];
+      const recipeRows = safeProduct.recipe;
       const seenIngredientIds = new Set();
       for (const r of recipeRows) {
         if (!isUuid(r.itemId)) throw new Error("Recipe contains an ingredient with an invalid or missing inventory item.");
@@ -2586,9 +2626,9 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
         seenIngredientIds.add(r.itemId);
       }
       args = { p_business_id: businessId, p_product_id: productId, p_operation: "upsert",
-        p_name: String(product.name || "").trim(), p_sku: product.sku || null, p_category: product.category || null,
-        p_price: (() => { const n = Number(product.price); if (!Number.isFinite(n) || n < 0) throw new Error("Selling price must be a finite number, zero or greater."); return n; })(), p_active: product.active !== false,
-        p_description: product.description || null, p_image_url: product.image || product.imageUrl || null,
+        p_name: safeProduct.name, p_sku: safeProduct.sku || null, p_category: safeProduct.category,
+        p_price: safeProduct.price, p_active: safeProduct.active !== false,
+        p_description: safeProduct.description || null, p_image_url: safeProduct.image || null,
         p_recipe: recipeRows.map((r) => ({ inventory_item_id: r.itemId, qty_per_unit: Number(r.qty) })) };
     }
 
@@ -7623,7 +7663,12 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
   const profit = round2(price - cost);
   const margin = price ? round2((profit / price) * 100) : 0;
 
-  const addIngredient = () => setRecipe([...recipe, { itemId: inventory[0]?.id, qty: 1 }]);
+  const availableIngredient = inventory.find((item) => item.active !== false && !recipe.some((row) => row.itemId === item.id));
+  const addIngredient = () => {
+    if (!availableIngredient) { setError("No additional active inventory item is available for this recipe."); return; }
+    setRecipe([...recipe, { itemId: availableIngredient.id, qty: 1 }]);
+    setError("");
+  };
   const updateIngredient = (idx, patch) => setRecipe(recipe.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   const removeIngredient = (idx) => setRecipe(recipe.filter((_, i) => i !== idx));
 
@@ -7635,33 +7680,13 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
     if (submitting) return;
     setError("");
     if (!can("manageRecipesAndCosts")) { setError("You don't have permission to edit products."); return; }
-    if (!name.trim()) { setError("Product name is required."); return; }
-    const priceNum = Number(price);
-    if (price === "" || !Number.isFinite(priceNum) || priceNum < 0) { setError("Selling price must be a valid number, zero or greater."); return; }
-    const imageUrl = normalizeProductImageUrl(image);
-    if (image.trim() && !imageUrl) { setError("Product image must be a valid HTTPS URL up to 2048 characters."); return; }
-
-    // Every recipe row is validated explicitly here, before anything is sent anywhere. An
-    // ingredient that doesn't resolve to a real inventory item, or has an invalid quantity, is
-    // rejected with a clear message and the save is blocked — it must never be silently dropped
-    // from the payload, which would leave the product saved with fewer ingredients than the form
-    // actually shows.
-    for (const r of recipe) {
-      if (!r.itemId || !inventory.some((i) => i.id === r.itemId)) { setError("Every recipe ingredient must reference a valid inventory item."); return; }
-      const qtyNum = Number(r.qty);
-      if (r.qty === "" || r.qty === null || r.qty === undefined || !Number.isFinite(qtyNum) || qtyNum <= 0) { setError("Every recipe ingredient needs a quantity greater than zero."); return; }
-    }
-    // Duplicate ingredients are rejected here too — fn_save_product would also reject this
-    // server-side, but catching it here gives an immediate, clear message before any RPC call.
-    const seenIngredientIds = new Set();
-    for (const r of recipe) {
-      if (seenIngredientIds.has(r.itemId)) { setError("The recipe lists the same ingredient more than once — remove the duplicate before saving."); return; }
-      seenIngredientIds.add(r.itemId);
-    }
+    const draft = { id: product?.id || newDbId(), name, sku, category, price, active, description, recipe, image };
+    const validation = validateProductDraft(draft, { products, inventory });
+    if (!validation.ok) { setError(validation.error); return; }
 
     setSubmitting(true);
     try {
-      const payload = { id: product?.id || newDbId(), name: name.trim(), sku: sku.trim(), category, price: round2(priceNum), active, description: description.trim(), recipe, image: imageUrl };
+      const payload = validation.value;
       await setProducts(payload, "upsert");
       await logAudit(auditLog, setAuditLog, currentUser, product ? "Product Updated" : "Product Created", `${payload.name} · ${fmtMoney(payload.price)} · cost ${fmtMoney(cost)}`);
       showToast(product ? "Product updated" : "Product created");
@@ -7753,10 +7778,10 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
           <div key={idx} className="flex gap-2 mb-2 items-end">
             <div className="flex-1">
               <Select dark={dark} value={r.itemId} onChange={(e) => updateIngredient(idx, { itemId: e.target.value })}>
-                {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)})</option>)}
+                {inventory.filter((item) => item.id === r.itemId || (item.active !== false && !recipe.some((row, rowIndex) => rowIndex !== idx && row.itemId === item.id))).map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)}){i.active === false ? translateUI(" · inactive") : ""}</option>)}
               </Select>
             </div>
-            <div className="w-24"><Input dark={dark} type="number" step="0.01" value={r.qty} onChange={(e) => updateIngredient(idx, { qty: Number(e.target.value) })} /></div>
+            <div className="w-24"><Input dark={dark} type="number" min="0.0001" step="0.01" value={r.qty} onChange={(e) => updateIngredient(idx, { qty: e.target.value })} /></div>
             <div className="w-16 text-xs text-right font-semibold pb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{it ? fmtMoney(it.costPerUnit * r.qty) : ""}</div>
             <button onClick={() => removeIngredient(idx)} className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#3A0F1E" }}>
               <Trash2 size={14} color="#FF6B85" />
@@ -7764,7 +7789,7 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
           </div>
         );
       })}
-      <button onClick={addIngredient} className="text-xs font-bold mb-4" style={{ color: C.lime }}>{translateUI("+ Add ingredient")}</button>
+      <button type="button" disabled={!availableIngredient} onClick={addIngredient} className="text-xs font-bold mb-4 disabled:opacity-40" style={{ color: C.lime }}>{translateUI("+ Add ingredient")}</button>
 
       <div className="rounded-2xl p-3 mb-4" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
         <Row dark={dark} label={translateUI("Total Cost")} value={fmtMoney(cost)} />
