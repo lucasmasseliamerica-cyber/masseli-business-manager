@@ -7,12 +7,13 @@ Data: 2026-10-16. Escopo: branch `automation/nexalvo-qa-actions`. Nenhuma opera�
 - Modais respondem à tecla `Escape` e removem o listener ao fechar.
 - Ao abrir um modal, o foco vai para o botão de fechamento; ao fechar, retorna ao elemento anteriormente focado.
 - Linhas compartilhadas com ação recebem papel de botão, entram na ordem de tabulação e respondem a `Enter` e `Espaço`.
-- As linhas do catálogo de clientes usam botão semântico e continuam abrindo o detalhe pelo clique.
+- Cartões acionáveis compartilhados recebem o mesmo comportamento de teclado.
+- Linhas de clientes, histórico de caixa, compras do cliente e edição de tarefas usam botões semânticos e continuam abrindo seus detalhes pelo clique.
 - As buscas de clientes e fornecedores possuem nome acessível explícito para leitores de tela.
 
 ## Evidência local
 
-- `qa/ui-responsive-regression.test.mjs`, `qa/customer-usability-regression.test.mjs`, `qa/purchase-supplier-usability-regression.test.mjs` e `qa/security.test.mjs`: **40/40 PASS**, 0 FAIL, 0 SKIPPED.
+- Regressões direcionadas de interface, clientes, fornecedores, caixa e segurança: **47/47 PASS**, 0 FAIL, 0 SKIPPED.
 - Build Vite: **PASS**, 1.578 módulos transformados.
 - `App.jsx` e `src/App.jsx`: conteúdo idêntico.
 

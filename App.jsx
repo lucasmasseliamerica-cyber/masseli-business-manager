@@ -3573,19 +3573,29 @@ function useTheme() {
   return { dark, setDark };
 }
 
-const Card = ({ children, className = "", dark, style, onClick }) => (
-  <div
-    onClick={onClick}
-    className={`rounded-2xl p-4 ${className}`}
-    style={{
-      background: dark ? C.surfaceDark : C.surfaceLight,
-      border: `1px solid ${dark ? C.borderDark : C.borderLight}`,
-      ...style,
-    }}
-  >
-    {children}
-  </div>
-);
+const Card = ({ children, className = "", dark, style, onClick }) => {
+  const activateFromKeyboard = (event) => {
+    if (!onClick || !["Enter", " "].includes(event.key)) return;
+    event.preventDefault();
+    onClick(event);
+  };
+  return (
+    <div
+      onClick={onClick}
+      onKeyDown={activateFromKeyboard}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      className={`rounded-2xl p-4 ${className}`}
+      style={{
+        background: dark ? C.surfaceDark : C.surfaceLight,
+        border: `1px solid ${dark ? C.borderDark : C.borderLight}`,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+};
 
 const Badge = ({ children, tone = "default", dark }) => {
   const { translateUI } = useLanguage();
@@ -4659,13 +4669,13 @@ function CashRegisterModal({ dark, onClose, cashRegisters, setCashRegisters, cas
           </div>
           <Card dark={dark} className="mb-3">
             {historyList.length === 0 ? <EmptyState dark={dark} title={translateUI("No closed registers yet")} /> : historyList.map((r) => (
-              <div key={r.id} className="py-3 border-b last:border-b-0 cursor-pointer" style={{ borderColor: dark ? C.borderDark : C.borderLight }} onClick={() => setHistoryDetail(r)}>
+              <button type="button" key={r.id} className="w-full py-3 border-b last:border-b-0 cursor-pointer text-left" style={{ borderColor: dark ? C.borderDark : C.borderLight, background: "transparent" }} onClick={() => setHistoryDetail(r)}>
                 <div className="flex items-center justify-between mb-1">
                   <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{dateStr(r.closedAt)} · {r.closedByName}</div>
                   <DifferenceBadge dark={dark} diff={r.difference || 0} />
                 </div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Expected")}{" "}{fmtMoney(r.expectedCash)}{" "}{translateUI("· Actual")}{" "}{fmtMoney(r.actualCash)}</div>
-              </div>
+              </button>
             ))}
           </Card>
           <GhostButton dark={dark} full onClick={() => setMode("status")} style={{ width: "100%" }}>{translateUI("Back")}</GhostButton>
@@ -8766,13 +8776,13 @@ function CustomerDetailModal({ dark, customerId, onClose, customers, setCustomer
       <Card dark={dark} className="mb-3">
         <div className="font-bold text-sm mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("PURCHASE HISTORY")}</div>
         {orders.length === 0 ? <EmptyState dark={dark} title={translateUI("No orders yet")} /> : orders.slice(0, 20).map((s) => (
-          <div key={s.id} className="py-2 border-b last:border-b-0 cursor-pointer flex items-center justify-between" style={{ borderColor: dark ? C.borderDark : C.borderLight }} onClick={() => setViewingSale(s)}>
+          <button type="button" key={s.id} className="w-full py-2 border-b last:border-b-0 cursor-pointer flex items-center justify-between text-left" style={{ borderColor: dark ? C.borderDark : C.borderLight, background: "transparent" }} onClick={() => setViewingSale(s)}>
             <div>
               <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Order #")}{s.orderNo} {s.status === "cancelled" && <span style={{ color: "#FF6B85" }}>{translateUI("· CANCELLED")}</span>}</div>
               <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{dateStr(s.date)} · {s.location || "—"}{can("viewFinancials") ? ` · ${translateUI(s.paymentMethod)}` : ""}</div>
             </div>
             {can("viewFinancials") && <div className="text-sm font-bold" style={{ color: dark ? C.white : C.black }}>{fmtMoney(s.total)}</div>}
-          </div>
+          </button>
         ))}
       </Card>
 
@@ -9248,10 +9258,10 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
                 style={{ background: t.status === "done" ? C.lime : "transparent", border: `2px solid ${t.status === "done" ? C.lime : (dark ? C.borderDark : C.borderLight)}`, opacity: busyTaskId && busyTaskId !== t.id ? 0.5 : 1 }}>
                 {t.status === "done" && <Check size={14} color={C.black} />}
               </button>
-              <div className="min-w-0 flex-1 cursor-pointer" onClick={() => { setEditing(t); setModal(true); }}>
+              <button type="button" className="min-w-0 flex-1 cursor-pointer text-left" style={{ background: "transparent" }} onClick={() => { setEditing(t); setModal(true); }}>
                 <div className="text-sm font-semibold truncate" style={{ color: dark ? C.white : C.black, textDecoration: t.status === "done" ? "line-through" : "none", opacity: t.status === "done" ? 0.6 : 1 }}>{t.title}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{employeeName(t.assignedTo)}{mine ? " (me)" : ""}{" "}{translateUI("· due")}{" "}{t.dueDate ? dateStrLocal(t.dueDate) : "—"}</div>
-              </div>
+              </button>
               {overdue ? <Badge dark={dark} tone="danger">{translateUI("OVERDUE")}</Badge> : t.status !== "done" && <Badge dark={dark} tone={t.priority === "High" ? "danger" : t.priority === "Medium" ? "warn" : "default"}>{(t.priority || "LOW").toUpperCase()}</Badge>}
             </div>
           );

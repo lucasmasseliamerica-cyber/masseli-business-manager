@@ -30,11 +30,15 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
 
   test(`${label}: shared buttons and fields preserve disabled and responsive behavior`, () => {
     const controls = section(source, 'const inputStyle = ', 'function EmptyState(');
+    const card = section(source, 'const Card = ', 'const Badge = ');
     assert.match(controls, /minWidth: 0/);
     assert.match(controls, /boxSizing: "border-box"/);
     assert.match(controls, /const Select = \(\{ dark, children, style, \.\.\.props \}\)/);
     assert.match(controls, /function GhostButton\(\{ children, onClick, dark, style, disabled = false, full = false/);
     assert.match(controls, /type=\{type\} disabled=\{disabled\}/);
+    assert.match(card, /role=\{onClick \? "button" : undefined\}/);
+    assert.match(card, /tabIndex=\{onClick \? 0 : undefined\}/);
+    assert.match(card, /\["Enter", " "\]\.includes\(event\.key\)/);
   });
 
   test(`${label}: navigation and notifications honor scrolling and device safe areas`, () => {
@@ -64,6 +68,9 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(list, /role=\{onClick \? "button" : undefined\}/);
     assert.match(list, /tabIndex=\{onClick \? 0 : undefined\}/);
     assert.match(list, /\["Enter", " "\]\.includes\(event\.key\)/);
+    assert.match(source, /<button type="button" key=\{r\.id\} className="w-full py-3/);
+    assert.match(source, /<button type="button" key=\{s\.id\} className="w-full py-2/);
+    assert.match(source, /<button type="button" className="min-w-0 flex-1 cursor-pointer text-left"/);
   });
 }
 
