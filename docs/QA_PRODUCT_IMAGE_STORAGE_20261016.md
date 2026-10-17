@@ -46,6 +46,8 @@ Artefatos adicionais:
 - regressões focadas finais de produto/PDV/Storage: **37/37 PASS**, zero falhas e zero skips;
 - suíte estática completa do job `build-and-security`: **251/251 PASS**, zero falhas e zero skips;
 - `npm run build`: PASS, 1.578 módulos transformados;
+- commit publicado: `ad5b13ddb73588a04583b6f8c33437d6d7201467`;
+- [GitHub Actions #155](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38992693110): **SUCCESS**, 12/12 jobs, preflight autenticado `PASS [OK]` e agregador **446/446 PASS**, zero falhas/skips;
 - nenhuma criação de bucket, política, upload, deleção, migração ou escrita no TEST foi executada.
 
 A integração está **APROVADA localmente** e **BLOQUEADA para homologação real** até: executar o preflight no TEST, confirmar que `image_url` e `fn_save_product` aceitam a referência estável, receber autorização específica, aplicar a migração, testar upload/substituição/remoção com um produto QA isolado e provar que outra empresa não consegue assinar, ler, alterar ou excluir o objeto.
