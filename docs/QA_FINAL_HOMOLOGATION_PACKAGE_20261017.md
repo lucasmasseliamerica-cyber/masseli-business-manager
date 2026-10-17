@@ -70,11 +70,12 @@ O runner não recebe segredo por argumento, não executa `psql`, Supabase CLI, m
 |---|---|---|
 | Regressões estáticas integrais | **PASS** | 274/274, 0 falhas, 0 skips |
 | Regressões afetadas de gestão de equipe/UI/configuração/segurança | **PASS** | 33/33 |
-| Build Vite | **PASS** | 1.579 módulos; bundle principal 441,34 kB; build concluído |
+| Build Vite | **PASS** | 1.579 módulos; bundle principal 442,06 kB; build concluído |
 | Dependências de runtime | **PASS** | `npm audit --omit=dev`: 0 vulnerabilidades |
 | Política de dependências de build | **PASS qualificado** | 7 entradas conhecidas: 5 altas, 2 moderadas, 0 críticas; nenhum alerta novo |
 | Espelho `App.jsx`/`src/App.jsx` | **PASS** | arquivos byte a byte iguais |
 | Inventário local/hashes/ordem | **PASS** | 30 artefatos localizados e hashados |
+| [CI #158](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39026778999) | **PASS** | commit `364fbab`; 12/12 jobs; preflight autenticado e agregador 469/469 PASS, 0 falhas, 0 skips |
 | Catálogo implantado | **BLOCKED** | export completo do TEST não fornecido nesta sessão |
 | Migrações/Storage/Admin reais | **BLOCKED** | exigem catálogo e autorização específica |
 | Compra persistente/financeiro real | **BLOCKED** | continua desabilitado e não autorizado |
@@ -92,4 +93,4 @@ O runner não recebe segredo por argumento, não executa `psql`, Supabase CLI, m
 - recovery SMTP e identidade SUPERADMIN TEST;
 - Stripe Terminal/webhook, impressora, SMTP, telemetria externa, backup/restauração e piloto comercial.
 
-A baseline #157 permanece a última prova integral publicada anterior a este pacote: 12/12 jobs e 456/456 PASS. Uma nova CI só pode ser atribuída a esta alteração depois do commit, push e inspeção do run correspondente.
+O pacote foi publicado no commit `364fbabe771127882c6b728b16abfde9f538310e`. A CI #158 é a prova integral correspondente: 12/12 jobs, preflight autenticado aprovado e agregador 469/469 PASS, sem falhas ou skips.
