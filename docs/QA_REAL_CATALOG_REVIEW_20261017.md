@@ -66,6 +66,7 @@ Depois de cada aplicação: executar preflight somente leitura, prova transacion
 | Parse das Edge Functions | **PASS**, `manage-staff-user` 14,1 kB e `platform-admin` 8,5 kB |
 | Dependências runtime | **PASS**, 0 vulnerabilidades |
 | Gate de build/desenvolvimento | **PASS qualificado**, 7 conhecidas: 5 altas, 2 moderadas, 0 críticas |
+| [CI #159](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39028110925) | **PASS**, commit `cd49a77`; 12/12 jobs, preflight autenticado e agregador 470/470 PASS, 0 falhas, 0 skips |
 
 A consulta completa foi validada estaticamente como transacional e somente leitura. Esta sessão não possui `psql`, Supabase CLI ou conector SQL para executar sua sintaxe no TEST; sua execução real permanece a próxima evidência somente leitura.
 

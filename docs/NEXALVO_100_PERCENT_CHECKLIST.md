@@ -9,10 +9,10 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - Não confundir SQL com JWT simulado, browser com RPC mockado e browser com gravação real.
 
 ## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
-- [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #158](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39026778999).
-- [x] CI #158: 12/12 jobs, 469/469 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.
+- [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #159](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39028110925).
+- [x] CI #159: 12/12 jobs, 470/470 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.
 - [x] Pacote integrado de homologação preparado: manifesto com hashes/dependências, comparação de catálogo somente leitura, confirmação externa obrigatória do TEST, runner Windows sem escrita, backend versionado de gestão de equipe e rollbacks que preservam histórico. **274/274 regressões estáticas**, build e auditoria runtime aprovados localmente; CI #158 integralmente verde. [Evidência](./QA_FINAL_HOMOLOGATION_PACKAGE_20261017.md).
-- [x] Primeiro catálogo real TEST revisado: 31/31 tabelas com RLS, 53 policies, 58 funções, 48 `SECURITY DEFINER`, 568 grants; 25/25 tabelas do contrato e 39 RPCs implantadas têm presença/assinaturas compatíveis, sem acesso `anon` demonstrado. [Evidência](./QA_REAL_CATALOG_REVIEW_20261017.md).
+- [x] Primeiro catálogo real TEST revisado: 31/31 tabelas com RLS, 53 policies, 58 funções, 48 `SECURITY DEFINER`, 568 grants; 25/25 tabelas do contrato e 39 RPCs implantadas têm presença/assinaturas compatíveis, sem acesso `anon` demonstrado. CI #159 aprovou 470/470. [Evidência](./QA_REAL_CATALOG_REVIEW_20261017.md).
 - [ ] **BLOQUEADO:** completar auditoria com corpos das 58 funções, todas as 53 policies, 568 grants, owners e ACLs. O primeiro export contém zero corpos, 12 policies e 25 grants detalhados; a segunda consulta somente leitura está preparada.
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
