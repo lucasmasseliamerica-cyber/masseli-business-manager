@@ -9,8 +9,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - Não confundir SQL com JWT simulado, browser com RPC mockado e browser com gravação real.
 
 ## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
-- [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #156](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38992980203).
-- [x] CI #156: 12/12 jobs, 450/450 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.
+- [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #157](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38993406844).
+- [x] CI #157: 12/12 jobs, 456/456 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
 - [x] Gate de dependências publicado: runtime exige zero alertas moderados ou superiores; auditoria completa falha para pacote/advisory novo, severidade crítica ou aumento sobre o teto conhecido. CI #124 aprovou o gate.

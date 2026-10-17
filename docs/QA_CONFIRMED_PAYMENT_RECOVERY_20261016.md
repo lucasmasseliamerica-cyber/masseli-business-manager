@@ -27,6 +27,8 @@ Também foram removidas uma chave portuguesa duplicada e duas traduções com ca
 - suíte estática completa do job `build-and-security`: **261/261 PASS**, zero falhas e zero skips;
 - `npm run build`: PASS, 1.579 módulos transformados e sem o aviso de chave duplicada;
 - `App.jsx` e `src/App.jsx`: idênticos;
+- commit publicado: `491b9c3`;
+- [GitHub Actions #157](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38993406844): **SUCCESS**, 12/12 jobs, preflight autenticado `PASS [OK]` e agregador **456/456 PASS**, zero falhas/skips;
 - nenhuma venda, cobrança, escrita Supabase, migração ou operação financeira foi executada.
 
 ## Limites
