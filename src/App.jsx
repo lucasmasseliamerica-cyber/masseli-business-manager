@@ -738,6 +738,16 @@ function makePaymentResult({ success, status, paymentMethod, provider, transacti
   return { success, status, paymentMethod, provider, transactionId, amount, currency, error, metadata };
 }
 
+function buildConfirmedPaymentSaveRecovery(pendingSaleObj, result, error) {
+  if (!result?.success) throw new Error("Only a confirmed payment can enter sale-save recovery.");
+  return {
+    attempt: { pendingSaleObj, result },
+    message: error?.commitUncertain
+      ? (error.message || "Payment was confirmed, but the sale save could not be confirmed.")
+      : "Payment succeeded, but the sale could not be saved. Retry saving this same sale without taking another payment.",
+  };
+}
+
 function generateSimTransactionId() {
   return `sim_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -5994,6 +6004,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const [paymentPhase, setPaymentPhase] = useState("idle");
   const confirmedPaymentRef = useRef(null);
   const [saveRetry, setSaveRetry] = useState(false);
+  const [confirmAbandonPaidSale, setConfirmAbandonPaidSale] = useState(false);
   const [paymentHandle, setPaymentHandle] = useState(null);
   // The finalized sale object once payment succeeds — drives the post-sale "Payment Successful"
   // print screen below. Printing from that screen is strictly read-only against this object;
@@ -6001,6 +6012,12 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const [completedSale, setCompletedSale] = useState(null);
   const [printPreview, setPrintPreview] = useState(null);
   useEffect(() => { if (paymentPhase === "idle" && !submitting && !completedSale && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, paymentPhase, submitting, completedSale]); // { title, html } | null
+  useEffect(() => {
+    if (!saveRetry) return undefined;
+    const warnBeforeLeaving = (event) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warnBeforeLeaving);
+    return () => window.removeEventListener("beforeunload", warnBeforeLeaving);
+  }, [saveRetry]);
 
   const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId, reportLoadError };
   const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog, reloadLoyalty, reportLoadError };
@@ -6028,8 +6045,14 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           finalizedSale = await finalizeSuccessfulPayment(pendingSaleObj, { stripePaymentIntentId: result.transactionId ?? null }, paymentCtx);
         } catch (e) {
           console.error("Sale finalization failed", e);
-          if (e?.commitUncertain) { confirmedPaymentRef.current = { pendingSaleObj, result }; setSaveRetry(true); }
-          setError(e?.message || "Sale could not be saved to Supabase.");
+          // The payment result is already successful at this point. Preserve the exact same sale
+          // and provider result for EVERY persistence failure, not only ambiguous network errors.
+          // Retrying calls finalizeSuccessfulPayment with the same sale id and never calls
+          // paymentService, so it cannot take a second payment.
+          const recovery = buildConfirmedPaymentSaveRecovery(pendingSaleObj, result, e);
+          confirmedPaymentRef.current = recovery.attempt;
+          setSaveRetry(true);
+          setError(recovery.message);
           return;
         }
         // staleData (set by finalizeSuccessfulPayment) means fn_create_sale — and/or the
@@ -6194,7 +6217,26 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     setPrintPreview({ title: prepared?.title || fallbackTitle, html: prepared?.html });
   };
 
-  if (saveRetry && !completedSale) return <Modal title={translateUI("Confirm Sale Save")} onClose={onClose} dark={dark}><div className="text-sm mb-3">{translateUI(error)}</div><div className="text-sm mb-3">{translateUI("Payment already succeeded. Retry saving this same sale without taking another payment. Check Sales history before starting another sale.")}</div><PrimaryButton full disabled={paymentPhase !== "idle"} onClick={() => { const attempt = confirmedPaymentRef.current; if (attempt && paymentPhase === "idle") handlePaymentResult(attempt.pendingSaleObj, attempt.result); }}>{translateUI("Retry Saving Same Sale")}</PrimaryButton></Modal>;
+  const abandonConfirmedPaymentRecovery = () => {
+    confirmedPaymentRef.current = null;
+    setSaveRetry(false);
+    setConfirmAbandonPaidSale(false);
+    setPendingCardSale(null);
+    setPaymentHandle(null);
+    setPaymentPhase("idle");
+    onClose();
+  };
+
+  if (saveRetry && !completedSale) return <>
+    <Modal title={translateUI("Confirm Sale Save")} onClose={() => setConfirmAbandonPaidSale(true)} dark={dark}>
+      <div className="text-sm mb-3">{translateUI(error)}</div>
+      <div className="text-sm mb-3">{translateUI("Payment already succeeded. Retry saving this same sale without taking another payment. Check Sales history before starting another sale.")}</div>
+      <PrimaryButton full disabled={paymentPhase !== "idle"} onClick={() => { const attempt = confirmedPaymentRef.current; if (attempt && paymentPhase === "idle") handlePaymentResult(attempt.pendingSaleObj, attempt.result); }}>{translateUI("Retry Saving Same Sale")}</PrimaryButton>
+    </Modal>
+    {confirmAbandonPaidSale && <ConfirmDialog dark={dark} danger title={translateUI("Close without saving?")}
+      message={translateUI("A payment was already confirmed. Closing will discard the in-memory recovery and requires manual reconciliation in the payment provider and Sales history.")}
+      confirmLabel={translateUI("Close without saving")} onConfirm={abandonConfirmedPaymentRecovery} onCancel={() => setConfirmAbandonPaidSale(false)} />}
+  </>;
 
   return (
     <Modal title={translateUI("New Sale")} onClose={onClose} dark={dark} wide>

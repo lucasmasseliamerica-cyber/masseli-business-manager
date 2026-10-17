@@ -74,6 +74,35 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
     assert.match(source, /setPaymentHandle\(null\);[\s\S]*setPendingCardSale\(null\);[\s\S]*setPaymentPhase\("idle"\)/);
     assert.match(source, /Card payment status could not be confirmed\. Check the terminal or payment provider before trying again/);
   });
+
+  test(`${label}: confirmed payment recovery keeps the exact sale and provider result`, () => {
+    const implementation = extractFunction(source, 'buildConfirmedPaymentSaveRecovery');
+    const buildRecovery = Function(`${implementation}; return buildConfirmedPaymentSaveRecovery;`)();
+    const pendingSaleObj = { id: 'sale-fixed-id' };
+    const result = { success: true, transactionId: 'provider-reference' };
+    const definite = buildRecovery(pendingSaleObj, result, new Error('database validation'));
+    assert.equal(definite.attempt.pendingSaleObj, pendingSaleObj);
+    assert.equal(definite.attempt.result, result);
+    assert.match(definite.message, /without taking another payment/);
+    const uncertainError = Object.assign(new Error('Connection interrupted. Refresh history.'), { commitUncertain: true });
+    assert.equal(buildRecovery(pendingSaleObj, result, uncertainError).message, uncertainError.message);
+    assert.throws(() => buildRecovery(pendingSaleObj, { success: false }, new Error('declined')), /Only a confirmed payment/);
+  });
+
+  test(`${label}: every confirmed payment preserves the same sale for save-only retry`, () => {
+    const start = source.indexOf('console.error("Sale finalization failed", e);');
+    const end = source.indexOf('return;', start);
+    assert.ok(start >= 0 && end > start, 'payment finalization failure branch was not found');
+    const finalizationFailure = source.slice(start, end);
+    assert.match(finalizationFailure, /buildConfirmedPaymentSaveRecovery\(pendingSaleObj, result, e\)/);
+    assert.match(finalizationFailure, /confirmedPaymentRef\.current = recovery\.attempt/);
+    assert.match(finalizationFailure, /setSaveRetry\(true\)/);
+    assert.doesNotMatch(finalizationFailure, /if \(e\?\.commitUncertain\)/);
+    assert.match(source, /if \(saveRetry && !completedSale\)[\s\S]*Retry Saving Same Sale/);
+    assert.match(source, /window\.addEventListener\("beforeunload", warnBeforeLeaving\)/);
+    assert.match(source, /Close without saving\?[\s\S]*manual reconciliation/);
+    assert.match(source, /const abandonConfirmedPaymentRecovery[\s\S]*confirmedPaymentRef\.current = null[\s\S]*onClose\(\)/);
+  });
 }
 
 test('root and src application copies remain identical after POS changes', () => {

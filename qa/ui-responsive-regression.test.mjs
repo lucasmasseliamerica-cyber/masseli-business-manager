@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const root = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
 const src = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
+const i18n = readFileSync(new URL('../src/i18n.jsx', import.meta.url), 'utf8');
 
 function section(source, startToken, endToken) {
   const start = source.indexOf(startToken);
@@ -76,4 +77,16 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
 
 test('root and src application copies remain identical after responsive UI changes', () => {
   assert.equal(root, src);
+});
+
+test('Portuguese catalog has unique translation keys', () => {
+  const catalog = section(i18n, 'export const PORTUGUESE = {', '};\nexport const normalizeLanguage');
+  const keys = [...catalog.matchAll(/^\s*"((?:\\.|[^"\\])*)"\s*:/gm)].map((match) => match[1]);
+  const duplicates = [...new Set(keys.filter((key, index) => keys.indexOf(key) !== index))];
+  assert.deepEqual(duplicates, []);
+});
+
+test('Portuguese catalog contains no question-mark mojibake between letters', () => {
+  const catalog = section(i18n, 'export const PORTUGUESE = {', '};\nexport const normalizeLanguage');
+  assert.doesNotMatch(catalog, /[A-Za-zÀ-ÿ]\?[A-Za-zÀ-ÿ]/u);
 });

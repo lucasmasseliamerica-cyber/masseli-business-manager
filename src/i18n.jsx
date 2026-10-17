@@ -930,6 +930,11 @@ export const PORTUGUESE = {
   "Use a JPEG, PNG, or WebP image.": "Use uma imagem JPEG, PNG ou WebP.",
   "The selected image is empty or invalid.": "A imagem selecionada está vazia ou é inválida.",
   "Product images must be 5 MB or smaller.": "As imagens de produtos devem ter no máximo 5 MB.",
+  "Payment was confirmed, but the sale save could not be confirmed.": "O pagamento foi confirmado, mas não foi possível confirmar o salvamento da venda.",
+  "Payment succeeded, but the sale could not be saved. Retry saving this same sale without taking another payment.": "O pagamento foi confirmado, mas a venda não pôde ser salva. Tente salvar esta mesma venda novamente sem receber outro pagamento.",
+  "Close without saving?": "Fechar sem salvar?",
+  "A payment was already confirmed. Closing will discard the in-memory recovery and requires manual reconciliation in the payment provider and Sales history.": "Um pagamento já foi confirmado. Fechar descartará a recuperação em memória e exigirá conciliação manual no provedor de pagamento e no histórico de vendas.",
+  "Close without saving": "Fechar sem salvar",
   "Inventory categories": "Categorias de estoque",
   "Sales channels": "Canais de venda",
   "Payment methods": "Formas de pagamento",
@@ -946,8 +951,8 @@ export const PORTUGUESE = {
   "Delivery": "Entrega",
   "Pix": "Pix",
   "Confirm receipt of Pix before completing this sale. This records the payment; it does not collect or verify Pix.": "Confirme o recebimento do Pix antes de concluir a venda. O aplicativo registra o pagamento; não cobra nem verifica o Pix.",
-  "Zelle is available only in English.": "Zelle est? dispon?vel somente em ingl?s.",
-  "Pix is available only in Portuguese.": "Pix est? dispon?vel somente em portugu?s."
+  "Zelle is available only in English.": "Zelle está disponível somente em inglês.",
+  "Pix is available only in Portuguese.": "Pix está disponível somente em português."
 };
 export const normalizeLanguage = value => value === "pt-BR" ? "pt-BR" : "en";
 const LOWER_PORTUGUESE = Object.fromEntries(Object.entries(PORTUGUESE).map(([key,value]) => [key.toLowerCase(),value]));
