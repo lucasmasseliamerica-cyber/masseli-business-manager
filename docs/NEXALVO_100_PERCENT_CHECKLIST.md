@@ -127,6 +127,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Fundação frontend da Administração Comercial separa SUPERADMIN de OWNER, confia somente em `app_metadata`, não enumera tenants pelo cliente público e exige Edge Function protegida para listagem e mutações confirmadas. [Evidência](./QA_PLATFORM_ADMIN_FOUNDATION_20261016.md).
 - [x] Backend da Administração Comercial preparado para TEST: Edge Function revalida Auth/claim, aplica CORS e contrato estritos, mantém `service_role` no servidor e chama RPCs transacionais com idempotência, locks, licença vitalícia/revogação, estado e auditoria privada. A interface preserva o `request_id` em retry e exibe o histórico recente. Migração/deploy e homologação real seguem bloqueados; suspensão ainda não é um bloqueio RLS global. [Evidência](./QA_PLATFORM_ADMIN_BACKEND_20261016.md).
 - [ ] Suporte, logs, incidentes, monitoramento e alertas.
+- [x] Recuperação de falha global da interface: Error Boundary acessível PT/EN evita tela vazia, não repete operações, oferece remontagem/recarga e emite somente referência local sanitizada. Envio, persistência e alerta externo de telemetria continuam pendentes no item amplo. [Evidência](./QA_APP_CRASH_RECOVERY_20261016.md).
 - [ ] Privacidade, termos, documentação de uso e operação.
 - [ ] Piloto real supervisionado, correção de feedback e aceite final.
 - [ ] Revisão de segurança, backups, plano de rollback e aprovação explícita para lançamento.
