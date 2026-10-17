@@ -11247,6 +11247,9 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingDeactivate, setConfirmingDeactivate] = useState(false);
+  const ownerControlsSecurity = currentUser?.role === "OWNER";
+  const protectedSelf = !!user && user.id === currentUser?.id && !ownerControlsSecurity;
+  const canChangeRole = ownerControlsSecurity || !user;
 
   const otherOwnersActive = users.filter((u) => u.role === "OWNER" && u.active !== false && u.id !== user?.id).length;
   const roleDefaults = ROLE_DEFAULTS[role] || ROLE_DEFAULTS.EMPLOYEE;
@@ -11257,6 +11260,7 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
   const save = async () => {
     if (submitting) return;
     setError("");
+    if (protectedSelf) { setError("Only an Owner can change your login from Team & Permissions."); return; }
     if (!name.trim()) { setError("Name is required."); return; }
     if (!username.trim()) { setError("Username is required."); return; }
     if (!user && (!email.trim() || !email.includes("@"))) { setError("A valid email is required for the staff invitation."); return; }
@@ -11271,7 +11275,8 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
     }
     setSubmitting(true);
     try {
-      const payload = { id: user?.id, email: email.trim(), name: name.trim(), username: username.trim(), role, employeeId, active, permissions: role === "OWNER" ? {} : permissions };
+      const safePermissions = role === "OWNER" ? {} : ownerControlsSecurity ? permissions : (user?.permissions || {});
+      const payload = { id: user?.id, email: email.trim(), name: name.trim(), username: username.trim(), role, employeeId, active, permissions: safePermissions };
       if (user) await setUsers(users.map((u) => (u.id === user.id ? { ...u, ...payload } : u)));
       else await inviteUser(payload);
       showToast(user ? "User updated" : "Invitation sent");
@@ -11294,26 +11299,26 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
   return (
     <Modal title={user ? translateUI("Edit User") : translateUI("Add Staff Login")} onClose={onClose} dark={dark} wide>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field dark={dark} label={translateUI("Name")}><Input dark={dark} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field dark={dark} label={translateUI("Username")}><Input dark={dark} value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Name")}><Input dark={dark} disabled={protectedSelf} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Username")}><Input dark={dark} disabled={protectedSelf} value={username} onChange={(e) => setUsername(e.target.value)} /></Field>
         {!user && <Field dark={dark} label={translateUI("Email")}><Input dark={dark} type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>}
         <Field dark={dark} label={translateUI("Role")}>
-          <Select dark={dark} value={role} onChange={(e) => setRole(e.target.value)}>
+          <Select dark={dark} disabled={!canChangeRole || protectedSelf} value={role} onChange={(e) => setRole(e.target.value)}>
             <option value="EMPLOYEE">{translateUI("Employee")}</option>
             <option value="MANAGER">{translateUI("Manager")}</option>
-            <option value="OWNER">{translateUI("Owner")}</option>
+            {ownerControlsSecurity && <option value="OWNER">{translateUI("Owner")}</option>}
           </Select>
         </Field>
       </div>
       <Field dark={dark} label={translateUI("Linked Employee Record")}>
-        <Select dark={dark} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
+        <Select dark={dark} disabled={protectedSelf} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
           <option value="">{translateUI("— No linked employee —")}</option>
           {employees.map((e) => <option key={e.id} value={e.id}>{e.name}{e.active === false ? translateUI(" (inactive)") : ""}</option>)}
         </Select>
       </Field>
       <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Linking connects this login to a staff record, so tasks assigned to")}{employeeId ? (employees.find((e) => e.id === employeeId)?.name || "them") : "them"}{translateUI("show up under \"Assigned to Me\" when they're signed in.")}</div>
       <div className="flex items-center gap-2 mb-4">
-        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} />
+        <input type="checkbox" disabled={protectedSelf} checked={active} onChange={(e) => setActive(e.target.checked)} />
         <span className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Active (can log in)")}</span>
       </div>
 
@@ -11325,7 +11330,7 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
             {PERMISSIONS.map((p) => (
               <label key={p.key} className="flex items-center justify-between gap-2 py-2 px-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
                 <span className="text-xs" style={{ color: dark ? C.white : C.black }}>{translateUI(p.label)}</span>
-                <input type="checkbox" checked={permState(p.key)} onChange={() => togglePerm(p.key)} />
+                <input type="checkbox" disabled={!ownerControlsSecurity} checked={permState(p.key)} onChange={() => togglePerm(p.key)} />
               </label>
             ))}
           </div>
@@ -11335,13 +11340,14 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
       )}
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
+      {!ownerControlsSecurity && <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Only an Owner can change roles or permission overrides.")}</div>}
       <div className="flex gap-2">
-        {user && (
+        {user && !protectedSelf && (
           <GhostButton dark={dark} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
             {user.active === false ? translateUI("Reactivate") : translateUI("Deactivate")}
           </GhostButton>
         )}
-        <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save")}</PrimaryButton>
+        <PrimaryButton full disabled={submitting || protectedSelf} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save")}</PrimaryButton>
       </div>
       {confirmingDeactivate && (
         <ConfirmDialog dark={dark} title={user.active === false ? translateUI("Reactivate this login?") : translateUI("Deactivate this login?")}

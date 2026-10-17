@@ -1,5 +1,5 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
-Atualizado: 2026-10-16. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126, [CI #126 tentativa 2](./QA_DELIVERY_CI_126_ATTEMPT2_20261015.md) e CI #155.
+Atualizado: 2026-10-17. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126, [CI #126 tentativa 2](./QA_DELIVERY_CI_126_ATTEMPT2_20261015.md) e CI #157.
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 
 ## Regras de status
@@ -11,6 +11,7 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 ## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
 - [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral: [CI #157](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38993406844).
 - [x] CI #157: 12/12 jobs, 456/456 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.
+- [x] Pacote integrado de homologação preparado: manifesto com hashes/dependências, comparação de catálogo somente leitura, confirmação externa obrigatória do TEST, runner Windows sem escrita, backend versionado de gestão de equipe e rollbacks que preservam histórico. **274/274 regressões estáticas**, build e auditoria runtime aprovados localmente; catálogo implantado, migrações, deploys e fluxos reais continuam bloqueados. [Evidência](./QA_FINAL_HOMOLOGATION_PACKAGE_20261017.md).
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
 - [x] Gate de dependências publicado: runtime exige zero alertas moderados ou superiores; auditoria completa falha para pacote/advisory novo, severidade crítica ou aumento sobre o teto conhecido. CI #124 aprovou o gate.

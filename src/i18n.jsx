@@ -565,6 +565,8 @@ export const PORTUGUESE = {
   "Starts from standard": "Começa com as permissões padrão de",
   "defaults. Toggle to grant or remove specific access for this person.": ". Ative ou desative permissões específicas desta pessoa.",
   "Owners always have full access to every section — permissions above only apply to Managers and Employees.": "Proprietários têm acesso completo. As permissões acima se aplicam apenas a gerentes e funcionários.",
+  "Only an Owner can change your login from Team & Permissions.": "Somente um proprietário pode alterar seu acesso em Equipe e permissões.",
+  "Only an Owner can change roles or permission overrides.": "Somente um proprietário pode alterar funções ou permissões personalizadas.",
   "Most recent 100 actions across the business.": "As 100 ações mais recentes da empresa.",
   "No activity yet": "Nenhuma atividade ainda",
   "Print sends this document to your browser's print dialog (choose \"Save as PDF\" there for a PDF file). Export downloads it as a standalone HTML file you can open or print from outside this app.": "Imprimir abre a janela de impressão do navegador; escolha \"Salvar como PDF\" para gerar um PDF. Exportar baixa um arquivo HTML que pode ser aberto ou impresso fora do aplicativo.",

@@ -1,9 +1,12 @@
 -- NEXALVO TEST-only / QA branch migration.
+-- PREPARED, NOT EXECUTED. Apply only to Supabase TEST msinksoilkluooxenecy after explicit authorization.
 -- Legacy fn_create_purchase_order remains unchanged for existing callers.
+BEGIN;
+
 CREATE TABLE IF NOT EXISTS public.purchase_order_request_keys (
  business_id uuid NOT NULL REFERENCES public.businesses(id),
  request_id uuid NOT NULL,
- payload_hash text NOT NULL,
+ request_payload jsonb NOT NULL,
  purchase_order_id uuid REFERENCES public.purchase_orders(id),
  created_at timestamptz NOT NULL DEFAULT now(),
  PRIMARY KEY(business_id,request_id)
@@ -29,7 +32,7 @@ SECURITY DEFINER
 SET search_path TO ''
 AS $function$
 DECLARE
- v_hash text;
+ v_payload jsonb;
  v_row public.purchase_order_request_keys;
  v_po public.purchase_orders;
 BEGIN
@@ -41,21 +44,21 @@ BEGIN
  IF NOT public.user_can('managePurchases') THEN
    RAISE EXCEPTION 'permission denied: managePurchases required';
  END IF;
- -- jsonb gives deterministic canonical key ordering. Exact retry only;
- -- changed terms/line-items with the same key must be rejected.
- v_hash:=md5(jsonb_build_object(
-   'business',p_business_id,'supplier',p_supplier_id,'location',p_location_id,
+ -- Retain the complete canonical payload. Exact retry only; changed terms or line-items with the
+ -- same key must be rejected without relying on a collision-prone digest.
+ v_payload:=jsonb_build_object(
+   'business_id',p_business_id,'supplier_id',p_supplier_id,'location_id',p_location_id,
    'order_date',p_order_date,'expected_date',p_expected_date,'status',p_status,
    'payment_method',p_payment_method,'notes',p_notes,'discount',p_discount,
    'tax',p_tax,'items',p_items
- )::text);
- INSERT INTO public.purchase_order_request_keys(business_id,request_id,payload_hash)
- VALUES(p_business_id,p_request_id,v_hash)
+ );
+ INSERT INTO public.purchase_order_request_keys(business_id,request_id,request_payload)
+ VALUES(p_business_id,p_request_id,v_payload)
  ON CONFLICT(business_id,request_id) DO NOTHING;
  SELECT * INTO v_row FROM public.purchase_order_request_keys
  WHERE business_id=p_business_id AND request_id=p_request_id
  FOR UPDATE;
- IF v_row.payload_hash IS DISTINCT FROM v_hash THEN
+ IF v_row.request_payload IS DISTINCT FROM v_payload THEN
    RAISE EXCEPTION 'idempotency key reused with different payload';
  END IF;
  IF v_row.purchase_order_id IS NOT NULL THEN
@@ -81,3 +84,5 @@ REVOKE ALL ON FUNCTION public.fn_create_purchase_order_idempotent(
 GRANT EXECUTE ON FUNCTION public.fn_create_purchase_order_idempotent(
  uuid,uuid,uuid,uuid,date,date,text,text,text,numeric,numeric,jsonb
 ) TO authenticated,service_role;
+
+COMMIT;

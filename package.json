@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "qa:final-package": "node --test qa/final-homologation-package.test.mjs qa/manage-staff-user.test.mjs && node qa/final-homologation-manifest.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
