@@ -1,5 +1,5 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
-Atualizado: 2026-10-17. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126, [CI #126 tentativa 2](./QA_DELIVERY_CI_126_ATTEMPT2_20261015.md) e CI #158.
+Atualizado: 2026-10-17. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126, [CI #126 tentativa 2](./QA_DELIVERY_CI_126_ATTEMPT2_20261015.md), CI #159 e [auditoria definitiva do catálogo](./QA_DEFINITIVE_SQL_CATALOG_AUDIT_20261017.md).
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 
 ## Regras de status
@@ -13,7 +13,9 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] CI #159: 12/12 jobs, 470/470 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.
 - [x] Pacote integrado de homologação preparado: manifesto com hashes/dependências, comparação de catálogo somente leitura, confirmação externa obrigatória do TEST, runner Windows sem escrita, backend versionado de gestão de equipe e rollbacks que preservam histórico. **274/274 regressões estáticas**, build e auditoria runtime aprovados localmente; CI #158 integralmente verde. [Evidência](./QA_FINAL_HOMOLOGATION_PACKAGE_20261017.md).
 - [x] Primeiro catálogo real TEST revisado: 31/31 tabelas com RLS, 53 policies, 58 funções, 48 `SECURITY DEFINER`, 568 grants; 25/25 tabelas do contrato e 39 RPCs implantadas têm presença/assinaturas compatíveis, sem acesso `anon` demonstrado. CI #159 aprovou 470/470. [Evidência](./QA_REAL_CATALOG_REVIEW_20261017.md).
-- [ ] **BLOQUEADO:** completar auditoria com corpos das 58 funções, todas as 53 policies, 568 grants, owners e ACLs. O primeiro export contém zero corpos, 12 policies e 25 grants detalhados; a segunda consulta somente leitura está preparada.
+- [x] Segundo export público sanitizado e revisado: 58/58 corpos, 53/53 policies, 568 grants de tabela, 3.547 de coluna, 114 índices, 196 constraints e cinco triggers. O original passou varredura de segredos e não foi versionado. [Evidência](./QA_DEFINITIVE_SQL_CATALOG_AUDIT_20261017.md).
+- [ ] **BLOQUEADO:** cinco wrappers públicos chamam funções em `nexalvo_platform`/`nexalvo_backup`; falta executar o export adicional somente leitura desses schemas e da matriz global de permissões. Não classificar esses endpoints como aprovados antes disso.
+- [ ] **PREPARADO, NÃO APLICADO:** hardening TEST-only corrige leitura direta de salários/RH, escopo de perfis, referência fornecedor-item entre empresas, policies `public`, grants de triggers e default EXECUTE. Exige autorização específica, preflight pós-aplicação e MANAGER/EMPLOYEE reais.
 - [x] Supabase TEST com duas empresas OWNER e testes de isolamento HTTP/RLS; relatório P0.01.
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
 - [x] Gate de dependências publicado: runtime exige zero alertas moderados ou superiores; auditoria completa falha para pacote/advisory novo, severidade crítica ou aumento sobre o teto conhecido. CI #124 aprovou o gate.
@@ -196,7 +198,7 @@ Antes de criar qualquer novo teste, verificar se a mesma combinação **ambiente
 - [x] Validação local: **54/54 testes estáticos**, **4/4 browser de recuperação interceptado**, build Vite aprovado, zero falhas e zero skips; `App.jsx` e `src/App.jsx` idênticos. [Evidências e limites](./QA_DELIVERY_CASH_PREFLIGHT_20261015.md).
 - [x] Preflight convertido em gate autenticado somente leitura antes de todos os jobs autenticados; valida OWNER A/B, fixtures positivas, isolamento e SELECT direto de `employees`/`sale_items`. O runner persistente P0.05 continua ausente da execução padrão.
 - [x] **Histórico resolvido:** [CI #118, tentativa 2](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38752124497) identificou `FIXTURE_EMPLOYEE_B`; a fixture foi posteriormente criada por processo autorizado e a CI #126 tentativa 2 aprovou o preflight completo.
-- [ ] Migração Cash e prova SQL não executadas. Recuperação SMTP/troca/login real, idempotência de despesa, catálogo completo Supabase, MANAGER/EMPLOYEE e compra persistente permanecem abertos.
+- [ ] Migração Cash e prova SQL não executadas. Recuperação SMTP/troca/login real, idempotência de despesa, schemas privados Supabase, MANAGER/EMPLOYEE e compra persistente permanecem abertos.
 
 ## Automação P0.03 publicada — CI #121
 

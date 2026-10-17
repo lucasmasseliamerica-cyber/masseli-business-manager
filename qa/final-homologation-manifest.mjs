@@ -6,8 +6,8 @@ export const TEST_PROJECT_REF = 'msinksoilkluooxenecy';
 export const QA_BRANCH = 'automation/nexalvo-qa-actions';
 
 export const knownTestEvidence = Object.freeze({
-  source: 'read-only TEST catalog export received 2026-10-17 and CI 158 report',
-  catalogDefinitionsSupplied: 'partial_metadata_only',
+  source: 'complete read-only TEST security catalog received 2026-10-17 and CI 159 report',
+  catalogDefinitionsSupplied: 'complete_raw_reviewed_sanitized_evidence_versioned',
   counts: {
     publicTablesWithRls: 31,
     publicPolicies: 53,
@@ -15,7 +15,7 @@ export const knownTestEvidence = Object.freeze({
     tableGrantEntries: 568,
     securityDefinerFunctions: 48,
   },
-  ci158: { jobsPassed: 12, checksPassed: 469, failures: 0, skipped: 0 },
+  ci159: { jobsPassed: 12, checksPassed: 470, failures: 0, skipped: 0 },
 });
 
 export const baselineSources = Object.freeze([
@@ -31,7 +31,11 @@ export const baselineSources = Object.freeze([
 
 export const auditArtifacts = Object.freeze([
   'qa/evidence/final-homologation-catalog-20261017.json',
+  'qa/evidence/final-homologation-security-sanitized-20261017.json',
+  'qa/audit-final-security-catalog.mjs',
   'qa/sql/final_homologation_security_definitions_readonly_TEST.sql',
+  'qa/sql/final_homologation_private_security_definitions_readonly_TEST.sql',
+  'qa/sql/final_homologation_permission_defaults_readonly_TEST.sql',
 ]);
 
 export const applicationContract = Object.freeze({
@@ -130,13 +134,22 @@ export const deliveryUnits = Object.freeze([
     authorization: 'already_applied_test_evidence',
   },
   {
+    id: 'catalog-security-hardening',
+    status: 'prepared_unapplied',
+    apply: 'migrations/20261017_catalog_security_hardening_TEST.sql',
+    verify: 'qa/sql/catalog_security_hardening_preflight_readonly_TEST.sql',
+    rollback: 'migrations/20261017_catalog_security_hardening_rollback_TEST.sql',
+    dependsOn: ['baseline-schema', 'deployed-catalog-reviewed'],
+    authorization: 'test_migration_required',
+  },
+  {
     id: 'cash-register-finite-guard',
     status: 'prepared_unapplied',
     apply: 'migrations/20261015_cash_register_finite_guard_TEST.sql',
     verify: 'qa/sql/p0_03_cash_register_finite_rollback_TEST.sql',
     rollback: null,
     rollbackStrategy: 'restore_reviewed_preapply_function_definition',
-    dependsOn: ['baseline-schema'],
+    dependsOn: ['baseline-schema', 'catalog-security-hardening'],
     authorization: 'test_migration_required',
   },
   {
@@ -165,7 +178,7 @@ export const deliveryUnits = Object.freeze([
     apply: 'migrations/20261012_purchase_order_idempotency_TEST.sql',
     verify: 'qa/sql/p0_05_purchase_lifecycle_rollback_TEST.sql',
     rollback: 'migrations/20261012_purchase_order_idempotency_rollback_TEST.sql',
-    dependsOn: ['baseline-schema'],
+    dependsOn: ['baseline-schema', 'catalog-security-hardening'],
     authorization: 'test_migration_required',
     featureFlag: 'VITE_PURCHASE_IDEMPOTENCY_ENABLED',
   },
@@ -176,7 +189,7 @@ export const deliveryUnits = Object.freeze([
     verify: 'qa/sql/manage_staff_user_preflight_readonly_TEST.sql',
     rollback: 'migrations/20261017_manage_staff_user_rollback_TEST.sql',
     edge: 'supabase/functions/manage-staff-user/index.ts',
-    dependsOn: ['baseline-schema', 'deployed-catalog-reviewed'],
+    dependsOn: ['baseline-schema', 'deployed-catalog-reviewed', 'catalog-security-hardening'],
     authorization: 'test_migration_deploy_and_invitation_required',
   },
   {
@@ -185,7 +198,7 @@ export const deliveryUnits = Object.freeze([
     apply: 'migrations/20261016_product_images_storage_TEST.sql',
     verify: 'qa/sql/product_images_storage_preflight_readonly_TEST.sql',
     rollback: 'migrations/20261016_product_images_storage_rollback_TEST.sql',
-    dependsOn: ['baseline-schema', 'deployed-catalog-reviewed'],
+    dependsOn: ['baseline-schema', 'deployed-catalog-reviewed', 'catalog-security-hardening'],
     authorization: 'test_migration_and_fixture_write_required',
   },
   {
@@ -194,7 +207,7 @@ export const deliveryUnits = Object.freeze([
     apply: 'migrations/20261016_platform_admin_TEST.sql',
     verify: 'qa/sql/platform_admin_preflight_readonly_TEST.sql',
     rollback: 'migrations/20261016_platform_admin_rollback_TEST.sql',
-    dependsOn: ['baseline-schema', 'deployed-catalog-reviewed'],
+    dependsOn: ['baseline-schema', 'deployed-catalog-reviewed', 'catalog-security-hardening'],
     authorization: 'test_migration_deploy_and_superadmin_required',
     unresolvedGate: 'global_suspension_enforcement_requires_deployed_rls_and_rpc_catalog',
   },
@@ -341,12 +354,21 @@ export function evaluateDeployedCatalog(input) {
   }
   const sensitivePolicies = catalog.sensitive_security?.policies || [];
   const sensitiveGrants = catalog.sensitive_security?.grants || [];
-  const policiesAssignedToPublic = sensitivePolicies
+  const policyRows = catalog.all_policies || catalog.policies || sensitivePolicies;
+  const tableGrantRows = catalog.all_table_grants || sensitiveGrants;
+  const columnGrantRows = catalog.all_column_grants || [];
+  const policiesAssignedToPublic = policyRows
     .filter((row) => Array.isArray(row.roles) && row.roles.includes('public'))
     .map((row) => `${row.tablename}.${row.policyname}`).sort();
-  const anonSensitiveTableGrants = sensitiveGrants
+  const anonSensitiveTableGrants = tableGrantRows
     .filter((row) => row.grantee === 'anon')
     .map((row) => `${row.table_name}:${row.privilege_type}`).sort();
+  const authenticatedSalarySelect = columnGrantRows.some((row) => row.table_name === 'employees'
+    && row.column_name === 'hourly_rate' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
+  const referencedPrivateSchemas = [...new Set(functionRows.flatMap((row) =>
+    [...String(row.definition || '').matchAll(/\b(nexalvo_[a-z0-9_]+)\./gi)].map((match) => match[1].toLowerCase())))].sort();
+  const publicFunctionDefaultAcls = (catalog.default_privileges || [])
+    .filter((row) => row.schema_name === 'public' && row.object_type === 'f');
   const expectedCounts = knownTestEvidence.counts;
   const observedCounts = catalog.counts || {};
   const countMismatches = [
@@ -363,8 +385,11 @@ export function evaluateDeployedCatalog(input) {
     functionDefinitions: functionRows.filter((row) => typeof row.definition === 'string' && row.definition.length > 0).length,
     publicPolicies: Number(observedCounts.public_policies || 0),
     exportedSensitivePolicies: sensitivePolicies.length,
+    exportedPolicies: policyRows.length,
     tableGrantEntries: Number(observedCounts.public_role_table_grant_entries || 0),
     exportedSensitiveGrants: sensitiveGrants.length,
+    exportedTableGrants: tableGrantRows.length,
+    exportedColumnGrants: columnGrantRows.length,
   };
   const securityDefinitionsComplete = catalog.security_definitions_complete === true
     && securityCoverage.functionDefinitions === securityCoverage.publicFunctions
@@ -394,6 +419,9 @@ export function evaluateDeployedCatalog(input) {
       hardenedEmptySearchPath,
       policiesAssignedToPublic,
       anonSensitiveTableGrants,
+      authenticatedSalarySelect,
+      referencedPrivateSchemas,
+      publicFunctionDefaultAcls,
       countMismatches,
     },
     securityCoverage,

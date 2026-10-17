@@ -2119,8 +2119,15 @@ const supabaseRest = {
     if (!res.ok) throw new Error(`select ${table} failed (${res.status}): ${JSON.stringify(body)}`);
     return body;
   },
-  async upsert(table, rows, onConflict = "id") {
-    const res = await supabaseFetch(`/rest/v1/${table}?on_conflict=${onConflict}`, {
+  async selectRpc(fnName, query = "") {
+    const res = await supabaseFetch(`/rest/v1/rpc/${fnName}${query ? `?${query}` : ""}`, { method: "GET" });
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(`read RPC ${fnName} failed (${res.status}): ${JSON.stringify(body)}`);
+    return body;
+  },
+  async upsert(table, rows, onConflict = "id", returnSelect = null) {
+    const selected = returnSelect ? `&select=${encodeURIComponent(returnSelect)}` : "";
+    const res = await supabaseFetch(`/rest/v1/${table}?on_conflict=${onConflict}${selected}`, {
       method: "POST",
       headers: { Prefer: "resolution=merge-duplicates,return=representation" },
       body: JSON.stringify(rows),
@@ -2138,9 +2145,10 @@ const supabaseRest = {
     if (!res.ok) throw new Error(`insert ${table} failed (${res.status}): ${JSON.stringify(body)}`);
     return Array.isArray(body) ? body[0] : body;
   },
-  async updateOne(table, id, patch, expected = null) {
+  async updateOne(table, id, patch, expected = null, returnSelect = null) {
     const filters = expected ? `&and=${encodeURIComponent(`(${Object.entries(expected).map(([key, value]) => `${key}.${value === null ? "is.null" : `eq.${postgrestFilterValue(value)}`}`).join(",")})`)}` : "";
-    const res = await supabaseFetch(`/rest/v1/${table}?id=eq.${id}${filters}`, {
+    const selected = returnSelect ? `&select=${encodeURIComponent(returnSelect)}` : "";
+    const res = await supabaseFetch(`/rest/v1/${table}?id=eq.${id}${filters}${selected}`, {
       method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify(patch),
     });
     const body = await res.json().catch(() => null);
@@ -2548,28 +2556,32 @@ async function loadAuthenticatedProfile(userId, authUser = null) {
 const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || ""));
 const newDbId = () => crypto.randomUUID();
 
-function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate" } = {}, reportLoadError, clearLoadError) {
+function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate", loadRows = null, writeSelect = null } = {}, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const previousRef = useRef([]);
   const writeBlockedRef = useRef(false);
 
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); previousRef.current = []; return []; }
-    const rows = await supabaseRest.select(table, `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
+    const rows = loadRows
+      ? await loadRows()
+      : await supabaseRest.select(table, `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
     const mapped = (rows || []).map(fromDb);
     previousRef.current = mapped;
     writeBlockedRef.current = false;
     setData(mapped);
     clearLoadError?.(table); // only reached once the select above has actually succeeded
     return mapped;
-  }, [table, businessId, fromDb, clearLoadError]);
+  }, [table, businessId, fromDb, loadRows, clearLoadError]);
 
   useEffect(() => {
     let cancelled = false;
     if (!businessId) { setData([]); previousRef.current = []; return () => {}; }
     (async () => {
       try {
-        const rows = await supabaseRest.select(table, `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
+        const rows = loadRows
+          ? await loadRows()
+          : await supabaseRest.select(table, `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
         if (cancelled) return;
         const mapped = (rows || []).map(fromDb);
         previousRef.current = mapped;
@@ -2585,7 +2597,7 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
       }
     })();
     return () => { cancelled = true; };
-  }, [table, businessId, fromDb, reportLoadError, clearLoadError]);
+  }, [table, businessId, fromDb, loadRows, reportLoadError, clearLoadError]);
 
   const persist = useCallback(async (next) => {
     if (!businessId) throw new Error("No authenticated business is available.");
@@ -2612,11 +2624,11 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
     const hasWrites = inserts.length + updates.length + missingRows.length > 0;
     if (hasWrites) writeBlockedRef.current = true;
     try {
-    if (inserts.length) await supabaseRest.upsert(table, inserts, "id");
-    for (const row of updates) await supabaseRest.updateOne(table, row.id, row.patch, row.expected);
+    if (inserts.length) await supabaseRest.upsert(table, inserts, "id", writeSelect);
+    for (const row of updates) await supabaseRest.updateOne(table, row.id, row.patch, row.expected, writeSelect);
     for (const row of missingRows) {
       if (missing === "delete") await supabaseRest.deleteOne(table, row.id);
-      else if (missing === "deactivate") await supabaseRest.updateOne(table, row.id, { active: false, updated_at: nowISO() });
+      else if (missing === "deactivate") await supabaseRest.updateOne(table, row.id, { active: false, updated_at: nowISO() }, null, writeSelect);
     }
     } catch (e) {
       reportLoadError?.(table, "reload", "Reload to verify the previous save before trying again.");
@@ -2630,7 +2642,7 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
       error.staleData = true;
       throw error;
     }
-  }, [table, businessId, toDb, missing, reload, reportLoadError]);
+  }, [table, businessId, toDb, missing, writeSelect, reload, reportLoadError]);
 
   return [data, persist, reload];
 }
@@ -2648,7 +2660,9 @@ function useSupabaseEmployees(businessId, locations, reportLoadError, clearLoadE
   const defaultLocationId = useMemo(() => (locations || []).find((l) => l.active !== false)?.id || "", [locations]);
   const fromDb = useCallback((r) => ({ id: r.id, name: r.name, role: r.job_title || "", hourlyRate: Number(r.hourly_rate || 0), locationId: r.location_id || "", location: byId[r.location_id] || "", managerId: r.manager_id || "", active: r.active !== false, notes: r.notes || "" }), [byId]);
   const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: (x.location ? byName[x.location] : null) || x.locationId || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName, defaultLocationId]);
-  return useSupabaseArrayCollection("employees", businessId, fromDb, toDb, { missing: "deactivate" }, reportLoadError, clearLoadError);
+  const loadRows = useCallback(() => supabaseRest.selectRpc("fn_read_employees_secure", "order=created_at.desc"), []);
+  return useSupabaseArrayCollection("employees", businessId, fromDb, toDb,
+    { missing: "deactivate", loadRows, writeSelect: "id" }, reportLoadError, clearLoadError);
 }
 
 const SETTINGS_LIST_MAP = {
