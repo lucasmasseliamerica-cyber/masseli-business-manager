@@ -25,6 +25,8 @@ Mensagem, stack, objeto de erro, sessão, token e dados da empresa não entram n
 - regressões focadas: **23/23 PASS**, zero falhas e zero skips;
 - suíte estática completa do job `build-and-security`: **255/255 PASS**, zero falhas e zero skips;
 - `npm run build`: PASS, 1.579 módulos transformados;
+- commit publicado: `acaec47`;
+- [GitHub Actions #156](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38992980203): **SUCCESS**, 12/12 jobs, preflight autenticado `PASS [OK]` e agregador **450/450 PASS**, zero falhas/skips;
 - nenhuma escrita Supabase, migração, operação financeira ou deploy foi executado.
 
 ## Limites
