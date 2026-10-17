@@ -5,7 +5,7 @@ import {
   BarChart2, Settings as SettingsIcon, Plus, AlertTriangle, X, Trash2, Search,
   Sun, Moon, ChevronRight, Grid3x3, ArrowUpRight, ArrowDownRight, Minus,
   TrendingUp, TrendingDown, PackagePlus, PackageMinus, Flame, Edit2, Check,
-  LogOut, Lock, ShieldAlert, Undo2, ScrollText,
+  LogOut, Lock, ShieldAlert, Undo2, ScrollText, Upload,
 } from "lucide-react";
 
 /* ============================== THEME TOKENS ============================== */
@@ -137,6 +137,54 @@ function normalizeProductImageUrl(value) {
   }
 }
 
+const PRODUCT_IMAGE_BUCKET = "nexalvo-product-images";
+const PRODUCT_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const PRODUCT_IMAGE_TYPES = new Map([
+  ["image/jpeg", "jpg"],
+  ["image/png", "png"],
+  ["image/webp", "webp"],
+]);
+const PRODUCT_IMAGE_UUID_PART = "[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+const PRODUCT_IMAGE_STORAGE_PATTERN = new RegExp(`^storage://${PRODUCT_IMAGE_BUCKET}/(${PRODUCT_IMAGE_UUID_PART})/(${PRODUCT_IMAGE_UUID_PART})/(${PRODUCT_IMAGE_UUID_PART})\\.(jpg|png|webp)$`, "i");
+
+function parseProductImageStorageReference(value) {
+  const match = typeof value === "string" ? value.trim().match(PRODUCT_IMAGE_STORAGE_PATTERN) : null;
+  if (!match) return null;
+  return {
+    reference: match[0],
+    bucket: PRODUCT_IMAGE_BUCKET,
+    businessId: match[1],
+    productId: match[2],
+    objectId: match[3],
+    extension: match[4].toLowerCase(),
+    path: `${match[1]}/${match[2]}/${match[3]}.${match[4].toLowerCase()}`,
+  };
+}
+
+function normalizeProductImageReference(value) {
+  const raw = typeof value === "string" ? value.trim() : "";
+  if (!raw) return "";
+  return parseProductImageStorageReference(raw)?.reference || normalizeProductImageUrl(raw);
+}
+
+function validateProductImageFile(file) {
+  if (!file || typeof file !== "object") return { ok: false, error: "Choose an image file." };
+  const contentType = String(file.type || "").toLowerCase();
+  const extension = PRODUCT_IMAGE_TYPES.get(contentType);
+  if (!extension) return { ok: false, error: "Use a JPEG, PNG, or WebP image." };
+  const size = Number(file.size);
+  if (!Number.isFinite(size) || size <= 0) return { ok: false, error: "The selected image is empty or invalid." };
+  if (size > PRODUCT_IMAGE_MAX_BYTES) return { ok: false, error: "Product images must be 5 MB or smaller." };
+  return { ok: true, extension, contentType, size };
+}
+
+function buildProductImageStorageReference(businessId, productId, objectId, extension) {
+  const ref = `storage://${PRODUCT_IMAGE_BUCKET}/${businessId}/${productId}/${objectId}.${extension}`;
+  const parsed = parseProductImageStorageReference(ref);
+  if (!parsed) throw new Error("A safe product image path could not be created.");
+  return parsed.reference;
+}
+
 function normalizeCatalogSearch(value) {
   return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase();
 }
@@ -159,8 +207,8 @@ function validateProductDraft(product, { products = [], inventory = null } = {})
   const price = Number(product?.price);
   if (product?.price === "" || !Number.isFinite(price) || price < 0) return { ok: false, error: "Selling price must be a valid number, zero or greater." };
   const rawImage = String(product?.image || product?.imageUrl || "").trim();
-  const image = normalizeProductImageUrl(rawImage);
-  if (rawImage && !image) return { ok: false, error: "Product image must be a valid HTTPS URL up to 2048 characters." };
+  const image = normalizeProductImageReference(rawImage);
+  if (rawImage && !image) return { ok: false, error: "Product image must be a valid upload reference or HTTPS URL up to 2048 characters." };
   const recipe = Array.isArray(product?.recipe) ? product.recipe : [];
   const seen = new Set();
   const safeRecipe = [];
@@ -2128,6 +2176,75 @@ const supabaseRest = {
   },
 };
 
+function encodeStorageObjectPath(path) {
+  return path.split("/").map((part) => encodeURIComponent(part)).join("/");
+}
+
+const supabaseProductImages = {
+  async upload(file, businessId, productId) {
+    const validation = validateProductImageFile(file);
+    if (!validation.ok) throw new Error(validation.error);
+    const reference = buildProductImageStorageReference(businessId, productId, newDbId(), validation.extension);
+    const object = parseProductImageStorageReference(reference);
+    try {
+      const res = await supabaseFetch(`/storage/v1/object/${encodeURIComponent(object.bucket)}/${encodeStorageObjectPath(object.path)}`, {
+        method: "POST",
+        headers: { "Content-Type": validation.contentType, "x-upsert": "false" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(`Image upload was rejected (HTTP ${res.status}).`);
+      return reference;
+    } catch (cause) {
+      const error = new Error(cause?.message || "The product image could not be uploaded.");
+      error.objectReference = reference;
+      error.cause = cause;
+      throw error;
+    }
+  },
+
+  async remove(reference) {
+    const object = parseProductImageStorageReference(reference);
+    if (!object) return false;
+    const res = await supabaseFetch(`/storage/v1/object/${encodeURIComponent(object.bucket)}`, {
+      method: "DELETE",
+      body: JSON.stringify({ prefixes: [object.path] }),
+    });
+    if (!res.ok && res.status !== 404) throw new Error(`Image cleanup was rejected (HTTP ${res.status}).`);
+    return true;
+  },
+
+  async createSignedUrls(references, expiresIn = 600) {
+    const objects = [...new Map((references || []).map((reference) => {
+      const object = parseProductImageStorageReference(reference);
+      return object ? [object.path, object] : null;
+    }).filter(Boolean)).values()];
+    const result = new Map();
+    if (!objects.length) return result;
+    const res = await supabaseFetch(`/storage/v1/object/sign/${encodeURIComponent(PRODUCT_IMAGE_BUCKET)}`, {
+      method: "POST",
+      body: JSON.stringify({ expiresIn, paths: objects.map((object) => object.path) }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !Array.isArray(body)) throw new Error(`Product photo access could not be authorized (HTTP ${res.status}).`);
+    const expectedOrigin = new URL(SUPABASE_URL).origin;
+    const byPath = new Map(objects.map((object) => [object.path, object.reference]));
+    for (const row of body) {
+      const reference = byPath.get(row?.path);
+      const signedValue = row?.signedURL || row?.signedUrl;
+      if (!reference || typeof signedValue !== "string") continue;
+      try {
+        const signedUrl = new URL(signedValue, expectedOrigin);
+        if (signedUrl.protocol === "https:" && signedUrl.origin === expectedOrigin && signedUrl.pathname.startsWith("/storage/v1/object/sign/")) {
+          result.set(reference, signedUrl.href);
+        }
+      } catch {
+        // A malformed entry fails closed to the product placeholder.
+      }
+    }
+    return result;
+  },
+};
+
 function sanitizeRecoveryCode(value) {
   const code = typeof value === "string" ? value.trim() : "";
   return /^[a-z0-9_-]{1,64}$/i.test(code) ? code : null;
@@ -2627,16 +2744,30 @@ function useSupabaseProducts(businessId, reportLoadError, clearLoadError) {
       if (!byProduct.has(r.product_id)) byProduct.set(r.product_id, []);
       byProduct.get(r.product_id).push({ itemId: r.inventory_item_id, qty: Number(r.qty_per_unit || 0) });
     }
+    const privateImageReferences = (rows || []).map((row) => row.image_url).filter((value) => parseProductImageStorageReference(value));
+    let signedImages = new Map();
+    let imageAuthorizationFailed = false;
+    try {
+      signedImages = await supabaseProductImages.createSignedUrls(privateImageReferences);
+      imageAuthorizationFailed = privateImageReferences.some((reference) => !signedImages.has(reference));
+      if (imageAuthorizationFailed) reportLoadError?.("productImages", "initial", "One or more product photos could not be loaded securely. Product data remains available.");
+      else clearLoadError?.("productImages");
+    } catch {
+      imageAuthorizationFailed = true;
+      reportLoadError?.("productImages", "initial", "Product photos could not be loaded securely. Product data remains available.");
+    }
     const mapped = (rows || []).map((r) => ({
       id: r.id, name: r.name, sku: r.sku || "", category: r.category || "", price: Number(r.price || 0),
       active: r.active !== false, description: r.description || "", image: r.image_url || "",
+      imageDisplayUrl: normalizeProductImageUrl(r.image_url || "") || signedImages.get(r.image_url) || "",
+      imageLoadFailed: imageAuthorizationFailed && !!parseProductImageStorageReference(r.image_url) && !signedImages.has(r.image_url),
       recipe: byProduct.get(r.id) || [], createdAt: r.created_at, updatedAt: r.updated_at,
     }));
     previousRef.current = mapped;
     setData(mapped);
     clearLoadError?.("products"); // only reached once BOTH selects above have succeeded
     return mapped;
-  }, [businessId, clearLoadError]);
+  }, [businessId, clearLoadError, reportLoadError]);
 
   useEffect(() => { reload().catch((e) => { console.error("Supabase products load failed", e); reportLoadError?.("products", "initial", e.message); }); }, [reload, reportLoadError]);
 
@@ -4147,7 +4278,7 @@ function AppBody() {
 
   const phase4WriteGuard = async () => { throw new Error("This Phase 4 ledger is Supabase-managed. Use its server RPC operation instead of legacy local persistence."); };
   const ctx = {
-    dark, settings: displaySettings, setSettings, products: catalogProducts, setProducts: setCatalogProducts, inventory: catalogInventory, setInventory: setCatalogInventory,
+    dark, businessId, settings: displaySettings, setSettings, products: catalogProducts, setProducts: setCatalogProducts, inventory: catalogInventory, setInventory: setCatalogInventory,
     sales: remoteSales, persistSales: persistRemoteSales, cashTx: remoteCashTx, persistCash: phase4WriteGuard,
     expenses: remoteExpenses, setExpenses: phase4WriteGuard, expenseOps: remoteExpenseOps,
     suppliers, setSuppliers, customers, setCustomers, employees, setEmployees,
@@ -5270,15 +5401,18 @@ function SectionHeader({ dark, title, sub, action }) {
   );
 }
 
-function ProductImage({ product, dark, size = 48 }) {
-  const source = normalizeProductImageUrl(product?.image || product?.imageUrl || "");
+function ProductImage({ product, dark, size = 48, localPreviewUrl = "" }) {
+  // blob: URLs are accepted only through this explicit, component-local preview prop. Product
+  // data still passes through normalizeProductImageUrl and therefore remains HTTPS-only.
+  const safeLocalPreview = typeof localPreviewUrl === "string" && localPreviewUrl.startsWith("blob:") ? localPreviewUrl : "";
+  const source = safeLocalPreview || normalizeProductImageUrl(product?.imageDisplayUrl || product?.image || product?.imageUrl || "");
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [source]);
   return (
     <div className="shrink-0 overflow-hidden flex items-center justify-center" style={{ width: size, height: size, borderRadius: Math.max(12, Math.round(size * 0.24)), background: dark ? C.bgDark : C.bgLight, border: `1px solid ${dark ? C.borderDark : C.borderLight}` }}>
       {source && !failed
         ? <img src={source} alt={product?.name ? `${product.name} product` : "Product"} loading="lazy" referrerPolicy="no-referrer" onError={() => setFailed(true)} className="w-full h-full object-cover" />
-        : <Package size={Math.max(18, Math.round(size * 0.42))} color={dark ? C.textMutedDark : C.textMutedLight} aria-hidden="true" />}
+        : <Package size={Math.max(18, Math.round(size * 0.42))} color={dark ? C.textMutedDark : C.textMutedLight} aria-label={product?.imageLoadFailed ? "Product photo unavailable" : undefined} aria-hidden={product?.imageLoadFailed ? undefined : "true"} />}
     </div>
   );
 }
@@ -7779,7 +7913,7 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
 }
 
 /* ============================== PRODUCTS ============================== */
-function ProductsView({ dark, products, setProducts, inventory, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
+function ProductsView({ dark, businessId, products, setProducts, inventory, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
   const { translateUI , interpolateUI } = useLanguage();
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -7816,22 +7950,27 @@ function ProductsView({ dark, products, setProducts, inventory, settings, curren
       {!canEdit && <div className="text-xs mt-3 text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to edit products, recipes, or costs.")}</div>}
 
       {modal && canEdit && (
-        <ProductModal dark={dark} onClose={() => setModal(false)} product={editing} products={products} setProducts={setProducts}
+        <ProductModal dark={dark} businessId={businessId} onClose={() => setModal(false)} product={editing} products={products} setProducts={setProducts}
           inventory={inventory} settings={settings} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
       )}
     </div>
   );
 }
 
-function ProductModal({ dark, onClose, product, products, setProducts, inventory, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
+function ProductModal({ dark, businessId, onClose, product, products, setProducts, inventory, settings, currentUser, can, auditLog, setAuditLog, showToast }) {
   const { translateUI , interpolateUI } = useLanguage();
+  const productIdRef = useRef(product?.id || newDbId());
   const [name, setName] = useState(product?.name || "");
   const [sku, setSku] = useState(product?.sku || "");
   const [category, setCategory] = useState(product?.category || settings.productCategories[0]);
   const [price, setPrice] = useState(product?.price ?? 0);
   const [active, setActive] = useState(product?.active ?? true);
   const [description, setDescription] = useState(product?.description || "");
-  const [image, setImage] = useState(product?.image || product?.imageUrl || "");
+  const existingImageReference = normalizeProductImageReference(product?.image || product?.imageUrl || "");
+  const [image, setImage] = useState(normalizeProductImageUrl(existingImageReference));
+  const [pendingImageFile, setPendingImageFile] = useState(null);
+  const [pendingImagePreview, setPendingImagePreview] = useState("");
+  const [removeExistingImage, setRemoveExistingImage] = useState(false);
   const [recipe, setRecipe] = useState(product?.recipe || []);
 
   const cost = round2(recipe.reduce((sum, r) => { const it = inventory.find((i) => i.id === r.itemId); return sum + (it ? it.costPerUnit * r.qty : 0); }, 0));
@@ -7851,35 +7990,89 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
   const [submitting, setSubmitting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  useEffect(() => {
+    if (!pendingImageFile) { setPendingImagePreview(""); return undefined; }
+    const previewUrl = URL.createObjectURL(pendingImageFile);
+    setPendingImagePreview(previewUrl);
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [pendingImageFile]);
+
+  const selectImageFile = (event) => {
+    const file = event.target.files?.[0] || null;
+    event.target.value = "";
+    if (!file) return;
+    const validation = validateProductImageFile(file);
+    if (!validation.ok) { setError(validation.error); return; }
+    setPendingImageFile(file);
+    setImage("");
+    setRemoveExistingImage(false);
+    setError("");
+  };
+
+  const removeProductImage = () => {
+    setPendingImageFile(null);
+    setImage("");
+    setRemoveExistingImage(true);
+    setError("");
+  };
+
   const save = async () => {
     if (submitting) return;
     setError("");
     if (!can("manageRecipesAndCosts")) { setError("You don't have permission to edit products."); return; }
-    const draft = { id: product?.id || newDbId(), name, sku, category, price, active, description, recipe, image };
+    if (!businessId) { setError("No authenticated business is available."); return; }
+    const selectedImage = pendingImageFile ? "" : removeExistingImage ? "" : (image.trim() || existingImageReference);
+    const draft = { id: productIdRef.current, name, sku, category, price, active, description, recipe, image: selectedImage };
     const validation = validateProductDraft(draft, { products, inventory });
     if (!validation.ok) { setError(validation.error); return; }
 
     setSubmitting(true);
+    let uploadedReference = "";
     try {
-      const payload = validation.value;
-      await setProducts(payload, "upsert");
-      await logAudit(auditLog, setAuditLog, currentUser, product ? "Product Updated" : "Product Created", `${payload.name} · ${fmtMoney(payload.price)} · cost ${fmtMoney(cost)}`);
-      showToast(product ? "Product updated" : "Product created");
+      let payload = validation.value;
+      if (pendingImageFile) {
+        uploadedReference = await supabaseProductImages.upload(pendingImageFile, businessId, productIdRef.current);
+        payload = { ...payload, image: uploadedReference };
+      }
+
+      let refreshNotice = "";
+      try {
+        await setProducts(payload, "upsert");
+      } catch (e) {
+        if (!e?.rpcSucceeded) throw e;
+        refreshNotice = e.message;
+      }
+
+      let cleanupWarning = "";
+      if (parseProductImageStorageReference(existingImageReference) && existingImageReference !== payload.image) {
+        try { await supabaseProductImages.remove(existingImageReference); }
+        catch { cleanupWarning = "The old private image could not be removed and needs administrator cleanup."; }
+      }
+      try {
+        await logAudit(auditLog, setAuditLog, currentUser, product ? "Product Updated" : "Product Created", `${payload.name} · ${fmtMoney(payload.price)} · cost ${fmtMoney(cost)}`);
+      } catch {
+        cleanupWarning = `${cleanupWarning} The product audit entry could not be refreshed.`.trim();
+      }
+      const notices = [refreshNotice, cleanupWarning].filter(Boolean).join(" ");
+      showToast(notices || (product ? "Product updated" : "Product created"), cleanupWarning ? "danger" : "good");
       onClose();
     } catch (e) {
-      // rpcSucceeded (set by useSupabaseProducts.persist) means every write already succeeded —
-      // only the final screen refresh failed. Never worded as a failure, and the form still
-      // closes exactly as on a normal success, since the save is real.
-      if (e?.rpcSucceeded) {
-        showToast(e.message, "good");
-        onClose();
-        return true;
-      } else {
-        // fn_save_product is a single atomic RPC — a real failure here means nothing was written
-        // at all (the server rolls back the whole call), not a partial save. Safe to say so
-        // plainly, and safe for the user to simply retry once the underlying issue is fixed.
-        setError(e?.message || "Could not save this product. Nothing was changed — you can try again.");
+      const uncommittedImage = uploadedReference || e?.objectReference || "";
+      let cleanupFailed = false;
+      // A network interruption can occur after fn_save_product committed but before its response
+      // arrived. Keep that object's path intact until a reload proves whether the product refers
+      // to it; deleting it here could leave a committed product with a broken image reference.
+      if (uncommittedImage && !e?.commitUncertain) {
+        try { await supabaseProductImages.remove(uncommittedImage); }
+        catch { cleanupFailed = true; }
       }
+      const baseMessage = e?.message || "Could not save this product. Nothing was changed — you can try again.";
+      const uncertaintyNotice = e?.commitUncertain && uncommittedImage
+        ? "The uploaded image was preserved because the product save may have committed. Refresh and verify the product before trying again."
+        : "";
+      setError(cleanupFailed
+        ? `${baseMessage} The private upload cleanup could not be confirmed; an administrator should check this product's image folder.`
+        : [baseMessage, uncertaintyNotice].filter(Boolean).join(" "));
     } finally {
       setSubmitting(false);
     }
@@ -7932,12 +8125,20 @@ function ProductModal({ dark, onClose, product, products, setProducts, inventory
       </div>
       <Field dark={dark} label={translateUI("Description")}><TextArea dark={dark} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
       <Field dark={dark} label={translateUI("Product Image URL (HTTPS)")}>
-        <Input dark={dark} type="url" inputMode="url" value={image} onChange={(e) => setImage(e.target.value)} placeholder="https://…" />
+        <Input dark={dark} type="url" inputMode="url" value={image} onChange={(e) => { setImage(e.target.value); setPendingImageFile(null); setRemoveExistingImage(false); }} placeholder="https://…" />
       </Field>
-      {image.trim() && normalizeProductImageUrl(image) && (
+      <div className="flex flex-col sm:flex-row gap-2 mb-3">
+        <label className="font-semibold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 cursor-pointer" style={{ border: `1px solid ${dark ? C.borderDark : C.borderLight}`, color: dark ? C.white : C.black }}>
+          <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={selectImageFile} />
+          <Upload size={16} /> {translateUI(pendingImageFile ? "Choose a different photo" : "Upload product photo")}
+        </label>
+        {(pendingImageFile || (!removeExistingImage && (image || existingImageReference))) && <GhostButton dark={dark} onClick={removeProductImage}>{translateUI("Remove photo")}</GhostButton>}
+      </div>
+      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("JPEG, PNG or WebP, up to 5 MB. Uploaded photos are stored privately for this business.")}</div>
+      {(pendingImagePreview || normalizeProductImageUrl(image) || (!removeExistingImage && product?.imageDisplayUrl)) && (
         <div className="mb-4 flex items-center gap-3">
-          <ProductImage product={{ name: name || "Product", image }} dark={dark} size={88} />
-          <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Image preview. If the host blocks loading, the product placeholder will be shown.")}</div>
+          <ProductImage product={{ name: name || "Product", imageDisplayUrl: normalizeProductImageUrl(image) || product?.imageDisplayUrl }} localPreviewUrl={pendingImagePreview} dark={dark} size={88} />
+          <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Image preview. A new upload is committed only when the product is saved.")}</div>
         </div>
       )}
 

@@ -59,6 +59,13 @@ Resultados locais desta entrega:
 - `npm run build`: PASS, 1.578 módulos transformados;
 - `npm audit --omit=dev --audit-level=moderate`: zero vulnerabilidades de runtime.
 
+Publicação e CI:
+
+- commit publicado: `4f252b0208ba6955e2c8a3d3cafc21221b94103e`;
+- [GitHub Actions #154](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/38945618369): **SUCCESS**, 12/12 jobs identificados no resultado público;
+- preflight autenticado: **PASS [OK]**;
+- agregador QA: **431/431 PASS**, zero falhas e zero skips.
+
 Classificação desta entrega:
 
 - **APROVADO localmente:** código e contratos estáticos exercitados pelas regressões.

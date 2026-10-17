@@ -93,9 +93,11 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 
 ## M7 — P0.07 Arquivos, fotos e isolamento multiempresa (aberto)
 - [ ] Upload de imagens de produtos com formato, tamanho, segurança e mensagens de erro.
+- [x] Integração de upload privado preparada: JPEG/PNG/WebP até 5 MB, prévia, substituição/remoção, referência estável, URLs assinadas curtas em lote e compensação de upload não vinculado. Bucket/políticas e homologação real continuam bloqueados até preflight e autorização de migração TEST. [Evidência](./QA_PRODUCT_IMAGE_STORAGE_20261016.md).
 - [ ] Leitura/download/remoção de arquivos autorizados; isolamento real entre empresas.
 - [ ] Testar URL pública/assinada, cache, revogação, substituição e exclusão.
 - [ ] Permissões de Storage e políticas RLS, incluindo tentativa de acesso cruzado.
+- [x] Políticas Storage TEST-only preparadas para SELECT por empresa e escrita com `manageRecipesAndCosts`, caminho UUID estrito, bucket privado e rollback que recusa apagar objetos. Aplicação e tentativa real de acesso cruzado permanecem pendentes. [Evidência](./QA_PRODUCT_IMAGE_STORAGE_20261016.md).
 
 ## M8 — P1 Cadastros, operação e UX (aberto)
 - [ ] Produtos: criação, edição, desativação, foto, SKU, preço, receita, custos e duplicidades.
