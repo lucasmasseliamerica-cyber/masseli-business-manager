@@ -20,7 +20,7 @@ O SQL deliberadamente retorna `project_ref_external_assertion = null`. PostgreSQ
 
 O frontend e seus limites de servidor dependem de 25 tabelas públicas, 40 funções/RPCs, 2 Edge Functions e 1 bucket privado. Os nomes estão versionados no manifesto. Isso não afirma que são os únicos objetos do banco: a evidência anterior registra 31 tabelas públicas com RLS, 53 políticas, 50 funções, 391 entradas de grants e 35 alertas relacionados a `SECURITY DEFINER`.
 
-Essas contagens vieram da integração aprovada, mas as definições completas ainda não foram fornecidas. O pacote registra `catalogDefinitionsSupplied: false`; portanto, as 53 políticas, os grants efetivos e os corpos das 50 funções continuam pendentes de comparação real. Um alerta `SECURITY DEFINER` é tratado como achado para revisão, não como vulnerabilidade comprovada.
+Essas eram as contagens disponíveis quando o pacote foi preparado. O [primeiro catálogo real](./QA_REAL_CATALOG_REVIEW_20261017.md) recebido depois deste commit as atualizou para 58 funções, 48 `SECURITY DEFINER` e 568 grants, preservando 31/31 tabelas com RLS e 53 policies. O resultado ainda é parcial: não contém corpos de função e detalha somente 12 policies e 25 grants. Um alerta `SECURITY DEFINER` continua sendo achado para revisão, não vulnerabilidade comprovada.
 
 | Unidade | Estado comprovado | Dependência antes de avançar |
 |---|---|---|

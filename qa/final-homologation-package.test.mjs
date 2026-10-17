@@ -8,6 +8,9 @@ import {
   deliveryUnits,
   evaluateDeployedCatalog,
   executionOrder,
+  functionSignatureContract,
+  knownDeployedFingerprints,
+  normalizeCatalogExport,
   QA_BRANCH,
   TEST_PROJECT_REF,
   validateLocalPackage,
@@ -15,6 +18,8 @@ import {
 
 const sql = readFileSync(new URL('./sql/final_homologation_catalog_readonly_TEST.sql', import.meta.url), 'utf8');
 const executableSql = sql.replace(/^\s*--.*$/gm, '');
+const securityDefinitionsSql = readFileSync(new URL('./sql/final_homologation_security_definitions_readonly_TEST.sql', import.meta.url), 'utf8');
+const executableSecurityDefinitionsSql = securityDefinitionsSql.replace(/^\s*--.*$/gm, '');
 const runner = readFileSync(new URL('./Invoke-FinalHomologationPreflight.ps1', import.meta.url), 'utf8');
 
 test('final package is pinned to the isolated QA branch and TEST project', () => {
@@ -30,15 +35,23 @@ test('final package is pinned to the isolated QA branch and TEST project', () =>
 });
 
 test('catalog comparison is transactionally read-only and covers security and migration markers', () => {
-  assert.match(sql, /BEGIN TRANSACTION READ ONLY;/i);
-  assert.match(sql, /SET LOCAL statement_timeout = '30s';/i);
-  assert.match(sql, /\bROLLBACK;/i);
-  assert.doesNotMatch(executableSql, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COPY|CALL|DO)\b/im);
+  for (const [query, executable] of [[sql, executableSql], [securityDefinitionsSql, executableSecurityDefinitionsSql]]) {
+    assert.match(query, /BEGIN TRANSACTION READ ONLY;/i);
+    assert.match(query, /SET LOCAL statement_timeout = '(?:30|60)s';/i);
+    assert.match(query, /\bROLLBACK;/i);
+    assert.doesNotMatch(executable, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COPY|CALL|DO)\b/im);
+  }
   for (const marker of [
     'relrowsecurity', 'pg_policies', 'has_table_privilege', 'has_function_privilege',
     'security_definer', 'purchase_idempotency_rpc', 'expense_idempotency_rpc',
     'platform_admin_rpc_count', 'product_image_policy_count',
   ]) assert.match(sql, new RegExp(marker, 'i'));
+  for (const marker of [
+    'pg_get_functiondef', 'all_policies', 'all_table_grants', 'schema_security',
+    'default_privileges', 'public_views', 'public_triggers', 'public_columns',
+    'public_constraints', 'public_indexes', 'all_column_grants', 'storage_policies',
+    'security_definitions_complete',
+  ]) assert.match(securityDefinitionsSql, new RegExp(marker, 'i'));
   for (const table of ['task_activity', 'users', 'sales', 'inventory_items', 'inventory_stock', 'inventory_transactions', 'products']) {
     assert.match(sql, new RegExp(`'${table}'`));
   }
@@ -79,19 +92,63 @@ test('purchase idempotency compares the complete canonical payload and rollbacks
 test('catalog analyzer distinguishes missing proof, security blockers and review findings', () => {
   const tables = applicationContract.tables.map((name) => ({ name, rls: true }));
   const functions = applicationContract.functions.map((name) => ({
-    name, anon_execute: false, security_definer: true, settings: ['search_path='],
+    name,
+    arguments: functionSignatureContract[name],
+    anon_execute: false,
+    security_definer: true,
+    settings: ['search_path='],
+    definition: `CREATE FUNCTION public.${name}() RETURNS void LANGUAGE plpgsql AS 'BEGIN END'`,
+    fingerprint: knownDeployedFingerprints[name] || 'fixture',
   }));
-  assert.equal(evaluateDeployedCatalog({ project_ref_external_assertion: TEST_PROJECT_REF, tables, functions }).status, 'PASS');
+  const complete = {
+    project_ref_external_assertion: TEST_PROJECT_REF,
+    security_definitions_complete: true,
+    counts: { public_functions: functions.length, public_policies: 0, public_role_table_grant_entries: 0 },
+    tables,
+    functions,
+    all_policies: [],
+    all_table_grants: [],
+  };
+  assert.equal(evaluateDeployedCatalog(complete).status, 'PASS');
 
   const unsafe = evaluateDeployedCatalog({
-    project_ref_external_assertion: TEST_PROJECT_REF,
+    ...complete,
     tables: tables.map((row) => row.name === 'users' ? { ...row, exists: false } : row),
     functions: functions.map((row) => row.name === 'fn_create_sale' ? { ...row, anon_execute: true, settings: null } : row),
   });
   assert.equal(unsafe.status, 'BLOCKED');
   assert.ok(unsafe.missingTables.includes('users'));
   assert.ok(unsafe.unexpectedAnonExecute.includes('fn_create_sale'));
-  assert.ok(unsafe.reviewFindings.unsafeDefinerSearchPath.includes('fn_create_sale'));
+  assert.ok(unsafe.reviewFindings.missingDefinerSearchPath.includes('fn_create_sale'));
+});
+
+test('real TEST metadata export is unwrapped and classified without overstating security coverage', () => {
+  const path = new URL('./evidence/final-homologation-catalog-20261017.json', import.meta.url);
+  const wrapped = JSON.parse(readFileSync(path, 'utf8'));
+  const catalog = normalizeCatalogExport(wrapped);
+  catalog.project_ref_external_assertion = TEST_PROJECT_REF;
+  const result = evaluateDeployedCatalog(catalog);
+  assert.equal(catalog.counts.public_tables, 31);
+  assert.equal(catalog.counts.public_rls_tables, 31);
+  assert.equal(catalog.counts.public_functions, 58);
+  assert.equal(catalog.counts.public_security_definer_functions, 48);
+  assert.equal(catalog.counts.public_role_table_grant_entries, 568);
+  assert.deepEqual(result.missingTables, []);
+  assert.deepEqual(result.unexpectedMissingFunctions, []);
+  assert.deepEqual(result.plannedMissingFunctions, ['fn_manage_staff_profile']);
+  assert.deepEqual(result.signatureMismatches, []);
+  assert.deepEqual(result.fingerprintMismatches, []);
+  assert.deepEqual(result.reviewFindings.countMismatches, []);
+  assert.equal(result.reviewFindings.definerSearchPathPublic.length, 33);
+  assert.equal(result.reviewFindings.hardenedEmptySearchPath.length, 6);
+  assert.equal(result.reviewFindings.policiesAssignedToPublic.length, 8);
+  assert.deepEqual(result.reviewFindings.anonSensitiveTableGrants, []);
+  assert.equal(result.securityDefinitionsComplete, false);
+  assert.equal(result.status, 'BLOCKED');
+  assert.ok(result.blockers.some((message) => message.includes('full function definitions')));
+  assert.equal(result.migrationMarkers.purchase_idempotency_rpc, false);
+  assert.equal(result.migrationMarkers.expense_idempotency_rpc, false);
+  assert.equal(result.migrationMarkers.product_image_bucket, false);
 });
 
 test('PowerShell entrypoint delegates only to local/catalog and existing read-only owner preflight', () => {

@@ -2,6 +2,9 @@
 -- Expected project: msinksoilkluooxenecy. This query does not identify the project by itself;
 -- the operator must verify the selected Supabase project before opening the SQL editor.
 
+BEGIN TRANSACTION READ ONLY;
+SET LOCAL statement_timeout = '30s';
+
 WITH expected_columns(table_name, column_name) AS (
   VALUES
     ('businesses', 'id'),
@@ -68,3 +71,5 @@ SELECT
 FROM information_schema.role_table_grants
 WHERE table_schema = 'nexalvo_private'
 ORDER BY table_name, grantee, privilege_type;
+
+ROLLBACK;

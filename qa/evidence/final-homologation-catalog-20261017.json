@@ -1,0 +1,1061 @@
+[
+  {
+    "final_homologation_catalog": {
+      "counts": {
+        "public_tables": 31,
+        "public_policies": 53,
+        "public_functions": 58,
+        "public_rls_tables": 31,
+        "public_role_table_grant_entries": 568,
+        "public_security_definer_functions": 48
+      },
+      "tables": [
+        {
+          "rls": true,
+          "name": "audit_logs",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "business_alerts",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "business_settings_lists",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "businesses",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "cash_flow",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "cash_registers",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "customers",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "employees",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "expenses",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "inventory_items",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "locations",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "loyalty_rewards",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "loyalty_transactions",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "product_recipes",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "products",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "purchase_order_payments",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "purchase_orders",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "sale_items",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "sales",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "shift_breaks",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "shifts",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "suppliers",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "task_activity",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "tasks",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        },
+        {
+          "rls": true,
+          "name": "users",
+          "exists": true,
+          "force_rls": false,
+          "anon_select": false,
+          "authenticated_select": true
+        }
+      ],
+      "functions": [
+        {
+          "name": "current_business_id",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "",
+          "fingerprint": "cb88feae5114dab5ff53ad35319544d4",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_add_initial_stock",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_name text, p_sku text, p_category text, p_unit text, p_min_qty numeric, p_max_qty numeric, p_supplier_id uuid, p_location_id uuid, p_expires_at timestamp with time zone, p_notes text, p_starting_qty numeric, p_starting_cost numeric",
+          "fingerprint": "375040f442862e43012088c2ac8649b7",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_adjust_inventory_count",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_inventory_item_id uuid, p_location_id uuid, p_new_qty numeric, p_reason text, p_notes text",
+          "fingerprint": "ce5f2ab5348165439c90212c1f5f90ce",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_advance_sale_fulfillment",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_sale_id uuid",
+          "fingerprint": "9b718be596b359897db57db03b6431ae",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_cancel_purchase_order",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_purchase_order_id uuid",
+          "fingerprint": "d2fbddd81358e90640d9cbb0ce231829",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_clock_in",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_employee_id uuid, p_location_id uuid, p_notes text",
+          "fingerprint": "595195a9eddf26e876201e3a6fdc1c43",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_clock_out",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_employee_id uuid",
+          "fingerprint": "0b6d5f0a95664ce8ea0085455cbc98d6",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_close_cash_register",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_register_id uuid, p_actual_cash numeric, p_difference_reason text, p_notes text",
+          "fingerprint": "abc12e6f24daac827c1fea828377e7a0",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_commit_loyalty_for_sale",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_sale_id uuid, p_redeemed_reward_id uuid",
+          "fingerprint": "e5aad2763f169a805db2ed098d068781",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_create_expense",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_location_id uuid, p_expense_date date, p_category text, p_vendor text, p_amount numeric, p_payment_method text, p_recurring boolean, p_notes text",
+          "fingerprint": "2d2e871c427eaa6110aff62d0a0f35e5",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_create_purchase_order",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_supplier_id uuid, p_location_id uuid, p_order_date date, p_expected_date date, p_status text, p_payment_method text, p_notes text, p_discount numeric, p_tax numeric, p_items jsonb",
+          "fingerprint": "60a5ebb422936aae5d2b1abb38688c65",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_create_sale",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_sale_id uuid, p_business_id uuid, p_location_id uuid, p_channel text, p_payment_method text, p_employee_id uuid, p_customer_id uuid, p_discount numeric, p_tax numeric, p_notes text, p_fulfillment_status text, p_items jsonb",
+          "fingerprint": "aabbddc8a9c4a37a171b8a269e9c3139",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_dismiss_alert",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_alert_id uuid",
+          "fingerprint": "ed8381d77960bba6f400b9baa834e2ce",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_end_break",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_employee_id uuid",
+          "fingerprint": "006e76a75908d4a7e770b14e248f8490",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_manual_loyalty_adjustment",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_customer_id uuid, p_type text, p_points numeric, p_reason text",
+          "fingerprint": "ca793b947a72a12c1561e706bc2badf4",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_open_cash_register",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_location_id uuid, p_opening_cash numeric, p_notes text",
+          "fingerprint": "cd4e3943b0adc5856e89c15152f95e02",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_pay_purchase_order",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_purchase_order_id uuid, p_amount numeric, p_payment_method text",
+          "fingerprint": "ca78a44774e353cc41a3d1fb848c18e3",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_read_employees_secure",
+          "settings": [
+            "search_path=\"\""
+          ],
+          "arguments": "",
+          "fingerprint": "1c13bdeb159e0d78db0a200055cdb36a",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_read_inventory_stock_secure",
+          "settings": [
+            "search_path=\"\""
+          ],
+          "arguments": "",
+          "fingerprint": "57116f28b9ae161d5240058a34b8afa9",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_read_inventory_transactions_secure",
+          "settings": [
+            "search_path=\"\""
+          ],
+          "arguments": "",
+          "fingerprint": "7c7e3ab8797be57daa71574e59d0f553",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_read_purchase_order_items_secure",
+          "settings": [
+            "search_path=\"\""
+          ],
+          "arguments": "",
+          "fingerprint": "de4aa1b81b87e33433ef3bbf1b072076",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_read_sale_items_secure",
+          "settings": [
+            "search_path=\"\""
+          ],
+          "arguments": "",
+          "fingerprint": "161e5147cd4eae4ca6e9a4c074af7cb6",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_receive_manual_stock",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_inventory_item_id uuid, p_location_id uuid, p_qty numeric, p_notes text",
+          "fingerprint": "615fda2ac6d504cadda02ae0ad91a12b",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_receive_purchase_order",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_purchase_order_id uuid, p_receive_lines jsonb",
+          "fingerprint": "51ae83d203731a294af7a19bf7e44944",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_reconcile_business_alerts",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_candidates jsonb",
+          "fingerprint": "f1e8ae5988ab067e9dfbfd61e5f924d2",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_record_cash_movement",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_register_id uuid, p_movement_type text, p_amount numeric, p_reason text, p_notes text",
+          "fingerprint": "39688cba8b793bc3482925483cb03db2",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_record_waste",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_inventory_item_id uuid, p_location_id uuid, p_qty numeric, p_reason text, p_notes text",
+          "fingerprint": "185a854265f9f345b44c96ce31aa3485",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_reverse_expense",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_expense_id uuid",
+          "fingerprint": "d9081382bd6cb3c654c234ee61c411c4",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_reverse_loyalty_for_sale",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_sale_id uuid",
+          "fingerprint": "344e8f1f7129ebf5fd19d308e50c6fcb",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_reverse_po_payment",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_payment_id uuid",
+          "fingerprint": "0183e790e67e942f331855ca47dbdee6",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_reverse_purchase_order",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_purchase_order_id uuid",
+          "fingerprint": "c28d6e6a43093d03ceeaa4689262a198",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_reverse_sale",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_sale_id uuid",
+          "fingerprint": "ce3f22be25a16639e7b14155fa9452a0",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_save_product",
+          "settings": [
+            "search_path=\"\""
+          ],
+          "arguments": "p_business_id uuid, p_product_id uuid, p_operation text, p_name text, p_sku text, p_category text, p_price numeric, p_active boolean, p_description text, p_image_url text, p_recipe jsonb",
+          "fingerprint": "9c5c2be51887e8122dab77c910b5b50b",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_save_task",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_task_id uuid, p_operation text, p_title text, p_assigned_to uuid, p_due_date date, p_priority text, p_notes text",
+          "fingerprint": "8d9de12d99f7be4bcb71e440730a0bf4",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_start_break",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_employee_id uuid",
+          "fingerprint": "59ab281e82a99e5196fc24cedeae8d17",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_toggle_task_status",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_task_id uuid, p_status text",
+          "fingerprint": "52152cefddd6e1507d541f4e850f8618",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_transfer_inventory",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_business_id uuid, p_inventory_item_id uuid, p_from_location_id uuid, p_to_location_id uuid, p_qty numeric, p_notes text",
+          "fingerprint": "220be0af82a92406b8f141ab3cb279d7",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "fn_write_audit",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_action text, p_details text",
+          "fingerprint": "4ab39d24cd80134b7ca7812c8a38dd7d",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        },
+        {
+          "name": "user_can",
+          "settings": [
+            "search_path=public"
+          ],
+          "arguments": "p_permission_key text",
+          "fingerprint": "dda7b605c2b77befc9ec56f7af184103",
+          "anon_execute": false,
+          "security_definer": true,
+          "authenticated_execute": true
+        }
+      ],
+      "migration_markers": {
+        "product_image_bucket": false,
+        "expense_idempotency_rpc": false,
+        "platform_private_schema": false,
+        "platform_admin_rpc_count": 0,
+        "purchase_idempotency_rpc": false,
+        "expense_idempotency_table": false,
+        "platform_business_columns": 0,
+        "product_image_policy_count": 0,
+        "purchase_idempotency_table": false,
+        "cash_sale_guard_fingerprint": "aabbddc8a9c4a37a171b8a269e9c3139"
+      },
+      "sensitive_security": {
+        "grants": [
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_items",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "DELETE",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_items",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "INSERT",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_items",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "REFERENCES",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_items",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "SELECT",
+            "with_hierarchy": "YES"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_items",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "TRIGGER",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_items",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "UPDATE",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_stock",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "REFERENCES",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_stock",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "TRIGGER",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_transactions",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "REFERENCES",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "inventory_transactions",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "TRIGGER",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "products",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "DELETE",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "products",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "INSERT",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "products",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "REFERENCES",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "products",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "SELECT",
+            "with_hierarchy": "YES"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "products",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "TRIGGER",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "products",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "UPDATE",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "sales",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "REFERENCES",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "sales",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "SELECT",
+            "with_hierarchy": "YES"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "sales",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "TRIGGER",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "task_activity",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "REFERENCES",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "task_activity",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "SELECT",
+            "with_hierarchy": "YES"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "task_activity",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "TRIGGER",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "users",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "REFERENCES",
+            "with_hierarchy": "NO"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "users",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "SELECT",
+            "with_hierarchy": "YES"
+          },
+          {
+            "grantee": "authenticated",
+            "grantor": "postgres",
+            "table_name": "users",
+            "is_grantable": "NO",
+            "table_schema": "public",
+            "table_catalog": "postgres",
+            "privilege_type": "TRIGGER",
+            "with_hierarchy": "NO"
+          }
+        ],
+        "policies": [
+          {
+            "cmd": "SELECT",
+            "qual": "(business_id = current_business_id())",
+            "roles": [
+              "public"
+            ],
+            "tablename": "inventory_items",
+            "permissive": "PERMISSIVE",
+            "policyname": "invitems_select",
+            "schemaname": "public",
+            "with_check": null
+          },
+          {
+            "cmd": "UPDATE",
+            "qual": "((business_id = current_business_id()) AND user_can('adjustInventory'::text))",
+            "roles": [
+              "authenticated"
+            ],
+            "tablename": "inventory_items",
+            "permissive": "PERMISSIVE",
+            "policyname": "invitems_update",
+            "schemaname": "public",
+            "with_check": "((business_id = current_business_id()) AND user_can('adjustInventory'::text))"
+          },
+          {
+            "cmd": "INSERT",
+            "qual": null,
+            "roles": [
+              "public"
+            ],
+            "tablename": "inventory_items",
+            "permissive": "PERMISSIVE",
+            "policyname": "invitems_write",
+            "schemaname": "public",
+            "with_check": "((business_id = current_business_id()) AND user_can('adjustInventory'::text))"
+          },
+          {
+            "cmd": "SELECT",
+            "qual": "(EXISTS ( SELECT 1\n   FROM inventory_items i\n  WHERE ((i.id = inventory_stock.inventory_item_id) AND (i.business_id = current_business_id()))))",
+            "roles": [
+              "public"
+            ],
+            "tablename": "inventory_stock",
+            "permissive": "PERMISSIVE",
+            "policyname": "invstock_select",
+            "schemaname": "public",
+            "with_check": null
+          },
+          {
+            "cmd": "SELECT",
+            "qual": "(business_id = ( SELECT current_business_id() AS current_business_id))",
+            "roles": [
+              "authenticated"
+            ],
+            "tablename": "inventory_transactions",
+            "permissive": "PERMISSIVE",
+            "policyname": "inventorytx_select",
+            "schemaname": "public",
+            "with_check": null
+          },
+          {
+            "cmd": "SELECT",
+            "qual": "(business_id = ( SELECT current_business_id() AS current_business_id))",
+            "roles": [
+              "authenticated"
+            ],
+            "tablename": "products",
+            "permissive": "PERMISSIVE",
+            "policyname": "products_select_own_tenant",
+            "schemaname": "public",
+            "with_check": null
+          },
+          {
+            "cmd": "UPDATE",
+            "qual": "((business_id = current_business_id()) AND user_can('manageRecipesAndCosts'::text))",
+            "roles": [
+              "authenticated"
+            ],
+            "tablename": "products",
+            "permissive": "PERMISSIVE",
+            "policyname": "products_update",
+            "schemaname": "public",
+            "with_check": "((business_id = current_business_id()) AND user_can('manageRecipesAndCosts'::text))"
+          },
+          {
+            "cmd": "INSERT",
+            "qual": null,
+            "roles": [
+              "public"
+            ],
+            "tablename": "products",
+            "permissive": "PERMISSIVE",
+            "policyname": "products_write",
+            "schemaname": "public",
+            "with_check": "((business_id = current_business_id()) AND user_can('manageRecipesAndCosts'::text))"
+          },
+          {
+            "cmd": "SELECT",
+            "qual": "(business_id = current_business_id())",
+            "roles": [
+              "public"
+            ],
+            "tablename": "sales",
+            "permissive": "PERMISSIVE",
+            "policyname": "sales_select",
+            "schemaname": "public",
+            "with_check": null
+          },
+          {
+            "cmd": "SELECT",
+            "qual": "(EXISTS ( SELECT 1\n   FROM tasks t\n  WHERE ((t.id = task_activity.task_id) AND (t.business_id = current_business_id()))))",
+            "roles": [
+              "public"
+            ],
+            "tablename": "task_activity",
+            "permissive": "PERMISSIVE",
+            "policyname": "task_activity_select",
+            "schemaname": "public",
+            "with_check": null
+          },
+          {
+            "cmd": "INSERT",
+            "qual": null,
+            "roles": [
+              "public"
+            ],
+            "tablename": "task_activity",
+            "permissive": "PERMISSIVE",
+            "policyname": "task_activity_write",
+            "schemaname": "public",
+            "with_check": "(EXISTS ( SELECT 1\n   FROM tasks t\n  WHERE ((t.id = task_activity.task_id) AND (t.business_id = current_business_id()))))"
+          },
+          {
+            "cmd": "SELECT",
+            "qual": "(business_id = current_business_id())",
+            "roles": [
+              "public"
+            ],
+            "tablename": "users",
+            "permissive": "PERMISSIVE",
+            "policyname": "users_select",
+            "schemaname": "public",
+            "with_check": null
+          }
+        ]
+      },
+      "project_ref_expected": "msinksoilkluooxenecy",
+      "project_ref_external_assertion": null
+    }
+  }
+]

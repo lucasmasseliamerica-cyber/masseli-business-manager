@@ -65,6 +65,7 @@ WITH expected_tables(name) AS (
     'purchase_idempotency_rpc', to_regprocedure('public.fn_create_purchase_order_idempotent(uuid,uuid,uuid,uuid,date,date,text,text,text,numeric,numeric,jsonb)') IS NOT NULL,
     'expense_idempotency_table', to_regclass('public.expense_request_keys') IS NOT NULL,
     'expense_idempotency_rpc', to_regprocedure('public.fn_create_expense_idempotent(uuid,uuid,uuid,date,text,text,numeric,text,boolean,text)') IS NOT NULL,
+    'staff_profile_rpc', to_regprocedure('public.fn_manage_staff_profile(text,uuid,uuid,uuid,uuid,text,text,text,jsonb,boolean)') IS NOT NULL,
     'platform_private_schema', EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'nexalvo_private'),
     'platform_business_columns', (
       SELECT count(*) FROM information_schema.columns
@@ -110,6 +111,7 @@ WITH expected_tables(name) AS (
 SELECT jsonb_build_object(
   'project_ref_expected', 'msinksoilkluooxenecy',
   'project_ref_external_assertion', NULL,
+  'security_definitions_complete', false,
   'counts', jsonb_build_object(
     'public_tables', (SELECT count(*) FROM pg_class AS c JOIN pg_namespace AS n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p')),
     'public_rls_tables', (SELECT count(*) FROM pg_class AS c JOIN pg_namespace AS n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relrowsecurity),

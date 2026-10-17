@@ -128,6 +128,9 @@ test('prepared Storage SQL is private, tenant-scoped and permission-scoped', () 
 });
 
 test('Storage deployment includes readonly discovery and data-preserving rollback', () => {
+  assert.match(preflight, /BEGIN TRANSACTION READ ONLY;/);
+  assert.match(preflight, /SET LOCAL statement_timeout = '30s';/);
+  assert.match(preflight, /ROLLBACK;/);
   assert.match(preflight, /FROM storage\.buckets/);
   assert.match(preflight, /FROM pg_policies/);
   assert.match(preflight, /has_function_privilege\('authenticated'/);

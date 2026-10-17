@@ -1,5 +1,8 @@
 -- READ ONLY. Run against NEXALVO TEST msinksoilkluooxenecy before reviewing the Storage migration.
 
+BEGIN TRANSACTION READ ONLY;
+SET LOCAL statement_timeout = '30s';
+
 SELECT
   b.id,
   b.name,
@@ -71,3 +74,5 @@ JOIN pg_namespace AS n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public'
   AND p.proname = 'fn_save_product'
 ORDER BY identity_arguments;
+
+ROLLBACK;

@@ -89,12 +89,16 @@ test('prepared SQL keeps state private and mutations atomic, audited and replay-
 });
 
 test('deployment has a read-only collision preflight and an audit-preserving rollback', () => {
+  assert.match(preflight, /BEGIN TRANSACTION READ ONLY;/);
+  assert.match(preflight, /SET LOCAL statement_timeout = '30s';/);
+  assert.match(preflight, /ROLLBACK;/);
   assert.match(preflight, /information_schema\.columns/);
   assert.match(preflight, /pg_get_function_identity_arguments/);
   assert.match(preflight, /role_table_grants/);
   assert.doesNotMatch(preflight, /\b(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE)\b/i);
   assert.match(rollback, /PREPARED ONLY: do not run/);
   assert.match(rollback, /rollback refused: platform administration audit history exists/);
+  assert.match(rollback, /rollback refused: platform administration request history exists/);
   assert.match(rollback, /DROP FUNCTION IF EXISTS public\.fn_platform_admin_execute/);
   assert.doesNotMatch(rollback, /\bCASCADE\b/i);
 });

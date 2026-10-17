@@ -6,16 +6,16 @@ export const TEST_PROJECT_REF = 'msinksoilkluooxenecy';
 export const QA_BRANCH = 'automation/nexalvo-qa-actions';
 
 export const knownTestEvidence = Object.freeze({
-  source: 'previous approved Supabase integration results and CI 157 report',
-  catalogDefinitionsSupplied: false,
+  source: 'read-only TEST catalog export received 2026-10-17 and CI 158 report',
+  catalogDefinitionsSupplied: 'partial_metadata_only',
   counts: {
     publicTablesWithRls: 31,
     publicPolicies: 53,
-    publicFunctions: 50,
-    tableGrantEntries: 391,
-    securityDefinerAlerts: 35,
+    publicFunctions: 58,
+    tableGrantEntries: 568,
+    securityDefinerFunctions: 48,
   },
-  ci157: { jobsPassed: 12, checksPassed: 456, failures: 0, skipped: 0 },
+  ci158: { jobsPassed: 12, checksPassed: 469, failures: 0, skipped: 0 },
 });
 
 export const baselineSources = Object.freeze([
@@ -27,6 +27,11 @@ export const baselineSources = Object.freeze([
   '13_phase4_cash_live_balance_hotfix.sql',
   '14_supabase_data_phase5_loyalty.sql',
   'supabase/migrations/20261007160955_nexalvo_recipe_tenant_reference_guard.sql',
+]);
+
+export const auditArtifacts = Object.freeze([
+  'qa/evidence/final-homologation-catalog-20261017.json',
+  'qa/sql/final_homologation_security_definitions_readonly_TEST.sql',
 ]);
 
 export const applicationContract = Object.freeze({
@@ -58,6 +63,57 @@ export const applicationContract = Object.freeze({
   edgeFunctions: ['manage-staff-user', 'platform-admin'],
   privateStorageBuckets: ['nexalvo-product-images'],
 });
+
+// PostgreSQL identity signatures used by the browser and server contracts. This catches renamed,
+// removed or type-shifted parameters before PostgREST turns the drift into a runtime RPC failure.
+export const functionSignatureContract = Object.freeze({
+  current_business_id: '',
+  fn_add_initial_stock: 'p_business_id uuid, p_name text, p_sku text, p_category text, p_unit text, p_min_qty numeric, p_max_qty numeric, p_supplier_id uuid, p_location_id uuid, p_expires_at timestamp with time zone, p_notes text, p_starting_qty numeric, p_starting_cost numeric',
+  fn_adjust_inventory_count: 'p_business_id uuid, p_inventory_item_id uuid, p_location_id uuid, p_new_qty numeric, p_reason text, p_notes text',
+  fn_advance_sale_fulfillment: 'p_sale_id uuid',
+  fn_cancel_purchase_order: 'p_purchase_order_id uuid',
+  fn_clock_in: 'p_business_id uuid, p_employee_id uuid, p_location_id uuid, p_notes text',
+  fn_clock_out: 'p_employee_id uuid',
+  fn_close_cash_register: 'p_register_id uuid, p_actual_cash numeric, p_difference_reason text, p_notes text',
+  fn_commit_loyalty_for_sale: 'p_sale_id uuid, p_redeemed_reward_id uuid',
+  fn_create_expense: 'p_business_id uuid, p_location_id uuid, p_expense_date date, p_category text, p_vendor text, p_amount numeric, p_payment_method text, p_recurring boolean, p_notes text',
+  fn_create_purchase_order: 'p_business_id uuid, p_supplier_id uuid, p_location_id uuid, p_order_date date, p_expected_date date, p_status text, p_payment_method text, p_notes text, p_discount numeric, p_tax numeric, p_items jsonb',
+  fn_create_sale: 'p_sale_id uuid, p_business_id uuid, p_location_id uuid, p_channel text, p_payment_method text, p_employee_id uuid, p_customer_id uuid, p_discount numeric, p_tax numeric, p_notes text, p_fulfillment_status text, p_items jsonb',
+  fn_dismiss_alert: 'p_alert_id uuid',
+  fn_end_break: 'p_employee_id uuid',
+  fn_manual_loyalty_adjustment: 'p_business_id uuid, p_customer_id uuid, p_type text, p_points numeric, p_reason text',
+  fn_manage_staff_profile: 'p_operation text, p_actor_user_id uuid, p_target_user_id uuid, p_business_id uuid, p_employee_id uuid, p_name text, p_username text, p_role text, p_permission_overrides jsonb, p_active boolean',
+  fn_open_cash_register: 'p_business_id uuid, p_location_id uuid, p_opening_cash numeric, p_notes text',
+  fn_pay_purchase_order: 'p_purchase_order_id uuid, p_amount numeric, p_payment_method text',
+  fn_read_employees_secure: '',
+  fn_read_inventory_stock_secure: '',
+  fn_read_inventory_transactions_secure: '',
+  fn_read_purchase_order_items_secure: '',
+  fn_read_sale_items_secure: '',
+  fn_receive_manual_stock: 'p_business_id uuid, p_inventory_item_id uuid, p_location_id uuid, p_qty numeric, p_notes text',
+  fn_receive_purchase_order: 'p_purchase_order_id uuid, p_receive_lines jsonb',
+  fn_reconcile_business_alerts: 'p_business_id uuid, p_candidates jsonb',
+  fn_record_cash_movement: 'p_register_id uuid, p_movement_type text, p_amount numeric, p_reason text, p_notes text',
+  fn_record_waste: 'p_business_id uuid, p_inventory_item_id uuid, p_location_id uuid, p_qty numeric, p_reason text, p_notes text',
+  fn_reverse_expense: 'p_expense_id uuid',
+  fn_reverse_loyalty_for_sale: 'p_sale_id uuid',
+  fn_reverse_po_payment: 'p_payment_id uuid',
+  fn_reverse_purchase_order: 'p_purchase_order_id uuid',
+  fn_reverse_sale: 'p_sale_id uuid',
+  fn_save_product: 'p_business_id uuid, p_product_id uuid, p_operation text, p_name text, p_sku text, p_category text, p_price numeric, p_active boolean, p_description text, p_image_url text, p_recipe jsonb',
+  fn_save_task: 'p_business_id uuid, p_task_id uuid, p_operation text, p_title text, p_assigned_to uuid, p_due_date date, p_priority text, p_notes text',
+  fn_start_break: 'p_employee_id uuid',
+  fn_toggle_task_status: 'p_task_id uuid, p_status text',
+  fn_transfer_inventory: 'p_business_id uuid, p_inventory_item_id uuid, p_from_location_id uuid, p_to_location_id uuid, p_qty numeric, p_notes text',
+  fn_write_audit: 'p_action text, p_details text',
+  user_can: 'p_permission_key text',
+});
+
+export const knownDeployedFingerprints = Object.freeze({
+  fn_create_sale: 'aabbddc8a9c4a37a171b8a269e9c3139',
+});
+
+const preparedFunctionNames = new Set(['fn_manage_staff_profile']);
 
 // `status` is evidence, not intent. Only one database migration below has documented proof of
 // installation in TEST. A prepared artifact must never be promoted to `deployed_test` merely
@@ -184,7 +240,15 @@ export function artifactInventory() {
       sha256: createHash('sha256').update(readFileSync(url)).digest('hex'),
     };
   });
-  return [...sources, ...deliveryArtifacts];
+  const audits = auditArtifacts.map((path) => {
+    const url = resolveRepo(path);
+    if (!existsSync(url)) return { unit: 'deployed-catalog-review', kind: 'evidence', path, exists: false, sha256: null };
+    return {
+      unit: 'deployed-catalog-review', kind: 'evidence', path, exists: true,
+      sha256: createHash('sha256').update(readFileSync(url)).digest('hex'),
+    };
+  });
+  return [...sources, ...audits, ...deliveryArtifacts];
 }
 
 export function validateLocalPackage() {
@@ -212,50 +276,144 @@ export function validateLocalPackage() {
   return { ok: errors.length === 0, errors, artifacts: artifactInventory() };
 }
 
-export function evaluateDeployedCatalog(catalog) {
-  const tables = new Map((catalog?.tables || []).map((row) => [row.name, row]));
-  const functions = new Map((catalog?.functions || []).map((row) => [row.name, row]));
+export function normalizeCatalogExport(value) {
+  let candidate = value;
+  if (Array.isArray(candidate)) {
+    if (candidate.length !== 1) throw new Error('catalog export must contain exactly one result row');
+    [candidate] = candidate;
+  }
+  if (candidate?.final_homologation_catalog) candidate = candidate.final_homologation_catalog;
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) {
+    throw new Error('catalog export does not contain an object');
+  }
+  return candidate;
+}
+
+export function evaluateDeployedCatalog(input) {
+  const catalog = normalizeCatalogExport(input);
+  const functionRows = catalog.functions || [];
+  const tables = new Map((catalog.tables || []).map((row) => [row.name, row]));
+  const functionsByName = new Map();
+  for (const row of functionRows) {
+    if (!functionsByName.has(row.name)) functionsByName.set(row.name, []);
+    functionsByName.get(row.name).push(row);
+  }
   const missingTables = applicationContract.tables.filter((name) => !tables.has(name) || tables.get(name).exists === false);
-  const missingFunctions = applicationContract.functions.filter((name) => !functions.has(name));
+  const missingFunctions = applicationContract.functions.filter((name) => !functionsByName.has(name));
+  const plannedMissingFunctions = missingFunctions.filter((name) => preparedFunctionNames.has(name));
+  const unexpectedMissingFunctions = missingFunctions.filter((name) => !preparedFunctionNames.has(name));
   const tablesWithoutRls = applicationContract.tables.filter((name) => tables.has(name)
     && tables.get(name).exists !== false && tables.get(name).rls !== true);
-  const unexpectedAnonExecute = (catalog?.functions || [])
+  const tablesReadableByAnon = (catalog.tables || [])
+    .filter((row) => applicationContract.tables.includes(row.name)
+      && row.exists !== false && row.anon_select === true)
+    .map((row) => row.name).sort();
+  const unexpectedAnonExecute = functionRows
     .filter((row) => row.anon_execute === true && applicationContract.functions.includes(row.name))
     .map((row) => row.name).sort();
-  const unsafeDefinerSearchPath = (catalog?.functions || [])
+  const missingDefinerSearchPath = functionRows
     .filter((row) => row.security_definer === true && !String(row.settings || '').includes('search_path'))
     .map((row) => row.name).sort();
+  const definerSearchPathPublic = functionRows
+    .filter((row) => row.security_definer === true
+      && (row.settings || []).some((setting) => setting === 'search_path=public'))
+    .map((row) => row.name).sort();
+  const hardenedEmptySearchPath = functionRows
+    .filter((row) => row.security_definer === true
+      && (row.settings || []).some((setting) => setting === 'search_path=""'))
+    .map((row) => row.name).sort();
+  const signatureMismatches = [];
+  const unexpectedOverloads = [];
+  for (const [name, expected] of Object.entries(functionSignatureContract)) {
+    const rows = functionsByName.get(name) || [];
+    if (!rows.length) continue;
+    if (!rows.some((row) => row.arguments === expected)) {
+      signatureMismatches.push({ name, expected, observed: rows.map((row) => row.arguments).sort() });
+    }
+    if (rows.length > 1) unexpectedOverloads.push({ name, signatures: rows.map((row) => row.arguments).sort() });
+  }
+  const fingerprintMismatches = [];
+  for (const [name, expected] of Object.entries(knownDeployedFingerprints)) {
+    const rows = functionsByName.get(name) || [];
+    if (rows.length && !rows.some((row) => row.fingerprint === expected)) {
+      fingerprintMismatches.push({ name, expected, observed: rows.map((row) => row.fingerprint).sort() });
+    }
+  }
+  const sensitivePolicies = catalog.sensitive_security?.policies || [];
+  const sensitiveGrants = catalog.sensitive_security?.grants || [];
+  const policiesAssignedToPublic = sensitivePolicies
+    .filter((row) => Array.isArray(row.roles) && row.roles.includes('public'))
+    .map((row) => `${row.tablename}.${row.policyname}`).sort();
+  const anonSensitiveTableGrants = sensitiveGrants
+    .filter((row) => row.grantee === 'anon')
+    .map((row) => `${row.table_name}:${row.privilege_type}`).sort();
   const expectedCounts = knownTestEvidence.counts;
-  const observedCounts = catalog?.counts || {};
+  const observedCounts = catalog.counts || {};
   const countMismatches = [
     ['public_rls_tables', expectedCounts.publicTablesWithRls],
     ['public_policies', expectedCounts.publicPolicies],
     ['public_functions', expectedCounts.publicFunctions],
+    ['public_role_table_grant_entries', expectedCounts.tableGrantEntries],
+    ['public_security_definer_functions', expectedCounts.securityDefinerFunctions],
   ].filter(([key, expected]) => Number.isFinite(Number(observedCounts[key])) && Number(observedCounts[key]) !== expected)
     .map(([key, expected]) => ({ key, expected, observed: Number(observedCounts[key]) }));
-  const projectConfirmed = catalog?.project_ref_external_assertion === TEST_PROJECT_REF;
+  const securityCoverage = {
+    publicFunctions: Number(observedCounts.public_functions || 0),
+    exportedFunctionMetadata: functionRows.length,
+    functionDefinitions: functionRows.filter((row) => typeof row.definition === 'string' && row.definition.length > 0).length,
+    publicPolicies: Number(observedCounts.public_policies || 0),
+    exportedSensitivePolicies: sensitivePolicies.length,
+    tableGrantEntries: Number(observedCounts.public_role_table_grant_entries || 0),
+    exportedSensitiveGrants: sensitiveGrants.length,
+  };
+  const securityDefinitionsComplete = catalog.security_definitions_complete === true
+    && securityCoverage.functionDefinitions === securityCoverage.publicFunctions
+    && Array.isArray(catalog.all_policies) && catalog.all_policies.length === securityCoverage.publicPolicies
+    && Array.isArray(catalog.all_table_grants) && catalog.all_table_grants.length === securityCoverage.tableGrantEntries;
+  const projectConfirmed = catalog.project_ref_external_assertion === TEST_PROJECT_REF;
   const blockers = [];
   if (!projectConfirmed) blockers.push('TEST project reference was not externally asserted');
   if (missingTables.length) blockers.push(`missing application tables: ${missingTables.join(', ')}`);
-  if (missingFunctions.length) blockers.push(`missing application functions: ${missingFunctions.join(', ')}`);
+  if (unexpectedMissingFunctions.length) blockers.push(`missing deployed application functions: ${unexpectedMissingFunctions.join(', ')}`);
+  if (plannedMissingFunctions.length) blockers.push(`prepared application functions not deployed: ${plannedMissingFunctions.join(', ')}`);
   if (tablesWithoutRls.length) blockers.push(`application tables without RLS: ${tablesWithoutRls.join(', ')}`);
+  if (tablesReadableByAnon.length) blockers.push(`application tables readable by anon: ${tablesReadableByAnon.join(', ')}`);
   if (unexpectedAnonExecute.length) blockers.push(`application RPCs executable by anon: ${unexpectedAnonExecute.join(', ')}`);
-  // A SECURITY DEFINER/search_path entry is a review finding until its body and effective grants
-  // prove exploitability. It is deliberately reported separately from blockers/vulnerabilities.
+  if (signatureMismatches.length) blockers.push('deployed RPC signatures differ from the application contract');
+  if (fingerprintMismatches.length) blockers.push('deployed function fingerprints differ from reviewed evidence');
+  if (unexpectedOverloads.length) blockers.push('application RPC names have unexpected overloads');
+  if (!securityDefinitionsComplete) blockers.push('full function definitions, policies and effective grants are not exported');
+  // A SECURITY DEFINER/search_path=public entry and a policy assigned to PUBLIC remain review
+  // findings until the function body, schema ACL and effective grants establish impact.
   return {
     status: blockers.length ? 'BLOCKED' : 'PASS',
     blockers,
-    reviewFindings: { unsafeDefinerSearchPath, countMismatches },
+    reviewFindings: {
+      missingDefinerSearchPath,
+      definerSearchPathPublic,
+      hardenedEmptySearchPath,
+      policiesAssignedToPublic,
+      anonSensitiveTableGrants,
+      countMismatches,
+    },
+    securityCoverage,
+    securityDefinitionsComplete,
     missingTables,
     missingFunctions,
+    plannedMissingFunctions,
+    unexpectedMissingFunctions,
     tablesWithoutRls,
+    tablesReadableByAnon,
     unexpectedAnonExecute,
+    signatureMismatches,
+    fingerprintMismatches,
+    unexpectedOverloads,
+    migrationMarkers: catalog.migration_markers || {},
   };
 }
 
 function parseCatalog(path) {
-  const value = JSON.parse(readFileSync(path, 'utf8'));
-  return Array.isArray(value) && value.length === 1 ? value[0] : value;
+  return normalizeCatalogExport(JSON.parse(readFileSync(path, 'utf8')));
 }
 
 function main() {

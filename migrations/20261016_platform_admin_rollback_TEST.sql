@@ -8,11 +8,18 @@ BEGIN;
 DO $block$
 DECLARE
   v_audit_count bigint;
+  v_request_count bigint;
 BEGIN
   IF to_regclass('nexalvo_private.platform_admin_audit_logs') IS NOT NULL THEN
     SELECT count(*) INTO v_audit_count FROM nexalvo_private.platform_admin_audit_logs;
     IF v_audit_count > 0 THEN
       RAISE EXCEPTION 'rollback refused: platform administration audit history exists';
+    END IF;
+  END IF;
+  IF to_regclass('nexalvo_private.platform_admin_requests') IS NOT NULL THEN
+    SELECT count(*) INTO v_request_count FROM nexalvo_private.platform_admin_requests;
+    IF v_request_count > 0 THEN
+      RAISE EXCEPTION 'rollback refused: platform administration request history exists';
     END IF;
   END IF;
 END
