@@ -29,6 +29,9 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [x] Scripts de estoque e compras em SQL com BEGIN/ROLLBACK executados e verificados; relatório P0.04/P0.05.
 - [x] Gate de dependências publicado: runtime exige zero alertas moderados ou superiores; auditoria completa falha para pacote/advisory novo, severidade crítica ou aumento sobre o teto conhecido. CI #124 aprovou o gate.
 - [ ] Sete alertas de build/desenvolvimento permanecem (5 altos, 2 moderados); migração Tailwind 4 e regressão visual continuam pendentes, sem `npm audit fix --force`.
+- [x] Reconciliação estática do hardening publicada em `ff1db15`: os três drifts eram apenas qualificação de tipo de retorno; corpos implantados iguais ao histórico, rollback exato e guards de corpo/atributos/ACL preparados.
+- [x] [CI #171](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39123639069): **12/12 jobs, 488/488 PASS, 0 FAIL, 0 SKIPPED**, incluindo preflight OWNER A/B, acesso multiempresa e browser.
+- [ ] **BLOQUEADO PARA APLICAÇÃO:** executar o pre-apply reconciliado somente leitura e obter 15/15 checks. Só depois solicitar autorização específica para aplicar `20261017_catalog_security_hardening_TEST.sql` no TEST.
 - [ ] Validação de backup restaurado em ambiente isolado e plano de recuperação.
 - [ ] Aceite humano da release candidata, critérios de go/no-go e checklist de publicação (sem executar publicação automaticamente).
 

@@ -223,3 +223,22 @@ wrappers públicos.
 
 Administração Comercial requer uma autorização e um plano independentes depois de reconciliar as
 duas autoridades. Nenhuma etapa acima autoriza migração, deploy ou escrita no TEST.
+
+## Validação da reconciliação
+
+- `ff1db15` publicou a baseline reconciliada, o rollback exato e os gates de corpo, atributos,
+  proprietário e ACL. Localmente: **292/292** testes estáticos, build Vite com 1.579 módulos,
+  parsing das duas Edge Functions e auditoria runtime com zero achados; a auditoria completa manteve
+  os sete achados conhecidos de build/dev (5 altos, 2 moderados).
+- A [CI #170](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39123296704)
+  teve 10 produtores aprovados, `access-regression` reprovado e agregador reprovado. A entrega não
+  alterou os seis arquivos de teste desse job; o runner ainda os iniciava em paralelo e cada arquivo
+  autenticava as identidades A/B.
+- `7800ef1` serializou somente esses seis arquivos, sem remover casos ou asserções, e acrescentou um
+  guard estático. A [CI #171](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39123639069)
+  terminou **SUCCESS**, **12/12 jobs**, preflight autenticado `PASS [OK]` e agregador
+  **488/488 PASS, 0 FAIL, 0 SKIPPED**. O `access-regression` aprovado durou 25 s.
+
+Classificação final deste pacote: **READY_FOR_READONLY_PREFLIGHT** e **BLOCKED_FOR_APPLY**. A
+execução real do pre-apply reconciliado com 15/15 checks ainda é obrigatória antes de solicitar a
+autorização específica de aplicação no TEST.
