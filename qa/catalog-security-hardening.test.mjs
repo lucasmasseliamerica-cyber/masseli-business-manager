@@ -42,25 +42,38 @@ test('secret scanner fails closed without printing the matching value', () => {
   assert.match(result.findings[0].match_sha256_16, /^[a-f0-9]{16}$/);
 });
 
-test('real TEST pre-apply evidence remains blocked on exactly three changed functions', () => {
+test('real TEST drift is reconciled as return-type qualification only', () => {
   assert.equal(scanSecrets(realPreapply).passed, true);
   assert.equal(realPreapply.target.project_ref, 'msinksoilkluooxenecy');
   assert.equal(realPreapply.catalog_security_hardening_preapply.status, 'BLOCKED');
   assert.equal(realPreapply.catalog_security_hardening_preapply.passed, 7);
   assert.equal(realPreapply.catalog_security_hardening_preapply.failed, 3);
-  assert.equal(realPreapply.source.raw_function_definitions_received, false);
+  assert.equal(realPreapply.source.raw_function_definitions_received, true);
+  assert.equal(realPreapply.source.raw_function_definitions_versioned, false);
+  assert.equal(realPreapply.source.raw_capture_sha256, '8ba0df6e79a39f850f7b4a37430a42fbba603fac6b08a9344a92f14a25bc6c1c');
+  assert.equal(realPreapply.source.secret_scan_passed, true);
   const rows = realPreapply.catalog_security_hardening_preapply.function_fingerprints;
   assert.equal(rows.length, 3);
   assert.ok(rows.every((row) => row.historical !== row.observed));
+  assert.ok(rows.every((row) => row.historical_body === row.observed_body));
+  assert.ok(rows.every((row) => row.classification === 'TEXT_ONLY_RETURN_TYPE_SCHEMA_QUALIFICATION'));
   assert.deepEqual(rows.map((row) => row.signature), [
     'public.fn_read_employees_secure()',
     'public.fn_read_sale_items_secure()',
     'public.fn_write_audit(text,text)',
   ]);
   assert.equal(realPreapply.classification.hardening_application,
-    'BLOCKED_PENDING_CURRENT_FUNCTION_DEFINITIONS');
+    'READY_FOR_RECONCILED_PREFLIGHT_REVIEW');
   assert.equal(realPreapply.classification.historical_rollback,
-    'BLOCKED_PENDING_BASELINE_RECONCILIATION');
+    'READY_FOR_EXACT_REGENERATION_AND_REGRESSION');
+  assert.deepEqual(realPreapply.isolated_postgresql_validation, {
+    engine: 'postgres:17-alpine',
+    supabase_accessed: false,
+    current_definition_fingerprints_reproduced: true,
+    target_body_fingerprints_reproduced: true,
+    rollback_definition_fingerprints_reproduced: true,
+    rollback_body_fingerprints_reproduced: true,
+  });
 });
 
 test('real grants prove the sensitive facade bypasses and the evidence keeps risk boundaries', () => {
@@ -105,12 +118,17 @@ test('frontend reads employees through the secure facade and limits write repres
   assert.equal(rootApp, srcApp);
 });
 
-test('TEST-only hardening is guarded and the stale historical rollback fails closed', () => {
+test('TEST-only hardening and exact rollback use the reconciled function baseline', () => {
   assert.match(apply, /PREPARED, NOT EXECUTED/);
   assert.match(apply, /a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f/);
-  assert.match(apply, /1c13bdeb159e0d78db0a200055cdb36a/);
-  assert.match(apply, /161e5147cd4eae4ca6e9a4c074af7cb6/);
-  assert.match(apply, /4ab39d24cd80134b7ca7812c8a38dd7d/);
+  assert.match(apply, /6a004cb40f967cc39f4c3bd20fec817e/);
+  assert.match(apply, /b9c489bf2a75339768bcc19ba174821c/);
+  assert.match(apply, /2d1742df2500389b93028511b1cb17e5/);
+  assert.match(apply, /540c5e0821623ebaac46e8d33ed947a7/);
+  assert.match(apply, /def30868edefbc15696aff8955f90296/);
+  assert.match(apply, /4cf28670a1afda97f728954c6b58ff60/);
+  assert.match(apply, /reviewed function owner or execute ACL drifted/);
+  assert.match(apply, /^SET LOCAL search_path = pg_catalog;$/m);
   assert.match(apply, /'Client: ' \|\| v_action/);
   assert.match(apply, /pg_catalog\.length\(COALESCE\(p_details, ''\)\) > 2000/);
   assert.match(apply, /REVOKE SELECT ON TABLE public\.employees FROM authenticated/);
@@ -138,8 +156,11 @@ test('TEST-only hardening is guarded and the stale historical rollback fails clo
   assert.match(rollback, /GRANT EXECUTE ON FUNCTIONS TO anon, authenticated/);
   assert.match(rollback, /DROP TRIGGER IF EXISTS inventory_items_validate_tenant_references ON public\.inventory_items/);
   assert.match(rollback, /DROP FUNCTION IF EXISTS public\.trg_validate_inventory_item_tenant_references\(\)/);
-  assert.match(rollback, /baseline_reconciliation_required/);
-  assert.match(rollback, /rollback blocked: current TEST function definitions must be reconciled before rollback/);
+  assert.match(rollback, /rollback_preflight/);
+  assert.match(rollback, /rollback_postflight/);
+  assert.match(rollback, /2c26a316e5cfc46dcfa187c550eb7108/);
+  assert.match(rollback, /75c32789a68a73e29a8a82d33e3aad27/);
+  assert.match(rollback, /rollback postflight failed: reconciled function baseline was not restored/);
   for (const sql of [apply, rollback]) {
     assert.match(sql, /^BEGIN;$/m);
     assert.match(sql, /^COMMIT;$/m);
@@ -157,6 +178,12 @@ test('TEST-only hardening is guarded and the stale historical rollback fails clo
   };
   assert.equal(rollbackBodyHash('fn_read_employees_secure'), 'c4cac0a6f8182b34f3069d3a5907435f228aee8e6d8465b5465ea2d4f430932c');
   assert.equal(rollbackBodyHash('fn_write_audit'), 'df886665496ca338aacd153ea277d4a3567dd25330abc93b52c5feeb3fa0c315');
+  const exactRollbackBodyMd5 = (name) => {
+    const pattern = new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([\\s\\S]*?AS\\s+(\\$[A-Za-z0-9_]*\\$)([\\s\\S]*?)\\1`, 'i');
+    return createHash('md5').update(rollback.match(pattern)?.[2] || '').digest('hex');
+  };
+  assert.equal(exactRollbackBodyMd5('fn_read_employees_secure'), '540c5e0821623ebaac46e8d33ed947a7');
+  assert.equal(exactRollbackBodyMd5('fn_write_audit'), '4cf28670a1afda97f728954c6b58ff60');
 });
 
 test('post-apply, drift and private-schema exports are read-only and cover the unresolved proof', () => {
@@ -169,12 +196,17 @@ test('post-apply, drift and private-schema exports are read-only and cover the u
   assert.match(preflight, /has_column_privilege\('authenticated', 'public\.employees', 'updated_at', 'SELECT'\)/);
   assert.match(preflight, /has_column_privilege\('authenticated', 'public\.sale_items', 'unit_cost_snapshot', 'SELECT'\)/);
   assert.match(preflight, /client_audit_entries_have_explicit_provenance/);
+  assert.match(preflight, /employee_facade_exact_target_body/);
+  assert.match(preflight, /sale_item_facade_preserved_body/);
+  assert.match(preflight, /client_audit_exact_target_body/);
+  assert.match(preflight, /hardened_function_attributes/);
+  assert.match(preflight, /hardened_function_execute_acl/);
   assert.match(preapply, /business_export_private_fingerprint/);
   assert.match(preapply, /cabc5e9d96a6242ae42ade1d140b087e/);
   assert.match(preapply, /exact_reviewed_public_policy_set/);
   assert.match(preapply, /checks\(name, passed, expected, observed\)/);
   assert.match(preapply, /jsonb_strip_nulls/);
-  assert.equal((preapply.match(/FROM fingerprints AS f/g) || []).length, 5);
+  assert.equal((preapply.match(/FROM fingerprints AS f/g) || []).length, 8);
   for (const [historical, reported] of [
     ['1c13bdeb159e0d78db0a200055cdb36a', '6a004cb40f967cc39f4c3bd20fec817e'],
     ['161e5147cd4eae4ca6e9a4c074af7cb6', 'b9c489bf2a75339768bcc19ba174821c'],
@@ -182,8 +214,15 @@ test('post-apply, drift and private-schema exports are read-only and cover the u
   ]) {
     assert.match(driftCapture, new RegExp(historical));
     assert.match(driftCapture, new RegExp(reported));
-    assert.doesNotMatch(apply, new RegExp(reported));
+    assert.match(apply, new RegExp(reported));
   }
+  for (const bodyFingerprint of [
+    '540c5e0821623ebaac46e8d33ed947a7',
+    'def30868edefbc15696aff8955f90296',
+    '4cf28670a1afda97f728954c6b58ff60',
+  ]) assert.match(preapply, new RegExp(bodyFingerprint));
+  assert.match(preapply, /reviewed_function_attributes/);
+  assert.match(preapply, /reviewed_function_owner_and_execute_acl/);
   assert.match(driftCapture, /pg_get_functiondef\(p\.oid\) AS definition/);
   assert.match(driftCapture, /CAPTURED_REPORTED_DRIFT/);
   assert.match(driftCapture, /Treat the result as an unversioned review artifact/);

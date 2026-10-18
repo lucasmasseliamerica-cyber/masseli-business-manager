@@ -3,10 +3,13 @@
 -- PREPARED, NOT EXECUTED. Do not apply to production.
 -- Source evidence: complete read-only catalog export SHA-256
 -- a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f.
--- PRE-APPLY 2026-10-18 is BLOCKED: all three public function fingerprints below drifted.
--- Do not replace the expected values until the current definitions are captured and reviewed.
+-- Reconciled function capture SHA-256:
+-- 8ba0df6e79a39f850f7b4a37430a42fbba603fac6b08a9344a92f14a25bc6c1c.
+-- The apparent drift was limited to pg_get_functiondef return-type qualification under a fixed
+-- pg_catalog search_path. Function bodies and semantics are byte-identical to the reviewed export.
 
 BEGIN;
+SET LOCAL search_path = pg_catalog;
 
 DO $preflight$
 DECLARE
@@ -17,8 +20,21 @@ BEGIN
   END IF;
   IF pg_catalog.md5(pg_catalog.pg_get_functiondef(
        pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
-     )) <> '1c13bdeb159e0d78db0a200055cdb36a' THEN
+     )) <> '6a004cb40f967cc39f4c3bd20fec817e' THEN
     RAISE EXCEPTION 'preflight failed: fn_read_employees_secure() drifted from reviewed TEST definition';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_proc AS p
+    JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+    WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
+      AND pg_catalog.md5(p.prosrc) = '540c5e0821623ebaac46e8d33ed947a7'
+      AND p.prorettype = pg_catalog.to_regtype('public.employees')
+      AND p.proretset AND p.prosecdef AND p.provolatile = 's'
+      AND p.proconfig = ARRAY['search_path=""']::text[]
+      AND l.lanname = 'sql'
+  ) THEN
+    RAISE EXCEPTION 'preflight failed: fn_read_employees_secure() body or attributes drifted';
   END IF;
   IF NOT pg_catalog.has_table_privilege('authenticated', 'public.employees', 'SELECT')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.employees', 'hourly_rate', 'SELECT') THEN
@@ -27,8 +43,21 @@ BEGIN
   IF pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()') IS NULL
      OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
        pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
-     )) <> '161e5147cd4eae4ca6e9a4c074af7cb6' THEN
+     )) <> 'b9c489bf2a75339768bcc19ba174821c' THEN
     RAISE EXCEPTION 'preflight failed: fn_read_sale_items_secure() drifted from reviewed TEST definition';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_proc AS p
+    JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+    WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
+      AND pg_catalog.md5(p.prosrc) = 'def30868edefbc15696aff8955f90296'
+      AND p.prorettype = pg_catalog.to_regtype('public.sale_items')
+      AND p.proretset AND p.prosecdef AND p.provolatile = 's'
+      AND p.proconfig = ARRAY['search_path=""']::text[]
+      AND l.lanname = 'sql'
+  ) THEN
+    RAISE EXCEPTION 'preflight failed: fn_read_sale_items_secure() body or attributes drifted';
   END IF;
   IF NOT pg_catalog.has_table_privilege('authenticated', 'public.sale_items', 'SELECT')
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT') THEN
@@ -37,8 +66,44 @@ BEGIN
   IF pg_catalog.to_regprocedure('public.fn_write_audit(text,text)') IS NULL
      OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
        pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
-     )) <> '4ab39d24cd80134b7ca7812c8a38dd7d' THEN
+     )) <> '2d1742df2500389b93028511b1cb17e5' THEN
     RAISE EXCEPTION 'preflight failed: fn_write_audit(text,text) drifted from reviewed TEST definition';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_proc AS p
+    JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+    WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+      AND pg_catalog.md5(p.prosrc) = '4cf28670a1afda97f728954c6b58ff60'
+      AND p.prorettype = pg_catalog.to_regtype('public.audit_logs')
+      AND NOT p.proretset AND p.prosecdef AND p.provolatile = 'v'
+      AND p.proconfig = ARRAY['search_path=public']::text[]
+      AND l.lanname = 'plpgsql'
+  ) THEN
+    RAISE EXCEPTION 'preflight failed: fn_write_audit(text,text) body or attributes drifted';
+  END IF;
+  IF NOT (
+    pg_catalog.has_function_privilege('authenticated', 'public.fn_read_employees_secure()', 'EXECUTE')
+    AND pg_catalog.has_function_privilege('service_role', 'public.fn_read_employees_secure()', 'EXECUTE')
+    AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_read_employees_secure()', 'EXECUTE')
+    AND pg_catalog.has_function_privilege('authenticated', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+    AND pg_catalog.has_function_privilege('service_role', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+    AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+    AND pg_catalog.has_function_privilege('authenticated', 'public.fn_write_audit(text,text)', 'EXECUTE')
+    AND pg_catalog.has_function_privilege('service_role', 'public.fn_write_audit(text,text)', 'EXECUTE')
+    AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_write_audit(text,text)', 'EXECUTE')
+    AND (
+      SELECT count(*) = 3
+      FROM pg_catalog.pg_proc AS p
+      WHERE p.oid IN (
+        pg_catalog.to_regprocedure('public.fn_read_employees_secure()'),
+        pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()'),
+        pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+      )
+        AND pg_catalog.pg_get_userbyid(p.proowner) = 'postgres'
+    )
+  ) THEN
+    RAISE EXCEPTION 'preflight failed: reviewed function owner or execute ACL drifted';
   END IF;
   IF pg_catalog.has_schema_privilege('authenticated', 'public', 'CREATE')
      OR pg_catalog.has_schema_privilege('anon', 'public', 'CREATE') THEN

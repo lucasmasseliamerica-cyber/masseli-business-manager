@@ -23,16 +23,26 @@ checks reprovados são exclusivamente os fingerprints das funções públicas ab
 | `fn_read_sale_items_secure()` | `161e5147cd4eae4ca6e9a4c074af7cb6` | `b9c489bf2a75339768bcc19ba174821c` |
 | `fn_write_audit(text,text)` | `4ab39d24cd80134b7ca7812c8a38dd7d` | `2d1742df2500389b93028511b1cb17e5` |
 
-Os dois fingerprints de export público/privado permaneceram compatíveis. Portanto a divergência não
-é explicada por uma mudança global de formatação de `pg_get_functiondef`; ela está limitada às três
-funções. Um hash não permite distinguir mudança semântica de alteração textual. A migração conserva
-os fingerprints históricos e permanece fail-closed. O rollback histórico agora também recusa toda
-execução, pois restaurar corpos antigos sobre definições atuais ainda desconhecidas não é seguro.
+O segundo resultado bruto tem 2.604 bytes, SHA-256
+`8ba0df6e79a39f850f7b4a37430a42fbba603fac6b08a9344a92f14a25bc6c1c` e passou a varredura com
+zero segredos/PII. Ele permaneceu fora do Git; somente hashes e a classificação foram retidos.
 
-`qa/sql/catalog_security_hardening_function_drift_readonly_TEST.sql` captura os três corpos e seus
-metadados em transação somente leitura. O resultado deve permanecer fora do Git até passar pela
-varredura de segredos e pela comparação semântica; somente então a migração e o rollback poderão ser
-regenerados a partir da mesma baseline.
+Os três corpos atuais são byte a byte iguais aos corpos históricos. A diferença completa está no
+tipo de retorno produzido por `pg_get_functiondef`: `employees`, `sale_items` e `audit_logs` foram
+qualificados como `public.employees`, `public.sale_items` e `public.audit_logs` porque a captura nova
+fixou `search_path=pg_catalog`. Não houve alteração semântica, de `SECURITY DEFINER`, volatilidade ou
+`search_path` das funções implantadas.
+
+A migração e o pre-apply agora fixam explicitamente `search_path=pg_catalog`, usam os fingerprints
+com tipos qualificados e verificam também hashes estáveis de `pg_proc.prosrc`, tipo de retorno,
+linguagem, volatilidade, definer e configuração. Assim, uma alteração de corpo não pode ser aceita
+como simples formatação. O rollback foi regenerado com os corpos atuais exatos e recebeu preflight
+do estado endurecido e postflight do baseline restaurado, incluindo ACLs sensíveis.
+
+Uma instância descartável `postgres:17-alpine`, sem acesso ao Supabase, reproduziu os três hashes
+atuais, os dois hashes de corpo do destino e, após recriar os corpos do rollback, os três hashes de
+definição e corpo originais. O pós-aplicação somente leitura também passou a fixar os corpos exatos
+de funcionários, itens vendidos e auditoria, além dos atributos das funções endurecidas.
 
 O preflight administrativo real encontrou um operador ativo, com perfil ativo e papel tenant OWNER,
 e nenhum claim assinado `SUPERADMIN`. O contador antigo retornou zero porque `NOT (claim =
@@ -160,8 +170,9 @@ comprovadas no catálogo público: leitura direta de salário/RH e custo de vend
 perfis, fornecedor multiempresa em estoque, eventos cliente sem proveniência, policies `public`,
 EXECUTE de funções de trigger e default EXECUTE futuro.
 
-O rollback restaura os grants, as 21 roles de policy e os corpos implantados de
-`fn_read_employees_secure` e `fn_write_audit`. Testes novos fixam os hashes normalizados dos dois
+O rollback restaura os grants, as 21 roles de policy e os corpos implantados exatos de
+`fn_read_employees_secure` e `fn_write_audit`; `fn_read_sale_items_secure` não é substituída pela
+migração e seu corpo é verificado antes e depois. Testes fixam hashes exatos e normalizados dos
 corpos originais. Não foi encontrada dependência incompatível com `export_business_data`: ela roda
 como definer, mantém o gate OWNER e continua apta a ler o backup completo após a retirada dos grants
 diretos de salário/custo.
@@ -191,13 +202,13 @@ wrappers públicos.
 | Risco condicional alto | Duas autoridades administrativas se o backend novo for instalado sem reconciliar `operators` e claims |
 | Risco condicional de disponibilidade | Export de até 20 MiB valida tamanho após materializar JSON |
 | Controle aprovado estaticamente | Owner/tenant gate do export; gates/locks de provisionamento; negação direta privada; wrappers sem `anon` |
-| Bloqueio real | Três definições públicas divergentes; operador ativo sem claim; metadados estruturais privados adicionais; sessões SUPERADMIN/OWNER/não-operador e MANAGER/EMPLOYEE |
+| Baseline do hardening | Reconciliada estaticamente; aguarda reexecução real do pre-apply atualizado no TEST |
+| Bloqueio real | Operador ativo sem claim; metadados estruturais privados adicionais; sessões SUPERADMIN/OWNER/não-operador e MANAGER/EMPLOYEE |
 
 ## Sequência de aplicação exclusiva no TEST
 
-1. Executar a captura somente leitura das três funções divergentes. Enquanto seus corpos atuais não
-   forem comparados, o pre-apply e o rollback permanecem **BLOCKED**; não adaptar fingerprints para
-   forçar passagem.
+1. Reexecutar o pre-apply atualizado, agora com 15 checks e baseline reconciliada. Qualquer check
+   falso mantém a aplicação **BLOCKED**; não adaptar fingerprints para forçar passagem.
 2. Reter novo snapshot/fingerprint dos catálogos público e privado. Executar separadamente o
    preflight agregado de operadores; ele não autoriza Administração Comercial.
 3. Com autorização específica, aplicar somente `20261017_catalog_security_hardening_TEST.sql` em uma

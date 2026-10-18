@@ -5,7 +5,12 @@
   },
   "source": {
     "kind": "user_reported_direct_readonly_sql_execution",
-    "raw_function_definitions_received": false,
+    "raw_function_definitions_received": true,
+    "raw_function_definitions_versioned": false,
+    "raw_capture_bytes": 2604,
+    "raw_capture_sha256": "8ba0df6e79a39f850f7b4a37430a42fbba603fac6b08a9344a92f14a25bc6c1c",
+    "secret_scan_passed": true,
+    "secret_scan_findings": 0,
     "credentials_or_identity_rows_received": false
   },
   "catalog_security_hardening_preapply": {
@@ -16,17 +21,26 @@
       {
         "signature": "public.fn_read_employees_secure()",
         "historical": "1c13bdeb159e0d78db0a200055cdb36a",
-        "observed": "6a004cb40f967cc39f4c3bd20fec817e"
+        "observed": "6a004cb40f967cc39f4c3bd20fec817e",
+        "historical_body": "540c5e0821623ebaac46e8d33ed947a7",
+        "observed_body": "540c5e0821623ebaac46e8d33ed947a7",
+        "classification": "TEXT_ONLY_RETURN_TYPE_SCHEMA_QUALIFICATION"
       },
       {
         "signature": "public.fn_read_sale_items_secure()",
         "historical": "161e5147cd4eae4ca6e9a4c074af7cb6",
-        "observed": "b9c489bf2a75339768bcc19ba174821c"
+        "observed": "b9c489bf2a75339768bcc19ba174821c",
+        "historical_body": "def30868edefbc15696aff8955f90296",
+        "observed_body": "def30868edefbc15696aff8955f90296",
+        "classification": "TEXT_ONLY_RETURN_TYPE_SCHEMA_QUALIFICATION"
       },
       {
         "signature": "public.fn_write_audit(text,text)",
         "historical": "4ab39d24cd80134b7ca7812c8a38dd7d",
-        "observed": "2d1742df2500389b93028511b1cb17e5"
+        "observed": "2d1742df2500389b93028511b1cb17e5",
+        "historical_body": "4cf28670a1afda97f728954c6b58ff60",
+        "observed_body": "4cf28670a1afda97f728954c6b58ff60",
+        "classification": "TEXT_ONLY_RETURN_TYPE_SCHEMA_QUALIFICATION"
       }
     ]
   },
@@ -41,8 +55,16 @@
     "authority_models_aligned": false
   },
   "classification": {
-    "hardening_application": "BLOCKED_PENDING_CURRENT_FUNCTION_DEFINITIONS",
-    "historical_rollback": "BLOCKED_PENDING_BASELINE_RECONCILIATION",
+    "hardening_application": "READY_FOR_RECONCILED_PREFLIGHT_REVIEW",
+    "historical_rollback": "READY_FOR_EXACT_REGENERATION_AND_REGRESSION",
     "platform_admin_cutover": "BLOCKED_PENDING_SINGLE_AUTHORITY_PLAN_AND_AUTHORIZATION"
+  },
+  "isolated_postgresql_validation": {
+    "engine": "postgres:17-alpine",
+    "supabase_accessed": false,
+    "current_definition_fingerprints_reproduced": true,
+    "target_body_fingerprints_reproduced": true,
+    "rollback_definition_fingerprints_reproduced": true,
+    "rollback_body_fingerprints_reproduced": true
   }
 }

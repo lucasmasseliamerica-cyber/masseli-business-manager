@@ -1,18 +1,55 @@
 -- NEXALVO v1.6.8 — TEST-only rollback for catalog security hardening.
 -- Target when explicitly authorized: Supabase TEST msinksoilkluooxenecy only.
 -- PREPARED, NOT EXECUTED. Restores the exact reviewed pre-apply access model.
--- BLOCKED 2026-10-18: the three protected function definitions drifted after that review. This
--- historical rollback must not overwrite an unknown current definition. Regenerate it from the
--- read-only drift capture only after semantic review of all three functions.
+-- Reconciled capture SHA-256:
+-- 8ba0df6e79a39f850f7b4a37430a42fbba603fac6b08a9344a92f14a25bc6c1c.
+-- Run only after the apply migration committed and only for a demonstrated incompatibility.
 
 BEGIN;
+SET LOCAL search_path = pg_catalog;
 
-DO $baseline_reconciliation_required$
+DO $rollback_preflight$
 BEGIN
-  RAISE EXCEPTION
-    'rollback blocked: current TEST function definitions must be reconciled before rollback';
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_proc AS p
+    WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
+      AND pg_catalog.md5(p.prosrc) = '2c26a316e5cfc46dcfa187c550eb7108'
+      AND p.proconfig = ARRAY['search_path=""']::text[]
+  ) THEN
+    RAISE EXCEPTION 'rollback refused: employee facade is not the reviewed hardening target';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_proc AS p
+    WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+      AND pg_catalog.md5(p.prosrc) = '75c32789a68a73e29a8a82d33e3aad27'
+      AND p.proconfig = ARRAY['search_path=""']::text[]
+  ) THEN
+    RAISE EXCEPTION 'rollback refused: audit facade is not the reviewed hardening target';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_proc AS p
+    WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
+      AND pg_catalog.md5(p.prosrc) = 'def30868edefbc15696aff8955f90296'
+  ) THEN
+    RAISE EXCEPTION 'rollback refused: sale item facade changed during hardening';
+  END IF;
+  IF pg_catalog.has_column_privilege('authenticated', 'public.employees', 'hourly_rate', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.employees', 'updated_at', 'SELECT')
+     OR pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_price', 'SELECT') THEN
+    RAISE EXCEPTION 'rollback refused: sensitive column grants do not match hardening target';
+  END IF;
+  IF pg_catalog.to_regprocedure('public.trg_validate_inventory_item_tenant_references()') IS NULL
+     OR NOT EXISTS (
+       SELECT 1 FROM pg_catalog.pg_trigger
+       WHERE tgrelid = 'public.inventory_items'::pg_catalog.regclass
+         AND tgname = 'inventory_items_validate_tenant_references'
+         AND NOT tgisinternal
+     ) THEN
+    RAISE EXCEPTION 'rollback refused: inventory tenant guard is not installed';
+  END IF;
 END;
-$baseline_reconciliation_required$;
+$rollback_preflight$;
 
 DROP TRIGGER IF EXISTS inventory_items_validate_tenant_references ON public.inventory_items;
 DROP FUNCTION IF EXISTS public.trg_validate_inventory_item_tenant_references();
@@ -35,10 +72,10 @@ STABLE
 SECURITY DEFINER
 SET search_path TO ''
 AS $function$
-  SELECT e.id,e.business_id,e.name,e.job_title,
-  CASE WHEN public.user_can('viewFinancials') THEN e.hourly_rate ELSE NULL END AS hourly_rate,
-  e.location_id,e.manager_id,e.active,e.notes,e.created_at,e.updated_at
-  FROM public.employees e WHERE e.business_id=public.current_business_id()
+ SELECT e.id,e.business_id,e.name,e.job_title,
+ CASE WHEN public.user_can('viewFinancials') THEN e.hourly_rate ELSE NULL END AS hourly_rate,
+ e.location_id,e.manager_id,e.active,e.notes,e.created_at,e.updated_at
+ FROM public.employees e WHERE e.business_id=public.current_business_id()
 $function$;
 
 REVOKE ALL ON FUNCTION public.fn_read_employees_secure() FROM PUBLIC, anon, authenticated;
@@ -50,17 +87,16 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $function$
-DECLARE v_entry audit_logs; v_user users;
-BEGIN
- SELECT * INTO v_user FROM users WHERE id=auth.uid() AND active=true;
- IF v_user.id IS NULL THEN RAISE EXCEPTION 'active user profile required'; END IF;
- IF NULLIF(btrim(p_action),'') IS NULL THEN RAISE EXCEPTION 'audit action is required'; END IF;
- INSERT INTO audit_logs(business_id,user_id,user_name_snapshot,role_snapshot,action,details)
- VALUES(v_user.business_id,v_user.id,v_user.name,v_user.role,btrim(p_action),coalesce(p_details,''))
- RETURNING * INTO v_entry;
- RETURN v_entry;
-END;
-$function$;
+declare v_entry audit_logs; v_user users;
+begin
+ select * into v_user from users where id=auth.uid() and active=true;
+ if v_user.id is null then raise exception 'active user profile required'; end if;
+ if nullif(btrim(p_action),'') is null then raise exception 'audit action is required'; end if;
+ insert into audit_logs(business_id,user_id,user_name_snapshot,role_snapshot,action,details)
+ values(v_user.business_id,v_user.id,v_user.name,v_user.role,btrim(p_action),coalesce(p_details,''))
+ returning * into v_entry;
+ return v_entry;
+end;$function$;
 
 REVOKE ALL ON FUNCTION public.fn_write_audit(text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.fn_write_audit(text, text) TO authenticated, service_role;
@@ -98,5 +134,36 @@ GRANT EXECUTE ON FUNCTION public.trg_validate_user_permission_overrides() TO aut
 
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   GRANT EXECUTE ON FUNCTIONS TO anon, authenticated;
+
+DO $rollback_postflight$
+BEGIN
+  IF pg_catalog.md5(pg_catalog.pg_get_functiondef(
+       pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
+     )) <> '6a004cb40f967cc39f4c3bd20fec817e'
+     OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
+       pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
+     )) <> 'b9c489bf2a75339768bcc19ba174821c'
+     OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
+       pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+     )) <> '2d1742df2500389b93028511b1cb17e5' THEN
+    RAISE EXCEPTION 'rollback postflight failed: reconciled function baseline was not restored';
+  END IF;
+  IF NOT pg_catalog.has_table_privilege('authenticated', 'public.employees', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.employees', 'hourly_rate', 'SELECT')
+     OR NOT pg_catalog.has_table_privilege('authenticated', 'public.sale_items', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT')
+     OR NOT pg_catalog.has_function_privilege('authenticated', 'public.fn_read_employees_secure()', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('service_role', 'public.fn_read_employees_secure()', 'EXECUTE')
+     OR pg_catalog.has_function_privilege('anon', 'public.fn_read_employees_secure()', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('authenticated', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('service_role', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+     OR pg_catalog.has_function_privilege('anon', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('authenticated', 'public.fn_write_audit(text,text)', 'EXECUTE')
+     OR NOT pg_catalog.has_function_privilege('service_role', 'public.fn_write_audit(text,text)', 'EXECUTE')
+     OR pg_catalog.has_function_privilege('anon', 'public.fn_write_audit(text,text)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'rollback postflight failed: reconciled grants were not restored';
+  END IF;
+END;
+$rollback_postflight$;
 
 COMMIT;

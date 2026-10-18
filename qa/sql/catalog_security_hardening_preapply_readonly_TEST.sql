@@ -46,22 +46,86 @@ WITH expected_public_policies(table_name, policy_name) AS (
     )) AS business_export_private,
     pg_catalog.md5(pg_catalog.pg_get_functiondef(
       pg_catalog.to_regprocedure('public.fn_export_business_data(uuid)')
-    )) AS business_export_public_wrapper
+    )) AS business_export_public_wrapper,
+    (SELECT pg_catalog.md5(p.prosrc) FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()')) AS employee_body,
+    (SELECT pg_catalog.md5(p.prosrc) FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')) AS sale_item_body,
+    (SELECT pg_catalog.md5(p.prosrc) FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')) AS client_audit_body
 ), checks(name, passed, expected, observed) AS (
   SELECT 'employee_facade_fingerprint',
-         COALESCE(f.employee_facade = '1c13bdeb159e0d78db0a200055cdb36a', false),
-         '1c13bdeb159e0d78db0a200055cdb36a', f.employee_facade
+         COALESCE(f.employee_facade = '6a004cb40f967cc39f4c3bd20fec817e', false),
+         '6a004cb40f967cc39f4c3bd20fec817e', f.employee_facade
   FROM fingerprints AS f
   UNION ALL
   SELECT 'sale_item_facade_fingerprint',
-         COALESCE(f.sale_item_facade = '161e5147cd4eae4ca6e9a4c074af7cb6', false),
-         '161e5147cd4eae4ca6e9a4c074af7cb6', f.sale_item_facade
+         COALESCE(f.sale_item_facade = 'b9c489bf2a75339768bcc19ba174821c', false),
+         'b9c489bf2a75339768bcc19ba174821c', f.sale_item_facade
   FROM fingerprints AS f
   UNION ALL
   SELECT 'client_audit_fingerprint',
-         COALESCE(f.client_audit = '4ab39d24cd80134b7ca7812c8a38dd7d', false),
-         '4ab39d24cd80134b7ca7812c8a38dd7d', f.client_audit
+         COALESCE(f.client_audit = '2d1742df2500389b93028511b1cb17e5', false),
+         '2d1742df2500389b93028511b1cb17e5', f.client_audit
   FROM fingerprints AS f
+  UNION ALL
+  SELECT 'employee_facade_body_fingerprint',
+         COALESCE(f.employee_body = '540c5e0821623ebaac46e8d33ed947a7', false),
+         '540c5e0821623ebaac46e8d33ed947a7', f.employee_body
+  FROM fingerprints AS f
+  UNION ALL
+  SELECT 'sale_item_facade_body_fingerprint',
+         COALESCE(f.sale_item_body = 'def30868edefbc15696aff8955f90296', false),
+         'def30868edefbc15696aff8955f90296', f.sale_item_body
+  FROM fingerprints AS f
+  UNION ALL
+  SELECT 'client_audit_body_fingerprint',
+         COALESCE(f.client_audit_body = '4cf28670a1afda97f728954c6b58ff60', false),
+         '4cf28670a1afda97f728954c6b58ff60', f.client_audit_body
+  FROM fingerprints AS f
+  UNION ALL
+  SELECT 'reviewed_function_attributes',
+         (SELECT count(*) = 1 FROM pg_catalog.pg_proc AS p
+          JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+          WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
+            AND p.prorettype = pg_catalog.to_regtype('public.employees')
+            AND p.proretset AND p.prosecdef AND p.provolatile = 's'
+            AND p.proconfig = ARRAY['search_path=""']::text[] AND l.lanname = 'sql')
+         AND
+         (SELECT count(*) = 1 FROM pg_catalog.pg_proc AS p
+          JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+          WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
+            AND p.prorettype = pg_catalog.to_regtype('public.sale_items')
+            AND p.proretset AND p.prosecdef AND p.provolatile = 's'
+            AND p.proconfig = ARRAY['search_path=""']::text[] AND l.lanname = 'sql')
+         AND
+         (SELECT count(*) = 1 FROM pg_catalog.pg_proc AS p
+          JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+          WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+            AND p.prorettype = pg_catalog.to_regtype('public.audit_logs')
+            AND NOT p.proretset AND p.prosecdef AND p.provolatile = 'v'
+            AND p.proconfig = ARRAY['search_path=public']::text[] AND l.lanname = 'plpgsql'),
+         NULL, NULL
+  UNION ALL
+  SELECT 'reviewed_function_owner_and_execute_acl',
+         pg_catalog.has_function_privilege('authenticated', 'public.fn_read_employees_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('service_role', 'public.fn_read_employees_secure()', 'EXECUTE')
+         AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_read_employees_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('authenticated', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('service_role', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+         AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('authenticated', 'public.fn_write_audit(text,text)', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('service_role', 'public.fn_write_audit(text,text)', 'EXECUTE')
+         AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_write_audit(text,text)', 'EXECUTE')
+         AND (
+           SELECT count(*) = 3 FROM pg_catalog.pg_proc AS p
+           WHERE p.oid IN (
+             pg_catalog.to_regprocedure('public.fn_read_employees_secure()'),
+             pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()'),
+             pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+           ) AND pg_catalog.pg_get_userbyid(p.proowner) = 'postgres'
+         ),
+         NULL, NULL
   UNION ALL
   SELECT 'business_export_private_fingerprint',
          COALESCE(f.business_export_private = 'cabc5e9d96a6242ae42ade1d140b087e', false),

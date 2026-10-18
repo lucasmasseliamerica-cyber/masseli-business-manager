@@ -4,6 +4,7 @@
 
 BEGIN TRANSACTION READ ONLY;
 SET LOCAL statement_timeout = '30s';
+SET LOCAL search_path = pg_catalog;
 
 WITH checks AS (
   SELECT 'employee_salary_not_directly_selectable' AS name,
@@ -37,6 +38,47 @@ WITH checks AS (
          AND pg_catalog.position('e.id = a.employee_id' IN pg_catalog.pg_get_functiondef(
            pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
          )) > 0, false)
+  UNION ALL
+  SELECT 'employee_facade_exact_target_body',
+         COALESCE((SELECT pg_catalog.md5(p.prosrc) = '2c26a316e5cfc46dcfa187c550eb7108'
+                   FROM pg_catalog.pg_proc AS p
+                   WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()')), false)
+  UNION ALL
+  SELECT 'sale_item_facade_preserved_body',
+         COALESCE((SELECT pg_catalog.md5(p.prosrc) = 'def30868edefbc15696aff8955f90296'
+                   FROM pg_catalog.pg_proc AS p
+                   WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')), false)
+  UNION ALL
+  SELECT 'client_audit_exact_target_body',
+         COALESCE((SELECT pg_catalog.md5(p.prosrc) = '75c32789a68a73e29a8a82d33e3aad27'
+                   FROM pg_catalog.pg_proc AS p
+                   WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')), false)
+  UNION ALL
+  SELECT 'hardened_function_attributes',
+         (SELECT count(*) = 1 FROM pg_catalog.pg_proc AS p
+          JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+          WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
+            AND p.prorettype = pg_catalog.to_regtype('public.employees')
+            AND p.proretset AND p.prosecdef AND p.provolatile = 's'
+            AND p.proconfig = ARRAY['search_path=""']::text[] AND l.lanname = 'sql')
+         AND
+         (SELECT count(*) = 1 FROM pg_catalog.pg_proc AS p
+          JOIN pg_catalog.pg_language AS l ON l.oid = p.prolang
+          WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+            AND p.prorettype = pg_catalog.to_regtype('public.audit_logs')
+            AND NOT p.proretset AND p.prosecdef AND p.provolatile = 'v'
+            AND p.proconfig = ARRAY['search_path=""']::text[] AND l.lanname = 'plpgsql')
+  UNION ALL
+  SELECT 'hardened_function_execute_acl',
+         pg_catalog.has_function_privilege('authenticated', 'public.fn_read_employees_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('service_role', 'public.fn_read_employees_secure()', 'EXECUTE')
+         AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_read_employees_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('authenticated', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('service_role', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+         AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_read_sale_items_secure()', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('authenticated', 'public.fn_write_audit(text,text)', 'EXECUTE')
+         AND pg_catalog.has_function_privilege('service_role', 'public.fn_write_audit(text,text)', 'EXECUTE')
+         AND NOT pg_catalog.has_function_privilege('anon', 'public.fn_write_audit(text,text)', 'EXECUTE')
   UNION ALL
   SELECT 'employee_and_user_policies_are_authenticated_only',
          NOT EXISTS (
