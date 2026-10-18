@@ -1,0 +1,48 @@
+{
+  "target": {
+    "project_ref": "msinksoilkluooxenecy",
+    "environment": "TEST"
+  },
+  "source": {
+    "kind": "user_reported_direct_readonly_sql_execution",
+    "raw_function_definitions_received": false,
+    "credentials_or_identity_rows_received": false
+  },
+  "catalog_security_hardening_preapply": {
+    "status": "BLOCKED",
+    "passed": 7,
+    "failed": 3,
+    "function_fingerprints": [
+      {
+        "signature": "public.fn_read_employees_secure()",
+        "historical": "1c13bdeb159e0d78db0a200055cdb36a",
+        "observed": "6a004cb40f967cc39f4c3bd20fec817e"
+      },
+      {
+        "signature": "public.fn_read_sale_items_secure()",
+        "historical": "161e5147cd4eae4ca6e9a4c074af7cb6",
+        "observed": "b9c489bf2a75339768bcc19ba174821c"
+      },
+      {
+        "signature": "public.fn_write_audit(text,text)",
+        "historical": "4ab39d24cd80134b7ca7812c8a38dd7d",
+        "observed": "2d1742df2500389b93028511b1cb17e5"
+      }
+    ]
+  },
+  "platform_admin_operator_alignment": {
+    "operator_rows": 1,
+    "active_operators": 1,
+    "active_operators_with_active_profile": 1,
+    "active_operator_with_tenant_owner_role": 1,
+    "signed_superadmins": 0,
+    "reported_buggy_active_operator_without_signed_superadmin_claim": 0,
+    "corrected_expected_active_operator_without_signed_superadmin_claim": 1,
+    "authority_models_aligned": false
+  },
+  "classification": {
+    "hardening_application": "BLOCKED_PENDING_CURRENT_FUNCTION_DEFINITIONS",
+    "historical_rollback": "BLOCKED_PENDING_BASELINE_RECONCILIATION",
+    "platform_admin_cutover": "BLOCKED_PENDING_SINGLE_AUTHORITY_PLAN_AND_AUTHORIZATION"
+  }
+}

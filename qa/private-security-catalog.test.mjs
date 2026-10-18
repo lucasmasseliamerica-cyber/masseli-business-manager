@@ -6,9 +6,13 @@ import { buildPrivateSecurityEvidence, normalizePrivateCatalogExport } from './a
 const evidence = JSON.parse(readFileSync(
   new URL('./evidence/final-private-security-sanitized-20261018.json', import.meta.url), 'utf8',
 ));
+const realPreapply = JSON.parse(readFileSync(
+  new URL('./evidence/catalog-preapply-real-20261018.json', import.meta.url), 'utf8',
+));
 const platformMigration = readFileSync(new URL('../migrations/20261016_platform_admin_TEST.sql', import.meta.url), 'utf8');
 const platformPreflight = readFileSync(new URL('./sql/platform_admin_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const operatorPreflight = readFileSync(new URL('./sql/platform_admin_operator_alignment_readonly_TEST.sql', import.meta.url), 'utf8');
+const singleAuthorityPreflight = readFileSync(new URL('./sql/platform_admin_single_authority_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const staffCore = readFileSync(new URL('../supabase/functions/_shared/manage-staff-user-core.mjs', import.meta.url), 'utf8');
 
@@ -89,14 +93,39 @@ test('prepared platform administration refuses an unreconciled legacy authority 
   assert.match(platformPreflight, /legacy_authority_reconciliation_required/);
   assert.match(operatorPreflight, /active_operator_without_signed_superadmin_claim/);
   assert.match(operatorPreflight, /signed_superadmin_without_active_operator/);
+  assert.match(operatorPreflight,
+    /\(a\.raw_app_meta_data ->> 'nexalvo_platform_role'\) IS DISTINCT FROM 'SUPERADMIN'/);
+  assert.doesNotMatch(operatorPreflight, /AND NOT \([\s\S]*?raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'/);
+});
+
+test('operator alignment counts missing and explicit null claims as unsigned', () => {
+  assert.match(operatorPreflight, /claim_null_regression AS/);
+  assert.match(operatorPreflight, /'\{\}'::pg_catalog\.jsonb/);
+  assert.match(operatorPreflight, /'\{"nexalvo_platform_role":null\}'::pg_catalog\.jsonb/);
+  assert.match(operatorPreflight, /'\{"nexalvo_platform_role":"SUPERADMIN"\}'::pg_catalog\.jsonb/);
+  assert.match(operatorPreflight, /count\(\*\) FILTER \([\s\S]*?IS DISTINCT FROM 'SUPERADMIN'[\s\S]*?\) = 2/);
+  assert.match(operatorPreflight, /'missing_and_null_claims_are_denied'/);
+  assert.match(operatorPreflight, /c\.missing_and_null_claims_are_denied[\s\S]*?AND[\s\S]*?active_operator_without_signed_superadmin_claim = 0/);
+  const observed = realPreapply.platform_admin_operator_alignment;
+  assert.equal(observed.active_operators, 1);
+  assert.equal(observed.signed_superadmins, 0);
+  assert.equal(observed.reported_buggy_active_operator_without_signed_superadmin_claim, 0);
+  assert.equal(observed.corrected_expected_active_operator_without_signed_superadmin_claim, 1);
+  assert.equal(observed.authority_models_aligned, false);
 });
 
 test('operator alignment preflight is aggregate-only and strictly read-only', () => {
-  const executable = operatorPreflight.replace(/^\s*--.*$/gm, '');
-  assert.match(operatorPreflight, /BEGIN TRANSACTION READ ONLY;/);
-  assert.match(operatorPreflight, /ROLLBACK;/);
-  assert.doesNotMatch(operatorPreflight, /SELECT\s+(?:o|u|a)\.(?:id|email|raw_app_meta_data)/i);
-  assert.doesNotMatch(executable, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COPY|CALL|DO)\b/im);
+  for (const sql of [operatorPreflight, singleAuthorityPreflight]) {
+    const executable = sql.replace(/^\s*--.*$/gm, '');
+    assert.match(sql, /BEGIN TRANSACTION READ ONLY;/);
+    assert.match(sql, /ROLLBACK;/);
+    assert.doesNotMatch(sql, /SELECT\s+(?:o|u|a)\.(?:id|email|raw_app_meta_data)/i);
+    assert.doesNotMatch(executable, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COPY|CALL|DO)\b/im);
+  }
+  assert.match(singleAuthorityPreflight, /legacy_operator_authority_disabled/);
+  assert.match(singleAuthorityPreflight, /legacy_authenticated_endpoints_disabled/);
+  assert.match(singleAuthorityPreflight, /exactly_one_signed_superadmin/);
+  assert.match(singleAuthorityPreflight, /PASS_SINGLE_SIGNED_AUTHORITY/);
 });
 
 test('private evidence builder fails closed for wrong project or secret-bearing input', () => {

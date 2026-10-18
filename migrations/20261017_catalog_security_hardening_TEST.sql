@@ -3,6 +3,8 @@
 -- PREPARED, NOT EXECUTED. Do not apply to production.
 -- Source evidence: complete read-only catalog export SHA-256
 -- a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f.
+-- PRE-APPLY 2026-10-18 is BLOCKED: all three public function fingerprints below drifted.
+-- Do not replace the expected values until the current definitions are captured and reviewed.
 
 BEGIN;
 

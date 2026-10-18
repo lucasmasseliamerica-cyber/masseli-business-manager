@@ -1,8 +1,18 @@
 -- NEXALVO v1.6.8 — TEST-only rollback for catalog security hardening.
 -- Target when explicitly authorized: Supabase TEST msinksoilkluooxenecy only.
 -- PREPARED, NOT EXECUTED. Restores the exact reviewed pre-apply access model.
+-- BLOCKED 2026-10-18: the three protected function definitions drifted after that review. This
+-- historical rollback must not overwrite an unknown current definition. Regenerate it from the
+-- read-only drift capture only after semantic review of all three functions.
 
 BEGIN;
+
+DO $baseline_reconciliation_required$
+BEGIN
+  RAISE EXCEPTION
+    'rollback blocked: current TEST function definitions must be reconciled before rollback';
+END;
+$baseline_reconciliation_required$;
 
 DROP TRIGGER IF EXISTS inventory_items_validate_tenant_references ON public.inventory_items;
 DROP FUNCTION IF EXISTS public.trg_validate_inventory_item_tenant_references();

@@ -24,14 +24,14 @@ WITH operator_alignment AS (
     ) AS active_operators_with_signed_superadmin_claim,
     count(*) FILTER (
       WHERE o.active
-        AND NOT (
-          u.id IS NOT NULL
-          AND u.active
-          AND a.id IS NOT NULL
-          AND a.deleted_at IS NULL
-          AND COALESCE(a.is_anonymous, false) = false
-          AND (a.banned_until IS NULL OR a.banned_until <= pg_catalog.now())
-          AND a.raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'
+        AND (
+          u.id IS NULL
+          OR u.active IS DISTINCT FROM true
+          OR a.id IS NULL
+          OR a.deleted_at IS NOT NULL
+          OR COALESCE(a.is_anonymous, false)
+          OR (a.banned_until IS NOT NULL AND a.banned_until > pg_catalog.now())
+          OR (a.raw_app_meta_data ->> 'nexalvo_platform_role') IS DISTINCT FROM 'SUPERADMIN'
         )
     ) AS active_operator_without_signed_superadmin_claim,
     count(*) FILTER (WHERE o.active AND u.role = 'OWNER') AS active_operator_with_tenant_owner_role
@@ -53,6 +53,17 @@ WITH operator_alignment AS (
     AND a.deleted_at IS NULL
     AND COALESCE(a.is_anonymous, false) = false
     AND (a.banned_until IS NULL OR a.banned_until <= pg_catalog.now())
+), claim_null_regression AS (
+  -- Both a missing key and an explicit JSON null produce SQL NULL with ->>. IS DISTINCT FROM must
+  -- classify both as not SUPERADMIN; ordinary <>/NOT (=) would silently drop them from FILTER.
+  SELECT count(*) FILTER (
+           WHERE (sample.metadata ->> 'nexalvo_platform_role') IS DISTINCT FROM 'SUPERADMIN'
+         ) = 2 AS missing_and_null_claims_are_denied
+  FROM (VALUES
+    ('{}'::pg_catalog.jsonb),
+    ('{"nexalvo_platform_role":null}'::pg_catalog.jsonb),
+    ('{"nexalvo_platform_role":"SUPERADMIN"}'::pg_catalog.jsonb)
+  ) AS sample(metadata)
 )
 SELECT pg_catalog.jsonb_build_object(
   'project_ref_expected', 'msinksoilkluooxenecy',
@@ -65,12 +76,16 @@ SELECT pg_catalog.jsonb_build_object(
   'active_operator_with_tenant_owner_role', o.active_operator_with_tenant_owner_role,
   'signed_superadmins', s.signed_superadmins,
   'signed_superadmin_without_active_operator', s.signed_superadmin_without_active_operator,
+  'missing_and_null_claims_are_denied', c.missing_and_null_claims_are_denied,
   'authority_models_aligned',
+    c.missing_and_null_claims_are_denied
+    AND
     o.active_operator_without_signed_superadmin_claim = 0
     AND s.signed_superadmin_without_active_operator = 0
     AND o.active_operators = s.signed_superadmins
 ) AS platform_admin_operator_alignment
 FROM operator_alignment AS o
-CROSS JOIN signed_claims AS s;
+CROSS JOIN signed_claims AS s
+CROSS JOIN claim_null_regression AS c;
 
 ROLLBACK;

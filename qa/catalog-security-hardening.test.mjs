@@ -5,10 +5,12 @@ import { readFileSync } from 'node:fs';
 import { scanSecrets } from './audit-final-security-catalog.mjs';
 
 const evidence = JSON.parse(readFileSync(new URL('./evidence/final-homologation-security-sanitized-20261017.json', import.meta.url), 'utf8'));
+const realPreapply = JSON.parse(readFileSync(new URL('./evidence/catalog-preapply-real-20261018.json', import.meta.url), 'utf8'));
 const apply = readFileSync(new URL('../migrations/20261017_catalog_security_hardening_TEST.sql', import.meta.url), 'utf8');
 const rollback = readFileSync(new URL('../migrations/20261017_catalog_security_hardening_rollback_TEST.sql', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('./sql/catalog_security_hardening_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const preapply = readFileSync(new URL('./sql/catalog_security_hardening_preapply_readonly_TEST.sql', import.meta.url), 'utf8');
+const driftCapture = readFileSync(new URL('./sql/catalog_security_hardening_function_drift_readonly_TEST.sql', import.meta.url), 'utf8');
 const privateExport = readFileSync(new URL('./sql/final_homologation_private_security_definitions_readonly_TEST.sql', import.meta.url), 'utf8');
 const permissionExport = readFileSync(new URL('./sql/final_homologation_permission_defaults_readonly_TEST.sql', import.meta.url), 'utf8');
 const rootApp = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
@@ -38,6 +40,27 @@ test('secret scanner fails closed without printing the matching value', () => {
   assert.equal(result.counts.supabase_secret, 1);
   assert.equal(Object.hasOwn(result.findings[0], 'value'), false);
   assert.match(result.findings[0].match_sha256_16, /^[a-f0-9]{16}$/);
+});
+
+test('real TEST pre-apply evidence remains blocked on exactly three changed functions', () => {
+  assert.equal(scanSecrets(realPreapply).passed, true);
+  assert.equal(realPreapply.target.project_ref, 'msinksoilkluooxenecy');
+  assert.equal(realPreapply.catalog_security_hardening_preapply.status, 'BLOCKED');
+  assert.equal(realPreapply.catalog_security_hardening_preapply.passed, 7);
+  assert.equal(realPreapply.catalog_security_hardening_preapply.failed, 3);
+  assert.equal(realPreapply.source.raw_function_definitions_received, false);
+  const rows = realPreapply.catalog_security_hardening_preapply.function_fingerprints;
+  assert.equal(rows.length, 3);
+  assert.ok(rows.every((row) => row.historical !== row.observed));
+  assert.deepEqual(rows.map((row) => row.signature), [
+    'public.fn_read_employees_secure()',
+    'public.fn_read_sale_items_secure()',
+    'public.fn_write_audit(text,text)',
+  ]);
+  assert.equal(realPreapply.classification.hardening_application,
+    'BLOCKED_PENDING_CURRENT_FUNCTION_DEFINITIONS');
+  assert.equal(realPreapply.classification.historical_rollback,
+    'BLOCKED_PENDING_BASELINE_RECONCILIATION');
 });
 
 test('real grants prove the sensitive facade bypasses and the evidence keeps risk boundaries', () => {
@@ -82,7 +105,7 @@ test('frontend reads employees through the secure facade and limits write repres
   assert.equal(rootApp, srcApp);
 });
 
-test('TEST-only hardening is guarded, least-privilege and exactly reversible', () => {
+test('TEST-only hardening is guarded and the stale historical rollback fails closed', () => {
   assert.match(apply, /PREPARED, NOT EXECUTED/);
   assert.match(apply, /a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f/);
   assert.match(apply, /1c13bdeb159e0d78db0a200055cdb36a/);
@@ -115,6 +138,8 @@ test('TEST-only hardening is guarded, least-privilege and exactly reversible', (
   assert.match(rollback, /GRANT EXECUTE ON FUNCTIONS TO anon, authenticated/);
   assert.match(rollback, /DROP TRIGGER IF EXISTS inventory_items_validate_tenant_references ON public\.inventory_items/);
   assert.match(rollback, /DROP FUNCTION IF EXISTS public\.trg_validate_inventory_item_tenant_references\(\)/);
+  assert.match(rollback, /baseline_reconciliation_required/);
+  assert.match(rollback, /rollback blocked: current TEST function definitions must be reconciled before rollback/);
   for (const sql of [apply, rollback]) {
     assert.match(sql, /^BEGIN;$/m);
     assert.match(sql, /^COMMIT;$/m);
@@ -134,8 +159,8 @@ test('TEST-only hardening is guarded, least-privilege and exactly reversible', (
   assert.equal(rollbackBodyHash('fn_write_audit'), 'df886665496ca338aacd153ea277d4a3567dd25330abc93b52c5feeb3fa0c315');
 });
 
-test('post-apply and private-schema exports are read-only and cover the unresolved proof', () => {
-  for (const sql of [preapply, preflight, privateExport, permissionExport]) {
+test('post-apply, drift and private-schema exports are read-only and cover the unresolved proof', () => {
+  for (const sql of [preapply, preflight, driftCapture, privateExport, permissionExport]) {
     const executable = sql.replace(/^\s*--.*$/gm, '');
     assert.match(sql, /BEGIN TRANSACTION READ ONLY;/i);
     assert.match(sql, /\bROLLBACK;/i);
@@ -147,7 +172,21 @@ test('post-apply and private-schema exports are read-only and cover the unresolv
   assert.match(preapply, /business_export_private_fingerprint/);
   assert.match(preapply, /cabc5e9d96a6242ae42ade1d140b087e/);
   assert.match(preapply, /exact_reviewed_public_policy_set/);
-  assert.equal((preapply.match(/COALESCE\(pg_catalog\.md5/g) || []).length, 5);
+  assert.match(preapply, /checks\(name, passed, expected, observed\)/);
+  assert.match(preapply, /jsonb_strip_nulls/);
+  assert.equal((preapply.match(/FROM fingerprints AS f/g) || []).length, 5);
+  for (const [historical, reported] of [
+    ['1c13bdeb159e0d78db0a200055cdb36a', '6a004cb40f967cc39f4c3bd20fec817e'],
+    ['161e5147cd4eae4ca6e9a4c074af7cb6', 'b9c489bf2a75339768bcc19ba174821c'],
+    ['4ab39d24cd80134b7ca7812c8a38dd7d', '2d1742df2500389b93028511b1cb17e5'],
+  ]) {
+    assert.match(driftCapture, new RegExp(historical));
+    assert.match(driftCapture, new RegExp(reported));
+    assert.doesNotMatch(apply, new RegExp(reported));
+  }
+  assert.match(driftCapture, /pg_get_functiondef\(p\.oid\) AS definition/);
+  assert.match(driftCapture, /CAPTURED_REPORTED_DRIFT/);
+  assert.match(driftCapture, /Treat the result as an unversioned review artifact/);
   assert.match(preflight, /COALESCE\(pg_catalog\.position\('Client: '/);
   for (const schema of ['nexalvo_platform', 'nexalvo_backup']) assert.match(privateExport, new RegExp(schema));
   for (const marker of [

@@ -10,6 +10,35 @@ Validação publicada: commit `36e2c1630ffe277ae43535a640785303a5f4201c`; [CI #1
 Nenhuma migração, função, usuário, dado, convite, operação financeira ou deploy foi executado. O
 JSON bruto permaneceu fora do Git.
 
+## Preflights reais posteriores à CI #168
+
+O pre-apply executado diretamente no TEST terminou **BLOCKED**, com 7/10 checks aprovados. Os três
+checks reprovados são exclusivamente os fingerprints das funções públicas abaixo:
+
+| Função | Catálogo histórico | TEST em 2026-10-18 |
+|---|---|---|
+| `fn_read_employees_secure()` | `1c13bdeb159e0d78db0a200055cdb36a` | `6a004cb40f967cc39f4c3bd20fec817e` |
+| `fn_read_sale_items_secure()` | `161e5147cd4eae4ca6e9a4c074af7cb6` | `b9c489bf2a75339768bcc19ba174821c` |
+| `fn_write_audit(text,text)` | `4ab39d24cd80134b7ca7812c8a38dd7d` | `2d1742df2500389b93028511b1cb17e5` |
+
+Os dois fingerprints de export público/privado permaneceram compatíveis. Portanto a divergência não
+é explicada por uma mudança global de formatação de `pg_get_functiondef`; ela está limitada às três
+funções. Um hash não permite distinguir mudança semântica de alteração textual. A migração conserva
+os fingerprints históricos e permanece fail-closed. O rollback histórico agora também recusa toda
+execução, pois restaurar corpos antigos sobre definições atuais ainda desconhecidas não é seguro.
+
+`qa/sql/catalog_security_hardening_function_drift_readonly_TEST.sql` captura os três corpos e seus
+metadados em transação somente leitura. O resultado deve permanecer fora do Git até passar pela
+varredura de segredos e pela comparação semântica; somente então a migração e o rollback poderão ser
+regenerados a partir da mesma baseline.
+
+O preflight administrativo real encontrou um operador ativo, com perfil ativo e papel tenant OWNER,
+e nenhum claim assinado `SUPERADMIN`. O contador antigo retornou zero porque `NOT (claim =
+'SUPERADMIN')` produz `NULL` quando o claim está ausente, e `FILTER` descarta esse resultado. A
+consulta foi corrigida com `IS DISTINCT FROM`, incluindo regressões SQL para chave ausente e JSON
+`null`. Para o estado informado, o resultado correto é um operador ativo sem claim e
+`authority_models_aligned = false`.
+
 ## Cadeia de evidência
 
 O export `final_private_security_catalog` possui 81.311 bytes e SHA-256
@@ -78,6 +107,30 @@ o plano legado, impedindo a instalação acidental de duas autoridades paralelas
 `qa/sql/platform_admin_operator_alignment_readonly_TEST.sql` conta divergências sem retornar IDs,
 e-mails ou documentos de claim.
 
+### Estratégia de autoridade única
+
+A autoridade alvo continua sendo o claim assinado `app_metadata.nexalvo_platform_role =
+SUPERADMIN`, já exigido pela interface e pela Edge Function preparada. O cutover deverá aceitar uma
+janela curta sem Administração Comercial para evitar qualquer instante com dois mecanismos ativos:
+
+1. confirmar por leitura a identidade única pretendida, o conjunto exato de operadores e a ausência
+   de claims concorrentes;
+2. em janela controlada, revogar EXECUTE dos wrappers administrativos legados e desativar a
+   membership ativa, preservando tabelas e auditoria histórica;
+3. somente após a autoridade legada ficar inoperante, atribuir o claim assinado à mesma identidade e
+   forçar renovação da sessão;
+4. adaptar o preflight da migração nova para aceitar o schema histórico apenas quando não houver
+   operador ativo nem wrapper legado executável, aplicar o backend novo e publicar a Edge Function;
+5. provar que SUPERADMIN funciona e que OWNER comum, operador histórico sem claim e outra empresa
+   são negados.
+
+O rollback deve executar a ordem inversa sem sobreposição: desabilitar primeiro o backend novo,
+remover o claim e somente então, mediante autorização separada, reativar a autoridade legada. Nenhum
+passo desse cutover foi executado ou autorizado. O estado de corte pode ser comprovado sem expor
+identidades por `qa/sql/platform_admin_single_authority_preflight_readonly_TEST.sql`: ele exige zero
+operadores ativos, zero endpoint legado executável por `authenticated`, exatamente um claim assinado
+e perfil tenant ativo para essa identidade.
+
 ### Provisionamento e primeiro OWNER
 
 `provision_company` exige `has_access()`, valida nome/moeda/fuso/local, bloqueia por `request_id` e
@@ -136,12 +189,13 @@ wrappers públicos.
 | Risco condicional alto | Duas autoridades administrativas se o backend novo for instalado sem reconciliar `operators` e claims |
 | Risco condicional de disponibilidade | Export de até 20 MiB valida tamanho após materializar JSON |
 | Controle aprovado estaticamente | Owner/tenant gate do export; gates/locks de provisionamento; negação direta privada; wrappers sem `anon` |
-| Bloqueio real | Membership/claims reais de operadores; metadados estruturais privados adicionais; sessões SUPERADMIN/OWNER/não-operador e MANAGER/EMPLOYEE |
+| Bloqueio real | Três definições públicas divergentes; operador ativo sem claim; metadados estruturais privados adicionais; sessões SUPERADMIN/OWNER/não-operador e MANAGER/EMPLOYEE |
 
 ## Sequência de aplicação exclusiva no TEST
 
-1. Executar o preflight pré-aplicação somente leitura. Qualquer check falso deixa a operação
-   **BLOCKED**; não adaptar fingerprints para forçar passagem.
+1. Executar a captura somente leitura das três funções divergentes. Enquanto seus corpos atuais não
+   forem comparados, o pre-apply e o rollback permanecem **BLOCKED**; não adaptar fingerprints para
+   forçar passagem.
 2. Reter novo snapshot/fingerprint dos catálogos público e privado. Executar separadamente o
    preflight agregado de operadores; ele não autoriza Administração Comercial.
 3. Com autorização específica, aplicar somente `20261017_catalog_security_hardening_TEST.sql` em uma

@@ -30,41 +30,60 @@ WITH expected_public_policies(table_name, policy_name) AS (
     ('task_activity', 'task_activity_write'),
     ('users', 'users_select'),
     ('waste_transactions', 'waste_select')
-), checks AS (
-  SELECT 'employee_facade_fingerprint' AS name,
-         COALESCE(pg_catalog.md5(pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
-         )) = '1c13bdeb159e0d78db0a200055cdb36a', false) AS passed
+), fingerprints AS (
+  SELECT
+    pg_catalog.md5(pg_catalog.pg_get_functiondef(
+      pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
+    )) AS employee_facade,
+    pg_catalog.md5(pg_catalog.pg_get_functiondef(
+      pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
+    )) AS sale_item_facade,
+    pg_catalog.md5(pg_catalog.pg_get_functiondef(
+      pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+    )) AS client_audit,
+    pg_catalog.md5(pg_catalog.pg_get_functiondef(
+      pg_catalog.to_regprocedure('nexalvo_backup.export_business_data(uuid)')
+    )) AS business_export_private,
+    pg_catalog.md5(pg_catalog.pg_get_functiondef(
+      pg_catalog.to_regprocedure('public.fn_export_business_data(uuid)')
+    )) AS business_export_public_wrapper
+), checks(name, passed, expected, observed) AS (
+  SELECT 'employee_facade_fingerprint',
+         COALESCE(f.employee_facade = '1c13bdeb159e0d78db0a200055cdb36a', false),
+         '1c13bdeb159e0d78db0a200055cdb36a', f.employee_facade
+  FROM fingerprints AS f
   UNION ALL
   SELECT 'sale_item_facade_fingerprint',
-         COALESCE(pg_catalog.md5(pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
-         )) = '161e5147cd4eae4ca6e9a4c074af7cb6', false)
+         COALESCE(f.sale_item_facade = '161e5147cd4eae4ca6e9a4c074af7cb6', false),
+         '161e5147cd4eae4ca6e9a4c074af7cb6', f.sale_item_facade
+  FROM fingerprints AS f
   UNION ALL
   SELECT 'client_audit_fingerprint',
-         COALESCE(pg_catalog.md5(pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
-         )) = '4ab39d24cd80134b7ca7812c8a38dd7d', false)
+         COALESCE(f.client_audit = '4ab39d24cd80134b7ca7812c8a38dd7d', false),
+         '4ab39d24cd80134b7ca7812c8a38dd7d', f.client_audit
+  FROM fingerprints AS f
   UNION ALL
   SELECT 'business_export_private_fingerprint',
-         COALESCE(pg_catalog.md5(pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('nexalvo_backup.export_business_data(uuid)')
-         )) = 'cabc5e9d96a6242ae42ade1d140b087e', false)
+         COALESCE(f.business_export_private = 'cabc5e9d96a6242ae42ade1d140b087e', false),
+         'cabc5e9d96a6242ae42ade1d140b087e', f.business_export_private
+  FROM fingerprints AS f
   UNION ALL
   SELECT 'business_export_public_wrapper_fingerprint',
-         COALESCE(pg_catalog.md5(pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_export_business_data(uuid)')
-         )) = '2bdd2117a84d5a95778cdf6392b11a49', false)
+         COALESCE(f.business_export_public_wrapper = '2bdd2117a84d5a95778cdf6392b11a49', false),
+         '2bdd2117a84d5a95778cdf6392b11a49', f.business_export_public_wrapper
+  FROM fingerprints AS f
   UNION ALL
   SELECT 'reviewed_sensitive_table_grants_present',
          pg_catalog.has_table_privilege('authenticated', 'public.employees', 'SELECT')
          AND pg_catalog.has_column_privilege('authenticated', 'public.employees', 'hourly_rate', 'SELECT')
          AND pg_catalog.has_table_privilege('authenticated', 'public.sale_items', 'SELECT')
-         AND pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT')
+         AND pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT'),
+         NULL, NULL
   UNION ALL
   SELECT 'api_roles_cannot_create_in_public',
          NOT pg_catalog.has_schema_privilege('authenticated', 'public', 'CREATE')
-         AND NOT pg_catalog.has_schema_privilege('anon', 'public', 'CREATE')
+         AND NOT pg_catalog.has_schema_privilege('anon', 'public', 'CREATE'),
+         NULL, NULL
   UNION ALL
   SELECT 'exact_reviewed_public_policy_set',
          (SELECT count(*) FROM pg_catalog.pg_policies
@@ -87,7 +106,8 @@ WITH expected_public_policies(table_name, policy_name) AS (
                SELECT 1 FROM expected_public_policies AS e
                WHERE e.table_name = p.tablename AND e.policy_name = p.policyname
              )
-         )
+         ),
+         NULL, NULL
   UNION ALL
   SELECT 'inventory_tenant_guard_not_already_installed',
          pg_catalog.to_regprocedure('public.trg_validate_inventory_item_tenant_references()') IS NULL
@@ -96,7 +116,8 @@ WITH expected_public_policies(table_name, policy_name) AS (
            WHERE tgrelid = 'public.inventory_items'::pg_catalog.regclass
              AND tgname = 'inventory_items_validate_tenant_references'
              AND NOT tgisinternal
-         )
+         ),
+         NULL, NULL
   UNION ALL
   SELECT 'current_functions_deny_anonymous_execution',
          NOT EXISTS (
@@ -104,13 +125,19 @@ WITH expected_public_policies(table_name, policy_name) AS (
            JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('public', 'nexalvo_backup', 'nexalvo_platform')
              AND pg_catalog.has_function_privilege('anon', p.oid, 'EXECUTE')
-         )
+         ),
+         NULL, NULL
 )
 SELECT pg_catalog.jsonb_build_object(
   'project_ref_expected', 'msinksoilkluooxenecy',
   'status', CASE WHEN pg_catalog.bool_and(passed) THEN 'PASS' ELSE 'BLOCKED' END,
   'checks', pg_catalog.jsonb_agg(
-    pg_catalog.jsonb_build_object('name', name, 'passed', passed) ORDER BY name
+    pg_catalog.jsonb_strip_nulls(pg_catalog.jsonb_build_object(
+      'name', name,
+      'passed', passed,
+      'expected', expected,
+      'observed', observed
+    )) ORDER BY name
   )
 ) AS catalog_security_hardening_preapply
 FROM checks;
