@@ -32,6 +32,18 @@ test('authenticated TEST jobs are gated by the classified read-only preflight',(
  }
  assert.doesNotMatch(workflow,/node\s+qa\/p0-purchase-browser-persistent\.TEST\.mjs/);
 });
+test('authenticated access regressions serialize shared QA identity logins',()=>{
+ const command=workflow.match(/node --test[^\n]*qa\/access-regression\.test\.mjs[^\n]*/)?.[0]||'';
+ assert.match(command,/--test-concurrency=1/);
+ for(const file of [
+  'qa/access-regression.test.mjs',
+  'qa/p0-isolation-matrix.test.mjs',
+  'qa/p0-write-isolation.test.mjs',
+  'qa/p0-validation-boundaries.test.mjs',
+  'qa/p0-cash-register-http.test.mjs',
+  'qa/p0-purchases-http-read.test.mjs',
+ ]) assert.match(command,new RegExp(file.replaceAll('.','\\.')),file);
+});
 test('all QA test scripts reject production host and privileged keys',()=>{
  for(const file of qaFiles){
   const body=readFileSync('qa/'+file,'utf8');
