@@ -111,14 +111,20 @@ test('profile RPC is service-only, tenant-scoped, owner-safe and audits atomical
   assert.match(migration, /INSERT INTO public\.audit_logs/);
   assert.match(migration, /REVOKE ALL ON FUNCTION public\.fn_manage_staff_profile[\s\S]*FROM PUBLIC, anon, authenticated/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.fn_manage_staff_profile[\s\S]*TO service_role/);
+  assert.match(migration, /4e02f0128a171ec8a6e65de291f115e7/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.fn_save_user_profile[\s\S]*FROM PUBLIC, anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.fn_save_user_profile[\s\S]*TO service_role/);
 });
 
 test('staff deployment has read-only discovery and data-preserving rollback', () => {
   assert.match(preflight, /BEGIN TRANSACTION READ ONLY/);
   assert.match(preflight, /fn_manage_staff_profile/);
+  assert.match(preflight, /fn_save_user_profile/);
+  assert.match(preflight, /authenticated_execute/);
   assert.match(preflight, /service_role_privileges/);
   assert.match(preflight, /pg_get_constraintdef/);
   assert.doesNotMatch(preflight.replace(/^\s*--.*$/gm, ''), /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|ALTER|DROP|CREATE|GRANT|REVOKE)\b/im);
   assert.match(rollback, /User profiles, Auth identities and audit history are retained/);
+  assert.match(rollback, /GRANT EXECUTE ON FUNCTION public\.fn_save_user_profile[\s\S]*TO authenticated, service_role/);
   assert.doesNotMatch(rollback, /DROP TABLE|DELETE FROM|CASCADE/i);
 });

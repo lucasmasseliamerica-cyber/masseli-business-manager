@@ -4,6 +4,26 @@
 
 BEGIN;
 
+DO $preflight$
+BEGIN
+  IF pg_catalog.to_regprocedure(
+       'public.fn_save_user_profile(uuid,text,text,text,uuid,boolean,jsonb)'
+     ) IS NULL
+     OR pg_catalog.md5(pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure(
+       'public.fn_save_user_profile(uuid,text,text,text,uuid,boolean,jsonb)'
+     ))) <> '4e02f0128a171ec8a6e65de291f115e7' THEN
+    RAISE EXCEPTION 'preflight failed: legacy fn_save_user_profile drifted from reviewed TEST definition';
+  END IF;
+  IF NOT pg_catalog.has_function_privilege(
+    'authenticated',
+    'public.fn_save_user_profile(uuid,text,text,text,uuid,boolean,jsonb)',
+    'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'preflight failed: legacy staff RPC ACL changed';
+  END IF;
+END;
+$preflight$;
+
 CREATE OR REPLACE FUNCTION public.fn_manage_staff_profile(
   p_operation text,
   p_actor_user_id uuid,
@@ -151,6 +171,16 @@ REVOKE ALL ON FUNCTION public.fn_manage_staff_profile(
 ) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.fn_manage_staff_profile(
   text, uuid, uuid, uuid, uuid, text, text, text, jsonb, boolean
+) TO service_role;
+
+-- The legacy authenticated RPC allows a non-owner with manageUsers to change another non-owner's
+-- role/permission overrides. The replacement above enforces OWNER-only security changes and is
+-- callable only through the authenticated Edge boundary using service_role.
+REVOKE ALL ON FUNCTION public.fn_save_user_profile(
+  uuid, text, text, text, uuid, boolean, jsonb
+) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.fn_save_user_profile(
+  uuid, text, text, text, uuid, boolean, jsonb
 ) TO service_role;
 
 COMMIT;

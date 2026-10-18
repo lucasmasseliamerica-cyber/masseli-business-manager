@@ -15,6 +15,20 @@ SELECT jsonb_build_object(
     FROM pg_proc AS p JOIN pg_namespace AS n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname = 'fn_manage_staff_profile'
   ),
+  'legacy_profile_rpc', (
+    SELECT jsonb_build_object(
+      'exists', p.oid IS NOT NULL,
+      'arguments', pg_get_function_identity_arguments(p.oid),
+      'fingerprint', md5(pg_get_functiondef(p.oid)),
+      'authenticated_execute', has_function_privilege(
+        'authenticated', p.oid, 'EXECUTE'
+      )
+    )
+    FROM pg_proc AS p JOIN pg_namespace AS n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'fn_save_user_profile'
+      AND pg_get_function_identity_arguments(p.oid) =
+        'p_user_id uuid, p_name text, p_username text, p_role text, p_employee_id uuid, p_active boolean, p_permission_overrides jsonb'
+  ),
   'required_columns', (
     SELECT jsonb_agg(jsonb_build_object(
       'table', table_name, 'column', column_name, 'type', data_type,

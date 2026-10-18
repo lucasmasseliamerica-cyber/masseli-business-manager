@@ -4,6 +4,10 @@
 
 BEGIN;
 
+GRANT EXECUTE ON FUNCTION public.fn_save_user_profile(
+  uuid, text, text, text, uuid, boolean, jsonb
+) TO authenticated, service_role;
+
 DROP FUNCTION IF EXISTS public.fn_manage_staff_profile(
   text, uuid, uuid, uuid, uuid, text, text, text, jsonb, boolean
 );

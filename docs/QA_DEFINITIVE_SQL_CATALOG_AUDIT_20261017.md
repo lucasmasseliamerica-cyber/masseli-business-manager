@@ -77,6 +77,20 @@ de `fn_read_sale_items_secure()`, que deveria revelar o custo somente a quem pos
 custo e preserva apenas as colunas operacionais necessárias. O rollback restaura o grant integral
 observado no export.
 
+### SEC-CAT-05 — escalonamento indireto por RPC legada de perfis — alta
+
+`fn_save_user_profile` é executável por `authenticated`. Ela exige `manageUsers`, mas permite que um
+ator não-OWNER altere papel e `permission_overrides` de outro usuário não-OWNER. O trigger existente
+bloqueia somente a alteração do próprio registro; com duas contas, uma pode conceder à outra
+`viewFinancials`, `manageSettings`, `manageUsers` e as demais permissões, e a segunda pode retribuir.
+O bloqueio de criação/edição de OWNER permanece, mas não impede essa elevação horizontal.
+
+A correção foi incorporada ao pacote ainda não implantado `staff-user-service`: a RPC substituta
+impõe OWNER para mudanças de papel/overrides, é acessível apenas a `service_role` pela Edge Function
+autenticada e revoga `authenticated` da RPC legada. O preflight fixa o fingerprint implantado
+`4e02f0128a171ec8a6e65de291f115e7`; o rollback restaura a ACL observada sem alterar perfis, Auth ou
+histórico.
+
 ## Riscos condicionais e divergências
 
 - **40 `SECURITY DEFINER` usam `search_path=public`.** Todas as 48 possuem `search_path` explícito;
@@ -172,9 +186,11 @@ condicional até a matriz real MANAGER/EMPLOYEE definir o contrato de cada colun
 4. Autorizar, uma por vez: guard finito de caixa; normalização Cash; idempotência de despesa;
    idempotência de compra. Cada etapa exige preflight, regressão com flag desligada, fluxo controlado,
    compensação e verificação de resíduo.
-5. Somente depois, autorizar as unidades independentes de gestão de equipe, Storage e Administração
-   Comercial. Administração aguarda primeiro o catálogo de `nexalvo_platform` para evitar colisão com
-   a implementação privada já existente.
+5. Autorizar a unidade de gestão de equipe no TEST, incluindo migração e publicação conjunta da Edge
+   Function. Essa etapa fecha a RPC legada vulnerável; validar OWNER e um MANAGER com `manageUsers`,
+   inclusive negação de papel/overrides pelo não-OWNER. Storage e Administração Comercial continuam
+   unidades independentes. Administração aguarda primeiro o catálogo de `nexalvo_platform` para
+   evitar colisão com a implementação privada já existente.
 6. Autorizar separadamente as jornadas persistentes de venda/caixa/estoque/compra e seus planos de
    compensação. Compras persistentes continuam desativadas na CI padrão.
 

@@ -13079,7 +13079,10 @@
       "sale_items_policy_roles": [
         "public"
       ],
-      "sale_items_policy_qual_sha256": "b48ebf487a1e1b5cac60de8ac27b1db2c6b8795801c2f6e03c66ea58833db604"
+      "sale_items_policy_qual_sha256": "b48ebf487a1e1b5cac60de8ac27b1db2c6b8795801c2f6e03c66ea58833db604",
+      "legacy_staff_profile_authenticated_execute": true,
+      "legacy_staff_profile_non_owner_override_escalation": true,
+      "legacy_staff_profile_fingerprint": "4e02f0128a171ec8a6e65de291f115e7"
     },
     "conditional": {
       "policies_assigned_to_public": [

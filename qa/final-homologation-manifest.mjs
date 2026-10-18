@@ -367,6 +367,8 @@ export function evaluateDeployedCatalog(input) {
     && row.column_name === 'hourly_rate' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
   const authenticatedSaleItemCostSelect = columnGrantRows.some((row) => row.table_name === 'sale_items'
     && row.column_name === 'unit_cost_snapshot' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
+  const legacyStaffProfile = functionRows.find((row) => row.name === 'fn_save_user_profile');
+  const legacyStaffProfileAuthenticated = legacyStaffProfile?.authenticated_execute === true;
   const referencedPrivateSchemas = [...new Set(functionRows.flatMap((row) =>
     [...String(row.definition || '').matchAll(/\b(nexalvo_[a-z0-9_]+)\./gi)].map((match) => match[1].toLowerCase())))].sort();
   const publicFunctionDefaultAcls = (catalog.default_privileges || [])
@@ -423,6 +425,7 @@ export function evaluateDeployedCatalog(input) {
       anonSensitiveTableGrants,
       authenticatedSalarySelect,
       authenticatedSaleItemCostSelect,
+      legacyStaffProfileAuthenticated,
       referencedPrivateSchemas,
       publicFunctionDefaultAcls,
       countMismatches,

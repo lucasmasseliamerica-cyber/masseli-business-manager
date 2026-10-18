@@ -161,14 +161,20 @@ export function buildSanitizedEvidence(input, { sourceBytes, root }) {
   const policies = catalog.all_policies || [];
   const tableGrants = catalog.all_table_grants || [];
   const columnGrants = catalog.all_column_grants || [];
+  const functionRows = catalog.functions || [];
   const employeesPolicy = policies.find((row) => row.tablename === 'employees' && row.policyname === 'employees_select');
   const usersPolicy = policies.find((row) => row.tablename === 'users' && row.policyname === 'users_select');
   const employeeTableSelect = tableGrants.some((row) => row.table_name === 'employees' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
   const employeeSalarySelect = columnGrants.some((row) => row.table_name === 'employees' && row.column_name === 'hourly_rate' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
   const saleItemCostSelect = columnGrants.some((row) => row.table_name === 'sale_items' && row.column_name === 'unit_cost_snapshot' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
   const saleItemsPolicy = policies.find((row) => row.tablename === 'sale_items' && row.policyname === 'sale_items_select');
+  const legacyStaffProfile = functionRows.find((row) => row.name === 'fn_save_user_profile');
+  const legacyStaffDefinition = legacyStaffProfile?.definition || '';
+  const legacyStaffPrivilegeEscalation = legacyStaffProfile?.authenticated_execute === true
+    && /user_can\s*\(\s*'manageUsers'/i.test(legacyStaffDefinition)
+    && /permission_overrides\s*=\s*case/i.test(legacyStaffDefinition)
+    && !/only an owner can change roles or permission overrides/i.test(legacyStaffDefinition);
   const publicSchema = (catalog.schema_security || []).find((row) => row.schema_name === 'public');
-  const functionRows = catalog.functions || [];
   const definerPublic = functionRows.filter((row) => row.security_definer && (row.settings || []).includes('search_path=public'));
   const publicPolicies = policies.filter((row) => (row.roles || []).includes('public'));
   const defaultPublicFunctionAcl = (catalog.default_privileges || []).filter((row) => row.schema_name === 'public' && row.object_type === 'f');
@@ -219,6 +225,9 @@ export function buildSanitizedEvidence(input, { sourceBytes, root }) {
         users_policy_qual_sha256: sha256(usersPolicy?.qual || ''),
         sale_items_policy_roles: saleItemsPolicy?.roles || [],
         sale_items_policy_qual_sha256: sha256(saleItemsPolicy?.qual || ''),
+        legacy_staff_profile_authenticated_execute: legacyStaffProfile?.authenticated_execute === true,
+        legacy_staff_profile_non_owner_override_escalation: legacyStaffPrivilegeEscalation,
+        legacy_staff_profile_fingerprint: legacyStaffProfile?.fingerprint || null,
       },
       conditional: {
         policies_assigned_to_public: publicPolicies.map((row) => `${row.tablename}.${row.policyname}`).sort(),

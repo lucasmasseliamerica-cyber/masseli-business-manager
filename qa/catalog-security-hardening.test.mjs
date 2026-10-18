@@ -42,6 +42,9 @@ test('real grants prove the sensitive facade bypasses and the evidence keeps ris
   assert.equal(evidence.audit_facts.confirmed.authenticated_employee_table_select, true);
   assert.equal(evidence.audit_facts.confirmed.authenticated_hourly_rate_select, true);
   assert.equal(evidence.audit_facts.confirmed.authenticated_sale_item_cost_select, true);
+  assert.equal(evidence.audit_facts.confirmed.legacy_staff_profile_authenticated_execute, true);
+  assert.equal(evidence.audit_facts.confirmed.legacy_staff_profile_non_owner_override_escalation, true);
+  assert.equal(evidence.audit_facts.confirmed.legacy_staff_profile_fingerprint, '4e02f0128a171ec8a6e65de291f115e7');
   assert.deepEqual(evidence.audit_facts.confirmed.employees_policy_roles, ['public']);
   assert.equal(evidence.audit_facts.conditional.policies_assigned_to_public.length, 21);
   assert.equal(evidence.audit_facts.conditional.security_definer_search_path_public.length, 40);
