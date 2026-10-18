@@ -5,22 +5,23 @@
 
 BEGIN TRANSACTION READ ONLY;
 SET LOCAL statement_timeout = '60s';
+SET LOCAL search_path = pg_catalog, information_schema;
 
 WITH target_schemas AS (
-  SELECT n.oid, n.nspname
+  SELECT n.oid, n.nspname, n.nspowner, n.nspacl
   FROM pg_catalog.pg_namespace AS n
   WHERE n.nspname IN ('nexalvo_platform', 'nexalvo_backup')
 ), schema_security AS (
-  SELECT n.nspname AS schema_name,
-         pg_catalog.pg_get_userbyid(n.nspowner) AS owner,
-         n.nspacl::text AS acl,
-         pg_catalog.has_schema_privilege('anon', n.oid, 'USAGE') AS anon_usage,
-         pg_catalog.has_schema_privilege('anon', n.oid, 'CREATE') AS anon_create,
-         pg_catalog.has_schema_privilege('authenticated', n.oid, 'USAGE') AS authenticated_usage,
-         pg_catalog.has_schema_privilege('authenticated', n.oid, 'CREATE') AS authenticated_create,
-         pg_catalog.has_schema_privilege('service_role', n.oid, 'USAGE') AS service_role_usage,
-         pg_catalog.has_schema_privilege('service_role', n.oid, 'CREATE') AS service_role_create
-  FROM target_schemas AS n
+  SELECT s.nspname AS schema_name,
+         pg_catalog.pg_get_userbyid(s.nspowner) AS owner,
+         s.nspacl::text AS acl,
+         pg_catalog.has_schema_privilege('anon', s.oid, 'USAGE') AS anon_usage,
+         pg_catalog.has_schema_privilege('anon', s.oid, 'CREATE') AS anon_create,
+         pg_catalog.has_schema_privilege('authenticated', s.oid, 'USAGE') AS authenticated_usage,
+         pg_catalog.has_schema_privilege('authenticated', s.oid, 'CREATE') AS authenticated_create,
+         pg_catalog.has_schema_privilege('service_role', s.oid, 'USAGE') AS service_role_usage,
+         pg_catalog.has_schema_privilege('service_role', s.oid, 'CREATE') AS service_role_create
+  FROM target_schemas AS s
 ), private_relations AS (
   SELECT n.nspname AS schema_name,
          c.relname AS name,
@@ -29,18 +30,37 @@ WITH target_schemas AS (
          c.relrowsecurity AS rls,
          c.relforcerowsecurity AS force_rls,
          c.relacl::text AS acl,
-         pg_catalog.has_table_privilege('anon', c.oid, 'SELECT') AS anon_select,
-         (pg_catalog.has_table_privilege('anon', c.oid, 'INSERT')
-           OR pg_catalog.has_table_privilege('anon', c.oid, 'UPDATE')
-           OR pg_catalog.has_table_privilege('anon', c.oid, 'DELETE')) AS anon_write,
-         pg_catalog.has_table_privilege('authenticated', c.oid, 'SELECT') AS authenticated_select,
-         (pg_catalog.has_table_privilege('authenticated', c.oid, 'INSERT')
-           OR pg_catalog.has_table_privilege('authenticated', c.oid, 'UPDATE')
-           OR pg_catalog.has_table_privilege('authenticated', c.oid, 'DELETE')) AS authenticated_write,
-         (pg_catalog.has_table_privilege('service_role', c.oid, 'SELECT')
-           AND pg_catalog.has_table_privilege('service_role', c.oid, 'INSERT')
-           AND pg_catalog.has_table_privilege('service_role', c.oid, 'UPDATE')
-           AND pg_catalog.has_table_privilege('service_role', c.oid, 'DELETE')) AS service_role_all
+         CASE WHEN c.relkind = 'S'
+           THEN pg_catalog.has_sequence_privilege('anon', c.oid, 'SELECT')
+           ELSE pg_catalog.has_table_privilege('anon', c.oid, 'SELECT')
+         END AS anon_select,
+         CASE WHEN c.relkind = 'S'
+           THEN (pg_catalog.has_sequence_privilege('anon', c.oid, 'USAGE')
+             OR pg_catalog.has_sequence_privilege('anon', c.oid, 'UPDATE'))
+           ELSE (pg_catalog.has_table_privilege('anon', c.oid, 'INSERT')
+             OR pg_catalog.has_table_privilege('anon', c.oid, 'UPDATE')
+             OR pg_catalog.has_table_privilege('anon', c.oid, 'DELETE'))
+         END AS anon_write,
+         CASE WHEN c.relkind = 'S'
+           THEN pg_catalog.has_sequence_privilege('authenticated', c.oid, 'SELECT')
+           ELSE pg_catalog.has_table_privilege('authenticated', c.oid, 'SELECT')
+         END AS authenticated_select,
+         CASE WHEN c.relkind = 'S'
+           THEN (pg_catalog.has_sequence_privilege('authenticated', c.oid, 'USAGE')
+             OR pg_catalog.has_sequence_privilege('authenticated', c.oid, 'UPDATE'))
+           ELSE (pg_catalog.has_table_privilege('authenticated', c.oid, 'INSERT')
+             OR pg_catalog.has_table_privilege('authenticated', c.oid, 'UPDATE')
+             OR pg_catalog.has_table_privilege('authenticated', c.oid, 'DELETE'))
+         END AS authenticated_write,
+         CASE WHEN c.relkind = 'S'
+           THEN (pg_catalog.has_sequence_privilege('service_role', c.oid, 'USAGE')
+             AND pg_catalog.has_sequence_privilege('service_role', c.oid, 'SELECT')
+             AND pg_catalog.has_sequence_privilege('service_role', c.oid, 'UPDATE'))
+           ELSE (pg_catalog.has_table_privilege('service_role', c.oid, 'SELECT')
+             AND pg_catalog.has_table_privilege('service_role', c.oid, 'INSERT')
+             AND pg_catalog.has_table_privilege('service_role', c.oid, 'UPDATE')
+             AND pg_catalog.has_table_privilege('service_role', c.oid, 'DELETE'))
+         END AS service_role_all
   FROM pg_catalog.pg_class AS c
   JOIN target_schemas AS n ON n.oid = c.relnamespace
   WHERE c.relkind IN ('r', 'p', 'v', 'm', 'S')

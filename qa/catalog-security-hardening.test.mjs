@@ -135,6 +135,11 @@ test('post-apply and private-schema exports are read-only and cover the unresolv
   for (const marker of ['pg_get_functiondef', 'private_functions', 'private_relations', 'private_policies', 'private_table_grants', 'private_column_grants']) {
     assert.match(privateExport, new RegExp(marker));
   }
+  assert.match(privateExport, /SELECT n\.oid, n\.nspname, n\.nspowner, n\.nspacl\s+FROM pg_catalog\.pg_namespace AS n/);
+  assert.match(privateExport, /pg_catalog\.pg_get_userbyid\(s\.nspowner\) AS owner/);
+  assert.match(privateExport, /s\.nspacl::text AS acl/);
+  assert.match(privateExport, /CASE WHEN c\.relkind = 'S'[\s\S]*pg_catalog\.has_sequence_privilege\('anon', c\.oid, 'USAGE'\)/);
+  assert.match(privateExport, /CASE WHEN c\.relkind = 'S'[\s\S]*pg_catalog\.has_sequence_privilege\('service_role', c\.oid, 'UPDATE'\)/);
   assert.match(permissionExport, /FROM public\.role_default_permissions/);
   assert.match(permissionExport, /permission_key/);
 });
