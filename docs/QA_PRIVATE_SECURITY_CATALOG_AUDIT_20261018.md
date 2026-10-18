@@ -3,14 +3,15 @@
 Data: 2026-10-18  
 Branch: `automation/nexalvo-qa-actions`  
 Alvo exclusivo: Supabase TEST `msinksoilkluooxenecy`  
-Estado: **catálogo privado revisado; hardening preparado e não aplicado; autoridade SUPERADMIN requer reconciliação**
+Estado: **catálogo privado revisado; hardening aplicado somente no TEST; pós-preflight oficial pendente; autoridade SUPERADMIN requer reconciliação**
 
 Validação publicada: commit `36e2c1630ffe277ae43535a640785303a5f4201c`; [CI #168](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39099580726) com **12/12 jobs, 485/485 verificações raiz, zero falhas e zero skips**.
 
 Correção posterior: commit `f34232e8ecc81e36c30d1fcd3dfe230e7b0999e1`; [CI #169](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39122084977) com **12/12 jobs, 487/487 verificações raiz, zero falhas e zero skips**.
 
-Nenhuma migração, função, usuário, dado, convite, operação financeira ou deploy foi executado. O
-JSON bruto permaneceu fora do Git.
+A migração pública de hardening foi posteriormente autorizada e aplicada somente no TEST; nenhuma
+migração de Administração Comercial, função Edge, alteração de usuário, convite, operação financeira
+ou deploy foi executada por esta entrega. O JSON bruto permaneceu fora do Git.
 
 ## Preflights reais posteriores à CI #168
 
@@ -197,29 +198,27 @@ wrappers públicos.
 
 | Classe | Resultado |
 |---|---|
-| Vulnerabilidades públicas confirmadas | As seis de `QA_DEFINITIVE_SQL_CATALOG_AUDIT_20261017.md`; correções preparadas, não aplicadas |
+| Vulnerabilidades públicas confirmadas | As seis de `QA_DEFINITIVE_SQL_CATALOG_AUDIT_20261017.md`; hardening aplicado somente no TEST e controles principais confirmados por leitura independente |
 | Nova vulnerabilidade privada confirmada | Nenhuma exploração comprovada no export recebido |
 | Risco condicional alto | Duas autoridades administrativas se o backend novo for instalado sem reconciliar `operators` e claims |
 | Risco condicional de disponibilidade | Export de até 20 MiB valida tamanho após materializar JSON |
 | Controle aprovado estaticamente | Owner/tenant gate do export; gates/locks de provisionamento; negação direta privada; wrappers sem `anon` |
-| Baseline do hardening | Reconciliada estaticamente; aguarda reexecução real do pre-apply atualizado no TEST |
+| Baseline do hardening | Reconciliada e aplicada no TEST; pós-preflight oficial corrigido ainda precisa de execução real |
 | Bloqueio real | Operador ativo sem claim; metadados estruturais privados adicionais; sessões SUPERADMIN/OWNER/não-operador e MANAGER/EMPLOYEE |
 
-## Sequência de aplicação exclusiva no TEST
+## Sequência pós-aplicação exclusiva no TEST
 
-1. Reexecutar o pre-apply atualizado, agora com 15 checks e baseline reconciliada. Qualquer check
-   falso mantém a aplicação **BLOCKED**; não adaptar fingerprints para forçar passagem.
-2. Reter novo snapshot/fingerprint dos catálogos público e privado. Executar separadamente o
-   preflight agregado de operadores; ele não autoriza Administração Comercial.
-3. Com autorização específica, aplicar somente `20261017_catalog_security_hardening_TEST.sql` em uma
-   transação no TEST. Não incluir Administração Comercial, Storage ou migrações financeiras.
-4. Executar imediatamente `catalog_security_hardening_preflight_readonly_TEST.sql` e reexportar o
-   catálogo. O diff esperado é apenas o descrito na migração.
-5. Rodar OWNER A/B e, quando existirem sessões seguras, MANAGER/EMPLOYEE: perfil próprio/equipe,
+1. Não reaplicar `20261017_catalog_security_hardening_TEST.sql`. A execução autorizada já retornou
+   `success: true` no TEST.
+2. Executar `catalog_security_hardening_preflight_readonly_TEST.sql` corrigido e reter o agregado dos
+   16 checks. A consulta abre `BEGIN TRANSACTION READ ONLY` e termina em `ROLLBACK`.
+3. Reexportar os catálogos público e privado e confirmar que o diff corresponde somente ao hardening
+   descrito. Executar separadamente o preflight de operadores; ele não autoriza Administração Comercial.
+4. Rodar OWNER A/B e, quando existirem sessões seguras, MANAGER/EMPLOYEE: perfil próprio/equipe,
    salário redigido, custos redigidos, isolamento A/B e escrita permitida/negada.
-6. Se a migração falhar, a transação já reverte tudo. Usar o rollback preparado somente diante de
-   incompatibilidade pós-commit comprovada; depois verificar fingerprints/grants originais. O
-   rollback reabre vulnerabilidades conhecidas e não é estado final aceitável.
+5. Usar o rollback somente diante de incompatibilidade pós-commit comprovada e com nova autorização;
+   depois verificar fingerprints/grants originais. O rollback reabre vulnerabilidades conhecidas e
+   não é estado final aceitável.
 
 Administração Comercial requer uma autorização e um plano independentes depois de reconciliar as
 duas autoridades. Nenhuma etapa acima autoriza migração, deploy ou escrita no TEST.
@@ -239,6 +238,24 @@ duas autoridades. Nenhuma etapa acima autoriza migração, deploy ou escrita no 
   terminou **SUCCESS**, **12/12 jobs**, preflight autenticado `PASS [OK]` e agregador
   **488/488 PASS, 0 FAIL, 0 SKIPPED**. O `access-regression` aprovado durou 25 s.
 
-Classificação final deste pacote: **READY_FOR_READONLY_PREFLIGHT** e **BLOCKED_FOR_APPLY**. A
-execução real do pre-apply reconciliado com 15/15 checks ainda é obrigatória antes de solicitar a
-autorização específica de aplicação no TEST.
+## Resultado real após aplicação
+
+O Supabase TEST reportou `success: true` para a migração autorizada. A leitura independente confirmou
+os oito sinais esperados descritos no handoff e na evidência sanitizada
+`qa/evidence/catalog-hardening-apply-reported-20261018.json`. O pós-preflight oficial falhou antes do
+agregado com PostgreSQL `42601`: `position` é sintaxe especial e não aceita a qualificação usada como
+`pg_catalog.position('x' IN texto)`. As quatro ocorrências foram substituídas por
+`pg_catalog.strpos(texto, 'x')`; nenhuma outra referência inválida foi encontrada no arquivo.
+
+A consulta corrigida foi executada integralmente em PostgreSQL 17 descartável, retornou os 16 checks
+e chegou ao `ROLLBACK`. Como o catálogo local continha stubs, o agregado funcional foi `FAIL`, como
+esperado; esse ensaio comprova parser e execução estrutural, não o estado do Supabase TEST. A suíte
+estática local aprovou **294/294** e o build Vite transformou **1.579 módulos**.
+
+Commit `97ee4356431e25a8186fb0d05aca7ca558c3d2b0`; [CI #172](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39124630797)
+terminou `SUCCESS`, com **12/12 jobs, 489/489 PASS, 0 FAIL e 0 SKIPPED**. O preflight autenticado
+OWNER A/B concluiu `PASS [OK]`.
+
+Classificação atual: **APPLIED_TO_TEST**, **INDEPENDENT_SPOT_CHECKS_PASS** e
+**OFFICIAL_POSTFLIGHT_PENDING**. Produção permanece intocada; o próximo passo é somente leitura e não
+requer reaplicar a migração nem executar rollback.
