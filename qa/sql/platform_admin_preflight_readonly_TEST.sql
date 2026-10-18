@@ -72,4 +72,36 @@ FROM information_schema.role_table_grants
 WHERE table_schema = 'nexalvo_private'
 ORDER BY table_name, grantee, privilege_type;
 
+WITH legacy_authority AS (
+  SELECT
+    pg_catalog.to_regnamespace('nexalvo_platform') IS NOT NULL AS private_schema_exists,
+    pg_catalog.to_regprocedure('public.fn_platform_access()') IS NOT NULL AS access_wrapper_exists,
+    pg_catalog.to_regprocedure(
+      'public.fn_platform_company_directory(text,integer,integer)'
+    ) IS NOT NULL AS directory_wrapper_exists,
+    pg_catalog.to_regprocedure(
+      'public.fn_platform_provision_company(uuid,text,text,text,text)'
+    ) IS NOT NULL AS provision_wrapper_exists,
+    pg_catalog.to_regprocedure(
+      'public.fn_platform_assign_first_owner(uuid,uuid,text)'
+    ) IS NOT NULL AS owner_wrapper_exists
+)
+SELECT pg_catalog.jsonb_build_object(
+  'project_ref_expected', 'msinksoilkluooxenecy',
+  'legacy_authority_reconciliation_required',
+    private_schema_exists OR access_wrapper_exists OR directory_wrapper_exists
+      OR provision_wrapper_exists OR owner_wrapper_exists,
+  'private_schema_exists', private_schema_exists,
+  'legacy_public_wrappers', pg_catalog.jsonb_build_object(
+    'access', access_wrapper_exists,
+    'directory', directory_wrapper_exists,
+    'provision', provision_wrapper_exists,
+    'assign_first_owner', owner_wrapper_exists
+  ),
+  'prepared_platform_admin_ready_to_apply',
+    NOT (private_schema_exists OR access_wrapper_exists OR directory_wrapper_exists
+      OR provision_wrapper_exists OR owner_wrapper_exists)
+) AS platform_admin_legacy_compatibility
+FROM legacy_authority;
+
 ROLLBACK;

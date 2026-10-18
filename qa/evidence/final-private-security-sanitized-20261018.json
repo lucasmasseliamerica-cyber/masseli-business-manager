@@ -1,0 +1,637 @@
+{
+  "evidence_version": 1,
+  "target": {
+    "project_ref": "msinksoilkluooxenecy",
+    "branch": "automation/nexalvo-qa-actions"
+  },
+  "source": {
+    "basename": "final_private_security_catalog.json",
+    "sha256": "8f9e02c2a067962f35be60e0c1fae288a2ff6bb8197f1e58ab99ea4af4b0cf03",
+    "bytes": 81311,
+    "raw_versioned": false,
+    "secret_scan": {
+      "passed": true,
+      "counts": {
+        "private_key": 0,
+        "jwt": 0,
+        "supabase_secret": 0,
+        "aws_access_key": 0,
+        "credential_uri": 0,
+        "assigned_secret_literal": 0,
+        "email": 0
+      },
+      "findings": []
+    }
+  },
+  "counts": {
+    "schemas": 2,
+    "policies": 4,
+    "functions": 7,
+    "relations": 6,
+    "table_grants": 28,
+    "column_grants": 84,
+    "security_definer_functions": 6
+  },
+  "exported_array_counts": {
+    "policies": 4,
+    "triggers": 1,
+    "functions": 7,
+    "relations": 6,
+    "table_grants": 28,
+    "column_grants": 84,
+    "schema_security": 2,
+    "schemas_expected": 2
+  },
+  "schema_security": [
+    {
+      "acl": "{postgres=UC/postgres,authenticated=U/postgres}",
+      "owner": "postgres",
+      "anon_usage": false,
+      "anon_create": false,
+      "schema_name": "nexalvo_backup",
+      "service_role_usage": false,
+      "authenticated_usage": true,
+      "service_role_create": false,
+      "authenticated_create": false
+    },
+    {
+      "acl": "{postgres=UC/postgres,authenticated=U/postgres}",
+      "owner": "postgres",
+      "anon_usage": false,
+      "anon_create": false,
+      "schema_name": "nexalvo_platform",
+      "service_role_usage": false,
+      "authenticated_usage": true,
+      "service_role_create": false,
+      "authenticated_create": false
+    }
+  ],
+  "relations": [
+    {
+      "acl": "{postgres=arwdDxtm/postgres}",
+      "rls": true,
+      "kind": "r",
+      "name": "access_audit",
+      "owner": "postgres",
+      "force_rls": false,
+      "anon_write": false,
+      "anon_select": false,
+      "schema_name": "nexalvo_platform",
+      "service_role_all": false,
+      "authenticated_write": false,
+      "authenticated_select": false
+    },
+    {
+      "acl": null,
+      "rls": false,
+      "kind": "S",
+      "name": "access_audit_id_seq",
+      "owner": "postgres",
+      "force_rls": false,
+      "anon_write": false,
+      "anon_select": false,
+      "schema_name": "nexalvo_platform",
+      "service_role_all": false,
+      "authenticated_write": false,
+      "authenticated_select": false
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres}",
+      "rls": true,
+      "kind": "r",
+      "name": "company_audit",
+      "owner": "postgres",
+      "force_rls": false,
+      "anon_write": false,
+      "anon_select": false,
+      "schema_name": "nexalvo_platform",
+      "service_role_all": false,
+      "authenticated_write": false,
+      "authenticated_select": false
+    },
+    {
+      "acl": null,
+      "rls": false,
+      "kind": "S",
+      "name": "company_audit_id_seq",
+      "owner": "postgres",
+      "force_rls": false,
+      "anon_write": false,
+      "anon_select": false,
+      "schema_name": "nexalvo_platform",
+      "service_role_all": false,
+      "authenticated_write": false,
+      "authenticated_select": false
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres}",
+      "rls": true,
+      "kind": "r",
+      "name": "operators",
+      "owner": "postgres",
+      "force_rls": false,
+      "anon_write": false,
+      "anon_select": false,
+      "schema_name": "nexalvo_platform",
+      "service_role_all": false,
+      "authenticated_write": false,
+      "authenticated_select": false
+    },
+    {
+      "acl": "{postgres=arwdDxtm/postgres}",
+      "rls": true,
+      "kind": "r",
+      "name": "provisioning_requests",
+      "owner": "postgres",
+      "force_rls": false,
+      "anon_write": false,
+      "anon_select": false,
+      "schema_name": "nexalvo_platform",
+      "service_role_all": false,
+      "authenticated_write": false,
+      "authenticated_select": false
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "ALL",
+      "qual": "false",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "access_audit",
+      "permissive": "PERMISSIVE",
+      "policyname": "audit_deny_direct_access",
+      "schemaname": "nexalvo_platform",
+      "with_check": "false"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "false",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "company_audit",
+      "permissive": "PERMISSIVE",
+      "policyname": "company_audit_deny_direct_access",
+      "schemaname": "nexalvo_platform",
+      "with_check": "false"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "false",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "operators",
+      "permissive": "PERMISSIVE",
+      "policyname": "operators_deny_direct_access",
+      "schemaname": "nexalvo_platform",
+      "with_check": "false"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "false",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "provisioning_requests",
+      "permissive": "PERMISSIVE",
+      "policyname": "provisioning_deny_direct_access",
+      "schemaname": "nexalvo_platform",
+      "with_check": "false"
+    }
+  ],
+  "triggers": [
+    {
+      "enabled": "O",
+      "definition": "CREATE TRIGGER operator_access_audit BEFORE INSERT OR DELETE OR UPDATE ON nexalvo_platform.operators FOR EACH ROW EXECUTE FUNCTION nexalvo_platform.audit_operator()",
+      "table_name": "operators",
+      "schema_name": "nexalvo_platform",
+      "trigger_name": "operator_access_audit"
+    }
+  ],
+  "functions": [
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "name": "export_business_data",
+      "owner": "postgres",
+      "language": "plpgsql",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "arguments": "p_business_id uuid",
+      "volatility": "s",
+      "fingerprint": "cabc5e9d96a6242ae42ade1d140b087e",
+      "result_type": "jsonb",
+      "schema_name": "nexalvo_backup",
+      "anon_execute": false,
+      "security_definer": true,
+      "service_role_execute": false,
+      "authenticated_execute": true,
+      "definition_sha256": "f649a26a0275e5f70e910f6c21db8804f8b26b0708cd2c8effa67751818a73a9",
+      "definition_length": 24736,
+      "security_signals": {
+        "auth_uid": true,
+        "fixed_empty_search_path": true,
+        "dynamic_execute": false,
+        "set_role": false
+      }
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "name": "assign_first_owner",
+      "owner": "postgres",
+      "language": "plpgsql",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "arguments": "p_business_id uuid, p_auth_user_id uuid, p_name text",
+      "volatility": "v",
+      "fingerprint": "c4339c2a62276d87afaf1fbe2bdaf25e",
+      "result_type": "jsonb",
+      "schema_name": "nexalvo_platform",
+      "anon_execute": false,
+      "security_definer": true,
+      "service_role_execute": false,
+      "authenticated_execute": true,
+      "definition_sha256": "186346d4f266bddbe5f825e193d3a754a7eab6d75b289896ea320133d1c5d1e5",
+      "definition_length": 2223,
+      "security_signals": {
+        "auth_uid": true,
+        "fixed_empty_search_path": true,
+        "dynamic_execute": false,
+        "set_role": false
+      }
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "audit_operator",
+      "owner": "postgres",
+      "language": "plpgsql",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "arguments": "",
+      "volatility": "v",
+      "fingerprint": "cb5c412e526a4acf39a7fcdd56285e4f",
+      "result_type": "trigger",
+      "schema_name": "nexalvo_platform",
+      "anon_execute": false,
+      "security_definer": true,
+      "service_role_execute": false,
+      "authenticated_execute": false,
+      "definition_sha256": "15fe84d23f91071245ae47aca4405837067fe05a851f04b039bdb9f40ecabc87",
+      "definition_length": 444,
+      "security_signals": {
+        "auth_uid": true,
+        "fixed_empty_search_path": true,
+        "dynamic_execute": false,
+        "set_role": false
+      }
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "name": "company_directory",
+      "owner": "postgres",
+      "language": "plpgsql",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "arguments": "p_search text, p_limit integer, p_offset integer",
+      "volatility": "s",
+      "fingerprint": "42c1ed67869c3aae0d08b60936e5caff",
+      "result_type": "jsonb",
+      "schema_name": "nexalvo_platform",
+      "anon_execute": false,
+      "security_definer": true,
+      "service_role_execute": false,
+      "authenticated_execute": true,
+      "definition_sha256": "8bd0b3069a9f234cb06c10d0a3e969574b5b431647ea67aa7724d446728cd8d9",
+      "definition_length": 1237,
+      "security_signals": {
+        "auth_uid": false,
+        "fixed_empty_search_path": true,
+        "dynamic_execute": false,
+        "set_role": false
+      }
+    },
+    {
+      "acl": "{postgres=X/postgres}",
+      "name": "eligible_owner_auth",
+      "owner": "postgres",
+      "language": "sql",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "arguments": "p_user_id uuid",
+      "volatility": "s",
+      "fingerprint": "b4ac0ac44d337b4a88324c1d4eb02051",
+      "result_type": "boolean",
+      "schema_name": "nexalvo_platform",
+      "anon_execute": false,
+      "security_definer": false,
+      "service_role_execute": false,
+      "authenticated_execute": false,
+      "definition_sha256": "2c3f7de1516257e0efd9994369bd0dffee0822002a1a7e1aa27bddd2f6527c67",
+      "definition_length": 390,
+      "security_signals": {
+        "auth_uid": false,
+        "fixed_empty_search_path": true,
+        "dynamic_execute": false,
+        "set_role": false
+      }
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "name": "has_access",
+      "owner": "postgres",
+      "language": "sql",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "arguments": "",
+      "volatility": "s",
+      "fingerprint": "f8c4de1c66633a83b050b452ee631e50",
+      "result_type": "boolean",
+      "schema_name": "nexalvo_platform",
+      "anon_execute": false,
+      "security_definer": true,
+      "service_role_execute": false,
+      "authenticated_execute": true,
+      "definition_sha256": "013c7d583acf0a5c7be60bd3a267f1b6905850bb5b7b1ec1c71f468464553da0",
+      "definition_length": 339,
+      "security_signals": {
+        "auth_uid": true,
+        "fixed_empty_search_path": true,
+        "dynamic_execute": false,
+        "set_role": false
+      }
+    },
+    {
+      "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+      "name": "provision_company",
+      "owner": "postgres",
+      "language": "plpgsql",
+      "settings": [
+        "search_path=\"\""
+      ],
+      "arguments": "p_request_id uuid, p_name text, p_currency text, p_timezone text, p_location_name text",
+      "volatility": "v",
+      "fingerprint": "7a43c557618697ca23ac279a44422be5",
+      "result_type": "jsonb",
+      "schema_name": "nexalvo_platform",
+      "anon_execute": false,
+      "security_definer": true,
+      "service_role_execute": false,
+      "authenticated_execute": true,
+      "definition_sha256": "68fbce348ad870695368d2fec8c1221d0a8c4a252ef71b0d1afb6328581cb8c6",
+      "definition_length": 2567,
+      "security_signals": {
+        "auth_uid": true,
+        "fixed_empty_search_path": true,
+        "dynamic_execute": false,
+        "set_role": false
+      }
+    }
+  ],
+  "grants": {
+    "table_grants_sha256": "f838c0b32144ee4e31518112aef03db826f61ca8c40b5a6ab8afb26e6fb89862",
+    "table_grants_count": 28,
+    "table_matrix": [
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "access_audit",
+        "grantee": "postgres",
+        "privileges": [
+          "DELETE",
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ]
+      },
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "company_audit",
+        "grantee": "postgres",
+        "privileges": [
+          "DELETE",
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ]
+      },
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "operators",
+        "grantee": "postgres",
+        "privileges": [
+          "DELETE",
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ]
+      },
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "provisioning_requests",
+        "grantee": "postgres",
+        "privileges": [
+          "DELETE",
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ]
+      }
+    ],
+    "column_grants_sha256": "1991f8c8bc081b5e73ba6f83374afd85957ea3882b6b8315454bf38dd12a9a0b",
+    "column_grants_count": 84,
+    "column_matrix": [
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "access_audit",
+        "grantee": "postgres",
+        "privileges": [
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "UPDATE"
+        ]
+      },
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "company_audit",
+        "grantee": "postgres",
+        "privileges": [
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "UPDATE"
+        ]
+      },
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "operators",
+        "grantee": "postgres",
+        "privileges": [
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "UPDATE"
+        ]
+      },
+      {
+        "schema_name": "nexalvo_platform",
+        "table_name": "provisioning_requests",
+        "grantee": "postgres",
+        "privileges": [
+          "INSERT",
+          "REFERENCES",
+          "SELECT",
+          "UPDATE"
+        ]
+      }
+    ]
+  },
+  "public_wrapper_comparison": [
+    {
+      "private_function": "nexalvo_backup.export_business_data(p_business_id uuid)",
+      "public_wrapper": "fn_export_business_data(p_business_id uuid)",
+      "private_present": true,
+      "public_present": true,
+      "arguments_match": true,
+      "public_security_definer": false,
+      "public_authenticated_execute": true,
+      "public_anon_execute": false,
+      "public_fingerprint": "2bdd2117a84d5a95778cdf6392b11a49"
+    },
+    {
+      "private_function": "nexalvo_platform.has_access()",
+      "public_wrapper": "fn_platform_access()",
+      "private_present": true,
+      "public_present": true,
+      "arguments_match": true,
+      "public_security_definer": false,
+      "public_authenticated_execute": true,
+      "public_anon_execute": false,
+      "public_fingerprint": "a82de17a79ccd430cc1c3a3cd111f72f"
+    },
+    {
+      "private_function": "nexalvo_platform.assign_first_owner(p_business_id uuid, p_auth_user_id uuid, p_name text)",
+      "public_wrapper": "fn_platform_assign_first_owner(p_business_id uuid, p_auth_user_id uuid, p_name text)",
+      "private_present": true,
+      "public_present": true,
+      "arguments_match": true,
+      "public_security_definer": false,
+      "public_authenticated_execute": true,
+      "public_anon_execute": false,
+      "public_fingerprint": "ab894e8e11f407261218dcc3dd7fb36e"
+    },
+    {
+      "private_function": "nexalvo_platform.company_directory(p_search text, p_limit integer, p_offset integer)",
+      "public_wrapper": "fn_platform_company_directory(p_search text, p_limit integer, p_offset integer)",
+      "private_present": true,
+      "public_present": true,
+      "arguments_match": true,
+      "public_security_definer": false,
+      "public_authenticated_execute": true,
+      "public_anon_execute": false,
+      "public_fingerprint": "e59f6c55a7c035d3b6d01d801bfd3d11"
+    },
+    {
+      "private_function": "nexalvo_platform.provision_company(p_request_id uuid, p_name text, p_currency text, p_timezone text, p_location_name text)",
+      "public_wrapper": "fn_platform_provision_company(p_request_id uuid, p_name text, p_currency text, p_timezone text, p_location_name text)",
+      "private_present": true,
+      "public_present": true,
+      "arguments_match": true,
+      "public_security_definer": false,
+      "public_authenticated_execute": true,
+      "public_anon_execute": false,
+      "public_fingerprint": "6944009d04d8ca1eeeccfc2e29dcad47"
+    }
+  ],
+  "audit_facts": {
+    "confirmed": {
+      "anon_function_execute_count": 0,
+      "authenticated_direct_relation_access_count": 0,
+      "anon_direct_relation_access_count": 0,
+      "security_definer_count": 6,
+      "security_definer_without_empty_search_path": [],
+      "authenticated_execute_functions": [
+        "nexalvo_backup.export_business_data",
+        "nexalvo_platform.assign_first_owner",
+        "nexalvo_platform.company_directory",
+        "nexalvo_platform.has_access",
+        "nexalvo_platform.provision_company"
+      ],
+      "export_owner_and_tenant_guard": true,
+      "export_limits": {
+        "per_table_rows": 10000,
+        "total_rows": 50000,
+        "serialized_bytes": 20971520
+      },
+      "export_includes_sensitive_tenant_data": true,
+      "exported_tables": [
+        "audit_logs",
+        "business_alerts",
+        "business_counters",
+        "business_settings_lists",
+        "businesses",
+        "cash_flow",
+        "cash_registers",
+        "customers",
+        "employees",
+        "expenses",
+        "inventory_items",
+        "inventory_stock",
+        "inventory_transactions",
+        "locations",
+        "loyalty_rewards",
+        "loyalty_transactions",
+        "product_recipes",
+        "products",
+        "purchase_order_items",
+        "purchase_order_payments",
+        "purchase_orders",
+        "sale_items",
+        "sales",
+        "shift_breaks",
+        "shifts",
+        "suppliers",
+        "task_activity",
+        "tasks",
+        "users",
+        "waste_transactions"
+      ],
+      "platform_access_requires_operator_and_active_profile": true,
+      "platform_access_checks_signed_superadmin_claim": false,
+      "provisioning_is_operator_gated": true,
+      "provisioning_request_uses_advisory_lock": true,
+      "first_owner_is_operator_gated": true,
+      "first_owner_uses_business_and_auth_locks": true,
+      "first_owner_requires_confirmed_eligible_auth": true
+    },
+    "conditional": {
+      "export_size_limit_is_checked_after_json_materialization": true,
+      "deployed_platform_authority_differs_from_prepared_signed_claim_authority": true
+    },
+    "missing_proof": [
+      "active operator membership and signed SUPERADMIN claim alignment",
+      "private table columns, constraints, indexes and default privileges",
+      "versioned reproducible source for the seven deployed private functions",
+      "real SUPERADMIN, OWNER and non-operator denial sessions"
+    ]
+  }
+}

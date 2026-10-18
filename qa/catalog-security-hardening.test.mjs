@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { scanSecrets } from './audit-final-security-catalog.mjs';
 
@@ -7,6 +8,7 @@ const evidence = JSON.parse(readFileSync(new URL('./evidence/final-homologation-
 const apply = readFileSync(new URL('../migrations/20261017_catalog_security_hardening_TEST.sql', import.meta.url), 'utf8');
 const rollback = readFileSync(new URL('../migrations/20261017_catalog_security_hardening_rollback_TEST.sql', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('./sql/catalog_security_hardening_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
+const preapply = readFileSync(new URL('./sql/catalog_security_hardening_preapply_readonly_TEST.sql', import.meta.url), 'utf8');
 const privateExport = readFileSync(new URL('./sql/final_homologation_private_security_definitions_readonly_TEST.sql', import.meta.url), 'utf8');
 const permissionExport = readFileSync(new URL('./sql/final_homologation_permission_defaults_readonly_TEST.sql', import.meta.url), 'utf8');
 const rootApp = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
@@ -119,10 +121,21 @@ test('TEST-only hardening is guarded, least-privilege and exactly reversible', (
     assert.doesNotMatch(sql, /\b(?:TRUNCATE|CASCADE)\b/i);
   }
   assert.doesNotMatch(apply, /\bDROP\b/i);
+
+  const normalizeBody = (value) => value.replace(/\r\n/g, '\n').replace(/^\s*--.*$/gm, ' ')
+    .replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+  const rollbackBodyHash = (name) => {
+    const pattern = new RegExp(`CREATE OR REPLACE FUNCTION public\\.${name}\\([\\s\\S]*?AS\\s+(\\$[A-Za-z0-9_]*\\$)([\\s\\S]*?)\\1`, 'i');
+    const body = rollback.match(pattern)?.[2];
+    assert.ok(body, `rollback definition missing for ${name}`);
+    return createHash('sha256').update(normalizeBody(body)).digest('hex');
+  };
+  assert.equal(rollbackBodyHash('fn_read_employees_secure'), 'c4cac0a6f8182b34f3069d3a5907435f228aee8e6d8465b5465ea2d4f430932c');
+  assert.equal(rollbackBodyHash('fn_write_audit'), 'df886665496ca338aacd153ea277d4a3567dd25330abc93b52c5feeb3fa0c315');
 });
 
 test('post-apply and private-schema exports are read-only and cover the unresolved proof', () => {
-  for (const sql of [preflight, privateExport, permissionExport]) {
+  for (const sql of [preapply, preflight, privateExport, permissionExport]) {
     const executable = sql.replace(/^\s*--.*$/gm, '');
     assert.match(sql, /BEGIN TRANSACTION READ ONLY;/i);
     assert.match(sql, /\bROLLBACK;/i);
@@ -131,8 +144,17 @@ test('post-apply and private-schema exports are read-only and cover the unresolv
   assert.match(preflight, /has_column_privilege\('authenticated', 'public\.employees', 'updated_at', 'SELECT'\)/);
   assert.match(preflight, /has_column_privilege\('authenticated', 'public\.sale_items', 'unit_cost_snapshot', 'SELECT'\)/);
   assert.match(preflight, /client_audit_entries_have_explicit_provenance/);
+  assert.match(preapply, /business_export_private_fingerprint/);
+  assert.match(preapply, /cabc5e9d96a6242ae42ade1d140b087e/);
+  assert.match(preapply, /exact_reviewed_public_policy_set/);
+  assert.equal((preapply.match(/COALESCE\(pg_catalog\.md5/g) || []).length, 5);
+  assert.match(preflight, /COALESCE\(pg_catalog\.position\('Client: '/);
   for (const schema of ['nexalvo_platform', 'nexalvo_backup']) assert.match(privateExport, new RegExp(schema));
-  for (const marker of ['pg_get_functiondef', 'private_functions', 'private_relations', 'private_policies', 'private_table_grants', 'private_column_grants']) {
+  for (const marker of [
+    'pg_get_functiondef', 'private_functions', 'private_relations', 'private_policies',
+    'private_table_grants', 'private_column_grants', 'private_usage_grants', 'private_columns',
+    'private_constraints', 'private_indexes', 'private_default_privileges',
+  ]) {
     assert.match(privateExport, new RegExp(marker));
   }
   assert.match(privateExport, /SELECT n\.oid, n\.nspname, n\.nspowner, n\.nspacl\s+FROM pg_catalog\.pg_namespace AS n/);

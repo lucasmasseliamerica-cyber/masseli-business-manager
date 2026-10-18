@@ -3,6 +3,23 @@
 -- This migration is additive. It does not create or promote a SUPERADMIN identity.
 
 BEGIN;
+SET LOCAL search_path = pg_catalog;
+
+-- TEST already contains an older operator-table control plane in some environments. Installing a
+-- second SUPERADMIN authority beside it would leave two independent ways to administer tenants.
+-- Refuse that state until an explicitly reviewed migration maps operators to signed Auth claims and
+-- retires or adopts the legacy wrappers.
+DO $legacy_authority_guard$
+BEGIN
+  IF pg_catalog.to_regnamespace('nexalvo_platform') IS NOT NULL
+     OR pg_catalog.to_regprocedure('public.fn_platform_access()') IS NOT NULL
+     OR pg_catalog.to_regprocedure('public.fn_platform_company_directory(text,integer,integer)') IS NOT NULL
+     OR pg_catalog.to_regprocedure('public.fn_platform_provision_company(uuid,text,text,text,text)') IS NOT NULL
+     OR pg_catalog.to_regprocedure('public.fn_platform_assign_first_owner(uuid,uuid,text)') IS NOT NULL THEN
+    RAISE EXCEPTION 'legacy nexalvo_platform authority must be reconciled before installation';
+  END IF;
+END
+$legacy_authority_guard$;
 
 ALTER TABLE public.businesses
   ADD COLUMN IF NOT EXISTS platform_status text NOT NULL DEFAULT 'ACTIVE',
