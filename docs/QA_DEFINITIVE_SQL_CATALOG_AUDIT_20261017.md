@@ -43,7 +43,8 @@ notas e registros de funcionários que a interface tenta limitar a OWNER/gestore
 Correção local:
 
 - o frontend passou a carregar funcionários exclusivamente por `fn_read_employees_secure()`;
-- escritas pedem apenas `id` na representação, para continuarem compatíveis com ACL por coluna;
+- escritas pedem apenas `id` na representação e usam `updated_at` como versão de concorrência,
+  para continuarem compatíveis com ACL por coluna sem retirar a detecção de edição simultânea;
 - a migração preparada remove o `SELECT` direto de `hourly_rate`;
 - o facade e a policy passam a retornar todos para OWNER/`manageUsers`, o próprio registro e, para
   MANAGER, seus subordinados diretos;

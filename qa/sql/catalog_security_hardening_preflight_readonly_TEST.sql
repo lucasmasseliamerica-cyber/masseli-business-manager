@@ -12,6 +12,7 @@ WITH checks AS (
   SELECT 'employee_non_sensitive_columns_remain_readable',
          pg_catalog.has_column_privilege('authenticated', 'public.employees', 'id', 'SELECT')
          AND pg_catalog.has_column_privilege('authenticated', 'public.employees', 'name', 'SELECT')
+         AND pg_catalog.has_column_privilege('authenticated', 'public.employees', 'updated_at', 'SELECT')
   UNION ALL
   SELECT 'employee_facade_scopes_owner_manager_employee',
          pg_catalog.position('e.manager_id = a.employee_id' IN pg_catalog.pg_get_functiondef(

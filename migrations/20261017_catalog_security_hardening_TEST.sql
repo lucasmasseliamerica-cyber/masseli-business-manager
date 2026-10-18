@@ -86,7 +86,8 @@ REVOKE ALL ON FUNCTION public.fn_read_employees_secure() FROM PUBLIC, anon, auth
 GRANT EXECUTE ON FUNCTION public.fn_read_employees_secure() TO authenticated, service_role;
 
 -- RLS applies the same row scope to direct non-sensitive reads. Column privileges remove the
--- salary bypass; authorized salary reads continue through fn_read_employees_secure().
+-- salary bypass; authorized salary reads continue through fn_read_employees_secure(). updated_at
+-- remains readable so writes can use a non-sensitive optimistic-concurrency version predicate.
 ALTER POLICY employees_select ON public.employees
   TO authenticated
   USING (

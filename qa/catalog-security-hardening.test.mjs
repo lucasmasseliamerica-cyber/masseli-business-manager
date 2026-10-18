@@ -54,10 +54,19 @@ test('real grants prove the employee salary bypass and the evidence keeps risk b
 test('frontend reads employees through the secure facade and limits write representations', () => {
   for (const app of [rootApp, srcApp]) {
     assert.match(app, /selectRpc\("fn_read_employees_secure", "order=created_at\.desc"\)/);
-    assert.match(app, /\{ missing: "deactivate", loadRows, writeSelect: "id" \}/);
+    assert.match(app, /\{ missing: "deactivate", loadRows, writeSelect: "id", expectedForUpdate \}/);
     assert.match(app, /async selectRpc\(fnName, query = ""\)/);
     assert.match(app, /select=\$\{encodeURIComponent\(returnSelect\)\}/);
-    assert.match(app, /missing === "deactivate"\)[\s\S]*?updateOne\(table, row\.id,[\s\S]*?null, writeSelect\)/);
+    assert.match(app, /missing === "deactivate"\)[\s\S]*?updateOne\(table, row\.id,[\s\S]*?expected, writeSelect\)/);
+    assert.match(app, /updatedAt: r\.updated_at \|\| null/);
+    const declaration = app.match(/function employeeWriteExpectation\(old\) \{[\s\S]*?\n\}/)?.[0];
+    assert.ok(declaration);
+    const expectation = Function(`${declaration}; return employeeWriteExpectation;`)();
+    assert.deepEqual(expectation({ updatedAt: '2026-10-17T12:34:56.000Z', hourlyRate: 25 }),
+      { updated_at: '2026-10-17T12:34:56.000Z' });
+    assert.throws(() => expectation({ hourlyRate: 25 }), /row version is unavailable/);
+    assert.doesNotMatch(declaration, /hourly_rate|hourlyRate/);
+    assert.match(app, /useCallback\(employeeWriteExpectation, \[\]\)/);
   }
   assert.equal(rootApp, srcApp);
 });
@@ -68,6 +77,7 @@ test('TEST-only hardening is guarded, least-privilege and exactly reversible', (
   assert.match(apply, /1c13bdeb159e0d78db0a200055cdb36a/);
   assert.match(apply, /REVOKE SELECT ON TABLE public\.employees FROM authenticated/);
   assert.doesNotMatch(apply.match(/GRANT SELECT \([\s\S]*?\) ON TABLE public\.employees TO authenticated;/)?.[0] || '', /hourly_rate/);
+  assert.match(apply.match(/GRANT SELECT \([\s\S]*?\) ON TABLE public\.employees TO authenticated;/)?.[0] || '', /updated_at/);
   assert.match(apply, /e\.id = a\.employee_id/);
   assert.match(apply, /a\.role = 'MANAGER' AND e\.manager_id = a\.employee_id/);
   assert.match(apply, /id = auth\.uid\(\) OR public\.user_can\('manageUsers'\)/);
@@ -97,6 +107,7 @@ test('post-apply and private-schema exports are read-only and cover the unresolv
     assert.match(sql, /\bROLLBACK;/i);
     assert.doesNotMatch(executable, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COPY|CALL|DO)\b/im);
   }
+  assert.match(preflight, /has_column_privilege\('authenticated', 'public\.employees', 'updated_at', 'SELECT'\)/);
   for (const schema of ['nexalvo_platform', 'nexalvo_backup']) assert.match(privateExport, new RegExp(schema));
   for (const marker of ['pg_get_functiondef', 'private_functions', 'private_relations', 'private_policies', 'private_table_grants', 'private_column_grants']) {
     assert.match(privateExport, new RegExp(marker));

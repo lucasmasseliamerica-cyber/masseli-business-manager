@@ -2556,7 +2556,7 @@ async function loadAuthenticatedProfile(userId, authUser = null) {
 const isUuid = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v || ""));
 const newDbId = () => crypto.randomUUID();
 
-function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate", loadRows = null, writeSelect = null } = {}, reportLoadError, clearLoadError) {
+function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing = "deactivate", loadRows = null, writeSelect = null, expectedForUpdate = null } = {}, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const previousRef = useRef([]);
   const writeBlockedRef = useRef(false);
@@ -2619,7 +2619,12 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
       for (const key of Object.keys(row)) {
         if (key !== "id" && key !== "business_id" && key !== "updated_at" && JSON.stringify(row[key]) !== JSON.stringify(oldRow[key])) patch[key] = row[key];
       }
-      if (Object.keys(patch).length) updates.push({ id: item.id, expected: Object.fromEntries(Object.keys(patch).map((key) => [key, oldRow[key]])), patch: { ...patch, updated_at: nowISO() } });
+      if (Object.keys(patch).length) {
+        const expected = expectedForUpdate
+          ? expectedForUpdate(old, item, patch)
+          : Object.fromEntries(Object.keys(patch).map((key) => [key, oldRow[key]]));
+        updates.push({ id: item.id, expected, patch: { ...patch, updated_at: nowISO() } });
+      }
     }
     const hasWrites = inserts.length + updates.length + missingRows.length > 0;
     if (hasWrites) writeBlockedRef.current = true;
@@ -2628,7 +2633,10 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
     for (const row of updates) await supabaseRest.updateOne(table, row.id, row.patch, row.expected, writeSelect);
     for (const row of missingRows) {
       if (missing === "delete") await supabaseRest.deleteOne(table, row.id);
-      else if (missing === "deactivate") await supabaseRest.updateOne(table, row.id, { active: false, updated_at: nowISO() }, null, writeSelect);
+      else if (missing === "deactivate") {
+        const expected = expectedForUpdate ? expectedForUpdate(row, { ...row, active: false }, { active: false }) : null;
+        await supabaseRest.updateOne(table, row.id, { active: false, updated_at: nowISO() }, expected, writeSelect);
+      }
     }
     } catch (e) {
       reportLoadError?.(table, "reload", "Reload to verify the previous save before trying again.");
@@ -2642,7 +2650,7 @@ function useSupabaseArrayCollection(table, businessId, fromDb, toDb, { missing =
       error.staleData = true;
       throw error;
     }
-  }, [table, businessId, toDb, missing, writeSelect, reload, reportLoadError]);
+  }, [table, businessId, toDb, missing, writeSelect, expectedForUpdate, reload, reportLoadError]);
 
   return [data, persist, reload];
 }
@@ -2654,15 +2662,24 @@ const toSupplierDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, co
 const fromCustomerDb = (r) => ({ id: r.id, name: r.name, phone: r.phone || "", email: r.email || "", birthday: r.birthday || "", notes: r.notes || "", active: r.active !== false, createdAt: r.created_at, updatedAt: r.updated_at });
 const toCustomerDb = (x, bid) => ({ id: x.id, business_id: bid, name: x.name, phone: x.phone || null, email: x.email || null, birthday: x.birthday || null, notes: x.notes || null, active: x.active !== false, updated_at: nowISO() });
 
+function employeeWriteExpectation(old) {
+  if (!old.updatedAt) throw new Error("Reload employee data before saving; the row version is unavailable.");
+  return { updated_at: old.updatedAt };
+}
+
 function useSupabaseEmployees(businessId, locations, reportLoadError, clearLoadError) {
   const byId = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.id, l.name])), [locations]);
   const byName = useMemo(() => Object.fromEntries((locations || []).map((l) => [l.name, l.id])), [locations]);
   const defaultLocationId = useMemo(() => (locations || []).find((l) => l.active !== false)?.id || "", [locations]);
-  const fromDb = useCallback((r) => ({ id: r.id, name: r.name, role: r.job_title || "", hourlyRate: Number(r.hourly_rate || 0), locationId: r.location_id || "", location: byId[r.location_id] || "", managerId: r.manager_id || "", active: r.active !== false, notes: r.notes || "" }), [byId]);
+  const fromDb = useCallback((r) => ({ id: r.id, name: r.name, role: r.job_title || "", hourlyRate: Number(r.hourly_rate || 0), locationId: r.location_id || "", location: byId[r.location_id] || "", managerId: r.manager_id || "", active: r.active !== false, notes: r.notes || "", updatedAt: r.updated_at || null }), [byId]);
   const toDb = useCallback((x, bid) => ({ id: x.id, business_id: bid, name: x.name, job_title: x.role || null, hourly_rate: Number(x.hourlyRate || 0), location_id: (x.location ? byName[x.location] : null) || x.locationId || null, manager_id: x.managerId || null, active: x.active !== false, notes: x.notes || null, updated_at: nowISO() }), [byName, defaultLocationId]);
   const loadRows = useCallback(() => supabaseRest.selectRpc("fn_read_employees_secure", "order=created_at.desc"), []);
+  // hourly_rate is deliberately unavailable through direct SELECT after catalog hardening. Use
+  // the non-sensitive row version for optimistic concurrency so salary edits stay protected
+  // without granting a read path that bypasses fn_read_employees_secure().
+  const expectedForUpdate = useCallback(employeeWriteExpectation, []);
   return useSupabaseArrayCollection("employees", businessId, fromDb, toDb,
-    { missing: "deactivate", loadRows, writeSelect: "id" }, reportLoadError, clearLoadError);
+    { missing: "deactivate", loadRows, writeSelect: "id", expectedForUpdate }, reportLoadError, clearLoadError);
 }
 
 const SETTINGS_LIST_MAP = {
