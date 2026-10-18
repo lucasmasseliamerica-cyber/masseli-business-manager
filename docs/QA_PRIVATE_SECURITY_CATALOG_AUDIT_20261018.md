@@ -7,6 +7,8 @@ Estado: **catálogo privado revisado; hardening preparado e não aplicado; autor
 
 Validação publicada: commit `36e2c1630ffe277ae43535a640785303a5f4201c`; [CI #168](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39099580726) com **12/12 jobs, 485/485 verificações raiz, zero falhas e zero skips**.
 
+Correção posterior: commit `f34232e8ecc81e36c30d1fcd3dfe230e7b0999e1`; [CI #169](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39122084977) com **12/12 jobs, 487/487 verificações raiz, zero falhas e zero skips**.
+
 Nenhuma migração, função, usuário, dado, convite, operação financeira ou deploy foi executado. O
 JSON bruto permaneceu fora do Git.
 
