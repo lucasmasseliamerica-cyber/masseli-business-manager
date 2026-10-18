@@ -68,6 +68,15 @@ incluindo usernames, papéis e overrides. Isso contraria o contrato de `manageUs
 aplicativo. A correção preparada mantém a leitura do próprio perfil, necessária ao login, e exige
 `manageUsers` para os demais perfis.
 
+### SEC-CAT-04 — custo de itens vendidos legível sem permissão — média
+
+`authenticated` possui `SELECT` direto em todas as colunas de `sale_items`, incluindo
+`unit_cost_snapshot`, e a policy aceita qualquer venda da empresa. Isso permite ignorar a redação
+de `fn_read_sale_items_secure()`, que deveria revelar o custo somente a quem possui
+`manageRecipesAndCosts`. A correção local faz o frontend usar a facade, revoga a leitura direta do
+custo e preserva apenas as colunas operacionais necessárias. O rollback restaura o grant integral
+observado no export.
+
 ## Riscos condicionais e divergências
 
 - **40 `SECURITY DEFINER` usam `search_path=public`.** Todas as 48 possuem `search_path` explícito;
@@ -120,8 +129,8 @@ contrato. Foram confirmadas 78 CHECKs, 81 FKs, 31 PKs e seis UNIQUEs. Os constra
 principais valores de venda, compra, estoque e salário.
 
 A análise das 53 policies confirmou isolamento por `current_business_id()` ou relacionamento com uma
-linha pai da mesma empresa. O defeito de coluna em `employees` e o FK de fornecedor são as exceções
-comprovadas descritas acima. Exposição financeira por `sales`, `cash_registers` e
+linha pai da mesma empresa. Os bypasses de coluna em `employees`/`sale_items` e o FK de fornecedor
+são as exceções comprovadas descritas acima. Exposição financeira por `sales`, `cash_registers` e
 `purchase_orders` exige decisão de produto: esses dados são necessários em partes operacionais, mas
 as roles sem `viewFinancials` ainda conseguem consultar alguns campos pela API. Isso permanece risco
 condicional até a matriz real MANAGER/EMPLOYEE definir o contrato de cada coluna.
@@ -134,7 +143,7 @@ condicional até a matriz real MANAGER/EMPLOYEE definir o contrato de cada colun
   transação única.
 - `migrations/20261017_catalog_security_hardening_rollback_TEST.sql`: compensação exata do estado
   exportado.
-- `qa/sql/catalog_security_hardening_preflight_readonly_TEST.sql`: oito verificações pós-aplicação.
+- `qa/sql/catalog_security_hardening_preflight_readonly_TEST.sql`: dez verificações pós-aplicação.
 - `qa/sql/final_homologation_private_security_definitions_readonly_TEST.sql`: export adicional dos
   schemas privados referenciados.
 - `qa/sql/final_homologation_permission_defaults_readonly_TEST.sql`: export da matriz global de

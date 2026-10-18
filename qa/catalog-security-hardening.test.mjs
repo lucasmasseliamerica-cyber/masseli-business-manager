@@ -38,9 +38,10 @@ test('secret scanner fails closed without printing the matching value', () => {
   assert.match(result.findings[0].match_sha256_16, /^[a-f0-9]{16}$/);
 });
 
-test('real grants prove the employee salary bypass and the evidence keeps risk boundaries', () => {
+test('real grants prove the sensitive facade bypasses and the evidence keeps risk boundaries', () => {
   assert.equal(evidence.audit_facts.confirmed.authenticated_employee_table_select, true);
   assert.equal(evidence.audit_facts.confirmed.authenticated_hourly_rate_select, true);
+  assert.equal(evidence.audit_facts.confirmed.authenticated_sale_item_cost_select, true);
   assert.deepEqual(evidence.audit_facts.confirmed.employees_policy_roles, ['public']);
   assert.equal(evidence.audit_facts.conditional.policies_assigned_to_public.length, 21);
   assert.equal(evidence.audit_facts.conditional.security_definer_search_path_public.length, 40);
@@ -67,6 +68,8 @@ test('frontend reads employees through the secure facade and limits write repres
     assert.throws(() => expectation({ hourlyRate: 25 }), /row version is unavailable/);
     assert.doesNotMatch(declaration, /hourly_rate|hourlyRate/);
     assert.match(app, /useCallback\(employeeWriteExpectation, \[\]\)/);
+    assert.match(app, /selectRpc\("fn_read_sale_items_secure", `select=\*&sale_id=in\.\(\$\{ids\.join\(","\)\}\)`\)/);
+    assert.doesNotMatch(app, /supabaseRest\.select\("sale_items", `select=\*/);
   }
   assert.equal(rootApp, srcApp);
 });
@@ -75,9 +78,15 @@ test('TEST-only hardening is guarded, least-privilege and exactly reversible', (
   assert.match(apply, /PREPARED, NOT EXECUTED/);
   assert.match(apply, /a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f/);
   assert.match(apply, /1c13bdeb159e0d78db0a200055cdb36a/);
+  assert.match(apply, /161e5147cd4eae4ca6e9a4c074af7cb6/);
   assert.match(apply, /REVOKE SELECT ON TABLE public\.employees FROM authenticated/);
   assert.doesNotMatch(apply.match(/GRANT SELECT \([\s\S]*?\) ON TABLE public\.employees TO authenticated;/)?.[0] || '', /hourly_rate/);
   assert.match(apply.match(/GRANT SELECT \([\s\S]*?\) ON TABLE public\.employees TO authenticated;/)?.[0] || '', /updated_at/);
+  assert.match(apply, /REVOKE SELECT ON TABLE public\.sale_items FROM authenticated/);
+  const safeSaleItemGrant = [...apply.matchAll(/GRANT SELECT \(([\s\S]*?)\) ON TABLE public\.([a-z_]+) TO authenticated;/g)]
+    .find((match) => match[2] === 'sale_items')?.[1] || '';
+  assert.match(safeSaleItemGrant, /unit_price/);
+  assert.doesNotMatch(safeSaleItemGrant, /unit_cost_snapshot/);
   assert.match(apply, /e\.id = a\.employee_id/);
   assert.match(apply, /a\.role = 'MANAGER' AND e\.manager_id = a\.employee_id/);
   assert.match(apply, /id = auth\.uid\(\) OR public\.user_can\('manageUsers'\)/);
@@ -87,6 +96,7 @@ test('TEST-only hardening is guarded, least-privilege and exactly reversible', (
   assert.match(apply, /s\.id = NEW\.supplier_id AND s\.business_id = NEW\.business_id/);
   assert.match(apply, /trg_validate_inventory_item_tenant_references\(\)[\s\S]*FROM PUBLIC, anon, authenticated/);
   assert.match(rollback, /GRANT SELECT ON TABLE public\.employees TO authenticated/);
+  assert.match(rollback, /GRANT SELECT ON TABLE public\.sale_items TO authenticated/);
   assert.match(rollback, /CASE WHEN public\.user_can\('viewFinancials'\) THEN e\.hourly_rate ELSE NULL END/);
   assert.equal((rollback.match(/ALTER POLICY .* TO PUBLIC;/g) || []).length, 19);
   assert.match(rollback, /GRANT EXECUTE ON FUNCTIONS TO anon, authenticated/);
@@ -108,6 +118,7 @@ test('post-apply and private-schema exports are read-only and cover the unresolv
     assert.doesNotMatch(executable, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COPY|CALL|DO)\b/im);
   }
   assert.match(preflight, /has_column_privilege\('authenticated', 'public\.employees', 'updated_at', 'SELECT'\)/);
+  assert.match(preflight, /has_column_privilege\('authenticated', 'public\.sale_items', 'unit_cost_snapshot', 'SELECT'\)/);
   for (const schema of ['nexalvo_platform', 'nexalvo_backup']) assert.match(privateExport, new RegExp(schema));
   for (const marker of ['pg_get_functiondef', 'private_functions', 'private_relations', 'private_policies', 'private_table_grants', 'private_column_grants']) {
     assert.match(privateExport, new RegExp(marker));

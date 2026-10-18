@@ -22,6 +22,16 @@ BEGIN
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.employees', 'hourly_rate', 'SELECT') THEN
     RAISE EXCEPTION 'preflight failed: reviewed employee grants have changed';
   END IF;
+  IF pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()') IS NULL
+     OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
+       pg_catalog.to_regprocedure('public.fn_read_sale_items_secure()')
+     )) <> '161e5147cd4eae4ca6e9a4c074af7cb6' THEN
+    RAISE EXCEPTION 'preflight failed: fn_read_sale_items_secure() drifted from reviewed TEST definition';
+  END IF;
+  IF NOT pg_catalog.has_table_privilege('authenticated', 'public.sale_items', 'SELECT')
+     OR NOT pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT') THEN
+    RAISE EXCEPTION 'preflight failed: reviewed sale_items grants have changed';
+  END IF;
   IF pg_catalog.has_schema_privilege('authenticated', 'public', 'CREATE')
      OR pg_catalog.has_schema_privilege('anon', 'public', 'CREATE') THEN
     RAISE EXCEPTION 'preflight failed: an API role can CREATE in public';
@@ -104,6 +114,13 @@ REVOKE SELECT ON TABLE public.employees FROM authenticated;
 GRANT SELECT (
   id, business_id, name, job_title, location_id, manager_id, active, notes, created_at, updated_at
 ) ON TABLE public.employees TO authenticated;
+
+-- The deployed sale-item facade redacts unit_cost_snapshot unless the actor may manage recipe
+-- costs. Keep operational sale lines readable while closing the direct cost bypass.
+REVOKE SELECT ON TABLE public.sale_items FROM authenticated;
+GRANT SELECT (
+  id, sale_id, product_id, product_name_snapshot, qty, unit_price
+) ON TABLE public.sale_items TO authenticated;
 
 -- Reading another login profile is an account-administration action. Every active user keeps
 -- access to their own profile so bootstrap/login remains functional.

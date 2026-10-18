@@ -14,6 +14,14 @@ WITH checks AS (
          AND pg_catalog.has_column_privilege('authenticated', 'public.employees', 'name', 'SELECT')
          AND pg_catalog.has_column_privilege('authenticated', 'public.employees', 'updated_at', 'SELECT')
   UNION ALL
+  SELECT 'sale_item_cost_not_directly_selectable',
+         NOT pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT')
+  UNION ALL
+  SELECT 'sale_item_operational_columns_remain_readable',
+         pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'id', 'SELECT')
+         AND pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'sale_id', 'SELECT')
+         AND pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_price', 'SELECT')
+  UNION ALL
   SELECT 'employee_facade_scopes_owner_manager_employee',
          pg_catalog.position('e.manager_id = a.employee_id' IN pg_catalog.pg_get_functiondef(
            pg_catalog.to_regprocedure('public.fn_read_employees_secure()')

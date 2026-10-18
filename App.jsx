@@ -3059,7 +3059,7 @@ function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError
     const rows = await supabaseRest.select("sales", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=sale_date.desc&limit=500`);
     const ids = (rows || []).map((r) => r.id);
     let itemRows = [];
-    if (ids.length) itemRows = await supabaseRest.select("sale_items", `select=*&sale_id=in.(${ids.join(",")})`);
+    if (ids.length) itemRows = await supabaseRest.selectRpc("fn_read_sale_items_secure", `select=*&sale_id=in.(${ids.join(",")})`);
     const bySale = new Map();
     for (const it of itemRows || []) {
       if (!bySale.has(it.sale_id)) bySale.set(it.sale_id, []);

@@ -157,7 +157,7 @@ export function buildSanitizedEvidence(input, { sourceBytes, root }) {
   if (catalog.project_ref_expected !== TEST_PROJECT_REF) throw new Error('catalog is not pinned to the authorized TEST project');
   const secretScan = scanSecrets(input);
   if (!secretScan.passed) throw new Error(`secret/PII scan failed with ${secretScan.findings.length} finding(s)`);
-  const sensitiveTables = new Set(['employees', 'users', 'sales', 'cash_flow', 'cash_registers', 'expenses', 'inventory_stock', 'inventory_transactions', 'purchase_orders', 'purchase_order_items', 'purchase_order_payments', 'sale_items', 'task_activity']);
+  const sensitiveTables = new Set(['employees', 'users', 'sales', 'cash_flow', 'cash_registers', 'expenses', 'inventory_stock', 'inventory_transactions', 'purchase_orders', 'purchase_order_items', 'purchase_order_payments', 'sale_items', 'task_activity', 'waste_transactions']);
   const policies = catalog.all_policies || [];
   const tableGrants = catalog.all_table_grants || [];
   const columnGrants = catalog.all_column_grants || [];
@@ -165,6 +165,8 @@ export function buildSanitizedEvidence(input, { sourceBytes, root }) {
   const usersPolicy = policies.find((row) => row.tablename === 'users' && row.policyname === 'users_select');
   const employeeTableSelect = tableGrants.some((row) => row.table_name === 'employees' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
   const employeeSalarySelect = columnGrants.some((row) => row.table_name === 'employees' && row.column_name === 'hourly_rate' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
+  const saleItemCostSelect = columnGrants.some((row) => row.table_name === 'sale_items' && row.column_name === 'unit_cost_snapshot' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
+  const saleItemsPolicy = policies.find((row) => row.tablename === 'sale_items' && row.policyname === 'sale_items_select');
   const publicSchema = (catalog.schema_security || []).find((row) => row.schema_name === 'public');
   const functionRows = catalog.functions || [];
   const definerPublic = functionRows.filter((row) => row.security_definer && (row.settings || []).includes('search_path=public'));
@@ -210,10 +212,13 @@ export function buildSanitizedEvidence(input, { sourceBytes, root }) {
       confirmed: {
         authenticated_employee_table_select: employeeTableSelect,
         authenticated_hourly_rate_select: employeeSalarySelect,
+        authenticated_sale_item_cost_select: saleItemCostSelect,
         employees_policy_roles: employeesPolicy?.roles || [],
         employees_policy_qual_sha256: sha256(employeesPolicy?.qual || ''),
         users_policy_roles: usersPolicy?.roles || [],
         users_policy_qual_sha256: sha256(usersPolicy?.qual || ''),
+        sale_items_policy_roles: saleItemsPolicy?.roles || [],
+        sale_items_policy_qual_sha256: sha256(saleItemsPolicy?.qual || ''),
       },
       conditional: {
         policies_assigned_to_public: publicPolicies.map((row) => `${row.tablename}.${row.policyname}`).sort(),

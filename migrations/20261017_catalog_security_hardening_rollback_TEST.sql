@@ -13,6 +13,11 @@ REVOKE SELECT (
 ) ON TABLE public.employees FROM authenticated;
 GRANT SELECT ON TABLE public.employees TO authenticated;
 
+REVOKE SELECT (
+  id, sale_id, product_id, product_name_snapshot, qty, unit_price
+) ON TABLE public.sale_items FROM authenticated;
+GRANT SELECT ON TABLE public.sale_items TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.fn_read_employees_secure()
 RETURNS SETOF public.employees
 LANGUAGE sql

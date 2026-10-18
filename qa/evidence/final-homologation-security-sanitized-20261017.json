@@ -6535,6 +6535,195 @@
           "updated_at",
           "username"
         ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "authenticated",
+        "privilege": "REFERENCES",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "authenticated",
+        "privilege": "SELECT",
+        "columns": [
+          "business_id",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "postgres",
+        "privilege": "INSERT",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "postgres",
+        "privilege": "REFERENCES",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "postgres",
+        "privilege": "SELECT",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "postgres",
+        "privilege": "UPDATE",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "service_role",
+        "privilege": "INSERT",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "service_role",
+        "privilege": "REFERENCES",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "service_role",
+        "privilege": "SELECT",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
+      },
+      {
+        "table_name": "waste_transactions",
+        "grantee": "service_role",
+        "privilege": "UPDATE",
+        "columns": [
+          "business_id",
+          "cost",
+          "created_at",
+          "created_by",
+          "id",
+          "inventory_item_id",
+          "inventory_transaction_id",
+          "location_id",
+          "notes",
+          "qty",
+          "reason",
+          "unit"
+        ]
       }
     ]
   },
@@ -12878,6 +13067,7 @@
     "confirmed": {
       "authenticated_employee_table_select": true,
       "authenticated_hourly_rate_select": true,
+      "authenticated_sale_item_cost_select": true,
       "employees_policy_roles": [
         "public"
       ],
@@ -12885,7 +13075,11 @@
       "users_policy_roles": [
         "public"
       ],
-      "users_policy_qual_sha256": "f799353ea51217dffb1a031db66250c56396c6ce75dc9c9a5b8f6c303f68a411"
+      "users_policy_qual_sha256": "f799353ea51217dffb1a031db66250c56396c6ce75dc9c9a5b8f6c303f68a411",
+      "sale_items_policy_roles": [
+        "public"
+      ],
+      "sale_items_policy_qual_sha256": "b48ebf487a1e1b5cac60de8ac27b1db2c6b8795801c2f6e03c66ea58833db604"
     },
     "conditional": {
       "policies_assigned_to_public": [
