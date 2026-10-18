@@ -24,20 +24,24 @@ WITH checks AS (
          AND pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_price', 'SELECT')
   UNION ALL
   SELECT 'client_audit_entries_have_explicit_provenance',
-         COALESCE(pg_catalog.position('Client: ' IN pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
-         )) > 0
-         AND pg_catalog.position('2000 characters' IN pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
-         )) > 0, false)
+         COALESCE(pg_catalog.strpos(
+           pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')),
+           'Client: '
+         ) > 0
+         AND pg_catalog.strpos(
+           pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')),
+           '2000 characters'
+         ) > 0, false)
   UNION ALL
   SELECT 'employee_facade_scopes_owner_manager_employee',
-         COALESCE(pg_catalog.position('e.manager_id = a.employee_id' IN pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
-         )) > 0
-         AND pg_catalog.position('e.id = a.employee_id' IN pg_catalog.pg_get_functiondef(
-           pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
-         )) > 0, false)
+         COALESCE(pg_catalog.strpos(
+           pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure('public.fn_read_employees_secure()')),
+           'e.manager_id = a.employee_id'
+         ) > 0
+         AND pg_catalog.strpos(
+           pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure('public.fn_read_employees_secure()')),
+           'e.id = a.employee_id'
+         ) > 0, false)
   UNION ALL
   SELECT 'employee_facade_exact_target_body',
          COALESCE((SELECT pg_catalog.md5(p.prosrc) = '2c26a316e5cfc46dcfa187c550eb7108'

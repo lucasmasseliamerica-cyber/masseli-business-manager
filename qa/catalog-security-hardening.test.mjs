@@ -6,6 +6,7 @@ import { scanSecrets } from './audit-final-security-catalog.mjs';
 
 const evidence = JSON.parse(readFileSync(new URL('./evidence/final-homologation-security-sanitized-20261017.json', import.meta.url), 'utf8'));
 const realPreapply = JSON.parse(readFileSync(new URL('./evidence/catalog-preapply-real-20261018.json', import.meta.url), 'utf8'));
+const reportedApply = JSON.parse(readFileSync(new URL('./evidence/catalog-hardening-apply-reported-20261018.json', import.meta.url), 'utf8'));
 const apply = readFileSync(new URL('../migrations/20261017_catalog_security_hardening_TEST.sql', import.meta.url), 'utf8');
 const rollback = readFileSync(new URL('../migrations/20261017_catalog_security_hardening_rollback_TEST.sql', import.meta.url), 'utf8');
 const preflight = readFileSync(new URL('./sql/catalog_security_hardening_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
@@ -94,6 +95,21 @@ test('real grants prove the sensitive facade bypasses and the evidence keeps ris
   assert.deepEqual(evidence.audit_facts.conditional.referenced_private_schemas_not_exported, ['nexalvo_backup', 'nexalvo_platform']);
   assert.equal(evidence.audit_facts.effective_denials.anon_function_execute_count, 0);
   assert.equal(evidence.audit_facts.effective_denials.anon_table_grant_count, 0);
+});
+
+test('reported TEST apply evidence keeps the official postflight blocked until corrected rerun', () => {
+  assert.equal(scanSecrets(reportedApply).passed, true);
+  assert.equal(reportedApply.target.project_ref, 'msinksoilkluooxenecy');
+  assert.equal(reportedApply.migration, '20261017_catalog_security_hardening_TEST.sql');
+  assert.equal(reportedApply.apply.reported_success, true);
+  assert.equal(reportedApply.apply.scope, 'TEST_ONLY');
+  assert.equal(reportedApply.independent_readonly_verification.status, 'PASS');
+  assert.ok(Object.values(reportedApply.independent_readonly_verification.checks).every(Boolean));
+  assert.equal(reportedApply.official_postflight.status, 'BLOCKED_SQL_SYNTAX');
+  assert.equal(reportedApply.official_postflight.sqlstate, '42601');
+  assert.equal(reportedApply.official_postflight.rerun_required, true);
+  assert.equal(reportedApply.rollback.executed, false);
+  assert.equal(reportedApply.migration_reapplied, false);
 });
 
 test('frontend reads employees through the secure facade and limits write representations', () => {
@@ -226,7 +242,14 @@ test('post-apply, drift and private-schema exports are read-only and cover the u
   assert.match(driftCapture, /pg_get_functiondef\(p\.oid\) AS definition/);
   assert.match(driftCapture, /CAPTURED_REPORTED_DRIFT/);
   assert.match(driftCapture, /Treat the result as an unversioned review artifact/);
-  assert.match(preflight, /COALESCE\(pg_catalog\.position\('Client: '/);
+  assert.doesNotMatch(preflight, /\bpg_catalog\.position\s*\(/i);
+  assert.equal((preflight.match(/pg_catalog\.strpos\(/g) || []).length, 4);
+  for (const needle of [
+    "'Client: '",
+    "'2000 characters'",
+    "'e.manager_id = a.employee_id'",
+    "'e.id = a.employee_id'",
+  ]) assert.match(preflight, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   for (const schema of ['nexalvo_platform', 'nexalvo_backup']) assert.match(privateExport, new RegExp(schema));
   for (const marker of [
     'pg_get_functiondef', 'private_functions', 'private_relations', 'private_policies',

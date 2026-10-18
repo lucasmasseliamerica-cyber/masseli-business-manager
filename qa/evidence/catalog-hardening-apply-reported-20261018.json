@@ -1,0 +1,40 @@
+{
+  "target": {
+    "environment": "TEST",
+    "project_ref": "msinksoilkluooxenecy"
+  },
+  "migration": "20261017_catalog_security_hardening_TEST.sql",
+  "source": {
+    "kind": "user_reported_direct_supabase_execution_and_independent_readonly_verification",
+    "reported_at": "2026-10-18",
+    "raw_output_versioned": false,
+    "contains_credentials": false
+  },
+  "apply": {
+    "reported_success": true,
+    "scope": "TEST_ONLY"
+  },
+  "independent_readonly_verification": {
+    "status": "PASS",
+    "checks": {
+      "employee_hourly_rate_direct_select_blocked": true,
+      "sale_item_unit_cost_direct_select_blocked": true,
+      "operational_columns_preserved": true,
+      "inventory_tenant_reference_trigger_installed": true,
+      "client_audit_prefix_present": true,
+      "anon_execute_absent_in_reviewed_schemas": true,
+      "public_role_policies_absent": true,
+      "employees_and_users_select_authenticated_only": true
+    }
+  },
+  "official_postflight": {
+    "status": "BLOCKED_SQL_SYNTAX",
+    "sqlstate": "42601",
+    "cause": "invalid_schema_qualified_position_special_syntax",
+    "rerun_required": true
+  },
+  "rollback": {
+    "executed": false
+  },
+  "migration_reapplied": false
+}
