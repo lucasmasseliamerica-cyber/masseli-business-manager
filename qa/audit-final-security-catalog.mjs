@@ -174,6 +174,11 @@ export function buildSanitizedEvidence(input, { sourceBytes, root }) {
     && /user_can\s*\(\s*'manageUsers'/i.test(legacyStaffDefinition)
     && /permission_overrides\s*=\s*case/i.test(legacyStaffDefinition)
     && !/only an owner can change roles or permission overrides/i.test(legacyStaffDefinition);
+  const clientAuditWriter = functionRows.find((row) => row.name === 'fn_write_audit');
+  const clientAuditDefinition = clientAuditWriter?.definition || '';
+  const clientAuditUnmarked = clientAuditWriter?.authenticated_execute === true
+    && /values\s*\([^;]*btrim\s*\(\s*p_action\s*\)/is.test(clientAuditDefinition)
+    && !/Client:\s*/i.test(clientAuditDefinition);
   const publicSchema = (catalog.schema_security || []).find((row) => row.schema_name === 'public');
   const definerPublic = functionRows.filter((row) => row.security_definer && (row.settings || []).includes('search_path=public'));
   const publicPolicies = policies.filter((row) => (row.roles || []).includes('public'));
@@ -228,6 +233,9 @@ export function buildSanitizedEvidence(input, { sourceBytes, root }) {
         legacy_staff_profile_authenticated_execute: legacyStaffProfile?.authenticated_execute === true,
         legacy_staff_profile_non_owner_override_escalation: legacyStaffPrivilegeEscalation,
         legacy_staff_profile_fingerprint: legacyStaffProfile?.fingerprint || null,
+        client_audit_authenticated_execute: clientAuditWriter?.authenticated_execute === true,
+        client_audit_unmarked_action: clientAuditUnmarked,
+        client_audit_fingerprint: clientAuditWriter?.fingerprint || null,
       },
       conditional: {
         policies_assigned_to_public: publicPolicies.map((row) => `${row.tablename}.${row.policyname}`).sort(),

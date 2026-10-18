@@ -34,6 +34,27 @@ $function$;
 REVOKE ALL ON FUNCTION public.fn_read_employees_secure() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.fn_read_employees_secure() TO authenticated, service_role;
 
+CREATE OR REPLACE FUNCTION public.fn_write_audit(p_action text, p_details text)
+RETURNS public.audit_logs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $function$
+DECLARE v_entry audit_logs; v_user users;
+BEGIN
+ SELECT * INTO v_user FROM users WHERE id=auth.uid() AND active=true;
+ IF v_user.id IS NULL THEN RAISE EXCEPTION 'active user profile required'; END IF;
+ IF NULLIF(btrim(p_action),'') IS NULL THEN RAISE EXCEPTION 'audit action is required'; END IF;
+ INSERT INTO audit_logs(business_id,user_id,user_name_snapshot,role_snapshot,action,details)
+ VALUES(v_user.business_id,v_user.id,v_user.name,v_user.role,btrim(p_action),coalesce(p_details,''))
+ RETURNING * INTO v_entry;
+ RETURN v_entry;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.fn_write_audit(text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.fn_write_audit(text, text) TO authenticated, service_role;
+
 ALTER POLICY employees_select ON public.employees
   TO PUBLIC
   USING (business_id = public.current_business_id());

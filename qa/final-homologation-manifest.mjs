@@ -369,6 +369,7 @@ export function evaluateDeployedCatalog(input) {
     && row.column_name === 'unit_cost_snapshot' && row.grantee === 'authenticated' && row.privilege_type === 'SELECT');
   const legacyStaffProfile = functionRows.find((row) => row.name === 'fn_save_user_profile');
   const legacyStaffProfileAuthenticated = legacyStaffProfile?.authenticated_execute === true;
+  const clientAuditWriter = functionRows.find((row) => row.name === 'fn_write_audit');
   const referencedPrivateSchemas = [...new Set(functionRows.flatMap((row) =>
     [...String(row.definition || '').matchAll(/\b(nexalvo_[a-z0-9_]+)\./gi)].map((match) => match[1].toLowerCase())))].sort();
   const publicFunctionDefaultAcls = (catalog.default_privileges || [])
@@ -426,6 +427,7 @@ export function evaluateDeployedCatalog(input) {
       authenticatedSalarySelect,
       authenticatedSaleItemCostSelect,
       legacyStaffProfileAuthenticated,
+      clientAuditWriterAuthenticated: clientAuditWriter?.authenticated_execute === true,
       referencedPrivateSchemas,
       publicFunctionDefaultAcls,
       countMismatches,

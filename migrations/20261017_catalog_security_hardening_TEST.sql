@@ -32,6 +32,12 @@ BEGIN
      OR NOT pg_catalog.has_column_privilege('authenticated', 'public.sale_items', 'unit_cost_snapshot', 'SELECT') THEN
     RAISE EXCEPTION 'preflight failed: reviewed sale_items grants have changed';
   END IF;
+  IF pg_catalog.to_regprocedure('public.fn_write_audit(text,text)') IS NULL
+     OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
+       pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+     )) <> '4ab39d24cd80134b7ca7812c8a38dd7d' THEN
+    RAISE EXCEPTION 'preflight failed: fn_write_audit(text,text) drifted from reviewed TEST definition';
+  END IF;
   IF pg_catalog.has_schema_privilege('authenticated', 'public', 'CREATE')
      OR pg_catalog.has_schema_privilege('anon', 'public', 'CREATE') THEN
     RAISE EXCEPTION 'preflight failed: an API role can CREATE in public';
@@ -94,6 +100,41 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.fn_read_employees_secure() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.fn_read_employees_secure() TO authenticated, service_role;
+
+-- Client audit messages are useful for UI-only outcomes, but they are not authoritative proof of
+-- a database mutation. Mark their provenance at the server boundary and bound their size so they
+-- cannot be confused with audit rows written transactionally inside business RPCs.
+CREATE OR REPLACE FUNCTION public.fn_write_audit(p_action text, p_details text)
+RETURNS public.audit_logs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_entry public.audit_logs;
+  v_user public.users;
+  v_action text := pg_catalog.regexp_replace(pg_catalog.btrim(p_action), '[[:cntrl:]]+', ' ', 'g');
+BEGIN
+  SELECT * INTO v_user FROM public.users WHERE id = auth.uid() AND active = true;
+  IF v_user.id IS NULL THEN RAISE EXCEPTION 'active user profile required'; END IF;
+  IF NULLIF(v_action, '') IS NULL OR pg_catalog.length(v_action) > 120 THEN
+    RAISE EXCEPTION 'client audit action must contain 1 to 120 characters';
+  END IF;
+  IF pg_catalog.length(COALESCE(p_details, '')) > 2000 THEN
+    RAISE EXCEPTION 'client audit details must contain at most 2000 characters';
+  END IF;
+  INSERT INTO public.audit_logs(
+    business_id, user_id, user_name_snapshot, role_snapshot, action, details
+  ) VALUES (
+    v_user.business_id, v_user.id, v_user.name, v_user.role,
+    'Client: ' || v_action, COALESCE(p_details, '')
+  ) RETURNING * INTO v_entry;
+  RETURN v_entry;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.fn_write_audit(text, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.fn_write_audit(text, text) TO authenticated, service_role;
 
 -- RLS applies the same row scope to direct non-sensitive reads. Column privileges remove the
 -- salary bypass; authorized salary reads continue through fn_read_employees_secure(). updated_at

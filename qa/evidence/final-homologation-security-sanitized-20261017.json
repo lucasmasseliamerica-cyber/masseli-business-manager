@@ -12864,7 +12864,7 @@
   "storage_policies": [],
   "versioned_function_comparison": {
     "deployed_function_count": 58,
-    "deployed_with_versioned_definition_count": 8,
+    "deployed_with_versioned_definition_count": 9,
     "deployed_with_versioned_definition": [
       "fn_advance_sale_fulfillment",
       "fn_cancel_purchase_order",
@@ -12873,6 +12873,7 @@
       "fn_open_cash_register",
       "fn_read_employees_secure",
       "fn_receive_manual_stock",
+      "fn_write_audit",
       "trg_validate_recipe_tenant_references"
     ],
     "deployed_without_versioned_definition": [
@@ -12919,7 +12920,6 @@
       "fn_toggle_task_status",
       "fn_transfer_inventory",
       "fn_user_controls_employee",
-      "fn_write_audit",
       "trg_guard_employee_salary",
       "trg_prevent_self_privilege_escalation",
       "trg_set_updated_at",
@@ -13034,6 +13034,13 @@
         "normalized_body_match": false
       },
       {
+        "name": "fn_write_audit",
+        "path": "migrations/20261017_catalog_security_hardening_TEST.sql",
+        "source_body_sha256": "adab3c8d7aaffa775a13a89c6507c362a7059ef16c9a336121c0b8173dd4db2e",
+        "deployed": true,
+        "normalized_body_match": false
+      },
+      {
         "name": "trg_validate_inventory_item_tenant_references",
         "path": "migrations/20261017_catalog_security_hardening_TEST.sql",
         "source_body_sha256": "54d3bbd048aa24d6c31aacad6778fb20cf32f1bdc87b7318ad5af4a20b43c04c",
@@ -13044,6 +13051,13 @@
         "name": "fn_read_employees_secure",
         "path": "migrations/20261017_catalog_security_hardening_rollback_TEST.sql",
         "source_body_sha256": "c4cac0a6f8182b34f3069d3a5907435f228aee8e6d8465b5465ea2d4f430932c",
+        "deployed": true,
+        "normalized_body_match": true
+      },
+      {
+        "name": "fn_write_audit",
+        "path": "migrations/20261017_catalog_security_hardening_rollback_TEST.sql",
+        "source_body_sha256": "df886665496ca338aacd153ea277d4a3567dd25330abc93b52c5feeb3fa0c315",
         "deployed": true,
         "normalized_body_match": true
       },
@@ -13082,7 +13096,10 @@
       "sale_items_policy_qual_sha256": "b48ebf487a1e1b5cac60de8ac27b1db2c6b8795801c2f6e03c66ea58833db604",
       "legacy_staff_profile_authenticated_execute": true,
       "legacy_staff_profile_non_owner_override_escalation": true,
-      "legacy_staff_profile_fingerprint": "4e02f0128a171ec8a6e65de291f115e7"
+      "legacy_staff_profile_fingerprint": "4e02f0128a171ec8a6e65de291f115e7",
+      "client_audit_authenticated_execute": true,
+      "client_audit_unmarked_action": true,
+      "client_audit_fingerprint": "4ab39d24cd80134b7ca7812c8a38dd7d"
     },
     "conditional": {
       "policies_assigned_to_public": [

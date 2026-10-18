@@ -91,6 +91,19 @@ autenticada e revoga `authenticated` da RPC legada. O preflight fixa o fingerpri
 `4e02f0128a171ec8a6e65de291f115e7`; o rollback restaura a ACL observada sem alterar perfis, Auth ou
 histórico.
 
+### SEC-CAT-06 — eventos de auditoria enviados pelo cliente sem proveniência — média
+
+`fn_write_audit` é executável por qualquer perfil ativo e aceita `p_action`/`p_details` arbitrários.
+Ela fixa empresa, usuário, nome e papel no servidor, portanto não permite personificar outra conta;
+porém a ação cliente fica visualmente indistinguível de uma entrada gravada dentro da transação da
+RPC de negócio. Isso reduz a confiabilidade probatória do histórico e permite volume/texto sem limite
+de coluna.
+
+O hardening preparado fixa o fingerprint `4ab39d24cd80134b7ca7812c8a38dd7d`, usa `search_path` vazio,
+normaliza controles na ação, limita ação/detalhes a 120/2.000 caracteres e grava sempre o prefixo
+`Client:`. Auditorias transacionais existentes continuam sem o prefixo. A compensação restaura a
+definição e ACL observadas no export.
+
 ## Riscos condicionais e divergências
 
 - **40 `SECURITY DEFINER` usam `search_path=public`.** Todas as 48 possuem `search_path` explícito;
@@ -157,7 +170,7 @@ condicional até a matriz real MANAGER/EMPLOYEE definir o contrato de cada colun
   transação única.
 - `migrations/20261017_catalog_security_hardening_rollback_TEST.sql`: compensação exata do estado
   exportado.
-- `qa/sql/catalog_security_hardening_preflight_readonly_TEST.sql`: dez verificações pós-aplicação.
+- `qa/sql/catalog_security_hardening_preflight_readonly_TEST.sql`: onze verificações pós-aplicação.
 - `qa/sql/final_homologation_private_security_definitions_readonly_TEST.sql`: export adicional dos
   schemas privados referenciados.
 - `qa/sql/final_homologation_permission_defaults_readonly_TEST.sql`: export da matriz global de
