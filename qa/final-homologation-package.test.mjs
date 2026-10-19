@@ -70,7 +70,9 @@ test('every prepared unit has an artifact, explicit authorization and dependency
   }
   assert.deepEqual(byId.get('expense-request-idempotency').dependsOn, ['expense-cash-normalization']);
   assert.equal(byId.get('cash-register-finite-guard').rollbackStrategy, 'restore_reviewed_preapply_function_definition');
-  assert.ok(byId.get('platform-admin-control-plane').unresolvedGate.includes('deployed_rls_and_rpc_catalog'));
+  assert.equal(byId.get('catalog-security-hardening').status, 'deployed_test');
+  assert.ok(byId.get('platform-admin-control-plane').unresolvedGate.includes('signed_claim_cutover'));
+  assert.equal(byId.get('platform-admin-control-plane').preflight, 'qa/sql/platform_admin_cutover_preflight_readonly_TEST.sql');
   assert.ok(executionOrder.indexOf('export-deployed-catalog-readonly') < executionOrder.indexOf('obtain-separate-test-migration-authorization'));
 });
 
@@ -135,7 +137,11 @@ test('real TEST metadata export is unwrapped and classified without overstating 
   assert.equal(catalog.counts.public_role_table_grant_entries, 568);
   assert.deepEqual(result.missingTables, []);
   assert.deepEqual(result.unexpectedMissingFunctions, []);
-  assert.deepEqual(result.plannedMissingFunctions, ['fn_manage_staff_profile']);
+  assert.deepEqual(result.plannedMissingFunctions, [
+    'fn_manage_staff_profile', 'fn_platform_admin_execute',
+    'fn_platform_admin_list_audit_logs', 'fn_platform_admin_list_businesses',
+    'fn_session_access_status',
+  ]);
   assert.deepEqual(result.signatureMismatches, []);
   assert.deepEqual(result.fingerprintMismatches, []);
   assert.deepEqual(result.reviewFindings.countMismatches, []);

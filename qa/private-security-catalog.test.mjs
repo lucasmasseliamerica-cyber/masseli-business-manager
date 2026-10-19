@@ -12,6 +12,7 @@ const realPreapply = JSON.parse(readFileSync(
 const platformMigration = readFileSync(new URL('../migrations/20261016_platform_admin_TEST.sql', import.meta.url), 'utf8');
 const platformPreflight = readFileSync(new URL('./sql/platform_admin_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const operatorPreflight = readFileSync(new URL('./sql/platform_admin_operator_alignment_readonly_TEST.sql', import.meta.url), 'utf8');
+const cutoverPreflight = readFileSync(new URL('./sql/platform_admin_cutover_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const singleAuthorityPreflight = readFileSync(new URL('./sql/platform_admin_single_authority_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const app = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
 const staffCore = readFileSync(new URL('../supabase/functions/_shared/manage-staff-user-core.mjs', import.meta.url), 'utf8');
@@ -84,13 +85,18 @@ test('frontend and privileged staff service share the same 20 permission keys', 
   assert.deepEqual(serviceKeys, appKeys);
 });
 
-test('prepared platform administration refuses an unreconciled legacy authority plane', () => {
+test('prepared platform administration reconciles only the exact legacy operator into one signed authority', () => {
   assert.equal(evidence.audit_facts.confirmed.platform_access_requires_operator_and_active_profile, true);
   assert.equal(evidence.audit_facts.confirmed.platform_access_checks_signed_superadmin_claim, false);
   assert.equal(evidence.audit_facts.conditional.deployed_platform_authority_differs_from_prepared_signed_claim_authority, true);
-  assert.match(platformMigration, /legacy nexalvo_platform authority must be reconciled before installation/);
+  assert.match(platformMigration, /exactly one active legacy operator is required/);
+  assert.match(platformMigration, /signed claim must match the sole active operator/);
   assert.match(platformMigration, /to_regnamespace\('nexalvo_platform'\)/);
   assert.match(platformPreflight, /legacy_authority_reconciliation_required/);
+  assert.match(cutoverPreflight, /legacy_endpoint_definitions_exact/);
+  assert.match(cutoverPreflight, /claim_matches_active_legacy_operator/);
+  assert.match(platformMigration, /UPDATE nexalvo_platform\.operators SET active = false WHERE active/);
+  assert.match(platformMigration, /REVOKE USAGE ON SCHEMA nexalvo_platform/);
   assert.match(operatorPreflight, /active_operator_without_signed_superadmin_claim/);
   assert.match(operatorPreflight, /signed_superadmin_without_active_operator/);
   assert.match(operatorPreflight,
@@ -122,7 +128,7 @@ test('operator alignment preflight is aggregate-only and strictly read-only', ()
     assert.doesNotMatch(sql, /SELECT\s+(?:o|u|a)\.(?:id|email|raw_app_meta_data)/i);
     assert.doesNotMatch(executable, /(?:^|;)\s*(?:INSERT|UPDATE|DELETE|MERGE|ALTER|CREATE|DROP|TRUNCATE|GRANT|REVOKE|COPY|CALL|DO)\b/im);
   }
-  assert.match(singleAuthorityPreflight, /legacy_operator_authority_disabled/);
+  assert.match(singleAuthorityPreflight, /legacy_operators_disabled/);
   assert.match(singleAuthorityPreflight, /legacy_authenticated_endpoints_disabled/);
   assert.match(singleAuthorityPreflight, /exactly_one_signed_superadmin/);
   assert.match(singleAuthorityPreflight, /PASS_SINGLE_SIGNED_AUTHORITY/);

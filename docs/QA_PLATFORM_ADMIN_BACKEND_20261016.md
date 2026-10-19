@@ -1,5 +1,9 @@
 # NEXALVO — backend preparado da Administração Comercial
 
+> Atualização de 2026-10-19: o plano de instalação, suspensão e rollback deste documento foi
+> substituído pelo pacote de [autoridade única SUPERADMIN](./QA_PLATFORM_ADMIN_SINGLE_AUTHORITY_20261019.md).
+> A implementação original continua como contexto histórico; não aplicar sua sequência antiga.
+
 Data: 2026-10-16
 
 Branch: `automation/nexalvo-qa-actions`

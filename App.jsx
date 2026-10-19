@@ -2169,7 +2169,7 @@ const supabaseRest = {
   // Provided for completeness (the eventual InventoryService cutover will need this), not called
   // by any live write path yet — that rerouting is explicitly deferred, see Finding F.
   async rpc(fnName, args = {}) {
-    const harmless = ["current_business_id", "user_can", "fn_user_controls_employee", "fn_write_audit", "fn_reconcile_business_alerts"].includes(fnName);
+    const harmless = ["current_business_id", "user_can", "fn_session_access_status", "fn_user_controls_employee", "fn_write_audit", "fn_reconcile_business_alerts"].includes(fnName);
     const replaySafe = ["fn_create_sale", "fn_create_purchase_order_idempotent", "fn_create_expense_idempotent"].includes(fnName);
     if (_unconfirmedRpcWrite && !harmless) { const error = new Error("A previous operation could not be confirmed. Refresh and check the history before making another change."); error.commitUncertain = true; throw error; }
     let res;
@@ -2546,7 +2546,18 @@ async function loadAuthenticatedProfile(userId, authUser = null) {
   if (!userId) throw new Error("Authenticated user ID is missing.");
   const rows = await supabaseRest.select("users", `select=id,business_id,employee_id,name,username,role,permission_overrides,active&id=eq.${encodeURIComponent(userId)}&limit=1`);
   const row = rows?.[0];
-  if (!row) throw new Error("Your login exists in Supabase Auth, but no NEXALVO user profile was found for it.");
+  if (!row) {
+    // RLS deliberately hides tenant profiles when the platform has suspended the business. The
+    // narrow status RPC reports only the caller's access state and avoids mislabeling a suspension
+    // as a missing profile. Deployments predating that RPC keep the existing fail-closed message.
+    let accessStatus = "";
+    try { accessStatus = await supabaseRest.rpc("fn_session_access_status"); } catch { /* compatibility */ }
+    if (accessStatus === "BUSINESS_SUSPENDED") {
+      throw new Error("This business is suspended. Contact NEXALVO support to restore access.");
+    }
+    if (accessStatus === "PROFILE_INACTIVE") throw new Error("This NEXALVO account is inactive.");
+    throw new Error("Your login exists in Supabase Auth, but no NEXALVO user profile was found for it.");
+  }
   if (row.active === false) throw new Error("This NEXALVO account is inactive.");
   return { ...appUserFromDb(row), platformRole: platformRoleFromAuthUser(authUser) };
 }
@@ -10787,6 +10798,7 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [pendingAction, setPendingAction] = useState(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
   const loadBusinesses = useCallback(async () => {
     setLoading(true); setError("");
@@ -10820,7 +10832,8 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
 
   const applyAction = async () => {
     const action = pendingAction;
-    if (!action) return;
+    if (!action || actionBusy) return;
+    setActionBusy(true);
     try {
       if (action.type === "lifetime") {
         await callPlatformAdmin("grant_lifetime_license", { request_id: action.requestId, business_id: action.business.id });
@@ -10836,6 +10849,8 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
       await loadBusinesses();
     } catch (e) {
       showToast(e?.message || "The platform action failed.", "danger");
+    } finally {
+      setActionBusy(false);
     }
   };
 
@@ -10869,7 +10884,9 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
         <Card dark={dark}><EmptyState dark={dark} title={query ? "No matching businesses" : "No businesses returned"} /></Card>
       ) : (
         <div className="grid grid-cols-1 gap-3">
-          {filtered.map((business) => (
+          {filtered.map((business) => {
+            const ownActiveTenant = business.id === currentUser.businessId && business.status === "ACTIVE";
+            return (
             <Card key={business.id} dark={dark}>
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -10883,15 +10900,16 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                   {business.licenseType !== "LIFETIME"
-                    ? <GhostButton dark={dark} onClick={() => setPendingAction({ type: "lifetime", business, requestId: newDbId() })}>{translateUI("Grant lifetime")}</GhostButton>
-                    : <GhostButton dark={dark} onClick={() => setPendingAction({ type: "revoke", business, requestId: newDbId() })}>{translateUI("Revoke license")}</GhostButton>}
-                  <GhostButton dark={dark} onClick={() => setPendingAction({ type: "status", business, nextStatus: business.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE", requestId: newDbId() })}>
+                    ? <GhostButton dark={dark} disabled={actionBusy} onClick={() => setPendingAction({ type: "lifetime", business, requestId: newDbId() })}>{translateUI("Grant lifetime")}</GhostButton>
+                    : <GhostButton dark={dark} disabled={actionBusy} onClick={() => setPendingAction({ type: "revoke", business, requestId: newDbId() })}>{translateUI("Revoke license")}</GhostButton>}
+                  <GhostButton dark={dark} disabled={ownActiveTenant || actionBusy} onClick={() => setPendingAction({ type: "status", business, nextStatus: business.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE", requestId: newDbId() })}>
                     {business.status === "ACTIVE" ? translateUI("Suspend") : translateUI("Activate")}
                   </GhostButton>
+                  {ownActiveTenant && <div className="text-xs max-w-48" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("The sole platform administrator cannot suspend its own business.")}</div>}
                 </div>
               </div>
             </Card>
-          ))}
+          );})}
         </div>
       )}
 
@@ -10911,8 +10929,8 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
         <ConfirmDialog dark={dark} danger={pendingAction.type === "revoke" || pendingAction.nextStatus === "SUSPENDED"}
           title={pendingAction.type === "lifetime" ? translateUI("Grant lifetime license?") : pendingAction.type === "revoke" ? translateUI("Revoke this license?") : translateUI(pendingAction.nextStatus === "ACTIVE" ? "Activate this business?" : "Suspend this business?")}
           message={pendingAction.type === "lifetime" ? `Grant a lifetime license to ${pendingAction.business.name}? The platform service will record the administrator and timestamp.` : pendingAction.type === "revoke" ? `Revoke the commercial license for ${pendingAction.business.name}? The platform service will preserve the audit history.` : `${pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend"} ${pendingAction.business.name}? The platform service will audit this change.`}
-          confirmLabel={translateUI(pendingAction.type === "lifetime" ? "Grant lifetime" : pendingAction.type === "revoke" ? "Revoke license" : pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend")}
-          onConfirm={applyAction} onCancel={() => setPendingAction(null)} />
+          confirmLabel={actionBusy ? translateUI("Saving…") : translateUI(pendingAction.type === "lifetime" ? "Grant lifetime" : pendingAction.type === "revoke" ? "Revoke license" : pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend")}
+          onConfirm={applyAction} onCancel={() => { if (!actionBusy) setPendingAction(null); }} />
       )}
     </div>
   );

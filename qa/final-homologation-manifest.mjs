@@ -6,7 +6,7 @@ export const TEST_PROJECT_REF = 'msinksoilkluooxenecy';
 export const QA_BRANCH = 'automation/nexalvo-qa-actions';
 
 export const knownTestEvidence = Object.freeze({
-  source: 'complete read-only TEST security catalog received 2026-10-17 and CI 159 report',
+  source: 'complete TEST security catalogs, public hardening postflight 16/16 and CI 174 report',
   catalogDefinitionsSupplied: 'complete_raw_reviewed_sanitized_evidence_versioned',
   counts: {
     publicTablesWithRls: 31,
@@ -16,6 +16,7 @@ export const knownTestEvidence = Object.freeze({
     securityDefinerFunctions: 48,
   },
   ci159: { jobsPassed: 12, checksPassed: 470, failures: 0, skipped: 0 },
+  ci174: { jobsPassed: 12, checksPassed: 489, failures: 0, skipped: 0 },
 });
 
 export const baselineSources = Object.freeze([
@@ -54,14 +55,16 @@ export const applicationContract = Object.freeze({
     'fn_create_expense', 'fn_create_purchase_order', 'fn_create_sale',
     'fn_dismiss_alert', 'fn_end_break', 'fn_manual_loyalty_adjustment',
     'fn_manage_staff_profile',
-    'fn_open_cash_register', 'fn_pay_purchase_order', 'fn_read_employees_secure',
+    'fn_open_cash_register', 'fn_pay_purchase_order', 'fn_platform_admin_execute',
+    'fn_platform_admin_list_audit_logs', 'fn_platform_admin_list_businesses',
+    'fn_read_employees_secure',
     'fn_read_inventory_stock_secure', 'fn_read_inventory_transactions_secure',
     'fn_read_purchase_order_items_secure', 'fn_read_sale_items_secure',
     'fn_receive_manual_stock', 'fn_receive_purchase_order',
     'fn_reconcile_business_alerts', 'fn_record_cash_movement', 'fn_record_waste',
     'fn_reverse_expense', 'fn_reverse_loyalty_for_sale', 'fn_reverse_po_payment',
     'fn_reverse_purchase_order', 'fn_reverse_sale', 'fn_save_product',
-    'fn_save_task', 'fn_start_break', 'fn_toggle_task_status',
+    'fn_save_task', 'fn_session_access_status', 'fn_start_break', 'fn_toggle_task_status',
     'fn_transfer_inventory', 'fn_write_audit', 'user_can',
   ],
   edgeFunctions: ['manage-staff-user', 'platform-admin'],
@@ -89,6 +92,9 @@ export const functionSignatureContract = Object.freeze({
   fn_manage_staff_profile: 'p_operation text, p_actor_user_id uuid, p_target_user_id uuid, p_business_id uuid, p_employee_id uuid, p_name text, p_username text, p_role text, p_permission_overrides jsonb, p_active boolean',
   fn_open_cash_register: 'p_business_id uuid, p_location_id uuid, p_opening_cash numeric, p_notes text',
   fn_pay_purchase_order: 'p_purchase_order_id uuid, p_amount numeric, p_payment_method text',
+  fn_platform_admin_execute: 'p_request_id uuid, p_actor_user_id uuid, p_operation text, p_business_id uuid, p_target_status text',
+  fn_platform_admin_list_audit_logs: 'p_actor_user_id uuid, p_limit integer',
+  fn_platform_admin_list_businesses: 'p_actor_user_id uuid',
   fn_read_employees_secure: '',
   fn_read_inventory_stock_secure: '',
   fn_read_inventory_transactions_secure: '',
@@ -106,6 +112,7 @@ export const functionSignatureContract = Object.freeze({
   fn_reverse_sale: 'p_sale_id uuid',
   fn_save_product: 'p_business_id uuid, p_product_id uuid, p_operation text, p_name text, p_sku text, p_category text, p_price numeric, p_active boolean, p_description text, p_image_url text, p_recipe jsonb',
   fn_save_task: 'p_business_id uuid, p_task_id uuid, p_operation text, p_title text, p_assigned_to uuid, p_due_date date, p_priority text, p_notes text',
+  fn_session_access_status: '',
   fn_start_break: 'p_employee_id uuid',
   fn_toggle_task_status: 'p_task_id uuid, p_status text',
   fn_transfer_inventory: 'p_business_id uuid, p_inventory_item_id uuid, p_from_location_id uuid, p_to_location_id uuid, p_qty numeric, p_notes text',
@@ -117,9 +124,12 @@ export const knownDeployedFingerprints = Object.freeze({
   fn_create_sale: 'aabbddc8a9c4a37a171b8a269e9c3139',
 });
 
-const preparedFunctionNames = new Set(['fn_manage_staff_profile']);
+const preparedFunctionNames = new Set([
+  'fn_manage_staff_profile', 'fn_platform_admin_execute', 'fn_platform_admin_list_audit_logs',
+  'fn_platform_admin_list_businesses', 'fn_session_access_status',
+]);
 
-// `status` is evidence, not intent. Only one database migration below has documented proof of
+// `status` is evidence, not intent. Only database migrations with documented TEST proof are
 // installation in TEST. A prepared artifact must never be promoted to `deployed_test` merely
 // because its source or static regression passes.
 export const deliveryUnits = Object.freeze([
@@ -135,12 +145,12 @@ export const deliveryUnits = Object.freeze([
   },
   {
     id: 'catalog-security-hardening',
-    status: 'prepared_unapplied',
+    status: 'deployed_test',
     apply: 'migrations/20261017_catalog_security_hardening_TEST.sql',
     verify: 'qa/sql/catalog_security_hardening_preflight_readonly_TEST.sql',
     rollback: 'migrations/20261017_catalog_security_hardening_rollback_TEST.sql',
     dependsOn: ['baseline-schema', 'deployed-catalog-reviewed'],
-    authorization: 'test_migration_required',
+    authorization: 'already_applied_test_evidence_16_of_16',
   },
   {
     id: 'cash-register-finite-guard',
@@ -205,11 +215,14 @@ export const deliveryUnits = Object.freeze([
     id: 'platform-admin-control-plane',
     status: 'prepared_unapplied',
     apply: 'migrations/20261016_platform_admin_TEST.sql',
-    verify: 'qa/sql/platform_admin_preflight_readonly_TEST.sql',
+    preflight: 'qa/sql/platform_admin_cutover_preflight_readonly_TEST.sql',
+    verify: 'qa/sql/platform_admin_single_authority_preflight_readonly_TEST.sql',
     rollback: 'migrations/20261016_platform_admin_rollback_TEST.sql',
+    claimTool: 'scripts/prepare-superadmin-claim.mjs',
+    edge: 'supabase/functions/platform-admin/index.ts',
     dependsOn: ['baseline-schema', 'deployed-catalog-reviewed', 'catalog-security-hardening'],
-    authorization: 'test_migration_deploy_and_superadmin_required',
-    unresolvedGate: 'global_suspension_enforcement_requires_deployed_rls_and_rpc_catalog',
+    authorization: 'test_edge_claim_cutover_and_live_validation_required',
+    unresolvedGate: 'signed_claim_cutover_and_live_role_denials_require_specific_authorization',
   },
 ]);
 
@@ -230,7 +243,7 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const resolveRepo = (relativePath) => new URL(relativePath, pathToFileURL(ROOT));
 
 export function artifactInventory() {
-  const deliveryArtifacts = deliveryUnits.flatMap((unit) => ['apply', 'verify', 'rollback', 'edge']
+  const deliveryArtifacts = deliveryUnits.flatMap((unit) => ['apply', 'preflight', 'verify', 'rollback', 'claimTool', 'edge']
     .filter((kind) => unit[kind])
     .map((kind) => {
       const path = unit[kind];

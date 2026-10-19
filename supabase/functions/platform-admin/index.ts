@@ -105,11 +105,16 @@ Deno.serve(async (req: Request) => {
     const command = parsePlatformAdminRequest(input);
 
     if (command.operation === "list_businesses") {
-      const businesses = await serviceRpc(config, "fn_platform_admin_list_businesses", {});
+      const businesses = await serviceRpc(config, "fn_platform_admin_list_businesses", {
+        p_actor_user_id: authUser.id,
+      });
       return jsonResponse({ ok: true, businesses: Array.isArray(businesses) ? businesses : [] }, 200, origin);
     }
     if (command.operation === "list_audit_logs") {
-      const auditLogs = await serviceRpc(config, "fn_platform_admin_list_audit_logs", { p_limit: 50 });
+      const auditLogs = await serviceRpc(config, "fn_platform_admin_list_audit_logs", {
+        p_actor_user_id: authUser.id,
+        p_limit: 50,
+      });
       return jsonResponse({ ok: true, audit_logs: Array.isArray(auditLogs) ? auditLogs : [] }, 200, origin);
     }
 

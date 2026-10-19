@@ -31,6 +31,9 @@ for (const file of files) {
     assert.match(auth, /loadAuthenticatedProfile\(result\.user\?\.id, result\.user\)/);
     const loader = section(source, 'async function loadAuthenticatedProfile', '/* ============================== SUPABASE DATA');
     assert.match(loader, /platformRole: platformRoleFromAuthUser\(authUser\)/);
+    assert.match(loader, /fn_session_access_status/);
+    assert.match(loader, /BUSINESS_SUSPENDED/);
+    assert.match(loader, /This business is suspended/);
   });
 
   test(`${file}: control plane goes only through the protected Edge Function`, () => {
@@ -62,7 +65,17 @@ for (const file of files) {
     assert.match(view, /callPlatformAdmin\("list_audit_logs"\)/);
     assert.match(view, /callPlatformAdmin\("revoke_license", \{ request_id: action\.requestId/);
     assert.match(view, /requestId: newDbId\(\)/);
+    assert.match(view, /business\.id === currentUser\.businessId/);
+    assert.match(view, /disabled=\{ownActiveTenant \|\| actionBusy\}/);
+    assert.match(view, /if \(!action \|\| actionBusy\) return/);
+    assert.match(view, /finally \{\s*setActionBusy\(false\)/);
     assert.doesNotMatch(view, /catch \(e\) \{\s*setPendingAction\(null\)/);
+  });
+
+  test(`${file}: session status RPC is treated as a read-only recovery diagnostic`, () => {
+    const rest = section(source, 'const supabaseRest =', 'function encodeStorageObjectPath');
+    assert.match(rest, /"fn_session_access_status"/);
+    assert.match(rest, /const harmless =/);
   });
 }
 

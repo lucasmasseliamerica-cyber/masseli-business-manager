@@ -102,3 +102,26 @@ The [real-role account plan](./QA_REAL_ROLE_ACCOUNT_PLAN.md) now prepares a sani
 - O pós-preflight oficial não produziu agregado: PostgreSQL `42601` em quatro chamadas inválidas a `pg_catalog.position(... IN ...)`. O arquivo foi corrigido para `pg_catalog.strpos(text, substring)`, preservando transação `READ ONLY`, 16 checks e `ROLLBACK`. A evidência sanitizada está em `qa/evidence/catalog-hardening-apply-reported-20261018.json`.
 - A regressão do parser, a suíte estática e o build passaram localmente. Ainda é obrigatório executar o pós-preflight corrigido diretamente no TEST e reter seu resultado real; os checks independentes não substituem esse agregado. Administração Comercial, produção, usuários, dados e demais migrações não foram alterados nesta entrega.
 - Commit `97ee4356431e25a8186fb0d05aca7ca558c3d2b0`; [CI #172](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39124630797) `SUCCESS`: **12/12 jobs, 489/489 PASS, 0 FAIL, 0 SKIPPED**, com preflight autenticado `PASS [OK]`.
+
+## Administração Comercial — pacote de autoridade única preparado em 2026-10-19
+
+- O usuário confirmou o pós-preflight do hardening público em **16/16 PASS** e a CI #174 em
+  **12/12 jobs, 489/489 PASS**. O hardening já aplicado não deve ser reaplicado.
+- O estado real de Administração Comercial continua: um operador legado ativo/OWNER, nenhum claim
+  assinado SUPERADMIN e preflight de autoridade em `BLOCKED_AUTHORITY_CUTOVER` 0/4.
+- O pacote antigo foi substituído por
+  [QA_PLATFORM_ADMIN_SINGLE_AUTHORITY_20261019.md](./QA_PLATFORM_ADMIN_SINGLE_AUTHORITY_20261019.md).
+  A nova migração exige fingerprints exatos, instala RPCs que revalidam o claim no banco e revoga
+  operador/endpoints legados no mesmo `COMMIT`. Não há um estado confirmado em que os dois planos
+  estejam utilizáveis.
+- Suspensão agora está preparada como gate real em `current_business_id`, `user_can`, facades
+  sensíveis, policies de empresa/configuração e export de backup. UPDATE tenant de `businesses`
+  fica limitado às sete colunas de configuração; campos comerciais ficam server-only. A própria
+  empresa do único SUPERADMIN não pode ser suspensa.
+- Evidência local: **24/24** regressões focadas; aplicação em PostgreSQL 17 descartável; pós-preflight
+  **20/20**; negação sintética OWNER/MANAGER/EMPLOYEE/operador legado **4/4**; rollback completo
+  aprovado. Isso não equivale a implantação ou homologação real no TEST.
+- Nenhum claim, operador, usuário, banco TEST ou Edge Function implantada foi alterado. Próxima
+  sequência autorizável: (1) deploy Edge TEST, (2) claim na identidade do único operador, (3)
+  preflight somente leitura, (4) autorização específica do cutover, (5) pós-preflight, (6)
+  sessões reais e operações comerciais reversíveis com autorização separada.

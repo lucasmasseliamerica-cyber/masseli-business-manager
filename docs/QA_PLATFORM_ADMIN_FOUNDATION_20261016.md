@@ -1,5 +1,9 @@
 # NEXALVO — fundação segura da Administração Comercial
 
+> Atualização de 2026-10-19: esta fundação foi integrada ao pacote de
+> [autoridade única SUPERADMIN](./QA_PLATFORM_ADMIN_SINGLE_AUTHORITY_20261019.md), que acrescenta
+> cutover atômico, suspensão efetiva, recuperação e rollback fail-closed.
+
 Data: 2026-10-16
 Branch: `automation/nexalvo-qa-actions`
 
