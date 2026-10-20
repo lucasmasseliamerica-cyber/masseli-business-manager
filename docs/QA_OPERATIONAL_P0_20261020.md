@@ -67,7 +67,12 @@ está identificado e não equivale a sessão/browser real. Novos mocks não prom
 - SQL operacional novo é **somente leitura e validado estaticamente**, não executado no TEST:
   [operational_release_preflight_readonly_TEST.sql](../qa/sql/operational_release_preflight_readonly_TEST.sql).
   Retém fingerprints/assinaturas e informa pendências; o marcador esperado não prova o projeto.
-- CI desta entrega será registrada após o push. A baseline histórica é
+- **Publicação/CI desta entrega: BLOQUEADAS.** Commit local `8faade0` contém o pacote validado.
+  Push HTTPS não obteve autenticação; tentativa com credential helper temporário do GitHub CLI
+  também foi recusada. Management API GitHub retornou `Forbidden`. Nenhuma credencial foi gravada.
+  É necessário restabelecer autenticação segura para escrita de código e arquivos em
+  `.github/workflows`, além de leitura de Actions. A última branch remota observada é `cad6ad0`.
+  Não há execução CI para `8faade0`; a baseline histórica é
   [#180](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096),
   12/12 jobs e 539/539 verificações. Não usar essa contagem como resultado das alterações atuais.
 
@@ -84,6 +89,8 @@ agora exigem **workflow_dispatch + authorize_persistent_test_flows=true**, e cad
 espera seis relatórios TAP e registra **quatro grupos BLOCKED**, sem contá-los como PASS.
 Com autorização manual, espera dez relatórios; compras persistentes via browser continuam fora.
 CI verde no escopo seguro não representa regressão persistente integral ou homologação comercial.
+Esses guards estão no commit local; só serão ativados no GitHub após publicação. Não reexecutar
+a workflow histórica automaticamente para tentar validar este pacote, pois ela contém writes.
 
 Sequência preparada para revisão, **sem aplicar**:
 
@@ -108,3 +115,8 @@ Sequência preparada para revisão, **sem aplicar**:
 
 **Próxima prioridade:** desbloquear Storage privado e sessão/fixtures de homologação operacional;
 em seguida validar jornadas reais e os patches financeiros. O aplicativo não está 100% homologado.
+
+Antes dessa etapa: restaurar acesso GitHub, publicar os commits locais e acompanhar a CI segura.
+Um bundle de recuperação será salvo em `/workspace/nexalvo-audit/operational/nexalvo-operational.bundle`.
+Após recuperar a autenticação, conferir remoto/HEAD preservando alterações e fazer push somente
+para `automation/nexalvo-qa-actions`. Não repetir os testes locais aprovados se o código não mudou.

@@ -23,6 +23,14 @@ explícita habilita esses grupos; push roda escopo seguro com quatro BLOCKED dec
 Não chamar a nova CI de 12/12 homologação integral. Teste browser persistente P0.05 segue desativado.
 Novo SQL de inventário operacional é somente leitura/preparado, ainda não executado no TEST.
 
+**Retomada da publicação:** código local `8faade0`, validado em 365/365 regressões completas,
+4/4 browser HTTP simulados também com Vite 6.4.4 e build PASS. Push default e helper temporário
+do GitHub CLI recusados por autenticação; API GitHub Forbidden. Remoto observado: `cad6ad0`.
+Nenhuma CI executada para esse código; #180 é somente baseline. Restabelecer credencial segura
+com escrita de Contents/workflows e leitura de Actions, publicar a branch QA e acompanhar o
+escopo seguro. Não reexecutar CI histórica com writes antes de publicar os guards novos.
+Recuperação: `/workspace/nexalvo-audit/operational/nexalvo-operational.bundle`.
+
 ## Estado vigente — migração comercial aplicada; Edge ainda bloqueada
 
 Ler [QA_PLATFORM_ADMIN_UI_RUNTIME_20261020.md](./QA_PLATFORM_ADMIN_UI_RUNTIME_20261020.md).
