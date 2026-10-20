@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 export const LANGUAGE_STORAGE_KEY = "nexalvo.ui.language.v1";
 export const PORTUGUESE = {
+  "Platform administration is not configured. Ask the platform administrator to complete the service configuration, then refresh.": "A administração comercial não está configurada. Peça ao administrador da plataforma para concluir a configuração do serviço e atualize o painel.",
+  "Platform data could not be loaded. Ask the platform administrator to check the database configuration and permissions.": "Não foi possível carregar os dados da plataforma. Peça ao administrador para verificar a configuração e as permissões do banco.",
+  "Your account is not authorized for platform administration.": "Sua conta não está autorizada a acessar a administração comercial.",
+  "Your session has expired. Sign in again.": "Sua sessão expirou. Entre novamente.",
+  "This application address is not allowed by the platform service. Contact the platform administrator.": "Este endereço do aplicativo não está autorizado pelo serviço da plataforma. Entre em contato com o administrador.",
+  "Platform service unavailable": "Serviço da plataforma indisponível",
+  "No tenant data was loaded through the public client. Try again after the service configuration is corrected.": "Nenhum dado de empresa foi carregado. Tente novamente após a correção da configuração do serviço.",
   "TOTAL CUSTOMERS": "TOTAL DE CLIENTES",
   "ACTIVE CUSTOMERS": "CLIENTES ATIVOS",
   "LOYALTY POINTS OUTSTANDING": "PONTOS DE FIDELIDADE EM SALDO",

@@ -1,0 +1,37 @@
+{
+  "project_ref": "msinksoilkluooxenecy",
+  "observed_at_utc": "2026-10-20T05:29:26.081Z",
+  "evidence_type": "LIVE_READ_ONLY_API_OBSERVATIONS",
+  "source_commit": "25d403808a37d05ab11ce4e92a27d1cf1c4b2da5",
+  "status": "BLOCKED_COMMERCIAL_PANEL_ACCEPTANCE",
+  "configuration": {
+    "local_origin": "http://127.0.0.1:5173",
+    "local_origin_preflight_http_status": 204,
+    "local_origin_exact_allow_header": true,
+    "unknown_origin_preflight_http_status": 403,
+    "unknown_origin_code": "ORIGIN_DENIED",
+    "edge_read_http_status": 503,
+    "edge_read_code": "PLATFORM_NOT_CONFIGURED",
+    "management_access_available_in_session": false,
+    "edge_secret_inventory_verified": false,
+    "configuration_changed": false
+  },
+  "identity": {
+    "auth_admin_inventory_complete": true,
+    "active_signed_superadmins": 1,
+    "superadmin_has_active_application_profile": true,
+    "superadmin_matches_legacy_operator": "NOT_VERIFIED",
+    "authenticated_superadmin_session_available_in_session": false,
+    "identity_changes_executed": false
+  },
+  "rpc_contracts": [
+    { "name": "fn_platform_admin_list_businesses", "service_role_openapi_discoverable": false, "readonly_http_status": 404, "postgrest_code": "PGRST202" },
+    { "name": "fn_platform_admin_list_audit_logs", "service_role_openapi_discoverable": false, "readonly_http_status": 404, "postgrest_code": "PGRST202" },
+    { "name": "fn_platform_admin_execute", "service_role_openapi_discoverable": false, "readonly_http_status": 404, "postgrest_code": "PGRST202" }
+  ],
+  "rpc_scope": "GET_ONLY_NO_COMMERCIAL_EXECUTION",
+  "database_catalog_access_available_in_session": false,
+  "rpc_absence_vs_grants_or_schema_cache": "REQUIRES_READ_ONLY_SQL_CATALOG",
+  "persistent_writes_executed": false,
+  "businesses_and_licenses_loaded_with_real_superadmin_session": false
+}

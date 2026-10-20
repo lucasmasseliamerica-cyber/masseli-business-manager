@@ -1,5 +1,23 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Estado mais recente — Administração Comercial, 2026-10-20
+
+Ler [QA_PLATFORM_ADMIN_RUNTIME_20261020.md](./QA_PLATFORM_ADMIN_RUNTIME_20261020.md) antes dos
+checkpoints históricos abaixo. Leitura real confirmou um SUPERADMIN assinado ativo com perfil ativo,
+Edge respondendo, origem exata `http://127.0.0.1:5173` permitida e origem desconhecida negada.
+O estado antigo de zero SUPERADMIN não é mais atual. O vínculo ao operador legado ainda exige SQL.
+
+O runtime Edge retorna 503 `PLATFORM_NOT_CONFIGURED`. As três RPCs novas estão inacessíveis no
+OpenAPI/probes GET de service_role (404 `PGRST202`); não concluir ausência física sem catálogo SQL.
+Faltam acesso de gestão aos Secrets, acesso SQL e sessão SUPERADMIN nesta execução.
+`scripts/configure-platform-admin-test.mjs` prepara a configuração sem sobrescrever origens;
+`qa/sql/platform_admin_runtime_preflight_readonly_TEST.sql` diagnostica contratos e grants.
+O helper foi executado somente em dry-run e bloqueou sem escrita. Não remover o gate, recriar
+claims, executar cutover, rollback ou operações comerciais sem as autorizações específicas.
+
+CI #175 (`39282742007`) e #177 (`39290656209`) foram consultadas e aparecem SUCCESS; essas execuções
+precedem as correções de configuração desta entrega. Nenhuma contagem foi inferida de seus logs.
+
 ## Propósito
 Este arquivo é o ponto de entrada para retomar o NEXALVO em uma nova conversa do ChatGPT. Não é um retrato imutável nem prova de homologação: **sempre consultar os dados atuais no GitHub**.
 

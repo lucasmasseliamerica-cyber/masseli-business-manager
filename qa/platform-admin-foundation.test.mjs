@@ -15,6 +15,43 @@ function section(source, startToken, endToken) {
 for (const file of files) {
   const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 
+  test(`${file}: Edge errors retain status/code and give configuration-specific feedback`, async () => {
+    let requests = 0;
+    const context = vm.createContext({
+      Object,
+      supabaseAuth: { restoreSession: async () => ({ accessToken: 'test-session' }) },
+      SUPABASE_URL: 'https://msinksoilkluooxenecy.supabase.co',
+      SUPABASE_ANON_KEY: 'test-public-key',
+      fetch: async () => { requests++; return { ok: false, status: 503,
+        json: async () => ({ error: 'Platform administration is not configured for this project.', code: 'PLATFORM_NOT_CONFIGURED' }) }; },
+    });
+    vm.runInContext(section(source, 'async function callSupabaseFunction', 'const PLATFORM_BUSINESS_STATUSES')
+      + ';globalThis.request=callPlatformAdmin;globalThis.message=platformAdminFailureMessage;', context);
+    await assert.rejects(context.request('list_businesses'), error => {
+      assert.equal(error.status, 503);
+      assert.equal(error.code, 'PLATFORM_NOT_CONFIGURED');
+      assert.match(context.message(error), /complete the service configuration/);
+      return true;
+    });
+    assert.equal(requests, 1, 'an error does not silently retry or call commercial mutations');
+    assert.match(context.message({ code: 'AUTH_INVALID' }), /Sign in again/);
+    assert.match(context.message({ code: 'ORIGIN_DENIED' }), /application address/);
+    assert.match(context.message({ code: 'PLATFORM_DEPENDENCY_FAILED' }), /database configuration and permissions/);
+    assert.equal(context.message({ code: 'toString', message: 'safe fallback' }), 'safe fallback');
+  });
+
+  test(`${file}: expired session makes no Edge request`, async () => {
+    let requests = 0;
+    const context = vm.createContext({
+      supabaseAuth: { restoreSession: async () => null },
+      fetch: async () => { requests++; },
+    });
+    vm.runInContext(section(source, 'async function callSupabaseFunction', 'const PLATFORM_BUSINESS_STATUSES')
+      + ';globalThis.request=callPlatformAdmin;', context);
+    await assert.rejects(context.request('list_businesses'), /session has expired/);
+    assert.equal(requests, 0);
+  });
+
   test(`${file}: platform role trusts only the server-controlled app_metadata claim`, () => {
     const context = vm.createContext({});
     vm.runInContext(section(source, 'const PLATFORM_ADMIN_ROLE =', 'async function loadAuthenticatedProfile') + ';globalThis.readRole=platformRoleFromAuthUser;globalThis.isAdmin=isPlatformAdmin;', context);

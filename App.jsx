@@ -2431,8 +2431,26 @@ async function callSupabaseFunction(functionName, payload = {}) {
     body: JSON.stringify(payload),
   });
   const body = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(body?.error || `${functionName} failed (${res.status})`);
+  if (!res.ok) {
+    const error = new Error(body?.error || `${functionName} failed (${res.status})`);
+    error.status = res.status;
+    error.code = typeof body?.code === "string" && /^[A-Z0-9_]{1,80}$/.test(body.code) ? body.code : null;
+    throw error;
+  }
   return body;
+}
+
+function platformAdminFailureMessage(error) {
+  const messages = {
+    PLATFORM_NOT_CONFIGURED: "Platform administration is not configured. Ask the platform administrator to complete the service configuration, then refresh.",
+    PLATFORM_DEPENDENCY_FAILED: "Platform data could not be loaded. Ask the platform administrator to check the database configuration and permissions.",
+    PLATFORM_ACCESS_DENIED: "Your account is not authorized for platform administration.",
+    AUTH_REQUIRED: "Your session has expired. Sign in again.",
+    AUTH_INVALID: "Your session has expired. Sign in again.",
+    ORIGIN_DENIED: "This application address is not allowed by the platform service. Contact the platform administrator.",
+  };
+  return Object.hasOwn(messages, error?.code) ? messages[error.code]
+    : error?.message || "Platform administration is currently unavailable.";
 }
 
 // The commercial control plane is intentionally exposed only through one server boundary. The
@@ -10813,7 +10831,7 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
     } catch (e) {
       setBusinesses([]);
       setAuditLogs([]);
-      setError(e?.message || "Platform administration is currently unavailable.");
+      setError(platformAdminFailureMessage(e));
     } finally {
       setLoading(false);
     }
@@ -10848,7 +10866,7 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
       setPendingAction(null);
       await loadBusinesses();
     } catch (e) {
-      showToast(e?.message || "The platform action failed.", "danger");
+      showToast(platformAdminFailureMessage(e), "danger");
     } finally {
       setActionBusy(false);
     }
@@ -10872,7 +10890,7 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
         <div role="alert" className="mb-4 px-4 py-3 rounded-2xl text-xs font-semibold" style={{ background: "#3A0F1E", color: "#FF6B85", border: "1px solid #FF6B85" }}>
           <div className="font-bold mb-1">{translateUI("Platform service unavailable")}</div>
           <div>{translateUI(error)}</div>
-          <div className="mt-2 font-normal">{translateUI("No tenant data was loaded through the public client. Deploy and configure the protected platform-admin service before using this panel.")}</div>
+          <div className="mt-2 font-normal">{translateUI("No tenant data was loaded through the public client. Try again after the service configuration is corrected.")}</div>
         </div>
       )}
 

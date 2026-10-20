@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { configurePlatformAdminTest, LOCAL_ORIGIN, TEST_PROJECT_REF } from '../scripts/configure-platform-admin-test.mjs';
 import {
   allowedOrigin,
   parsePlatformAdminRequest,
@@ -17,6 +18,120 @@ const preflight = readFileSync(new URL('./sql/platform_admin_cutover_preflight_r
 const postflight = readFileSync(new URL('./sql/platform_admin_single_authority_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const rollback = readFileSync(new URL('../migrations/20261016_platform_admin_rollback_TEST.sql', import.meta.url), 'utf8');
 const claimTool = readFileSync(new URL('../scripts/prepare-superadmin-claim.mjs', import.meta.url), 'utf8');
+
+function configurationHarness({ marker = false, origins = true, cors = true, missingService = false, configured = false } = {}) {
+  const calls = [];
+  const base = `https://${TEST_PROJECT_REF}.supabase.co`;
+  const secretNames = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', ['SUPABASE', 'SERVICE', 'ROLE', 'KEY'].join('_')];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, method: options.method || 'GET', body: options.body });
+    if (url === `https://api.supabase.com/v1/projects/${TEST_PROJECT_REF}/secrets`) {
+      if (options.method === 'POST') return new Response(null, { status: 201 });
+      const names = [...(missingService ? secretNames.slice(0, 2) : secretNames),
+        ...(marker ? ['NEXALVO_ALLOWED_PROJECT_REF'] : []),
+        ...(origins ? ['PLATFORM_ADMIN_ALLOWED_ORIGINS'] : [])];
+      return Response.json(names.map(name => ({ name, value: 'do-not-log-secret-value' })));
+    }
+    assert.equal(url, `${base}/functions/v1/platform-admin`);
+    if (options.method === 'OPTIONS') {
+      return new Response(null, { status: cors ? 204 : 403,
+        headers: cors ? { 'access-control-allow-origin': LOCAL_ORIGIN } : {} });
+    }
+    assert.equal(options.body, JSON.stringify({ operation: 'list_businesses' }));
+    return Response.json(configured ? { code: 'AUTH_INVALID' } : { code: 'PLATFORM_NOT_CONFIGURED' },
+      { status: configured ? 401 : 503 });
+  };
+  return { calls, fetchImpl, env: { SUPABASE_ACCESS_TOKEN: 'test-management-token', VITE_SUPABASE_URL: base, VITE_SUPABASE_ANON_KEY: 'test-public-key' } };
+}
+
+test('TEST configuration requires management access and exact HTTPS project before networking', async () => {
+  let calls = 0;
+  const fetchImpl = async () => { calls++; throw new Error('must not connect'); };
+  assert.equal((await configurePlatformAdminTest({ env: {}, fetchImpl })).reason, 'MANAGEMENT_ACCESS_UNAVAILABLE');
+  for (const url of ['http://msinksoilkluooxenecy.supabase.co', 'https://msinksoilkluooxenecy.example.com', 'https://other.supabase.co', 'not-a-url']) {
+    const result = await configurePlatformAdminTest({ env: { SUPABASE_ACCESS_TOKEN: 'test', SUPABASE_URL: url }, fetchImpl, apply: true });
+    assert.equal(result.reason, 'TEST_URL_REQUIRED');
+  }
+  assert.equal(calls, 0);
+});
+
+test('configuration dry-run preserves existing CORS and emits neither secret values nor writes', async () => {
+  const h = configurationHarness();
+  const result = await configurePlatformAdminTest(h);
+  assert.equal(result.status, 'READY');
+  assert.deepEqual(result.planned_updates, ['NEXALVO_ALLOWED_PROJECT_REF']);
+  assert.deepEqual(result.changed, []);
+  assert.ok(h.calls.every(c => c.method !== 'POST'));
+  assert.doesNotMatch(JSON.stringify(result), /do-not-log|test-management-token|test-public-key/);
+});
+
+test('authorized configuration adds only the missing project marker, preserving all origins', async () => {
+  const h = configurationHarness({ configured: true });
+  const result = await configurePlatformAdminTest({ ...h, apply: true });
+  const writes = h.calls.filter(c => c.url.startsWith('https://api.supabase.com') && c.method === 'POST');
+  assert.equal(writes.length, 1);
+  assert.deepEqual(JSON.parse(writes[0].body), [{ name: 'NEXALVO_ALLOWED_PROJECT_REF', value: TEST_PROJECT_REF }]);
+  assert.equal(result.status, 'PASS');
+  assert.deepEqual(result.changed, ['NEXALVO_ALLOWED_PROJECT_REF']);
+  assert.equal(result.reason, 'CONFIGURED_AUTHENTICATED_VALIDATION_STILL_REQUIRED');
+});
+
+test('an existing origin allowlist is never overwritten when a safe merge is unavailable', async () => {
+  const h = configurationHarness({ cors: false });
+  const result = await configurePlatformAdminTest({ ...h, apply: true });
+  assert.equal(result.reason, 'EXISTING_ORIGINS_REQUIRE_SAFE_MERGE');
+  assert.ok(h.calls.every(c => c.method !== 'POST'));
+});
+
+test('a new origin list is prepared only when the list is entirely absent', async () => {
+  const h = configurationHarness({ cors: false, origins: false });
+  const result = await configurePlatformAdminTest(h);
+  assert.equal(result.status, 'READY');
+  assert.deepEqual(result.planned_updates, ['PLATFORM_ADMIN_ALLOWED_ORIGINS', 'NEXALVO_ALLOWED_PROJECT_REF']);
+  assert.ok(h.calls.every(c => c.method !== 'POST'));
+});
+
+test('successful secret update never substitutes for verifying the resulting origin', async () => {
+  const h = configurationHarness({ cors: false, origins: false, configured: true });
+  const result = await configurePlatformAdminTest({ ...h, apply: true });
+  assert.equal(result.reason, 'ORIGIN_STILL_UNVERIFIED');
+  assert.equal(result.status, 'BLOCKED');
+  assert.equal(h.calls.filter(c => c.method === 'OPTIONS').length, 2);
+});
+
+test('configuration refuses writes if any service variable is missing', async () => {
+  const h = configurationHarness({ missingService: true });
+  const result = await configurePlatformAdminTest({ ...h, apply: true });
+  assert.equal(result.reason, 'REQUIRED_SERVICE_VARIABLE_MISSING');
+  assert.ok(h.calls.every(c => c.method !== 'POST'));
+});
+
+test('an existing marker with a failing configuration probe remains blocked without overwrite', async () => {
+  const h = configurationHarness({ marker: true });
+  const result = await configurePlatformAdminTest({ ...h, apply: true });
+  assert.equal(result.reason, 'PLATFORM_CONFIGURATION_STILL_INCOMPLETE');
+  assert.deepEqual(result.changed, []);
+  assert.ok(!h.calls.some(c => c.url.startsWith('https://api.supabase.com') && c.method === 'POST'));
+});
+
+test('management errors never expose raw responses or exception details', async () => {
+  const h = configurationHarness();
+  const denied = await configurePlatformAdminTest({ ...h, fetchImpl: async () => new Response('secret response', { status: 403 }) });
+  assert.equal(denied.reason, 'MANAGEMENT_ACCESS_REJECTED');
+  const network = await configurePlatformAdminTest({ ...h, fetchImpl: async () => { throw new Error('secret transport detail'); } });
+  assert.equal(network.reason, 'CONFIGURATION_ACCESS_UNAVAILABLE');
+  assert.doesNotMatch(JSON.stringify([denied, network]), /secret response|secret transport/);
+});
+
+test('runtime RPC diagnosis tolerates missing functions and is strictly read-only', () => {
+  const sql = readFileSync(new URL('./sql/platform_admin_runtime_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
+  assert.match(sql, /BEGIN TRANSACTION READ ONLY;/);
+  assert.match(sql, /LEFT JOIN pg_catalog\.pg_proc/);
+  assert.match(sql, /pg_catalog\.to_regprocedure/);
+  assert.match(sql, /NOT authenticated_executable AND NOT anon_executable AND NOT public_executable/);
+  assert.match(sql, /ROLLBACK;/);
+  assert.doesNotMatch(sql, /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE)\b/im);
+});
 
 test('server authorization accepts only the signed app_metadata SUPERADMIN claim', () => {
   assert.equal(requirePlatformAdmin({ id: validActor, app_metadata: { nexalvo_platform_role: 'SUPERADMIN' } }), validActor);
