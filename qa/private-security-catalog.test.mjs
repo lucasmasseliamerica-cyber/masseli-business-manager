@@ -85,16 +85,19 @@ test('frontend and privileged staff service share the same 20 permission keys', 
   assert.deepEqual(serviceKeys, appKeys);
 });
 
-test('prepared platform administration reconciles only the exact legacy operator into one signed authority', () => {
+test('prepared platform administration preserves the selected signed identity separately from the legacy operator', () => {
   assert.equal(evidence.audit_facts.confirmed.platform_access_requires_operator_and_active_profile, true);
   assert.equal(evidence.audit_facts.confirmed.platform_access_checks_signed_superadmin_claim, false);
   assert.equal(evidence.audit_facts.conditional.deployed_platform_authority_differs_from_prepared_signed_claim_authority, true);
   assert.match(platformMigration, /exactly one active legacy operator is required/);
-  assert.match(platformMigration, /signed claim must match the sole active operator/);
+  assert.match(platformMigration, /independent signed and legacy identities must be valid and distinct/);
+  assert.match(platformMigration, /actor_user_id <> legacy_operator_user_id/);
+  assert.match(platformMigration, /actor_tenant_role text NOT NULL/);
+  assert.match(platformMigration, /legacy_tenant_role text NOT NULL/);
   assert.match(platformMigration, /to_regnamespace\('nexalvo_platform'\)/);
   assert.match(platformPreflight, /legacy_authority_reconciliation_required/);
   assert.match(cutoverPreflight, /legacy_endpoint_definitions_exact/);
-  assert.match(cutoverPreflight, /claim_matches_active_legacy_operator/);
+  assert.match(cutoverPreflight, /independent_authority_identities_valid/);
   assert.match(platformMigration, /UPDATE nexalvo_platform\.operators SET active = false WHERE active/);
   assert.match(platformMigration, /REVOKE USAGE ON SCHEMA nexalvo_platform/);
   assert.match(operatorPreflight, /active_operator_without_signed_superadmin_claim/);

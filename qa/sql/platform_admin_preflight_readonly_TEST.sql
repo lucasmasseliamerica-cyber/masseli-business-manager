@@ -1,6 +1,7 @@
 -- READ ONLY. Run against NEXALVO TEST before reviewing 20261016_platform_admin_TEST.sql.
 -- Expected project: msinksoilkluooxenecy. This query does not identify the project by itself;
 -- the operator must verify the selected Supabase project before opening the SQL editor.
+-- Inventory only; application approval comes exclusively from platform_admin_cutover_preflight_readonly_TEST.sql.
 
 BEGIN TRANSACTION READ ONLY;
 SET LOCAL statement_timeout = '30s';
@@ -98,9 +99,8 @@ SELECT pg_catalog.jsonb_build_object(
     'provision', provision_wrapper_exists,
     'assign_first_owner', owner_wrapper_exists
   ),
-  'prepared_platform_admin_ready_to_apply',
-    NOT (private_schema_exists OR access_wrapper_exists OR directory_wrapper_exists
-      OR provision_wrapper_exists OR owner_wrapper_exists)
+  'official_cutover_preflight_required', true,
+  'legacy_authority_expected_before_cutover', private_schema_exists
 ) AS platform_admin_legacy_compatibility
 FROM legacy_authority;
 

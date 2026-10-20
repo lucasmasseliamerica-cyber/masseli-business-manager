@@ -220,7 +220,10 @@ test('atomic cutover has exact read-only baselines and retires the legacy author
   assert.match(preflight, /ROLLBACK;/);
   assert.match(preflight, /PASS_READY_FOR_ATOMIC_CUTOVER/);
   assert.match(preflight, /legacy_endpoint_definitions_exact/);
-  assert.match(preflight, /claim_matches_active_legacy_operator/);
+  assert.match(preflight, /independent_authority_identities_valid/);
+  assert.match(preflight, /valid_unsigned_legacy_operators = 1/);
+  assert.match(preflight, /signed_superadmins_distinct_from_active_operator = 1/);
+  assert.match(preflight, /count\(\*\) = 12 AND pg_catalog.bool_and\(COALESCE\(passed, false\)\)/);
   assert.match(preflight, /cb88feae5114dab5ff53ad35319544d4/);
   assert.match(preflight, /75c32789a68a73e29a8a82d33e3aad27/);
   assert.doesNotMatch(preflight, /^\s*(INSERT|UPDATE|DELETE|ALTER|DROP|TRUNCATE|CREATE)\b/im);
@@ -258,11 +261,17 @@ test('postflight proves one authority and remains strictly read only', () => {
 
 test('rollback is fail-closed, audit preserving and cannot recreate dual authority', () => {
   assert.match(rollback, /PREPARED ONLY: do not run/);
-  assert.match(rollback, /rollback refused: remove signed SUPERADMIN claims first/);
+  assert.match(rollback, /the one existing signed SUPERADMIN must be preserved/);
   assert.match(rollback, /rollback refused: platform request or audit history exists/);
   assert.match(rollback, /rollback refused: commercial platform state has changed/);
-  assert.match(rollback, /legacy_operator_ids/);
+  assert.match(rollback, /legacy_operator_user_id/);
   assert.match(rollback, /UPDATE nexalvo_platform\.operators AS o SET active = true/);
+  assert.match(rollback, /SET authority_state = 'ROLLED_BACK'/);
+  assert.doesNotMatch(rollback, /DROP TABLE nexalvo_private\.platform_authority_cutover/);
+  assert.doesNotMatch(rollback, /DROP SCHEMA nexalvo_private/);
+  assert.ok(rollback.indexOf("SET authority_state = 'ROLLED_BACK'") < rollback.indexOf('UPDATE nexalvo_platform.operators AS o SET active = true'));
+  assert.ok(rollback.indexOf('REVOKE ALL ON FUNCTION public.fn_platform_admin_execute') < rollback.indexOf('UPDATE nexalvo_platform.operators AS o SET active = true'));
+  assert.doesNotMatch(migration + rollback, /\bUPDATE\s+(?:auth\.users|public\.users)\b/i);
   assert.doesNotMatch(rollback, /\bCASCADE\b/i);
 });
 

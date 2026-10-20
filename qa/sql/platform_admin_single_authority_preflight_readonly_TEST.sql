@@ -45,7 +45,18 @@ WITH legacy_endpoints(signature) AS (
     count(*) AS marker_rows,
     count(*) FILTER (
       WHERE nexalvo_private.is_signed_superadmin(c.actor_user_id)
-        AND pg_catalog.cardinality(c.legacy_operator_ids) = 1
+        AND c.authority_state = 'ACTIVE'
+        AND c.actor_user_id <> c.legacy_operator_user_id
+        AND EXISTS (
+          SELECT 1 FROM public.users AS u WHERE u.id = c.actor_user_id AND u.active
+            AND u.role = c.actor_tenant_role AND u.business_id = c.actor_business_id
+        )
+        AND EXISTS (
+          SELECT 1 FROM nexalvo_platform.operators AS o
+          JOIN public.users AS u ON u.id = o.user_id AND u.active
+          WHERE o.user_id = c.legacy_operator_user_id AND NOT o.active
+            AND u.role = c.legacy_tenant_role AND u.business_id = c.legacy_business_id
+        )
     ) AS valid_marker_rows
   FROM nexalvo_private.platform_authority_cutover AS c
 ), admin_functions AS (
@@ -209,14 +220,14 @@ WITH legacy_endpoints(signature) AS (
 )
 SELECT pg_catalog.jsonb_build_object(
   'project_ref_expected', 'msinksoilkluooxenecy',
-  'status', CASE WHEN pg_catalog.bool_and(passed)
+  'status', CASE WHEN count(*) = 20 AND pg_catalog.bool_and(COALESCE(passed, false))
                  THEN 'PASS_SINGLE_SIGNED_AUTHORITY'
                  ELSE 'BLOCKED_AUTHORITY_CUTOVER'
             END,
   'passed', count(*) FILTER (WHERE passed),
-  'failed', count(*) FILTER (WHERE NOT passed),
+  'failed', count(*) FILTER (WHERE NOT COALESCE(passed, false)),
   'checks', pg_catalog.jsonb_agg(
-    pg_catalog.jsonb_build_object('name', name, 'passed', passed, 'detail', detail)
+    pg_catalog.jsonb_build_object('name', name, 'passed', COALESCE(passed, false), 'detail', detail)
     ORDER BY name
   )
 ) AS platform_admin_single_authority_postflight

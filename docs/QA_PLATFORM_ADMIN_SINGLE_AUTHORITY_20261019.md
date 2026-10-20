@@ -2,6 +2,10 @@
 
 Data: 2026-10-19
 
+**Reconciliação vigente:** [identidades distintas, 2026-10-20](./QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md).
+Preservar o SUPERADMIN já escolhido, seu perfil EMPLOYEE e o operador legado OWNER distinto.
+Não executar o helper de claims para esta transição. O rollback revisado também preserva o claim.
+
 Branch: `automation/nexalvo-qa-actions`
 
 Projeto autorizado: Supabase TEST `msinksoilkluooxenecy`
@@ -13,10 +17,10 @@ cutover atômico da autoridade legada `nexalvo_platform.operators` para uma úni
 baseada em `app_metadata.nexalvo_platform_role = SUPERADMIN`, assinada pelo Supabase Auth. Nenhuma
 migração, claim, publicação de Edge Function ou escrita foi executada no TEST nesta entrega.
 
-**BLOQUEADO NO TEST:** o estado real informado permanece com um operador legado ativo e nenhum
-SUPERADMIN assinado. O preflight real anterior, portanto, continua corretamente em
-`BLOCKED_AUTHORITY_CUTOVER`. CI ou PostgreSQL descartável não substituem o cutover e a homologação
-reais.
+**Estado histórico desta entrega:** em 2026-10-19 havia um operador legado e nenhum SUPERADMIN.
+O diagnóstico real posterior confirmou um SUPERADMIN EMPLOYEE distinto do operador OWNER;
+o preflight antigo obteve 11/12. A reconciliação de 2026-10-20 substitui a premissa de igualdade
+das identidades por validação independente e auditável. O preflight revisado ainda exige prova no TEST.
 
 ## Autoridade e fronteiras
 
@@ -25,7 +29,8 @@ reais.
 - A Edge Function revalida a sessão no Auth e o claim ao vivo em toda chamada. Listagens e escrita
   passam o UUID do ator para as RPCs.
 - As três RPCs novas são `SECURITY DEFINER`, usam `search_path` vazio, são executáveis somente por
-  `service_role` e revalidam no banco que o ator ainda possui claim assinado e perfil ativo.
+  `service_role` e revalidam no banco claim, perfil ativo e correspondência ao ator gravado no
+  marcador privado ACTIVE. Um claim posterior em outra identidade não amplia a autoridade.
 - As tabelas privadas não possuem acesso direto de `anon`, `authenticated` ou `service_role`.
   Somente as RPCs definidoras acessam requests, auditoria e marcador de cutover.
 - As oito funções/endpoints legados permanecem fisicamente presentes para recuperação, mas o
@@ -66,7 +71,8 @@ recebido. A homologação real ainda precisa provar negação de leitura e escri
 exige, entre outros pontos:
 
 - exatamente um operador legado ativo;
-- exatamente um claim assinado válido, na mesma identidade e com perfil ativo;
+- exatamente um claim assinado válido com perfil ativo e papel tenant preservado;
+- identidades distintas: operador legado OWNER válido sem claim e SUPERADMIN independente;
 - oito endpoints legados com fingerprints exatos e grants ainda íntegros;
 - ausência de colisões do plano novo;
 - fingerprints exatos de `current_business_id`, `user_can`, export de backup e hardening aplicado.
@@ -75,13 +81,13 @@ exige, entre outros pontos:
 claim único, operador/grants legados inativos, RPCs service-role-only, proteção privada, gates de
 suspensão, política/ACL de `businesses`, export de backup, bloqueio de autossuspensão e RPC de estado.
 
-O rollback recusa execução quando existe claim SUPERADMIN, request/auditoria administrativa ou
-qualquer estado comercial alterado. Ele usa o marcador privado para restaurar somente o operador
-original, recompõe funções/policies/ACLs anteriores e não usa `CASCADE`. Depois de uma operação
-administrativa real, o rollback destrutivo deixa de ser elegível; a recuperação deve corrigir o
-plano novo preservando o histórico.
+O rollback revisado preserva o claim existente e os perfis. Recusa request/auditoria administrativa,
+estado comercial alterado, identidade de recuperação inválida ou drift no código legado. Desativa
+o marcador e remove as RPCs novas na mesma transação que restaura somente o operador original.
+Preserva permanentemente o marcador privado como ROLLED_BACK, recompõe funções/policies/ACLs
+anteriores e não usa `CASCADE`. Havendo histórico, corrigir o plano novo em vez de apagá-lo.
 
-## Evidências locais
+## Evidências históricas locais — substituídas pela regressão vigente de identidades distintas
 
 | Teste | Resultado | Evidência | Limite |
 |---|---:|---|---|
@@ -93,29 +99,29 @@ plano novo preservando o histórico.
 | Suspensão tenant/export e autossuspensão | **PASS** | contexto e permissão nulos, status `BUSINESS_SUSPENDED`, export negado e tenant do SUPERADMIN protegido | Sessões sintéticas locais |
 | Rollback descartável | **PASS** | remoção simulada do claim, restauração do operador/ACL/fingerprints e `COMMIT` | Elegível porque não houve operação comercial |
 
-## Atribuição preparada do claim
+## Helper de claim — arquivado para este fluxo; não executar
 
 `scripts/prepare-superadmin-claim.mjs` opera em dry-run por padrão, aceita apenas o project ref TEST,
 valida a identidade Auth e preserva todo o restante de `app_metadata`. Não imprime UUID, e-mail,
 metadados, chave ou token. Uma escrita exige simultaneamente `--apply` e o gate
 `NEXALVO_CLAIM_CHANGE_AUTHORIZED=TEST_ONLY_EXPLICIT`.
 
-As variáveis devem existir somente no ambiente seguro de execução:
+O helper não integra mais os passos desta reconciliação. O claim já existe e não pode ser alterado.
+As variáveis abaixo descrevem somente a ferramenta histórica e não autorizam sua execução:
 
 - `SUPABASE_URL`;
 - `SUPABASE_SERVICE_ROLE_KEY`;
-- `NEXALVO_SUPERADMIN_USER_ID` (a identidade do único operador legado autorizado);
+- `NEXALVO_SUPERADMIN_USER_ID` (identidade explicitamente autorizada em outro escopo);
 - `NEXALVO_CLAIM_OPERATION=GRANT` ou `REMOVE`.
 
-O helper não prova que a identidade é o operador legado. Essa correspondência é obrigatoriamente
-confirmada pelo preflight SQL antes de qualquer cutover.
+O helper não prova elegibilidade para cutover. A reconciliação atual exige identidades distintas,
+sem criar outro SUPERADMIN, trocar o escolhido ou promover o EMPLOYEE a OWNER.
 
 ## Sequência exata de autorizações
 
-1. **Publicar a Edge Function somente no TEST.** Ainda sem claim, toda chamada continua negada.
-2. **Autorizar a atribuição do claim no TEST** à identidade do único operador legado existente.
-   Nenhuma conta ou e-mail novo é necessário. Executar o helper em dry-run antes do `--apply`.
-3. Executar o preflight de cutover somente leitura. Exigir `PASS_READY_FOR_ATOMIC_CUTOVER`; qualquer
+1. Preservar as duas identidades, claim, perfis e origens existentes. Não criar usuários.
+2. Revisar o pacote de reconciliação e confirmar a configuração da Edge já implantada no TEST.
+3. Executar o preflight revisado somente leitura. Exigir `PASS_READY_FOR_ATOMIC_CUTOVER` 12/12; qualquer
    drift mantém o bloqueio.
 4. **Autorizar especificamente a migração `20261016_platform_admin_TEST.sql` no TEST.** Ela realiza
    o corte em uma transação e não altera Auth.
@@ -125,7 +131,7 @@ confirmada pelo preflight SQL antes de qualquer cutover.
    empresa do SUPERADMIN: licença, revogação, suspensão e reativação. Validar auditoria e ausência de
    acesso tenant durante suspensão.
 
-Rollback exige outra autorização específica e a ordem: desabilitar a Edge Function, remover o
-claim assinado, confirmar zero histórico/estado alterado e só então executar o rollback. Remover o
-claim antes do rollback cria uma janela sem autoridade global; isso é intencional para impedir duas
-autoridades simultâneas.
+Rollback exige outra autorização específica: cessar chamadas administrativas, confirmar zero
+histórico/estado alterado e recuperação válida, então executar a transação revisada. Ela retira a
+autoridade nova antes de restaurar a antiga, com visibilidade atômica no COMMIT. Nunca remover o claim
+atual. O marcador retido impede reaplicação cega da migração; uma nova transição exige outro pacote.

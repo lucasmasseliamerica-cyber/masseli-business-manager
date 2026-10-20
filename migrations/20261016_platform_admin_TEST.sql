@@ -3,8 +3,8 @@
 -- qa/sql/platform_admin_cutover_preflight_readonly_TEST.sql on project msinksoilkluooxenecy.
 --
 -- Required order:
---   1. deploy the prepared Edge Function while no SUPERADMIN claim exists (it remains denied);
---   2. add the signed claim to the sole active legacy operator identity;
+--   1. preserve the existing signed SUPERADMIN and its tenant profile without changing Auth;
+--   2. independently validate the distinct, sole active legacy OWNER operator;
 --   3. obtain PASS_READY_FOR_ATOMIC_CUTOVER from the read-only preflight;
 --   4. apply this migration once.
 --
@@ -21,7 +21,8 @@ DO $cutover_preflight$
 DECLARE
   v_active_operators integer;
   v_signed_superadmins integer;
-  v_matching_authorities integer;
+  v_valid_superadmin_profiles integer;
+  v_valid_legacy_operators integer;
   v_endpoint record;
 BEGIN
   PERFORM pg_catalog.pg_advisory_xact_lock(
@@ -35,6 +36,11 @@ BEGIN
   IF pg_catalog.to_regnamespace('nexalvo_private') IS NOT NULL THEN
     RAISE EXCEPTION 'cutover preflight failed: new private schema already exists';
   END IF;
+
+  -- Freeze authority membership and profile/claim changes during this short, reviewed cutover.
+  -- Auth/profile writes may wait until COMMIT; ordinary reads remain available.
+  LOCK TABLE nexalvo_platform.operators IN SHARE ROW EXCLUSIVE MODE;
+  LOCK TABLE auth.users, public.users IN SHARE MODE;
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
     WHERE table_schema = 'public' AND table_name = 'businesses'
@@ -44,6 +50,13 @@ BEGIN
       )
   ) THEN
     RAISE EXCEPTION 'cutover preflight failed: platform business columns already exist';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_catalog.pg_proc AS p
+    JOIN pg_catalog.pg_namespace AS n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname LIKE 'fn_platform_admin_%'
+  ) THEN
+    RAISE EXCEPTION 'cutover preflight failed: new platform RPC collision';
   END IF;
 
   SELECT count(*)
@@ -56,21 +69,37 @@ BEGIN
 
   SELECT count(*) INTO v_signed_superadmins
   FROM auth.users AS a
-  JOIN public.users AS u ON u.id = a.id AND u.active
   WHERE a.raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'
     AND a.deleted_at IS NULL
     AND COALESCE(a.is_anonymous, false) = false
     AND (a.banned_until IS NULL OR a.banned_until <= pg_catalog.now());
-  SELECT count(*) INTO v_matching_authorities
+  SELECT count(*) INTO v_valid_superadmin_profiles
   FROM auth.users AS a
   JOIN public.users AS u ON u.id = a.id AND u.active
-  JOIN nexalvo_platform.operators AS o ON o.user_id = a.id AND o.active
+  JOIN public.businesses AS b ON b.id = u.business_id
   WHERE a.raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'
+    AND u.role IN ('OWNER', 'MANAGER', 'EMPLOYEE')
     AND a.deleted_at IS NULL
     AND COALESCE(a.is_anonymous, false) = false
     AND (a.banned_until IS NULL OR a.banned_until <= pg_catalog.now());
-  IF v_signed_superadmins <> 1 OR v_matching_authorities <> 1 THEN
-    RAISE EXCEPTION 'cutover preflight failed: signed claim must match the sole active operator';
+  SELECT count(*) INTO v_valid_legacy_operators
+  FROM nexalvo_platform.operators AS o
+  JOIN public.users AS u ON u.id = o.user_id AND u.active AND u.role = 'OWNER'
+  JOIN public.businesses AS b ON b.id = u.business_id
+  JOIN auth.users AS a ON a.id = o.user_id
+  WHERE o.active
+    AND (a.raw_app_meta_data ->> 'nexalvo_platform_role') IS DISTINCT FROM 'SUPERADMIN'
+    AND a.deleted_at IS NULL
+    AND COALESCE(a.is_anonymous, false) = false
+    AND (a.banned_until IS NULL OR a.banned_until <= pg_catalog.now());
+  IF v_signed_superadmins <> 1 OR v_valid_superadmin_profiles <> 1
+     OR v_valid_legacy_operators <> 1 THEN
+    RAISE EXCEPTION 'cutover preflight failed: independent signed and legacy identities must be valid and distinct';
+  END IF;
+  IF NOT pg_catalog.has_schema_privilege('authenticated', 'nexalvo_platform', 'USAGE')
+     OR pg_catalog.has_schema_privilege('anon', 'nexalvo_platform', 'USAGE')
+     OR pg_catalog.has_schema_privilege('service_role', 'nexalvo_platform', 'USAGE') THEN
+    RAISE EXCEPTION 'cutover preflight failed: legacy schema grants drifted';
   END IF;
 
   FOR v_endpoint IN
@@ -91,6 +120,12 @@ BEGIN
           )) <> v_endpoint.fingerprint
        OR NOT pg_catalog.has_function_privilege(
             'authenticated', pg_catalog.to_regprocedure(v_endpoint.signature), 'EXECUTE'
+          )
+       OR pg_catalog.has_function_privilege(
+            'anon', pg_catalog.to_regprocedure(v_endpoint.signature), 'EXECUTE'
+          )
+       OR pg_catalog.has_function_privilege(
+            'service_role', pg_catalog.to_regprocedure(v_endpoint.signature), 'EXECUTE'
           ) THEN
       RAISE EXCEPTION 'cutover preflight failed: legacy endpoint % drifted', v_endpoint.signature;
     END IF;
@@ -98,27 +133,33 @@ BEGIN
 
   IF pg_catalog.md5(pg_catalog.pg_get_functiondef(
        pg_catalog.to_regprocedure('public.current_business_id()')
-     )) <> 'cb88feae5114dab5ff53ad35319544d4'
+     )) IS DISTINCT FROM 'cb88feae5114dab5ff53ad35319544d4'
      OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
        pg_catalog.to_regprocedure('public.user_can(text)')
-     )) <> 'dda7b605c2b77befc9ec56f7af184103' THEN
+     )) IS DISTINCT FROM 'dda7b605c2b77befc9ec56f7af184103' THEN
     RAISE EXCEPTION 'cutover preflight failed: tenant authorization baseline drifted';
   END IF;
   IF (SELECT pg_catalog.md5(p.prosrc) FROM pg_catalog.pg_proc AS p
       WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()'))
-       <> '2c26a316e5cfc46dcfa187c550eb7108'
+       IS DISTINCT FROM '2c26a316e5cfc46dcfa187c550eb7108'
      OR (SELECT pg_catalog.md5(p.prosrc) FROM pg_catalog.pg_proc AS p
          WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)'))
-       <> '75c32789a68a73e29a8a82d33e3aad27' THEN
+       IS DISTINCT FROM '75c32789a68a73e29a8a82d33e3aad27' THEN
     RAISE EXCEPTION 'cutover preflight failed: applied catalog hardening baseline drifted';
   END IF;
   IF pg_catalog.md5(pg_catalog.pg_get_functiondef(
        pg_catalog.to_regprocedure('public.fn_export_business_data(uuid)')
-     )) <> '2bdd2117a84d5a95778cdf6392b11a49'
+     )) IS DISTINCT FROM '2bdd2117a84d5a95778cdf6392b11a49'
      OR pg_catalog.md5(pg_catalog.pg_get_functiondef(
        pg_catalog.to_regprocedure('nexalvo_backup.export_business_data(uuid)')
-     )) <> 'cabc5e9d96a6242ae42ade1d140b087e' THEN
+     )) IS DISTINCT FROM 'cabc5e9d96a6242ae42ade1d140b087e' THEN
     RAISE EXCEPTION 'cutover preflight failed: backup export baseline drifted';
+  END IF;
+  IF NOT pg_catalog.has_table_privilege('authenticated', 'public.businesses', 'UPDATE')
+     OR NOT pg_catalog.has_function_privilege(
+       'authenticated', 'nexalvo_backup.export_business_data(uuid)', 'EXECUTE'
+     ) THEN
+    RAISE EXCEPTION 'cutover preflight failed: baseline restoration grants drifted';
   END IF;
 END
 $cutover_preflight$;
@@ -148,8 +189,17 @@ REVOKE ALL ON SCHEMA nexalvo_private FROM PUBLIC, anon, authenticated, service_r
 CREATE TABLE nexalvo_private.platform_authority_cutover (
   singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
   actor_user_id uuid NOT NULL,
-  legacy_operator_ids uuid[] NOT NULL CHECK (pg_catalog.cardinality(legacy_operator_ids) = 1),
-  occurred_at timestamptz NOT NULL DEFAULT pg_catalog.now()
+  actor_business_id uuid NOT NULL,
+  actor_tenant_role text NOT NULL,
+  legacy_operator_user_id uuid NOT NULL,
+  legacy_business_id uuid NOT NULL,
+  legacy_tenant_role text NOT NULL CHECK (legacy_tenant_role = 'OWNER'),
+  authority_state text NOT NULL DEFAULT 'ACTIVE' CHECK (authority_state IN ('ACTIVE', 'ROLLED_BACK')),
+  occurred_at timestamptz NOT NULL DEFAULT pg_catalog.now(),
+  rolled_back_at timestamptz,
+  CHECK (actor_user_id <> legacy_operator_user_id),
+  CHECK ((authority_state = 'ACTIVE' AND rolled_back_at IS NULL)
+      OR (authority_state = 'ROLLED_BACK' AND rolled_back_at IS NOT NULL))
 );
 
 CREATE TABLE nexalvo_private.platform_admin_requests (
@@ -200,6 +250,8 @@ AS $function$
       SELECT 1
       FROM auth.users AS a
       JOIN public.users AS u ON u.id = a.id AND u.active
+      JOIN nexalvo_private.platform_authority_cutover AS c
+        ON c.actor_user_id = a.id AND c.authority_state = 'ACTIVE'
       WHERE a.id = p_user_id
         AND a.raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'
         AND a.deleted_at IS NULL
@@ -585,13 +637,17 @@ GRANT EXECUTE ON FUNCTION public.fn_export_business_data(uuid) TO authenticated,
 
 -- Record the previous authority before retiring it. The legacy function bodies remain intact so a
 -- reviewed, fail-closed rollback can restore access without reconstructing historical SQL.
-INSERT INTO nexalvo_private.platform_authority_cutover(actor_user_id, legacy_operator_ids)
-SELECT a.id, ARRAY[
-  (SELECT o.user_id FROM nexalvo_platform.operators AS o WHERE o.active)
-]::uuid[]
+INSERT INTO nexalvo_private.platform_authority_cutover(
+  actor_user_id, actor_business_id, actor_tenant_role,
+  legacy_operator_user_id, legacy_business_id, legacy_tenant_role
+)
+SELECT a.id, u.business_id, u.role, o.user_id, old_u.business_id, old_u.role
 FROM auth.users AS a
-JOIN nexalvo_platform.operators AS o ON o.user_id = a.id AND o.active
+JOIN public.users AS u ON u.id = a.id AND u.active
+CROSS JOIN nexalvo_platform.operators AS o
+JOIN public.users AS old_u ON old_u.id = o.user_id AND old_u.active
 WHERE a.raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'
+  AND o.active AND a.id <> o.user_id
   AND a.deleted_at IS NULL
   AND COALESCE(a.is_anonymous, false) = false
   AND (a.banned_until IS NULL OR a.banned_until <= pg_catalog.now());
@@ -643,6 +699,18 @@ BEGIN
      OR NOT EXISTS (
        SELECT 1 FROM nexalvo_private.platform_authority_cutover AS c
        WHERE nexalvo_private.is_signed_superadmin(c.actor_user_id)
+         AND c.actor_user_id <> c.legacy_operator_user_id
+         AND c.authority_state = 'ACTIVE'
+         AND EXISTS (
+           SELECT 1 FROM public.users AS u WHERE u.id = c.actor_user_id
+             AND u.business_id = c.actor_business_id AND u.role = c.actor_tenant_role AND u.active
+         )
+         AND EXISTS (
+           SELECT 1 FROM public.users AS u
+           JOIN nexalvo_platform.operators AS o ON o.user_id = u.id AND NOT o.active
+           WHERE u.id = c.legacy_operator_user_id AND u.business_id = c.legacy_business_id
+             AND u.role = c.legacy_tenant_role AND u.active
+         )
      ) THEN
     RAISE EXCEPTION 'cutover postflight failed: signed authority marker is invalid';
   END IF;

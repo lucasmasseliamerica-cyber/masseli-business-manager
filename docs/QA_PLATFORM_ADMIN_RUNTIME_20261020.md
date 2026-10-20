@@ -1,5 +1,10 @@
 # Administração Comercial — diagnóstico real de configuração TEST
 
+**Atualização posterior:** a falha real 11/12 do preflight por identidades distintas foi reconciliada
+no pacote [QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md](./QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md).
+Preservar o SUPERADMIN EMPLOYEE escolhido. As observações de runtime abaixo são históricas;
+não inferir configuração atual ou coincidência de identidades a partir delas.
+
 Branch exclusiva `automation/nexalvo-qa-actions`; baseline analisada `25d4038`.
 Projeto TEST `msinksoilkluooxenecy`. Evidência sanitizada:
 [platform-admin-runtime-20261020.json](../qa/evidence/platform-admin-runtime-20261020.json).
@@ -77,12 +82,13 @@ qual Secret está ausente ou divergente sem inventário de gestão. Não remover
    divergência de assinatura, grants ou cache. Se houver drift, reconciliar antes de qualquer DDL.
 4. Se o cutover não tiver sido aplicado, executar
    `qa/sql/platform_admin_cutover_preflight_readonly_TEST.sql` e exigir 12/12 PASS.
-   Validar especialmente a correspondência do único SUPERADMIN ao único operador ativo.
+   Validar independentemente o único SUPERADMIN ativo e o operador OWNER distinto sem claim.
 5. **Somente com nova autorização específica**, aplicar
    `migrations/20261016_platform_admin_TEST.sql`. O plano e a compensação estão em
    [QA_PLATFORM_ADMIN_SINGLE_AUTHORITY_20261019.md](./QA_PLATFORM_ADMIN_SINGLE_AUTHORITY_20261019.md).
    O rollback preparado é `migrations/20261016_platform_admin_rollback_TEST.sql`; não executá-lo
-   automaticamente, pois exige ausência comprovada de histórico comercial e remoção prévia do claim.
+   automaticamente. A revisão atual exige ausência comprovada de histórico comercial e preserva
+   o claim, retirando as RPCs novas atomicamente antes de restaurar o operador legado.
 6. Exigir o pós-cutover somente leitura de 20/20 e o diagnóstico de runtime de 3/3 contratos.
 7. Com sessão SUPERADMIN existente, testar apenas `list_businesses` e `list_audit_logs` pelo painel.
    Não criar outra identidade nem modificar claims. Registrar contagens agregadas e carregar

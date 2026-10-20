@@ -1,0 +1,55 @@
+{
+  "project_ref": "msinksoilkluooxenecy",
+  "status": "PREPARED_NOT_APPLIED",
+  "source": "USER_REPORTED_LIVE_SQL_DIAGNOSIS",
+  "previous_official_preflight": {
+    "passed": 11,
+    "expected": 12,
+    "failed_check": "claim_matches_active_legacy_operator"
+  },
+  "reported_identity_model": {
+    "active_signed_superadmins": 1,
+    "selected_superadmin_tenant_role": "EMPLOYEE",
+    "selected_superadmin_active_profile": true,
+    "active_legacy_operators": 1,
+    "legacy_operator_tenant_role": "OWNER",
+    "legacy_operator_has_superadmin_claim": false,
+    "identities_distinct": true
+  },
+  "revised_real_preflight": {
+    "status": "BLOCKED_SQL_INTEGRATION_NOT_AVAILABLE_IN_SESSION",
+    "executed": false,
+    "required_passed_checks": 12
+  },
+  "claim_or_tenant_role_changes_executed": false,
+  "test_database_writes_executed": false,
+  "commercial_operations_executed": false,
+  "local_validation": {
+    "environment": "NETWORK_ISOLATED_DISPOSABLE_POSTGRESQL_17",
+    "synthetic_identities": true,
+    "real_migration_guards_enabled": true,
+    "target_preflight_fingerprints_replaced": false,
+    "affected_checks_passed": 80,
+    "affected_checks_failed": 0,
+    "affected_checks_skipped": 0,
+    "postgres_regressions_included": 16,
+    "distinct_identity_case": {
+      "preflight_passed": 12,
+      "postflight_passed": 20,
+      "runtime_contracts_passed": 3,
+      "auth_metadata_and_profiles_unchanged": true,
+      "legacy_audit_trigger_exercised": true,
+      "rollback_preserved_claim_and_employee_role": true
+    },
+    "build": "PASS",
+    "edge_bundle_without_deployment": "PASS"
+  },
+  "raw_catalog_versioned": false,
+  "identifiers_in_report": false,
+  "prepared_artifact_sha256": {
+    "migrations/20261016_platform_admin_TEST.sql": "9f71e3e998d2c62e8d31aeb58423fde93d05ba9cd55f4fc42a29bd526292f944",
+    "migrations/20261016_platform_admin_rollback_TEST.sql": "ed39c15c36cfa7dc4951ca6ab82377c85b8b81254db771f3aca008d82bc00543",
+    "qa/sql/platform_admin_cutover_preflight_readonly_TEST.sql": "91ee43e077faedc9031166770b6e8c9afbcf36e3ffc81097b5218b8ea1aac8e4",
+    "qa/sql/platform_admin_single_authority_preflight_readonly_TEST.sql": "d826692e796de40cdaf52e747479798196f646e9923839c403fcc92145a8bbb4"
+  }
+}

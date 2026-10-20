@@ -71,7 +71,7 @@ test('every prepared unit has an artifact, explicit authorization and dependency
   assert.deepEqual(byId.get('expense-request-idempotency').dependsOn, ['expense-cash-normalization']);
   assert.equal(byId.get('cash-register-finite-guard').rollbackStrategy, 'restore_reviewed_preapply_function_definition');
   assert.equal(byId.get('catalog-security-hardening').status, 'deployed_test');
-  assert.ok(byId.get('platform-admin-control-plane').unresolvedGate.includes('signed_claim_cutover'));
+  assert.ok(byId.get('platform-admin-control-plane').unresolvedGate.includes('independent_identity_preflight'));
   assert.equal(byId.get('platform-admin-control-plane').preflight, 'qa/sql/platform_admin_cutover_preflight_readonly_TEST.sql');
   assert.ok(executionOrder.indexOf('export-deployed-catalog-readonly') < executionOrder.indexOf('obtain-separate-test-migration-authorization'));
 });

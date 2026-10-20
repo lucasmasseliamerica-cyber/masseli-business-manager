@@ -1,5 +1,21 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Reconciliação vigente — SUPERADMIN EMPLOYEE distinto do operador OWNER
+
+Ler [QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md](./QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md).
+O usuário confirmou preflight real anterior 11/12, falhando apenas na premissa de mesma identidade.
+Preservar o SUPERADMIN EMPLOYEE já escolhido; não conceder outro claim, trocar a identidade nem
+promovê-la a OWNER. O legado é outro OWNER ativo sem claim. O pacote agora valida e registra as
+duas identidades separadamente e realiza a troca de autoridade em um COMMIT.
+
+O rollback foi reconciliado para preservar o claim, retirar as novas RPCs atomicamente, restaurar
+somente o operador capturado e manter o marcador privado ROLLED_BACK para auditoria. Instruções
+históricas de remover o claim antes do rollback estão substituídas. Não executar o helper de claims.
+
+O preflight revisado precisa de execução real 12/12. A integração SQL de leitura foi solicitada,
+mas ainda não está callable nesta sessão. Não executar DDL no TEST antes desse resultado e de
+aprovação específica do pacote final. Testes PostgreSQL descartáveis não são prova de implantação.
+
 ## Estado mais recente — Administração Comercial, 2026-10-20
 
 Ler [QA_PLATFORM_ADMIN_RUNTIME_20261020.md](./QA_PLATFORM_ADMIN_RUNTIME_20261020.md) antes dos

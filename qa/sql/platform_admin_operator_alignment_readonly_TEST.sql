@@ -1,6 +1,8 @@
 -- NEXALVO TEST legacy platform authority alignment — READ ONLY.
 -- Run only after independently selecting Supabase TEST msinksoilkluooxenecy.
 -- Returns aggregate counts only: no user id, email, token, claim document or tenant row is exposed.
+-- authority_models_aligned reports historical identity coincidence, not cutover eligibility.
+-- Distinct chosen SUPERADMIN/legacy OWNER identities are intentional in the reviewed cutover.
 
 BEGIN TRANSACTION READ ONLY;
 SET LOCAL statement_timeout = '30s';
@@ -77,6 +79,7 @@ SELECT pg_catalog.jsonb_build_object(
   'signed_superadmins', s.signed_superadmins,
   'signed_superadmin_without_active_operator', s.signed_superadmin_without_active_operator,
   'missing_and_null_claims_are_denied', c.missing_and_null_claims_are_denied,
+  'identity_coincidence_required_for_cutover', false,
   'authority_models_aligned',
     c.missing_and_null_claims_are_denied
     AND

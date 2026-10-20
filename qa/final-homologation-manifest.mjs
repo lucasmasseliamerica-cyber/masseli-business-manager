@@ -221,8 +221,8 @@ export const deliveryUnits = Object.freeze([
     claimTool: 'scripts/prepare-superadmin-claim.mjs',
     edge: 'supabase/functions/platform-admin/index.ts',
     dependsOn: ['baseline-schema', 'deployed-catalog-reviewed', 'catalog-security-hardening'],
-    authorization: 'test_edge_claim_cutover_and_live_validation_required',
-    unresolvedGate: 'signed_claim_cutover_and_live_role_denials_require_specific_authorization',
+    authorization: 'test_cutover_and_live_validation_preserve_existing_claim_required',
+    unresolvedGate: 'independent_identity_preflight_and_test_cutover_require_specific_authorization',
   },
 ]);
 

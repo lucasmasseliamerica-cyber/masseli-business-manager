@@ -1,8 +1,8 @@
 -- NEXALVO TEST platform-admin atomic cutover preflight — STRICTLY READ ONLY.
 -- Expected project: msinksoilkluooxenecy. The project selection must be verified outside SQL.
 --
--- Run after the authorized legacy operator has received the signed SUPERADMIN app_metadata claim
--- and before applying 20261016_platform_admin_TEST.sql. No identifiers or claim documents are
+-- Preserve the chosen signed SUPERADMIN and independently validate the distinct legacy OWNER.
+-- Run before applying 20261016_platform_admin_TEST.sql. No identifiers or claim documents are
 -- returned. Every check must pass. A failure is a hard stop; do not edit expected fingerprints to
 -- fit an unexplained database state.
 
@@ -34,7 +34,15 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
         AND pg_catalog.has_function_privilege(
           'authenticated', pg_catalog.to_regprocedure(e.signature), 'EXECUTE'
         )
-    ) AS authenticated_executable
+    ) AS authenticated_executable,
+    count(*) FILTER (
+      WHERE pg_catalog.has_function_privilege('anon', pg_catalog.to_regprocedure(e.signature), 'EXECUTE')
+         OR pg_catalog.has_function_privilege('service_role', pg_catalog.to_regprocedure(e.signature), 'EXECUTE')
+    ) AS unexpected_api_executable,
+    pg_catalog.has_schema_privilege('authenticated', 'nexalvo_platform', 'USAGE')
+      AND NOT pg_catalog.has_schema_privilege('anon', 'nexalvo_platform', 'USAGE')
+      AND NOT pg_catalog.has_schema_privilege('service_role', 'nexalvo_platform', 'USAGE')
+      AS schema_grants_exact
   FROM legacy_endpoints AS e
 ), authority AS (
   SELECT
@@ -47,8 +55,10 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
         AND a.deleted_at IS NULL
         AND COALESCE(a.is_anonymous, false) = false
         AND (a.banned_until IS NULL OR a.banned_until <= pg_catalog.now())
-        AND a.raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'
-    ) AS active_operator_with_signed_claim,
+        AND u.role = 'OWNER'
+        AND EXISTS (SELECT 1 FROM public.businesses AS b WHERE b.id = u.business_id)
+        AND (a.raw_app_meta_data ->> 'nexalvo_platform_role') IS DISTINCT FROM 'SUPERADMIN'
+    ) AS valid_unsigned_legacy_operators,
     count(*) FILTER (
       WHERE o.active
         AND (a.raw_app_meta_data ->> 'nexalvo_platform_role') IS DISTINCT FROM 'SUPERADMIN'
@@ -59,13 +69,16 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
 ), claims AS (
   SELECT
     count(*) AS signed_superadmins,
-    count(*) FILTER (WHERE u.id IS NOT NULL AND u.active) AS signed_superadmins_with_active_profile,
     count(*) FILTER (
-      WHERE EXISTS (
+      WHERE u.id IS NOT NULL AND u.active AND u.role IN ('OWNER', 'MANAGER', 'EMPLOYEE')
+        AND EXISTS (SELECT 1 FROM public.businesses AS b WHERE b.id = u.business_id)
+    ) AS signed_superadmins_with_active_profile,
+    count(*) FILTER (
+      WHERE NOT EXISTS (
         SELECT 1 FROM nexalvo_platform.operators AS o
         WHERE o.user_id = a.id AND o.active
       )
-    ) AS signed_superadmins_matching_active_operator
+    ) AS signed_superadmins_distinct_from_active_operator
   FROM auth.users AS a
   LEFT JOIN public.users AS u ON u.id = a.id
   WHERE a.raw_app_meta_data ->> 'nexalvo_platform_role' = 'SUPERADMIN'
@@ -80,13 +93,13 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
     pg_catalog.md5(pg_catalog.pg_get_functiondef(
       pg_catalog.to_regprocedure('public.user_can(text)')
     )) = 'dda7b605c2b77befc9ec56f7af184103' AS user_can_exact,
-    pg_catalog.md5(p.prosrc) = '2c26a316e5cfc46dcfa187c550eb7108' AS employee_reader_hardened
-  FROM pg_catalog.pg_proc AS p
-  WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()')
+    (SELECT pg_catalog.md5(p.prosrc) FROM pg_catalog.pg_proc AS p
+     WHERE p.oid = pg_catalog.to_regprocedure('public.fn_read_employees_secure()'))
+      = '2c26a316e5cfc46dcfa187c550eb7108' AS employee_reader_hardened
 ), audit_function AS (
-  SELECT pg_catalog.md5(p.prosrc) = '75c32789a68a73e29a8a82d33e3aad27' AS audit_writer_hardened
-  FROM pg_catalog.pg_proc AS p
-  WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')
+  SELECT (SELECT pg_catalog.md5(p.prosrc) FROM pg_catalog.pg_proc AS p
+    WHERE p.oid = pg_catalog.to_regprocedure('public.fn_write_audit(text,text)'))
+      = '75c32789a68a73e29a8a82d33e3aad27' AS audit_writer_hardened
 ), export_baseline AS (
   SELECT
     pg_catalog.md5(pg_catalog.pg_get_functiondef(
@@ -95,9 +108,10 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
     pg_catalog.md5(pg_catalog.pg_get_functiondef(
       pg_catalog.to_regprocedure('nexalvo_backup.export_business_data(uuid)')
     )) = 'cabc5e9d96a6242ae42ade1d140b087e' AS private_export_exact,
-    pg_catalog.has_function_privilege(
-      'authenticated', 'nexalvo_backup.export_business_data(uuid)', 'EXECUTE'
-    ) AS direct_private_export_currently_executable
+    CASE WHEN pg_catalog.to_regprocedure('nexalvo_backup.export_business_data(uuid)') IS NOT NULL
+      THEN pg_catalog.has_function_privilege(
+        'authenticated', pg_catalog.to_regprocedure('nexalvo_backup.export_business_data(uuid)'), 'EXECUTE'
+      ) ELSE false END AS direct_private_export_currently_executable
 ), collisions AS (
   SELECT
     pg_catalog.to_regnamespace('nexalvo_private') IS NOT NULL AS private_schema_exists,
@@ -123,12 +137,13 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
          a.active_operators::text FROM authority AS a
   UNION ALL SELECT 'exactly_one_valid_signed_superadmin', c.signed_superadmins = 1,
                    c.signed_superadmins::text FROM claims AS c
-  UNION ALL SELECT 'claim_matches_active_legacy_operator',
-                   a.active_operator_with_signed_claim = 1
-                     AND a.active_operator_without_signed_claim = 0
-                     AND c.signed_superadmins_matching_active_operator = 1,
-                   pg_catalog.format('matched=%s unmatched=%s',
-                     a.active_operator_with_signed_claim, a.active_operator_without_signed_claim)
+  UNION ALL SELECT 'independent_authority_identities_valid',
+                   a.valid_unsigned_legacy_operators = 1
+                     AND a.active_operator_without_signed_claim = 1
+                     AND c.signed_superadmins_distinct_from_active_operator = 1,
+                   pg_catalog.format('valid_legacy_owner=%s unsigned_legacy=%s independent_signed=%s',
+                     a.valid_unsigned_legacy_operators, a.active_operator_without_signed_claim,
+                     c.signed_superadmins_distinct_from_active_operator)
             FROM authority AS a CROSS JOIN claims AS c
   UNION ALL SELECT 'signed_superadmin_has_active_profile',
                    c.signed_superadmins_with_active_profile = 1,
@@ -137,8 +152,12 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
             FROM legacy_endpoint_state AS e
   UNION ALL SELECT 'legacy_endpoint_definitions_exact', e.exact_definitions = 8,
                    e.exact_definitions::text FROM legacy_endpoint_state AS e
-  UNION ALL SELECT 'legacy_authenticated_grants_intact', e.authenticated_executable = 8,
-                   e.authenticated_executable::text FROM legacy_endpoint_state AS e
+  UNION ALL SELECT 'legacy_authenticated_grants_intact',
+                   e.authenticated_executable = 8 AND e.unexpected_api_executable = 0
+                     AND e.schema_grants_exact,
+                   pg_catalog.format('authenticated=%s unexpected=%s schema=%s',
+                     e.authenticated_executable, e.unexpected_api_executable, e.schema_grants_exact)
+            FROM legacy_endpoint_state AS e
   UNION ALL SELECT 'new_control_plane_absent',
                    NOT c.private_schema_exists AND NOT c.platform_columns_exist
                      AND NOT c.platform_functions_exist,
@@ -166,14 +185,14 @@ WITH legacy_endpoints(signature, expected_fingerprint) AS (
 )
 SELECT pg_catalog.jsonb_build_object(
   'project_ref_expected', 'msinksoilkluooxenecy',
-  'status', CASE WHEN pg_catalog.bool_and(passed)
+  'status', CASE WHEN count(*) = 12 AND pg_catalog.bool_and(COALESCE(passed, false))
                  THEN 'PASS_READY_FOR_ATOMIC_CUTOVER'
                  ELSE 'BLOCKED_AUTHORITY_CUTOVER'
             END,
   'passed', count(*) FILTER (WHERE passed),
-  'failed', count(*) FILTER (WHERE NOT passed),
+  'failed', count(*) FILTER (WHERE NOT COALESCE(passed, false)),
   'checks', pg_catalog.jsonb_agg(
-    pg_catalog.jsonb_build_object('name', name, 'passed', passed, 'detail', detail)
+    pg_catalog.jsonb_build_object('name', name, 'passed', COALESCE(passed, false), 'detail', detail)
     ORDER BY name
   )
 ) AS platform_admin_cutover_preflight

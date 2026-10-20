@@ -18,6 +18,7 @@ test('QA workflow tracks build configuration and critical local regressions',()=
   'qa/inventory-catalog-regression.test.mjs',
   'qa/sales-receipt-regression.test.mjs',
   'qa/cash-register-validation-regression.test.mjs',
+  'qa/platform-admin-postgres.test.mjs',
  ]) assert.match(workflow,new RegExp(file.replaceAll('.','\\.')),file);
 });
 test('authenticated TEST jobs are gated by the classified read-only preflight',()=>{
