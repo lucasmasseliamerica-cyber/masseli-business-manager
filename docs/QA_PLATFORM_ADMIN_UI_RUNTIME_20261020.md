@@ -78,5 +78,8 @@ DNS direto retornou EAI_AGAIN; com proxy, CORS PASS e 503 BLOCKED. Não desativa
 Regressões afetadas verificam renderização React PT/EN, permissões EMPLOYEE, confirmações seguras,
 contratos e guards do runner. HTTP simulado e renderização local não homologam o painel real.
 Regressões locais finais: **109/109 PASS, 0 FAIL, 0 SKIPPED** em oito arquivos afetados.
-Build Vite, sintaxe do runner, inventário de artefatos e `git diff --check`: PASS. A CI desta entrega
-será registrada após publicação. Nenhum macro comercial foi concluído.
+Build Vite, sintaxe do runner, inventário de artefatos e `git diff --check`: PASS. [CI #180](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096)
+confirmada **12/12 jobs, 539/539 PASS, 0 FAIL, 0 SKIPPED**, incluindo preflight OWNER A/B
+e browser-smoke. Código publicado: `ef193ddda8580467527db1e7428c4f4d5b5c56df`.
+[Agregado verificável](./evidence/platform-admin-ui-ci180-20261020.json), fonte: job qa-summary.
+O preflight OWNER A/B não valida a sessão SUPERADMIN nem remove o 503. Nenhum macro comercial foi concluído.

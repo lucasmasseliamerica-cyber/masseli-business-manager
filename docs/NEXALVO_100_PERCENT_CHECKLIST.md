@@ -36,6 +36,8 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - [ ] Validação de backup restaurado em ambiente isolado e plano de recuperação.
 - [ ] Aceite humano da release candidata, critérios de go/no-go e checklist de publicação (sem executar publicação automaticamente).
 
+- [x] Regressão da identificação global e traduções comerciais em `ef193dd`: local **109/109**, build PASS; [CI #180](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096) **12/12 jobs, 539/539 PASS, 0 FAIL, 0 SKIPPED**. [Agregado](./evidence/platform-admin-ui-ci180-20261020.json). O gate OWNER A/B não homologa a Edge SUPERADMIN, que permanece 503.
+
 ## M1 — P0.01 Autenticação, perfis e permissões (aberto)
 - [x] Matriz SQL de 20 permissões por 4 perfis: 80/80, mais 8/8 casos especiais, sob ROLLBACK. [Relatório](./P0_01_PERMISSIONS_20261012.md).
 - [x] Login real de OWNER A/B e isolamento HTTP entre empresas, incluindo operações privilegiadas rejeitadas.

@@ -19,6 +19,11 @@ Runner novo `scripts/verify-platform-admin-readonly-test.mjs` usa uma sessão se
 valida Auth/perfil e somente leituras Edge; emite agregado sem PII. O painel continua BLOCKED.
 Preservar bloqueios de testes persistentes e homologação real dos demais perfis/fluxos.
 
+Código publicado: `ef193dd`. [CI #180](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096)
+confirmada **12/12 jobs, 539/539 PASS, 0 FAIL, 0 SKIPPED**, incluindo OWNER A/B e browser-smoke.
+Regressões locais afetadas **109/109**, build PASS, varredura de segredos PASS. O painel SUPERADMIN
+continua BLOCKED até resolver configuração Edge e comprovar leitura autenticada real.
+
 ## Reconciliação vigente — SUPERADMIN EMPLOYEE distinto do operador OWNER
 
 Ler [QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md](./QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md).
