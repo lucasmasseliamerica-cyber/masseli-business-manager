@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en' } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -37,7 +37,17 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   }, { owner, language });
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
-    if (url.origin === local) return route.continue();
+    if (url.origin === local) {
+      if (cardMode && url.pathname === '/src/App.jsx') {
+        // Select a build-time mode in this isolated HTTP fixture only. No environment file or
+        // developer configuration changes; the actual Vite-transformed React component runs.
+        const response = await route.fetch();
+        const body = await response.text();
+        assert.ok(body.includes('const PAYMENT_MODE ='), 'expected Vite payment mode boundary');
+        return route.fulfill({ response, body: body.replace('const PAYMENT_MODE =', `import.meta.env.VITE_CARD_PAYMENT_MODE = ${JSON.stringify(cardMode)};\nconst PAYMENT_MODE =`) });
+      }
+      return route.continue();
+    }
     if (url.hostname !== host) return route.abort();
     const reply = (body, status = 200, headers = {}) => route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(body) });
     if (url.pathname === '/auth/v1/user') return reply({ id: owner, app_metadata: {} });
@@ -180,5 +190,29 @@ test('SIMULATED HTTP: Portuguese mobile PDV keeps external-card instructions and
     await dialog.getByRole('button', { name: 'Pagamento recebido na maquininha externa', exact: true }).waitFor();
     assert.equal(state.saleAttempts.length, 0);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP: Stripe mode shows disconnected in PT and blocks card before any sale/processor request, including reload', { timeout: 60000 }, async () => {
+  const { context, page, state, errors } = await isolated({ mobile: true, language: 'pt-BR', cardMode: 'stripe_terminal' });
+  try {
+    for (let visit = 0; visit < 2; visit++) {
+      await page.locator('button:visible').filter({ hasText: /^Vendas$/ }).click();
+      await page.getByRole('button', { name: 'Nova venda', exact: true }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.getByRole('button', { name: 'Adicionar Bowl QA', exact: true }).click();
+      const methods = dialog.locator('select').filter({ has: page.locator('option[value="Credit Card"]') });
+      await methods.selectOption('Credit Card');
+      await dialog.getByRole('status').getByText('Stripe Terminal · Desconectado', { exact: true }).waitFor();
+      await dialog.getByText(/Pagamentos offline não são permitidos/).waitFor();
+      assert.equal(await dialog.getByRole('button', { name: 'Stripe Terminal indisponível', exact: true }).isDisabled(), true);
+      assert.equal(await dialog.getByRole('button', { name: 'Pagamento recebido na maquininha externa', exact: true }).count(), 0);
+      // This block is specific to integrated card processing; it must not disable other methods.
+      await methods.selectOption('Other');
+      assert.equal(await dialog.getByRole('button', { name: /Concluir venda/ }).isEnabled(), true);
+      assert.equal(state.saleAttempts.length, 0); assert.equal(state.stock, 100);
+      assert.deepEqual(state.blocked, []); assert.deepEqual(errors, []);
+      if (!visit) await page.reload({ waitUntil: 'domcontentloaded' });
+    }
   } finally { await context.close(); }
 });

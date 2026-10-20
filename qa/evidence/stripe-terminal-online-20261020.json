@@ -1,0 +1,52 @@
+{
+  "recorded_at": "2026-10-20T22:14:44.885172+00:00",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref": "msinksoilkluooxenecy",
+  "scope": "P0_TERMINAL_ONLINE_ONLY_PREPARATION",
+  "base_head": "a4721461c906921bf1659a6265b34a6d4fe016a6",
+  "local_regressions": {
+    "passed": 122,
+    "failed": 0,
+    "skipped": 0,
+    "includes_terminal_domain_tests": 44,
+    "log_sha256": "fc306aa4fc365cb81b27291890678b46177e5952b325fdafca93167bf1927306"
+  },
+  "browser": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "kind": "REAL_REACT_SIMULATED_HTTP",
+    "includes_terminal_disconnected_reload_scenario": true,
+    "log_sha256": "abc89d6391ad9d73d47fe5573c372b93d3a6f0a13680eddde8695169f644c906"
+  },
+  "build": "PASS",
+  "secret_scan": "PASS",
+  "stripe_test_readonly": {
+    "status": "BLOCKED",
+    "code": "SECURE_TEST_FIXTURES_REQUIRED",
+    "stripe_requests": 0,
+    "mutating_requests": 0
+  },
+  "stripe_real_test_payments": "BLOCKED",
+  "durable_backend_financial_integration": "BLOCKED",
+  "persistent_changes_executed": false,
+  "deployment_executed": false,
+  "github_actions_current_code": "UNVERIFIED",
+  "acceptance": {
+    "version": 2,
+    "completed": 13,
+    "total": 60,
+    "pending": 15,
+    "blocked": 32,
+    "percent": 21.67
+  },
+  "artifact_sha256": {
+    "App.jsx": "51cd15d115cc42ba350d8121981c4b3aede4412c678c09bffaab5e6d5a52e6ae",
+    "src/App.jsx": "51cd15d115cc42ba350d8121981c4b3aede4412c678c09bffaab5e6d5a52e6ae",
+    "src/i18n.jsx": "b22d49f0bc45bb74ad5d89e3a20a9be155fce84b0a187a85f3176389e4cb5bcc",
+    "supabase/functions/_shared/terminal-online-core.mjs": "16f406668060c78c51dce8d1e2fee656c48d505949accd1be068e9f3a5d07fc8",
+    "qa/stripe-terminal-online.test.mjs": "16d49415d17bfb270e6f6eb43c110450999bdcdbc08b79238623402266e67d2a",
+    "qa/stripe-terminal-readonly.TEST.mjs": "de3191f37cbbd63d6aaf5c893446ce73724e5e5c6c45d5e5b45d3c370de3ae74",
+    ".github/workflows/nexalvo-test.yml": "f5dff5f1e7df9746514a326a3bcf5143a267de4a3fa36721312ec790606b01eb"
+  }
+}

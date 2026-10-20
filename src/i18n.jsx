@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 export const LANGUAGE_STORAGE_KEY = "nexalvo.ui.language.v1";
 export const PORTUGUESE = {
+  "Stripe Terminal payments require online verification by the backend. Do not record them through this manual mode.": "Pagamentos Stripe Terminal exigem verificação online pelo backend. Não os registre por este modo manual.",
+  "Connected": "Conectado",
+  "Disconnected": "Desconectado",
+  "Processing": "Processando",
+  "Verifying payment": "Verificando pagamento",
+  "Approved": "Aprovado",
+  "Declined": "Recusado",
+  "Stripe Terminal unavailable": "Stripe Terminal indisponível",
+  "Stripe Terminal is disconnected or not configured. Card charges are blocked until the backend verifies Stripe and the reader. Offline payments are not allowed.": "O Stripe Terminal está desconectado ou não configurado. Cobranças com cartão estão bloqueadas até o backend verificar a Stripe e o leitor. Pagamentos offline não são permitidos.",
   "Choose a valid business calendar date.": "Escolha uma data válida no calendário da empresa.",
   "Add {0}": "Adicionar {0}",
   "EXTERNAL CARD PAYMENT": "PAGAMENTO EM MAQUININHA EXTERNA",

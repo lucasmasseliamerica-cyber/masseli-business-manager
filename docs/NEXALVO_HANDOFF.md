@@ -1,5 +1,23 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## P0 obrigatório — Stripe Terminal exclusivamente online (20/10/2026)
+
+Política e contratos: [P0_STRIPE_TERMINAL_ONLINE_ONLY.md](./P0_STRIPE_TERMINAL_ONLINE_ONLY.md).
+Terminal operacional é P0; site comercial, checkout Stripe e licença automática continuam congelados.
+Modo Stripe explícito bloqueia cartão sem backend/leitor comprovados, sem confirmação manual ou offline.
+Núcleo/reconciliação preparados e testes simulados não equivalem a leitor/pagamento TEST real.
+Matriz **v2: 13/60 (21,67%)**, 15 PENDENTES e 32 BLOQUEADOS; oito critérios novos de Terminal,
+nenhum promovido a verde. A v1 13/52 (25%) abaixo é histórica, substituída como cobertura vigente.
+Sem deploy, migração, cobrança ou outra gravação TEST nesta entrega.
+Validação local: **122/122 regressões afetadas e 5/5 browser HTTP simulado**, zero falhas/skips;
+build PASS. [Evidência sanitizada](../qa/evidence/stripe-terminal-online-20261020.json).
+Runner de fixtures Stripe TEST: BLOCKED, sem acesso/fixtures seguros; nenhuma chamada Stripe.
+
+- [x] Política, bloqueio fail-closed e traduções dos seis estados preparados no código QA.
+- [ ] Backend Stripe autenticado, tentativa durável/locks e commit financeiro idempotente.
+- [ ] Webhook assinado/deduplicação e recuperação real após timeout/reinício.
+- [ ] Leitor/simulador oficial, pagamentos Stripe TEST e todos os estados UI reais homologados.
+
 ## Prioridade vigente — operação real da Masseli, comercial congelado
 
 Ler [QA_OPERATIONAL_P0_20261020.md](./QA_OPERATIONAL_P0_20261020.md) e a

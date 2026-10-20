@@ -1,13 +1,15 @@
-# NEXALVO — Matriz de aceitação operacional v1
+# NEXALVO — Matriz de aceitação operacional v2
 
-Cobertura comprovada: **13/52 critérios (25%)**; 14 PENDENTES e 25 BLOQUEADOS.
+Cobertura comprovada: **13/60 critérios (21.67%)**; 15 PENDENTES e 32 BLOQUEADOS.
 Este percentual mede os critérios explícitos abaixo, não linhas de código, quantidade de testes ou probabilidade de o aplicativo estar pronto.
 Critérios API/SQL concluídos não homologam a jornada UI correspondente. SQL com JWT simulado está identificado. CI #180 é baseline histórica; nenhuma escrita foi repetida nesta auditoria.
+Escopo ampliado pelo requisito P0 Terminal online-only: oito novos critérios. A v1 tinha 13/52 (25%); a mudança de denominador não é regressão. Nenhum teste simulado promove estes novos critérios a concluído.
 Site comercial, checkout Stripe e ativação automática de licença estão congelados e fora deste denominador. Administração Comercial aprovada permanece preservada.
 
 | Módulo | Estado | Critérios comprovados | Cobertura |
 | --- | --- | --- | --- |
 | Vendas/PDV | BLOQUEADO | 1/4 | 25% |
+| P0 Stripe Terminal exclusivamente online | BLOQUEADO | 0/8 | 0% |
 | Produtos e fotos | BLOQUEADO | 0/4 | 0% |
 | Estoque | BLOQUEADO | 1/4 | 25% |
 | Compras e fornecedores | BLOQUEADO | 2/4 | 50% |
@@ -31,6 +33,19 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | UI: venda, desconto/imposto, reconsulta após reload e cancelamento | BLOQUEADO | Autorização específica para venda TEST isolada, caixa/fixture e compensação |
 | Todos os pagamentos operacionais e recibos conferidos | PENDENTE | Cartão externo implementado; validar recebimento real sem cobrança pela aplicação |
 | Pagamento misto e regras de devolução homologados | PENDENTE | Decisão/implementação de split e aceite operacional das devoluções |
+
+### P0 Stripe Terminal exclusivamente online
+
+| Critério | Estado | Evidência ou bloqueio |
+| --- | --- | --- |
+| Antes da cobrança: backend Stripe autenticado e leitor disponível, sem fallback manual | BLOQUEADO | Adapter/backend não implantado; modo Stripe bloqueia cartão; prova real Stripe TEST pendente |
+| Offline desabilitado explicitamente em todas as integrações Terminal | BLOQUEADO | Inspecionar configuração real SDK/leitor; não há SDK nem fila offline implementados |
+| Timeout/queda/reinício preservam tentativa desconhecida e proíbem novo PaymentIntent | BLOQUEADO | Persistência backend/locks e recuperação real autorizada ainda pendentes; núcleo simulado preparado |
+| Stripe confirma e backend grava venda/estoque/financeiro uma única vez | BLOQUEADO | Preparar/revisar migração, RPC privada e integração Stripe; sem escrita ou aplicação autorizada |
+| Recusa/cancelamento/reconexão conciliados no mesmo PaymentIntent | BLOQUEADO | Leitor simulado Stripe e pagamentos TEST controlados dependem de configuração e autorização |
+| Webhook assinado duplicado/fora de ordem e concorrência não duplicam efeitos | BLOQUEADO | Endpoint, segredo seguro de assinatura, deduplicação persistente e testes TEST pendentes |
+| PDV: seis estados PT/EN e aprovação somente após confirmação backend real | BLOQUEADO | Desconectado/bloqueio exercitados em browser simulado; demais estados reais dependem do backend |
+| Wi-Fi/Ethernet/celular validados por modelo, região e firmware compatíveis | PENDENTE | Definir modelos da operação e comprovar compatibilidade; Wi-Fi sozinho não prova cobrança online |
 
 ### Produtos e fotos
 

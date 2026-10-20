@@ -1,5 +1,10 @@
 # NEXALVO v1.6.8 — operação P0, 20/10/2026
 
+Adendo posterior: o requisito [Terminal exclusivamente online](./P0_STRIPE_TERMINAL_ONLINE_ONLY.md)
+foi incluído como P0. A matriz vigente é v2, 13/60 (21,67%); os números v1 abaixo são históricos.
+O congelamento continua para checkout/site/licença automática, não para a preparação operacional
+Terminal. Nenhum pagamento Stripe real/TEST foi homologado nesta entrega.
+
 Escopo exclusivo: branch `automation/nexalvo-qa-actions`, TEST `msinksoilkluooxenecy`.
 Site comercial, checkout Stripe e licenciamento automático congelados. Administração Comercial
 aprovada preservada; SQL, Edge Functions, claims, usuários e dados TEST não foram alterados.
@@ -42,7 +47,7 @@ está identificado e não equivale a sessão/browser real. Novos mocks não prom
    por período para grandes volumes segue pendente. Paginação não cria snapshot transacional.
 3. **Cartão em simulador por padrão.** Operação passa a confirmar pagamento já recebido na
    maquininha externa; cancelar não salva nada. Não gera ID fictício nem cobra cartão. Simulador
-   apenas com `VITE_CARD_PAYMENT_MODE=simulator`, reservado a QA. Integração Stripe permanece congelada.
+   apenas com `VITE_CARD_PAYMENT_MODE=simulator`, reservado a QA. À época deste lote a integração Stripe estava congelada; a preparação operacional Terminal foi reaberta pelo requisito P0 posterior, mantendo cobrança bloqueada.
 4. **Fuso e agrupamento incorretos em relatórios.** Intervalos usavam meia-noite do navegador,
    comparavam milissegundos em dias DST e convertiam 31 dias em bucket semanal. Agora usam datas
    civis da empresa, incluindo dias de 23/25 horas e despesas com data sem horário.

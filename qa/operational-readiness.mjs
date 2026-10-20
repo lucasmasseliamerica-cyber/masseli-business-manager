@@ -8,7 +8,8 @@ const done = (title, kind, source, detail) => ({ title, status: 'CONCLUÍDO', ev
 const blocked = (title, blocker) => ({ title, status: 'BLOQUEADO', blocker });
 const pending = (title, remaining) => ({ title, status: 'PENDENTE', remaining });
 
-// Fixed acceptance inventory v1. Commercial site, Stripe checkout and automatic licensing are
+// Acceptance inventory v2: eight mandatory online-only Terminal criteria added at user request.
+// Commercial site, Stripe checkout and automatic licensing are
 // intentionally excluded. Adding tests never increases this denominator or proves a journey.
 export const operationalModules = [
   { id: 'sales', name: 'Vendas/PDV', criteria: [
@@ -16,6 +17,16 @@ export const operationalModules = [
     blocked('UI: venda, desconto/imposto, reconsulta após reload e cancelamento', 'Autorização específica para venda TEST isolada, caixa/fixture e compensação'),
     pending('Todos os pagamentos operacionais e recibos conferidos', 'Cartão externo implementado; validar recebimento real sem cobrança pela aplicação'),
     pending('Pagamento misto e regras de devolução homologados', 'Decisão/implementação de split e aceite operacional das devoluções'),
+  ] },
+  { id: 'stripe-terminal', name: 'P0 Stripe Terminal exclusivamente online', criteria: [
+    blocked('Antes da cobrança: backend Stripe autenticado e leitor disponível, sem fallback manual', 'Adapter/backend não implantado; modo Stripe bloqueia cartão; prova real Stripe TEST pendente'),
+    blocked('Offline desabilitado explicitamente em todas as integrações Terminal', 'Inspecionar configuração real SDK/leitor; não há SDK nem fila offline implementados'),
+    blocked('Timeout/queda/reinício preservam tentativa desconhecida e proíbem novo PaymentIntent', 'Persistência backend/locks e recuperação real autorizada ainda pendentes; núcleo simulado preparado'),
+    blocked('Stripe confirma e backend grava venda/estoque/financeiro uma única vez', 'Preparar/revisar migração, RPC privada e integração Stripe; sem escrita ou aplicação autorizada'),
+    blocked('Recusa/cancelamento/reconexão conciliados no mesmo PaymentIntent', 'Leitor simulado Stripe e pagamentos TEST controlados dependem de configuração e autorização'),
+    blocked('Webhook assinado duplicado/fora de ordem e concorrência não duplicam efeitos', 'Endpoint, segredo seguro de assinatura, deduplicação persistente e testes TEST pendentes'),
+    blocked('PDV: seis estados PT/EN e aprovação somente após confirmação backend real', 'Desconectado/bloqueio exercitados em browser simulado; demais estados reais dependem do backend'),
+    pending('Wi-Fi/Ethernet/celular validados por modelo, região e firmware compatíveis', 'Definir modelos da operação e comprovar compatibilidade; Wi-Fi sozinho não prova cobrança online'),
   ] },
   { id: 'products', name: 'Produtos e fotos', criteria: [
     blocked('UI: criar, editar/desativar produto e reconsultar persistência', 'Autorização de CRUD TEST isolado e compensação'),
@@ -113,15 +124,16 @@ export function evaluateOperationalReadiness(modules = operationalModules) {
       status: complete === module.criteria.length ? 'CONCLUÍDO' : module.criteria.some(c => c.status === 'BLOQUEADO') ? 'BLOQUEADO' : 'PENDENTE' };
   });
   const total = completed + pendingCount + blockedCount;
-  return { target: 'msinksoilkluooxenecy', scope: 'operational_acceptance_v1', commercial_frozen: true, total, completed, pending: pendingCount, blocked: blockedCount,
+  return { target: 'msinksoilkluooxenecy', scope: 'operational_acceptance_v2', commercial_frozen: true, total, completed, pending: pendingCount, blocked: blockedCount,
     percent: Number((100 * completed / total).toFixed(2)), ready: completed === total && total > 0, modules: rows };
 }
 
 export function operationalMarkdown(report = evaluateOperationalReadiness()) {
-  const lines = ['# NEXALVO — Matriz de aceitação operacional v1', '',
+  const lines = ['# NEXALVO — Matriz de aceitação operacional v2', '',
     `Cobertura comprovada: **${report.completed}/${report.total} critérios (${report.percent}%)**; ${report.pending} PENDENTES e ${report.blocked} BLOQUEADOS.`,
     'Este percentual mede os critérios explícitos abaixo, não linhas de código, quantidade de testes ou probabilidade de o aplicativo estar pronto.',
     'Critérios API/SQL concluídos não homologam a jornada UI correspondente. SQL com JWT simulado está identificado. CI #180 é baseline histórica; nenhuma escrita foi repetida nesta auditoria.',
+    'Escopo ampliado pelo requisito P0 Terminal online-only: oito novos critérios. A v1 tinha 13/52 (25%); a mudança de denominador não é regressão. Nenhum teste simulado promove estes novos critérios a concluído.',
     'Site comercial, checkout Stripe e ativação automática de licença estão congelados e fora deste denominador. Administração Comercial aprovada permanece preservada.', '',
     '| Módulo | Estado | Critérios comprovados | Cobertura |', '| --- | --- | --- | --- |',
     ...report.modules.map(m => `| ${m.name} | ${m.status} | ${m.completed}/${m.total} | ${m.percent}% |`), '',

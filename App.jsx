@@ -713,27 +713,23 @@ const InventoryService = {
   },
 };
 
-/* ============================== PAYMENT SERVICE (Phase B1 — Terminal-ready architecture) ==============================
- * POS UI → paymentService.processPayment() → selected adapter (simulator today, Stripe Terminal
- * later) → standard PaymentResult → routed to the EXISTING finalizeSuccessfulPayment()/
- * failSalePayment() below, completely unchanged. NewSaleModal never talks to an adapter directly
- * and never knows which one is active — only paymentService does.
- *
- * FUTURE BACKEND CONTRACT (not implemented in this phase — no server-side Stripe logic exists
- * anywhere in this app yet, and none of these endpoints are called):
- *   POST /api/stripe/terminal/connection-token   — backend mints a Terminal SDK connection token
- *                                                    (requires the Stripe SECRET key; must never
- *                                                    run in the frontend)
- *   POST /api/stripe/payment-intents              — backend creates a PaymentIntent for the sale total
- *   POST /api/stripe/payment-intents/:id/cancel    — backend cancels an in-flight PaymentIntent
- * stripeTerminalAdapter below is the future frontend-side caller of those endpoints — today every
- * one of its methods returns a "not configured" result and touches no network at all.
+/* ============================== PAYMENT SERVICE ==============================
+ * P0 Stripe Terminal is ONLINE ONLY. See docs/P0_STRIPE_TERMINAL_ONLINE_ONLY.md.
+ * Backend-authenticated Stripe state, followed by atomic/idempotent sale + stock + ledger commit,
+ * is the sole approval authority. The reader screen, Wi-Fi and client PaymentResult cannot
+ * approve a Stripe sale. Unknown outcomes must reconcile the SAME durable attempt/PaymentIntent;
+ * reconnect/restart must never create or process another intent automatically.
+ * The prepared domain policy is in supabase/functions/_shared/terminal-online-core.mjs.
+ * No Stripe HTTP/SDK or persistent adapter is deployed here: explicit stripe_terminal mode is
+ * blocked, cannot fall back to manual confirmation, and cannot finalize via this client path.
  * ============================================================================== */
 
 // Operational default: record a payment already approved on an external card terminal. No
 // simulated processor approval is used for normal operation. Simulation requires explicit QA
-// configuration; Stripe integration stays unconfigured and is outside this operational release.
-const PAYMENT_MODE = import.meta.env.VITE_CARD_PAYMENT_MODE === "simulator" ? "simulator" : "external";
+// configuration. Stripe Terminal is a separate, fail-closed mode until real TEST homologation.
+// A nonempty invalid mode is also blocked; a typo must not enable manual card confirmation.
+const PAYMENT_MODE = ((mode) => mode === "simulator" ? "simulator" : !mode || mode === "external" ? "external" : "stripe_terminal")(import.meta.env.VITE_CARD_PAYMENT_MODE);
+const STRIPE_TERMINAL_UNAVAILABLE = "Stripe Terminal is disconnected or not configured. Card charges are blocked until the backend verifies Stripe and the reader. Offline payments are not allowed.";
 
 // The one payment-result shape every adapter returns, and the only shape finalizeSuccessfulPayment/
 // failSalePayment ever need to understand. `error` is null on success; `transactionId` is null
@@ -813,11 +809,9 @@ const externalCardAdapter = {
   },
 };
 
-// ---- Stripe Terminal adapter (placeholder — Phase B2+) ---------------------------------------
-// Every method is a real, callable function with the real future signature, and every one
-// returns an honest "not configured" result. None of them touch the network, generate a fake
-// PaymentIntent, or pretend a reader is connected. Wiring these to the backend contract above is
-// the entire scope of the next phase — nothing else in this file should need to change.
+// ---- Stripe Terminal: unavailable until a trusted backend and durable reconciliation exist. --
+// Do not wire reader/display success to finalizeSuccessfulPayment. Stripe finalization must happen
+// in the backend; the UI can only re-read that committed sale, not trust a client success boolean.
 const stripeTerminalAdapter = {
   async initialize() {
     return { success: false, status: "not_configured", message: "Stripe Terminal is not configured. Requires a backend connection-token endpoint — see PAYMENT SERVICE notes above." };
@@ -830,9 +824,9 @@ const stripeTerminalAdapter = {
   },
   processPayment(request) {
     const result = makePaymentResult({
-      success: false, status: "failed", paymentMethod: request.paymentMethod, provider: "stripe_terminal",
+      success: false, status: "blocked", paymentMethod: request.paymentMethod, provider: "stripe_terminal",
       amount: request.amount, currency: request.currency || "USD",
-      error: { code: "not_configured", message: "Card terminal is not available." },
+      error: { code: "TERMINAL_ONLINE_REQUIRED", message: STRIPE_TERMINAL_UNAVAILABLE },
     });
     return { readyPromise: Promise.resolve(), promise: Promise.resolve(result), approve: () => {}, decline: () => {}, cancel: () => {} };
   },
@@ -849,7 +843,7 @@ const paymentService = {
   getMode() { return PAYMENT_MODE; },
   processPayment(request) {
     if (CARD_PAYMENT_METHODS.includes(request.paymentMethod)) {
-      const adapter = PAYMENT_MODE === "simulator" ? simulatorAdapter : externalCardAdapter;
+      const adapter = PAYMENT_MODE === "simulator" ? simulatorAdapter : PAYMENT_MODE === "external" ? externalCardAdapter : stripeTerminalAdapter;
       return adapter.processPayment(request);
     }
     const result = makePaymentResult({
@@ -877,12 +871,10 @@ const paymentService = {
  * a "pending" payment attempt is never persisted to `sales` at all, it can never be miscounted
  * anywhere, with zero changes needed to existing reporting code.
  *
- * *** PHASE B INTEGRATION POINT ***
- * A future Stripe Terminal confirmation handler should call
- *   finalizeSuccessfulPayment(pendingSale, { stripePaymentIntentId: <real id from Stripe> }, ctx)
- * — the exact same function the temporary manual card confirmation calls today. A declined/failed
- * Terminal payment should call failSalePayment(pendingSale, reason, ctx) the same way. Neither
- * function needs to change for that swap — only what calls them does.
+ * STRIPE INTEGRATION BOUNDARY: the client finalization below is for manual/simulated payments.
+ * A future Stripe backend must reconcile the authenticated PaymentIntent and atomically commit
+ * sale/stock/ledger itself. The frontend only reads that committed result. No client confirmation
+ * or reader action callback may route a Stripe payment through these manual finalizers.
  * ============================================================================== */
 
 // Card payment methods that currently route through the temporary manual confirmation flow
@@ -6188,6 +6180,13 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   // that translates "what the payment service said" into "what happens to the sale".
   const handlePaymentResult = async (pendingSaleObj, result) => {
     setPaymentHandle(null);
+    if (result.provider === "stripe_terminal" || (paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(pendingSaleObj.paymentMethod))) {
+      // A client success boolean must never confirm a Stripe payment or mutate the ledger.
+      setPendingCardSale(null);
+      setPaymentPhase("idle");
+      setError(STRIPE_TERMINAL_UNAVAILABLE);
+      return;
+    }
     if (result.success) {
       setPaymentPhase("settling");
       try {
@@ -6280,6 +6279,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     if (lineData.some((l) => !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Each sale item must have a quantity greater than zero."); return; }
     if (new Set(lineData.map((l) => l.productId)).size !== lineData.length) { setError("The same product can't appear more than once on a sale."); return; }
     if (!paymentMethod || !availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
+    if (paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod)) { setError(STRIPE_TERMINAL_UNAVAILABLE); return; }
     if (!channel || !(settings.channels || []).includes(channel)) { setError("Select a valid sales channel."); return; }
     if (!locationId || !(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active sales location."); return; }
     if (!Number.isFinite(manualDiscount) || manualDiscount < 0 || !Number.isFinite(totalDiscount) || !Number.isFinite(taxAmt) || !Number.isFinite(total)) { setError("Discount and tax must be valid finite amounts."); return; }
@@ -6441,6 +6441,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
               : paymentPhase === "connecting"
               ? translateUI("Connecting to card terminal (simulated)…")
               : translateUI("No physical card reader is connected yet — this is a development simulator standing in for Stripe Terminal. Choose an outcome to test the payment lifecycle.")}
+            {paymentService.getMode() === "external" && <div className="mt-2 font-semibold">{translateUI("Stripe Terminal payments require online verification by the backend. Do not record them through this manual mode.")}</div>}
           </div>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.cancel()}>{translateUI("Cancel")}</GhostButton>
@@ -6581,8 +6582,12 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       </div>
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}>
-        <Check size={16} /> {submitting ? translateUI("Saving…") : CARD_PAYMENT_METHODS.includes(paymentMethod) ? interpolateUI("Record Card Payment — {0}",[fmtMoney(total)]) : interpolateUI("Complete Sale — {0}",[fmtMoney(total)])}
+      {paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod) && <div role="status" className="rounded-xl p-3 mb-3" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
+        <div className="font-bold">Stripe Terminal · {translateUI("Disconnected")}</div>
+        <div className="text-xs mt-1">{translateUI(STRIPE_TERMINAL_UNAVAILABLE)}</div>
+      </div>}
+      <PrimaryButton full disabled={submitting || (paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod))} onClick={submit}>
+        <Check size={16} /> {submitting ? translateUI("Saving…") : paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod) ? translateUI("Stripe Terminal unavailable") : CARD_PAYMENT_METHODS.includes(paymentMethod) ? interpolateUI("Record Card Payment — {0}",[fmtMoney(total)]) : interpolateUI("Complete Sale — {0}",[fmtMoney(total)])}
       </PrimaryButton>
       </>
       )}

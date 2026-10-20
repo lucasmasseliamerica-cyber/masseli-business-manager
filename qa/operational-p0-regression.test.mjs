@@ -145,7 +145,7 @@ test('operational card default never fabricates a processor approval or a transa
 });
 
 test('canceling an external card confirmation never settles as paid; simulation stays explicit', async () => {
-  const handle = payments('unknown-mode').processPayment({ paymentMethod: 'Debit Card', amount: 25 });
+  const handle = payments('external').processPayment({ paymentMethod: 'Debit Card', amount: 25 });
   handle.cancel(); handle.approve();
   assert.equal((await handle.promise).success, false);
   assert.equal(payments('simulator').getMode(), 'simulator');
