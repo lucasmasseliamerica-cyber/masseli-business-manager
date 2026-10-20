@@ -16,6 +16,13 @@ O preflight revisado precisa de execução real 12/12. A integração SQL de lei
 mas ainda não está callable nesta sessão. Não executar DDL no TEST antes desse resultado e de
 aprovação específica do pacote final. Testes PostgreSQL descartáveis não são prova de implantação.
 
+Código publicado: `cfad62d`. [CI #179](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39423217938)
+confirmada **12/12 jobs, 525/525 PASS, 0 FAIL, 0 SKIPPED** pelo agregador real. Regressões locais
+afetadas **80/80**, incluindo **16 PostgreSQL**, preflight local **12/12**, pós local **20/20**
+e runtime local **3/3**. A migração final para conferência é `migrations/20261016_platform_admin_TEST.sql`,
+SHA-256 `9f71e3e998d2c62e8d31aeb58423fde93d05ba9cd55f4fc42a29bd526292f944`.
+Nenhuma escrita, claim, promoção tenant ou operação comercial foi executada no TEST nesta entrega.
+
 ## Estado mais recente — Administração Comercial, 2026-10-20
 
 Ler [QA_PLATFORM_ADMIN_RUNTIME_20261020.md](./QA_PLATFORM_ADMIN_RUNTIME_20261020.md) antes dos

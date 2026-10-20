@@ -131,4 +131,16 @@ A primeira sonda por socket podia encontrar o servidor temporário de initdb e f
 
 Os hashes dos quatro SQLs revisados estão na
 [evidência sanitizada](../qa/evidence/platform-admin-distinct-identities-20261020.json).
-CI e commits publicados serão registrados após verificação independente da execução.
+## Publicação e CI verificadas
+
+- Código publicado exclusivamente na QA: commit
+  [`cfad62d`](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/commit/cfad62d).
+- [CI #179](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39423217938):
+  **SUCCESS**, 2m24s, **12/12 jobs PASS**, nenhum job falho ou ignorado.
+- [Agregador real](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39423217938/job/118630143972):
+  literalmente **525/525 PASS; 0 FAIL; 0 SKIPPED**. Inclui a integração PostgreSQL descartável
+  adicionada ao workflow, sem acesso de escrita ao TEST.
+- O job `authenticated-preflight` da CI cobre as fixtures QA existentes, não o preflight SQL
+  administrativo revisado de 12 checks. O status deste último permanece **BLOQUEADO nesta sessão**.
+- A atualização documental posterior registra a evidência sem alterar o SQL aprovado pela CI
+  nem executar novamente a baseline.
