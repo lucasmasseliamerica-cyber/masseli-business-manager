@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { configurePlatformAdminTest, LOCAL_ORIGIN, TEST_PROJECT_REF } from '../scripts/configure-platform-admin-test.mjs';
+import { verifyPlatformAdminReadonlyTest } from '../scripts/verify-platform-admin-readonly-test.mjs';
 import {
   allowedOrigin,
   parsePlatformAdminRequest,
@@ -18,6 +19,101 @@ const preflight = readFileSync(new URL('./sql/platform_admin_cutover_preflight_r
 const postflight = readFileSync(new URL('./sql/platform_admin_single_authority_preflight_readonly_TEST.sql', import.meta.url), 'utf8');
 const rollback = readFileSync(new URL('../migrations/20261016_platform_admin_rollback_TEST.sql', import.meta.url), 'utf8');
 const claimTool = readFileSync(new URL('../scripts/prepare-superadmin-claim.mjs', import.meta.url), 'utf8');
+
+function readonlyHarness({ configured = true, signed = true, cors = true, malformed = false, active = true } = {}) {
+  const calls = [];
+  const env = { VITE_SUPABASE_URL: `https://${TEST_PROJECT_REF}.supabase.co`, VITE_SUPABASE_ANON_KEY: 'test-public-key', NEXALVO_PLATFORM_ADMIN_ACCESS_TOKEN: 'test-private-session' };
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    assert.equal(new URL(url).origin, env.VITE_SUPABASE_URL);
+    assert.equal(options.redirect, 'error', 'never forward a session through redirects');
+    if (options.method === 'OPTIONS') {
+      const allowed = options.headers.Origin === LOCAL_ORIGIN && cors;
+      return new Response(null, { status: allowed ? 204 : 403, headers: allowed ? { 'access-control-allow-origin': LOCAL_ORIGIN } : {} });
+    }
+    if (url.endsWith('/auth/v1/user')) return Response.json({ id: validActor, app_metadata: signed ? { nexalvo_platform_role: 'SUPERADMIN' } : {}, user_metadata: { nexalvo_platform_role: 'SUPERADMIN' } });
+    if (url.includes('/rest/v1/users?')) return Response.json([{ active, role: 'EMPLOYEE' }]);
+    assert.ok(url.endsWith('/functions/v1/platform-admin'));
+    if (!configured) return Response.json({ code: 'PLATFORM_NOT_CONFIGURED' }, { status: 503 });
+    if (!options.headers.Authorization) return Response.json({ code: 'AUTH_REQUIRED' }, { status: 401 });
+    assert.equal(options.headers.Authorization, `Bearer ${env.NEXALVO_PLATFORM_ADMIN_ACCESS_TOKEN}`);
+    const { operation } = JSON.parse(options.body);
+    assert.ok(['list_businesses', 'list_audit_logs'].includes(operation));
+    return Response.json({ ok: true, ...(operation === 'list_businesses' ? { businesses: malformed ? {} : [{ name: 'private-business' }] } : { audit_logs: [] }) });
+  };
+  return { env, fetchImpl, calls };
+}
+
+test('read-only runtime runner rejects other projects before sending any credentials', async () => {
+  const h = readonlyHarness();
+  h.env.VITE_SUPABASE_URL = 'https://different-test.invalid';
+  const result = await verifyPlatformAdminReadonlyTest(h);
+  assert.equal(result.status, 'BLOCKED');
+  assert.equal(result.reason, 'TEST_PUBLIC_CONFIGURATION_REQUIRED');
+  assert.equal(h.calls.length, 0);
+});
+
+test('read-only runtime runner distinguishes configured Edge from a missing secure user session', async () => {
+  const h = readonlyHarness();
+  delete h.env.NEXALVO_PLATFORM_ADMIN_ACCESS_TOKEN;
+  const result = await verifyPlatformAdminReadonlyTest(h);
+  assert.equal(result.status, 'BLOCKED');
+  assert.equal(result.reason, 'SECURE_SUPERADMIN_SESSION_REQUIRED');
+  assert.equal(result.checks.anonymous_denied.status, 'PASS');
+  assert.equal(h.calls.length, 3);
+});
+
+test('read-only runtime runner preserves the real configuration block without attempting authenticated reads', async () => {
+  const h = readonlyHarness({ configured: false });
+  const result = await verifyPlatformAdminReadonlyTest(h);
+  assert.equal(result.status, 'BLOCKED');
+  assert.equal(result.reason, 'EDGE_CONFIGURATION_REQUIRED');
+  assert.equal(result.checks.edge_configuration.http_status, 503);
+  assert.equal(h.calls.length, 3);
+});
+
+test('read-only runtime runner validates signed SUPERADMIN and active EMPLOYEE without changing either role', async () => {
+  const h = readonlyHarness();
+  const result = await verifyPlatformAdminReadonlyTest(h);
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.mutations, 0);
+  assert.equal(result.checks.list_businesses.row_count, 1);
+  assert.equal(result.checks.list_audit_logs.row_count, 0);
+  assert.equal(h.calls.length, 7);
+  assert.ok(h.calls.every(({ options }) => ['GET', 'OPTIONS'].includes(options.method) || (options.method === 'POST' && ['list_businesses', 'list_audit_logs'].includes(JSON.parse(options.body).operation))));
+  assert.doesNotMatch(JSON.stringify(result), /test-private-session|private-business|11111111/);
+});
+
+test('read-only runtime runner refuses editable user_metadata and inactive tenant profiles', async () => {
+  for (const opts of [{ signed: false }, { active: false }]) {
+    const h = readonlyHarness(opts);
+    const result = await verifyPlatformAdminReadonlyTest(h);
+    assert.equal(result.status, 'BLOCKED');
+    assert.equal(h.calls.filter(({ options }) => options.method === 'POST' && options.headers.Authorization).length, 0);
+  }
+});
+
+test('read-only runtime runner treats failed CORS as FAIL even when configuration is also blocked', async () => {
+  const h = readonlyHarness({ configured: false, cors: false });
+  const result = await verifyPlatformAdminReadonlyTest(h);
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.checks.cors_local.status, 'FAIL');
+});
+
+test('read-only runtime runner rejects malformed successful read responses', async () => {
+  const h = readonlyHarness({ malformed: true });
+  const result = await verifyPlatformAdminReadonlyTest(h);
+  assert.equal(result.status, 'FAIL');
+  assert.equal(result.checks.list_businesses.status, 'FAIL');
+});
+
+test('read-only runtime runner sanitizes transport failures instead of printing request secrets', async () => {
+  const h = readonlyHarness();
+  h.fetchImpl = async () => { throw new Error(`request failed with ${h.env.NEXALVO_PLATFORM_ADMIN_ACCESS_TOKEN}`); };
+  const result = await verifyPlatformAdminReadonlyTest(h);
+  assert.equal(result.status, 'BLOCKED');
+  assert.doesNotMatch(JSON.stringify(result), /test-private-session/);
+});
 
 function configurationHarness({ marker = false, origins = true, cors = true, missingService = false, configured = false } = {}) {
   const calls = [];

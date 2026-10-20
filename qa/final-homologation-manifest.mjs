@@ -213,7 +213,7 @@ export const deliveryUnits = Object.freeze([
   },
   {
     id: 'platform-admin-control-plane',
-    status: 'prepared_unapplied',
+    status: 'deployed_test',
     apply: 'migrations/20261016_platform_admin_TEST.sql',
     preflight: 'qa/sql/platform_admin_cutover_preflight_readonly_TEST.sql',
     verify: 'qa/sql/platform_admin_single_authority_preflight_readonly_TEST.sql',
@@ -221,8 +221,9 @@ export const deliveryUnits = Object.freeze([
     claimTool: 'scripts/prepare-superadmin-claim.mjs',
     edge: 'supabase/functions/platform-admin/index.ts',
     dependsOn: ['baseline-schema', 'deployed-catalog-reviewed', 'catalog-security-hardening'],
-    authorization: 'test_cutover_and_live_validation_preserve_existing_claim_required',
-    unresolvedGate: 'independent_identity_preflight_and_test_cutover_require_specific_authorization',
+    authorization: 'already_applied_test_user_confirmed_postflight_20_of_20_and_rpc_3_of_3',
+    deploymentEvidence: 'docs/QA_PLATFORM_ADMIN_UI_RUNTIME_20261020.md',
+    unresolvedGate: 'edge_configuration_and_real_superadmin_panel_read',
   },
 ]);
 

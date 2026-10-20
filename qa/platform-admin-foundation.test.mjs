@@ -2,8 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { createRequire } from 'node:module';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { transformSync } from 'esbuild';
 
 const files = ['src/App.jsx', 'App.jsx'];
+const catalogModule = { exports: {} };
+vm.runInNewContext(transformSync(readFileSync(new URL('../src/i18n.jsx', import.meta.url), 'utf8'), {
+  loader: 'jsx', format: 'cjs',
+}).code, { module: catalogModule, exports: catalogModule.exports, require: createRequire(import.meta.url) });
+const { translate, interpolate } = catalogModule.exports;
 
 function section(source, startToken, endToken) {
   const start = source.indexOf(startToken);
@@ -60,6 +69,79 @@ for (const file of files) {
     assert.equal(context.readRole({ app_metadata: { nexalvo_platform_role: 'OWNER' } }), null);
     assert.equal(context.isAdmin({ platformRole: 'SUPERADMIN' }), true);
     assert.equal(context.isAdmin({ role: 'OWNER' }), false);
+  });
+
+  test(`${file}: rendered account identity separates SUPERADMIN from tenant access in PT/EN`, () => {
+    const user = Object.freeze({ role: 'EMPLOYEE', platformRole: 'SUPERADMIN', permissions: Object.freeze({}) });
+    for (const language of ['en', 'pt-BR']) {
+      const context = vm.createContext({
+        React, C: { textMutedDark: '#aaa', textMutedLight: '#555' },
+        useLanguage: () => ({ translateUI: text => translate(text, language), interpolateUI: (key, values) => interpolate(key, values, language) }),
+      });
+      vm.runInContext(section(source, 'const PERMISSIONS =', 'const seedUsers =')
+        + section(source, 'const PLATFORM_ADMIN_ROLE =', 'async function loadAuthenticatedProfile')
+        + transformSync(section(source, 'function AccountAccessSummary(', 'function BrandHeader('), { loader: 'jsx' }).code
+        + ';globalThis.Account=AccountAccessSummary;globalThis.allowed=can;', context);
+      const render = account => renderToStaticMarkup(React.createElement(context.Account, { user: account, dark: false }));
+      const html = render(user);
+      assert.match(html, /<div class="font-bold">SUPERADMIN<\/div>/);
+      assert.ok(html.includes(language === 'pt-BR' ? 'Papel na empresa: Funcionário' : 'Company role: Employee'));
+      for (const permission of ['viewFinancials', 'manageUsers', 'manageSettings', 'paySuppliers']) {
+        assert.equal(context.allowed(user, permission), false, `global label must not grant ${permission}`);
+      }
+      for (const role of ['OWNER', 'MANAGER', 'EMPLOYEE']) {
+        assert.doesNotMatch(render({ role, user_metadata: { nexalvo_platform_role: 'SUPERADMIN' } }), /SUPERADMIN/);
+      }
+      assert.equal(user.role, 'EMPLOYEE');
+      assert.match(source, /<AccountAccessSummary user=\{currentUser\} dark=\{dark\} \/>/);
+      assert.equal((source.match(/<AccountAccessSummary user=\{currentUser\}/g) || []).length, 2, 'desktop and mobile share the same identity display');
+      const settings = section(source, 'function SettingsView(', '// Owner-only, experimental');
+      assert.match(settings, /isPlatformAdmin\(currentUser\) && <Row.*Platform access.*SUPERADMIN/);
+      assert.match(settings, /isPlatformAdmin\(currentUser\) \? "Company role" : "Role"/);
+    }
+  });
+
+  test(`${file}: commercial confirmations interpolate PT/EN safely without translating business names`, () => {
+    const context = vm.createContext({});
+    vm.runInContext(section(source, 'function platformActionConfirmation(', 'function PlatformAdminView(')
+      + ';globalThis.message=platformActionConfirmation;', context);
+    const name = 'Owner <img src=x onerror=alert(1)> {0} & Co';
+    for (const [type, nextStatus, en, pt] of [
+      ['lifetime', undefined, 'Grant a lifetime license to ', 'Conceder uma licença vitalícia a '],
+      ['revoke', undefined, 'Revoke the commercial license for ', 'Revogar a licença comercial de '],
+      ['status', 'ACTIVE', 'Activate ', 'Ativar '],
+      ['status', 'SUSPENDED', 'Suspend ', 'Suspender '],
+    ]) {
+      const action = Object.freeze({ type, nextStatus, business: Object.freeze({ name }) });
+      for (const [language, prefix] of [['en', en], ['pt-BR', pt]]) {
+        const message = context.message(action, (key, values) => interpolate(key, values, language));
+        assert.ok(message.startsWith(prefix + name + '?'));
+        const html = renderToStaticMarkup(React.createElement('p', null, message));
+        assert.doesNotMatch(html, /<img/);
+        assert.match(html, /&lt;img/);
+      }
+    }
+    assert.match(source, /message=\{platformActionConfirmation\(pendingAction, interpolateUI\)\}/);
+  });
+
+  test(`${file}: commercial statuses and audit actions display translated labels while retaining API codes`, () => {
+    const context = vm.createContext({ Object });
+    vm.runInContext(section(source, 'function platformBusinessStatusLabel(', 'function useSupabaseUsers(')
+      + ';globalThis.labels={status:platformBusinessStatusLabel,license:platformLicenseLabel,operation:platformAuditOperationLabel};', context);
+    const { labels } = context;
+    assert.equal(translate(labels.status('ACTIVE'), 'pt-BR'), 'Ativo');
+    assert.equal(translate(labels.status('SUSPENDED'), 'pt-BR'), 'Suspensa');
+    for (const type of ['NONE', 'TRIAL', 'SUBSCRIPTION', 'LIFETIME']) assert.notEqual(translate(labels.license(type), 'pt-BR'), labels.license(type));
+    for (const operation of ['grant_lifetime_license', 'revoke_license', 'update_business_status']) assert.notEqual(translate(labels.operation(operation), 'pt-BR'), labels.operation(operation));
+    assert.equal(labels.license('toString'), 'No license');
+    assert.equal(labels.operation('unrecognized_event'), 'unrecognized_event', 'new audit operations must remain visible');
+    const view = section(source, 'function platformActionConfirmation(', '/* ============================== SETTINGS');
+    const keys = [...view.matchAll(/(?:translateUI|interpolateUI)\("([^"\n]+)"|(?:title|label)="([^"\n]+)"|showToast\("([^"\n]+)"/g)].map(match => match[1] || match[2] || match[3]);
+    for (const key of [...keys, 'Platform Admin', 'No matching businesses', 'No businesses returned', 'Activate this business?', 'Suspend this business?', 'Business activated', 'Business suspended']) {
+      assert.notEqual(translate(key, 'pt-BR'), key, `missing commercial translation: ${key}`);
+      assert.equal(translate(key, 'en'), key);
+    }
+    assert.match(view, /callPlatformAdmin\("update_business_status", .*status: action.nextStatus/);
   });
 
   test(`${file}: authenticated profile receives the signed Auth user`, () => {

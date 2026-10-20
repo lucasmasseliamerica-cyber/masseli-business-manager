@@ -1,0 +1,126 @@
+{
+  "target": {
+    "project_ref": "msinksoilkluooxenecy",
+    "branch": "automation/nexalvo-qa-actions"
+  },
+  "deployment_user_confirmed": {
+    "migration": "20261016_platform_admin_TEST.sql",
+    "postflight_pass": 20,
+    "postflight_total": 20,
+    "rpc_contracts_pass": 3,
+    "rpc_contracts_total": 3,
+    "source": "user_report_not_reexecuted"
+  },
+  "independent_readonly_observations": {
+    "project_ref": "msinksoilkluooxenecy",
+    "observed_at_utc": "2026-10-20T12:56:28.062Z",
+    "management_access_available": false,
+    "superadmin_session_available": false,
+    "checks": {
+      "cors_local": {
+        "http_status": 204,
+        "code": null,
+        "cors_matches_local": true
+      },
+      "cors_unknown": {
+        "http_status": 403,
+        "code": "ORIGIN_DENIED",
+        "cors_matches_local": false
+      },
+      "edge_configuration": {
+        "http_status": 503,
+        "code": "PLATFORM_NOT_CONFIGURED",
+        "cors_matches_local": true
+      },
+      "edge_invalid_jwt": {
+        "http_status": 401,
+        "code": "UNAUTHORIZED_INVALID_JWT_FORMAT",
+        "cors_matches_local": false
+      },
+      "auth_inventory": {
+        "status": "PASS",
+        "inventory_complete": true,
+        "active_signed_superadmins": 1
+      },
+      "superadmin_profile": {
+        "active": true,
+        "tenant_role": "EMPLOYEE"
+      },
+      "fn_platform_admin_list_businesses": {
+        "status": "PASS",
+        "http_status": 200,
+        "row_count": 3,
+        "license_counts": {
+          "NONE": 3,
+          "TRIAL": 0,
+          "SUBSCRIPTION": 0,
+          "LIFETIME": 0
+        }
+      },
+      "fn_platform_admin_list_audit_logs": {
+        "status": "PASS",
+        "http_status": 200,
+        "row_count": 0
+      },
+      "rpc_contract_discovery": {
+        "fn_platform_admin_list_businesses": true,
+        "fn_platform_admin_list_audit_logs": true,
+        "fn_platform_admin_execute": true
+      },
+      "rpc_untrusted_actor": {
+        "http_status": 403,
+        "sqlstate": "42501"
+      }
+    }
+  },
+  "edge_readonly_runner": {
+    "project_ref": "msinksoilkluooxenecy",
+    "status": "BLOCKED",
+    "checks": {
+      "cors_local": {
+        "status": "PASS",
+        "http_status": 204
+      },
+      "cors_unknown": {
+        "status": "PASS",
+        "http_status": 403
+      },
+      "edge_configuration": {
+        "status": "BLOCKED",
+        "http_status": 503,
+        "code": "PLATFORM_NOT_CONFIGURED"
+      }
+    },
+    "mutations": 0,
+    "reason": "EDGE_CONFIGURATION_REQUIRED"
+  },
+  "management_helper": {
+    "mode": "DRY_RUN",
+    "status": "BLOCKED",
+    "reason": "MANAGEMENT_ACCESS_UNAVAILABLE",
+    "changed": []
+  },
+  "interpretation": {
+    "rpc_reads_used_server_credential": true,
+    "rpc_reads_prove_authenticated_superadmin_edge_access": false,
+    "edge_secret_values_inspected": false,
+    "edge_secret_names_inspected": false,
+    "origin_list_inspected": false,
+    "reserved_secrets_changed": false,
+    "test_mutations": 0,
+    "panel_homologation": "BLOCKED_EDGE_CONFIGURATION_AND_SECURE_SUPERADMIN_SESSION"
+  },
+  "local_verification": {
+    "regressions": {
+      "passed": 109,
+      "failed": 0,
+      "skipped": 0,
+      "source": "eight_affected_test_files",
+      "tap_sha256": "1b51cff9afa4300ba1986755b17d024a96ed688c78c0d09630713154be93213c"
+    },
+    "build": "PASS",
+    "runner_syntax": "PASS",
+    "manifest_artifacts": "PASS",
+    "simulated_tests_are_not_live_panel_homologation": true
+  }
+}

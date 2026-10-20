@@ -2496,6 +2496,18 @@ function normalizePlatformAuditLog(row) {
   };
 }
 
+function platformBusinessStatusLabel(status) {
+  return status === "ACTIVE" ? "Active" : "Suspended";
+}
+function platformLicenseLabel(type) {
+  const labels = { NONE: "No license", TRIAL: "Trial", SUBSCRIPTION: "Subscription", LIFETIME: "Lifetime" };
+  return Object.hasOwn(labels, type) ? labels[type] : "No license";
+}
+function platformAuditOperationLabel(operation) {
+  const labels = { grant_lifetime_license: "Lifetime license granted", revoke_license: "License revoked", update_business_status: "Business status changed" };
+  return Object.hasOwn(labels, operation) ? labels[operation] : operation;
+}
+
 function useSupabaseUsers(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
@@ -4378,7 +4390,7 @@ function AppBody() {
           <div className="mt-auto pt-4 border-t" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
             <div className="px-1 mb-2">
               <div className="text-sm font-semibold" style={{ color: dark ? C.white : C.black }}>{currentUser.name}</div>
-              <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{currentUser.role === "OWNER" ? translateUI("Owner · Full access") : translateUI(roleLabel(currentUser.role))}</div>
+              <AccountAccessSummary user={currentUser} dark={dark} />
             </div>
             <GhostButton dark={dark} onClick={logout} style={{ width: "100%", padding: "8px 12px", fontSize: 13 }}>{translateUI("Log Out")}</GhostButton>
           </div>
@@ -4443,7 +4455,10 @@ function AppBody() {
               );
             })}
           </div>
-          <div className="text-xs mb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{currentUser.name} · {translateUI(roleLabel(currentUser.role))}</div>
+          <div className="mb-2">
+            <div className="text-xs font-semibold break-words" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{currentUser.name}</div>
+            <AccountAccessSummary user={currentUser} dark={dark} />
+          </div>
           <GhostButton dark={dark} onClick={logout} style={{ width: "100%" }}>{translateUI("Log Out")}</GhostButton>
         </Modal>
       )}
@@ -4454,6 +4469,17 @@ function AppBody() {
           {translateUI(toast.msg)}
         </div>
       )}
+    </div>
+  );
+}
+
+function AccountAccessSummary({ user, dark }) {
+  const { translateUI, interpolateUI } = useLanguage();
+  const platformAdmin = isPlatformAdmin(user);
+  return (
+    <div className="text-xs break-words" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
+      <div className={platformAdmin ? "font-bold" : undefined}>{platformAdmin ? "SUPERADMIN" : user.role === "OWNER" ? translateUI("Owner · Full access") : translateUI(roleLabel(user.role))}</div>
+      {platformAdmin && <div>{interpolateUI("Company role: {0}", [translateUI(roleLabel(user.role))])}</div>}
     </div>
   );
 }
@@ -10808,8 +10834,14 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
 
 /* ============================== PLATFORM ADMINISTRATION ============================== */
 
+function platformActionConfirmation(action, interpolateUI) {
+  if (action.type === "lifetime") return interpolateUI("Grant a lifetime license to {0}? The platform service will record the administrator and timestamp.", [action.business.name]);
+  if (action.type === "revoke") return interpolateUI("Revoke the commercial license for {0}? The platform service will preserve the audit history.", [action.business.name]);
+  return interpolateUI(action.nextStatus === "ACTIVE" ? "Activate {0}? The platform service will audit this change." : "Suspend {0}? The platform service will audit this change.", [action.business.name]);
+}
+
 function PlatformAdminView({ dark, currentUser, showToast }) {
-  const { translateUI, language } = useLanguage();
+  const { translateUI, interpolateUI, language } = useLanguage();
   const [businesses, setBusinesses] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [query, setQuery] = useState("");
@@ -10911,8 +10943,8 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
                   <div className="font-bold text-sm break-words" style={{ color: dark ? C.white : C.black }}>{business.name}</div>
                   <div className="text-xs break-all mt-1" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{business.id}</div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    <Badge dark={dark} tone={business.status === "ACTIVE" ? "good" : "danger"}>{business.status}</Badge>
-                    <Badge dark={dark} tone={business.licenseType === "LIFETIME" ? "good" : "warn"}>{business.licenseType}</Badge>
+                    <Badge dark={dark} tone={business.status === "ACTIVE" ? "good" : "danger"}>{platformBusinessStatusLabel(business.status)}</Badge>
+                    <Badge dark={dark} tone={business.licenseType === "LIFETIME" ? "good" : "warn"}>{platformLicenseLabel(business.licenseType)}</Badge>
                     <Badge dark={dark}>{business.activeUsers} {translateUI("active users")}</Badge>
                   </div>
                 </div>
@@ -10937,8 +10969,8 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
           {auditLogs.length === 0 ? <EmptyState dark={dark} title={translateUI("No platform changes recorded")} /> : auditLogs.map((entry) => (
             <ListRow key={entry.id} dark={dark}
               title={entry.businessName}
-              subtitle={`${entry.operation} · ${entry.actorUserId}${entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString(language === "pt-BR" ? "pt-BR" : "en-US")}` : ""}`}
-              right={entry.newValues?.status || entry.newValues?.license_type || ""} />
+              subtitle={`${translateUI(platformAuditOperationLabel(entry.operation))} · ${entry.actorUserId}${entry.createdAt ? ` · ${new Date(entry.createdAt).toLocaleString(language === "pt-BR" ? "pt-BR" : "en-US")}` : ""}`}
+              right={entry.newValues?.status ? translateUI(platformBusinessStatusLabel(entry.newValues.status)) : entry.newValues?.license_type ? translateUI(platformLicenseLabel(entry.newValues.license_type)) : ""} />
           ))}
         </Card>
       )}
@@ -10946,7 +10978,7 @@ function PlatformAdminView({ dark, currentUser, showToast }) {
       {pendingAction && (
         <ConfirmDialog dark={dark} danger={pendingAction.type === "revoke" || pendingAction.nextStatus === "SUSPENDED"}
           title={pendingAction.type === "lifetime" ? translateUI("Grant lifetime license?") : pendingAction.type === "revoke" ? translateUI("Revoke this license?") : translateUI(pendingAction.nextStatus === "ACTIVE" ? "Activate this business?" : "Suspend this business?")}
-          message={pendingAction.type === "lifetime" ? `Grant a lifetime license to ${pendingAction.business.name}? The platform service will record the administrator and timestamp.` : pendingAction.type === "revoke" ? `Revoke the commercial license for ${pendingAction.business.name}? The platform service will preserve the audit history.` : `${pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend"} ${pendingAction.business.name}? The platform service will audit this change.`}
+          message={platformActionConfirmation(pendingAction, interpolateUI)}
           confirmLabel={actionBusy ? translateUI("Saving…") : translateUI(pendingAction.type === "lifetime" ? "Grant lifetime" : pendingAction.type === "revoke" ? "Revoke license" : pendingAction.nextStatus === "ACTIVE" ? "Activate" : "Suspend")}
           onConfirm={applyAction} onCancel={() => { if (!actionBusy) setPendingAction(null); }} />
       )}
@@ -11026,7 +11058,8 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("My Account")}</div>
         <Row dark={dark} label={translateUI("Name")} value={currentUser.name} />
-        <Row dark={dark} label={translateUI("Role")} value={currentUser.role === "OWNER" ? translateUI("Owner (full access)") : translateUI(roleLabel(currentUser.role))} />
+        {isPlatformAdmin(currentUser) && <Row dark={dark} label={translateUI("Platform access")} value="SUPERADMIN" />}
+        <Row dark={dark} label={translateUI(isPlatformAdmin(currentUser) ? "Company role" : "Role")} value={currentUser.role === "OWNER" ? translateUI("Owner (full access)") : translateUI(roleLabel(currentUser.role))} />
         <div className="mt-3"><GhostButton dark={dark} onClick={onLogout}><LogOut size={15} />{translateUI("Log Out")}</GhostButton></div>
       </Card>
 

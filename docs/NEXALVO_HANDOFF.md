@@ -1,5 +1,24 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Estado vigente — migração comercial aplicada; Edge ainda bloqueada
+
+Ler [QA_PLATFORM_ADMIN_UI_RUNTIME_20261020.md](./QA_PLATFORM_ADMIN_UI_RUNTIME_20261020.md).
+O usuário confirmou aplicação TEST de `20261016_platform_admin_TEST.sql`, pós-preflight **20/20**
+e contratos **3/3**. Instruções históricas abaixo para aprovar/aplicar esse cutover estão superadas.
+Não reaplicar migração, modificar claims ou executar rollback.
+
+Leituras independentes confirmaram as três RPCs no OpenAPI, GET de empresas **200** (três/NONE),
+auditoria **200** (zero eventos), ator inválido negado **403/42501** e um SUPERADMIN ativo com
+perfil EMPLOYEE. Esses GETs usam credencial de servidor e não homologam a Edge.
+CORS local **204 PASS**, origem desconhecida **403 PASS**, Edge **503 PLATFORM_NOT_CONFIGURED**.
+Faltam gestão dos Secrets e sessão segura SUPERADMIN nesta execução. Não afirmar ausência do
+marcador sem inventário nem alterar a allowlist que já permite a origem local.
+
+Frontend agora mostra SUPERADMIN separado do papel na empresa; traduções comerciais PT/EN completas.
+Runner novo `scripts/verify-platform-admin-readonly-test.mjs` usa uma sessão segura existente,
+valida Auth/perfil e somente leituras Edge; emite agregado sem PII. O painel continua BLOCKED.
+Preservar bloqueios de testes persistentes e homologação real dos demais perfis/fluxos.
+
 ## Reconciliação vigente — SUPERADMIN EMPLOYEE distinto do operador OWNER
 
 Ler [QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md](./QA_PLATFORM_ADMIN_DISTINCT_IDENTITIES_20261020.md).
