@@ -1,0 +1,108 @@
+{
+  "recorded_at": "2026-10-20T22:21:37.744992+00:00",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref": "msinksoilkluooxenecy",
+  "code_sha": "ea72a16a4c769699cf3865e5c7db5f98db229832",
+  "run": 183,
+  "run_id": "39506854457",
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39506854457",
+  "source": "PUBLIC_GITHUB_ACTIONS_HTML",
+  "source_sha256": "1c956ccff6d6225e2d0840decfef60e4a848eb9efe5f0fed959e7589c55f5ac9",
+  "executed_scope": {
+    "passed": 594,
+    "failed": 0,
+    "test_skipped": 0,
+    "tap_reports": 6
+  },
+  "jobs_passed": 8,
+  "jobs_skipped_blocked": 4,
+  "jobs": [
+    {
+      "job": "build-and-security",
+      "job_id": "118917818628",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    },
+    {
+      "job": "test-api-smoke",
+      "job_id": "118918067022",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    },
+    {
+      "job": "authenticated-preflight",
+      "job_id": "118918158345",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    },
+    {
+      "job": "authenticated-concurrency",
+      "job_id": "118918306740",
+      "status": "BLOCKED",
+      "github_state": "skipped"
+    },
+    {
+      "job": "access-regression",
+      "job_id": "118918303876",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    },
+    {
+      "job": "auth-lifecycle",
+      "job_id": "118918303862",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    },
+    {
+      "job": "replay-financial",
+      "job_id": "118918305715",
+      "status": "BLOCKED",
+      "github_state": "skipped"
+    },
+    {
+      "job": "network-after-commit",
+      "job_id": "118918305940",
+      "status": "BLOCKED",
+      "github_state": "skipped"
+    },
+    {
+      "job": "browser-smoke",
+      "job_id": "118918303751",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    },
+    {
+      "job": "performance-read",
+      "job_id": "118918304110",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    },
+    {
+      "job": "two-tenant-concurrency",
+      "job_id": "118918306925",
+      "status": "BLOCKED",
+      "github_state": "skipped"
+    },
+    {
+      "job": "qa-summary",
+      "job_id": "118918796397",
+      "status": "PASS",
+      "github_state": "completed successfully"
+    }
+  ],
+  "publication": {
+    "remote_base_before": "cad6ad0b36ce5bb03fe5aa8ce90572d7e317269d",
+    "local_only_commits_before_push": 3,
+    "remote_only_commits_before_push": 0,
+    "fast_forward": true,
+    "force_push": false,
+    "remote_history_confirmed": [
+      "8faade0bdcd1511bb2605263830cebcdf23695c9",
+      "a4721461c906921bf1659a6265b34a6d4fe016a6",
+      "ea72a16a4c769699cf3865e5c7db5f98db229832"
+    ]
+  },
+  "persistent_groups_authorized": false,
+  "commercial_rollout_started": false,
+  "stripe_live_test_payments_executed": false
+}

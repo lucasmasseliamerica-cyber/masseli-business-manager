@@ -1,5 +1,15 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Publicação e CI confirmadas — 20/10/2026
+
+`8faade0`, `a472146` e `ea72a16` publicados e confirmados no histórico remoto QA, sem force push.
+[CI #183](./QA_DELIVERY_CI_183_20261020.md): **594/594 TAP PASS, 0 FAIL, 0 SKIPPED** nos testes
+executados; **8 jobs PASS, 4 jobs persistentes BLOCKED (SKIPPED pelo gate)**. Não são 12/12 PASS.
+Autenticação Git/push resolvida por helper temporário seguro. Menções abaixo ao bloqueio de
+publicação são históricas e estão superadas; API GitHub 403 não impediu observação HTML real.
+[Próximo lote persistente preparado](./QA_OPERATIONAL_PERSISTENT_BATCH_01.md): nenhuma execução
+autorizada/ativada, compras browser OFF. Checkout/comercialização automática congelados.
+
 ## P0 obrigatório — Stripe Terminal exclusivamente online (20/10/2026)
 
 Política e contratos: [P0_STRIPE_TERMINAL_ONLINE_ONLY.md](./P0_STRIPE_TERMINAL_ONLINE_ONLY.md).

@@ -189,3 +189,7 @@ App/src, diff e varredura de segredos passaram. Nenhum SDK/pagamento/reader Stri
 CI destes commits ainda não verificada; a última baseline histórica é #180, não uma aprovação
 deste código. A publicação dos commits operacionais preservados e deste lote é a próxima tarefa
 solicitada pelo usuário, após encerrar este pacote. Dependências não foram alteradas neste lote.
+
+Atualização posterior: commits publicados, [CI #183](./QA_DELIVERY_CI_183_20261020.md) aprovada
+no escopo seguro (594/594 TAP, oito jobs PASS, quatro persistentes BLOCKED). A evidência local
+acima é o snapshot anterior à publicação; não usar seu campo UNVERIFIED como estado atual.
