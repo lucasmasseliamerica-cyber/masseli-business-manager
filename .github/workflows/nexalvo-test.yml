@@ -1,6 +1,12 @@
 name: NEXALVO TEST - QA
 on:
   workflow_dispatch:
+    inputs:
+      authorize_persistent_test_flows:
+        description: 'Explicit authorization for isolated TEST writes, compensation and residue checks'
+        type: boolean
+        required: true
+        default: false
   push:
     branches: [automation/nexalvo-qa-actions]
     paths:
@@ -49,7 +55,7 @@ jobs:
         run: node --check qa/p0-purchase-browser-persistent.TEST.mjs
       - name: Run disposable SQL integration and static security checks
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs qa/role-preflight-guards.test.mjs qa/real-role-account-plan.test.mjs qa/reports-financial-permission.test.mjs qa/report-accuracy-regression.test.mjs qa/pos-usability-regression.test.mjs qa/product-catalog-regression.test.mjs qa/product-image-storage.test.mjs qa/app-error-boundary.test.mjs qa/inventory-usability-regression.test.mjs qa/inventory-catalog-regression.test.mjs qa/purchase-supplier-usability-regression.test.mjs qa/customer-usability-regression.test.mjs qa/employee-workflow-regression.test.mjs qa/ui-responsive-regression.test.mjs qa/sales-receipt-regression.test.mjs qa/cash-register-validation-regression.test.mjs qa/platform-admin-foundation.test.mjs qa/platform-admin-backend.test.mjs qa/platform-admin-postgres.test.mjs qa/manage-staff-user.test.mjs qa/settings-usability-regression.test.mjs qa/browser-smoke-isolation-regression.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs qa/final-homologation-package.test.mjs qa/catalog-security-hardening.test.mjs qa/private-security-catalog.test.mjs qa/npm-audit-policy.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/operational-p0-regression.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/preflight-guards.test.mjs qa/role-preflight-guards.test.mjs qa/real-role-account-plan.test.mjs qa/reports-financial-permission.test.mjs qa/report-accuracy-regression.test.mjs qa/pos-usability-regression.test.mjs qa/product-catalog-regression.test.mjs qa/product-image-storage.test.mjs qa/app-error-boundary.test.mjs qa/inventory-usability-regression.test.mjs qa/inventory-catalog-regression.test.mjs qa/purchase-supplier-usability-regression.test.mjs qa/customer-usability-regression.test.mjs qa/employee-workflow-regression.test.mjs qa/ui-responsive-regression.test.mjs qa/sales-receipt-regression.test.mjs qa/cash-register-validation-regression.test.mjs qa/platform-admin-foundation.test.mjs qa/platform-admin-backend.test.mjs qa/platform-admin-postgres.test.mjs qa/manage-staff-user.test.mjs qa/settings-usability-regression.test.mjs qa/browser-smoke-isolation-regression.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs qa/final-homologation-package.test.mjs qa/catalog-security-hardening.test.mjs qa/private-security-catalog.test.mjs qa/npm-audit-policy.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
       - name: Upload build and static QA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -159,11 +165,12 @@ jobs:
 
   authenticated-concurrency:
     needs: authenticated-preflight
-    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions' && github.event_name == 'workflow_dispatch' && inputs.authorize_persistent_test_flows == true
     environment: nexalvo-test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
+      NEXALVO_PERSISTENT_QA_AUTHORIZED: TEST_ONLY_EXPLICIT
       QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
       QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
       QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
@@ -247,11 +254,12 @@ jobs:
 
   replay-financial:
     needs: authenticated-preflight
-    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions' && github.event_name == 'workflow_dispatch' && inputs.authorize_persistent_test_flows == true
     environment: nexalvo-test
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
+      NEXALVO_PERSISTENT_QA_AUTHORIZED: TEST_ONLY_EXPLICIT
       QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
       QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
       QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
@@ -275,11 +283,12 @@ jobs:
 
   network-after-commit:
     needs: authenticated-preflight
-    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions' && github.event_name == 'workflow_dispatch' && inputs.authorize_persistent_test_flows == true
     environment: nexalvo-test
     runs-on: ubuntu-latest
     timeout-minutes: 7
     env:
+      NEXALVO_PERSISTENT_QA_AUTHORIZED: TEST_ONLY_EXPLICIT
       QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
       QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
       QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
@@ -330,7 +339,7 @@ jobs:
           set -euo pipefail
           npm run dev -- --host 127.0.0.1 --port 4179 --strictPort &
           set +e
-          node --test --test-reporter=tap qa/browser-smoke.test.mjs qa/password-recovery-browser.TEST.mjs | tee qa-browser-smoke.tap
+          node --test --test-reporter=tap qa/browser-smoke.test.mjs qa/password-recovery-browser.TEST.mjs qa/operational-browser.test.mjs | tee qa-browser-smoke.tap
           test_code=${PIPESTATUS[0]}
           set -e
           while IFS= read -r failed_test; do
@@ -381,11 +390,12 @@ jobs:
 
   two-tenant-concurrency:
     needs: authenticated-preflight
-    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    if: github.ref == 'refs/heads/automation/nexalvo-qa-actions' && github.event_name == 'workflow_dispatch' && inputs.authorize_persistent_test_flows == true
     environment: nexalvo-test
     runs-on: ubuntu-latest
     timeout-minutes: 7
     env:
+      NEXALVO_PERSISTENT_QA_AUTHORIZED: TEST_ONLY_EXPLICIT
       QA_SUPABASE_URL: ${{ vars.QA_SUPABASE_URL }}
       QA_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
       QA_TWO_TENANT_ENABLED: ${{ vars.QA_TWO_TENANT_ENABLED }}
@@ -431,13 +441,22 @@ jobs:
         with:
           path: qa-artifacts
       - name: Publish exact root TAP totals
+        env:
+          PERSISTENT_SCOPE_AUTHORIZED: ${{ github.event_name == 'workflow_dispatch' && inputs.authorize_persistent_test_flows == true }}
         shell: bash
         run: |
           set -euo pipefail
           mapfile -t tap_files < <(find qa-artifacts -type f -name '*.tap' -print | sort)
-          if (( ${#tap_files[@]} != 10 )); then
-            echo "### QA TAP summary: INCOMPLETE (${#tap_files[@]}/10 reports)" >> "$GITHUB_STEP_SUMMARY"
-            echo "::error title=NEXALVO QA TAP summary::INCOMPLETE - expected 10 TAP reports, found ${#tap_files[@]}"
+          expected_reports=6
+          blocked_groups=4
+          if [[ "$PERSISTENT_SCOPE_AUTHORIZED" == 'true' ]]; then
+            expected_reports=10
+            blocked_groups=0
+          fi
+          echo "Persistent TEST groups: $blocked_groups BLOCKED; explicit manual authorization required" >> "$GITHUB_STEP_SUMMARY"
+          if (( ${#tap_files[@]} != expected_reports )); then
+            echo "### QA TAP summary: INCOMPLETE (${#tap_files[@]}/$expected_reports reports)" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error title=NEXALVO QA TAP summary::INCOMPLETE - expected $expected_reports TAP reports, found ${#tap_files[@]}"
             exit 1
           fi
           total_tests=0
@@ -458,7 +477,7 @@ jobs:
             total_fail=$((total_fail + failures[0]))
             total_skipped=$((total_skipped + skipped[0]))
           done
-          echo "### QA TAP summary: $total_pass/$total_tests PASS; $total_fail FAIL; $total_skipped SKIPPED" >> "$GITHUB_STEP_SUMMARY"
+          echo "### QA TAP summary (executed scope): $total_pass/$total_tests PASS; $total_fail FAIL; $total_skipped SKIPPED; $blocked_groups persistent groups BLOCKED" >> "$GITHUB_STEP_SUMMARY"
           if (( total_tests != total_pass || total_fail != 0 || total_skipped != 0 )); then
             echo "::error title=NEXALVO QA TAP summary::$total_pass/$total_tests PASS; $total_fail FAIL; $total_skipped SKIPPED"
             exit 1

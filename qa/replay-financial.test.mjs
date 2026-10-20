@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 const HOST='msinksoilkluooxenecy.supabase.co';
 const need=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_TWO_TENANT_B_EMAIL','QA_TWO_TENANT_B_PASSWORD'];
 const missing=need.filter(k=>!process.env[k]);
-const skip=process.env.QA_TWO_TENANT_ENABLED!=='true'?'TEST write gate disabled':missing.length?'Missing '+missing.join(', '):false;
+const skip=process.env.NEXALVO_PERSISTENT_QA_AUTHORIZED!=='TEST_ONLY_EXPLICIT'?'BLOCKED: explicit TEST write authorization required':process.env.QA_TWO_TENANT_ENABLED!=='true'?'TEST write gate disabled':missing.length?'Missing '+missing.join(', '):false;
 function conf(){
  const url=new URL(process.env.QA_SUPABASE_URL);
  assert.equal(url.hostname,HOST,'PRODUCTION WRITES PROHIBITED');assert.equal(url.protocol,'https:');

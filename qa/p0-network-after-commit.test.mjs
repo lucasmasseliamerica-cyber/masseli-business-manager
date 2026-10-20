@@ -6,7 +6,7 @@ import {randomUUID} from 'node:crypto';
 const TEST_HOST='msinksoilkluooxenecy.supabase.co';
 const required=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_TWO_TENANT_A_EMAIL','QA_TWO_TENANT_A_PASSWORD'];
 const missing=required.filter(k=>!process.env[k]);
-const skip=process.env.QA_TWO_TENANT_ENABLED!=='true'?'TEST gate disabled':missing.length?'missing isolated TEST configuration: '+missing.join(', '):false;
+const skip=process.env.NEXALVO_PERSISTENT_QA_AUTHORIZED!=='TEST_ONLY_EXPLICIT'?'BLOCKED: explicit TEST write authorization required':process.env.QA_TWO_TENANT_ENABLED!=='true'?'TEST gate disabled':missing.length?'missing isolated TEST configuration: '+missing.join(', '):false;
 const A={business:'d627563b-2ce4-491d-8cf6-141ef28d0f63',
  location:'a3e4b2ed-eb00-4963-afd0-38c256aff87d',
  product:'9efafd84-7f17-4de9-9c9a-1b962ab3e0bc',

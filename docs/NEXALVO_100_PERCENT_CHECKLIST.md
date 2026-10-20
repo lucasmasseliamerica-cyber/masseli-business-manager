@@ -8,6 +8,16 @@ Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msi
 - Macro concluído somente quando **todos** os seus micros obrigatórios forem concluídos, houver regressão verde e aceite humano.
 - Não confundir SQL com JWT simulado, browser com RPC mockado e browser com gravação real.
 
+## Prioridade operacional vigente — 20/10/2026
+
+Site comercial, checkout Stripe e licença automática congelados. Administração Comercial preservada.
+Usar a [matriz operacional v1](./NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md): **13/52 critérios (25%)**,
+14 PENDENTES e 25 BLOQUEADOS. Este denominador explícito não é uma soma dos checks históricos abaixo.
+Correções/interfaces simuladas não foram promovidas a jornadas reais aprovadas.
+[Relatório desta entrega e autorizações necessárias](./QA_OPERATIONAL_P0_20261020.md).
+Quatro grupos persistentes da CI agora exigem autorização manual; push automático os registra
+BLOCKED. Não confundir zero falhas no escopo executado com ausência de jornadas bloqueadas.
+
 ## M0 — Infraestrutura, isolamento e qualidade contínua (parcial)
 - [x] Branch de QA isolada e workflow TEST configurado. Última baseline integral confirmada pelo usuário: CI #174, 12/12 jobs e 489/489 PASS.
 - [x] CI #159: 12/12 jobs, 470/470 TAP, 0 falhas, 0 skips; preflight OWNER A/B e todos os produtores autenticados aprovados.

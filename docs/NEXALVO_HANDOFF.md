@@ -1,5 +1,28 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Prioridade vigente — operação real da Masseli, comercial congelado
+
+Ler [QA_OPERATIONAL_P0_20261020.md](./QA_OPERATIONAL_P0_20261020.md) e a
+[matriz operacional](./NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md).
+Site comercial, checkout Stripe e ativação automática de licenças congelados; preservar o trabalho
+da Administração Comercial. Trabalhar somente na branch QA e no TEST, sem deploy/migração/writes
+persistentes até autorização específica.
+
+Matriz v1: **13/52 critérios comprovados (25%)**, 14 PENDENTES, 25 BLOQUEADOS. Percentual de critérios,
+não de código. Resultados reais anteriores mantidos; novos browser com HTTP simulado não homologam
+o TEST. Leituras atuais: Storage privado ausente; RPCs de idempotência/equipe novas não expostas;
+zero MANAGER ativo e um EMPLOYEE ativo sem vínculo. Não criar contas ou modificar claims.
+
+Correções locais: RPC 5xx/408/JSON inválido fail-closed, paginação sem truncar financeiro,
+cartão externo manual por padrão e moeda configurada, validações de compra/despesa, fuso/DST de
+relatórios e PT mobile. Vite atualizado somente por patch 6.4.3 → 6.4.4; sete alertas build conhecidos,
+zero runtime. Regressão local 365/365, quatro browser HTTP simulados, build PASS.
+
+ATENÇÃO: quatro grupos CI antigos escrevem no TEST. Agora somente workflow_dispatch com autorização
+explícita habilita esses grupos; push roda escopo seguro com quatro BLOCKED declarados no resumo.
+Não chamar a nova CI de 12/12 homologação integral. Teste browser persistente P0.05 segue desativado.
+Novo SQL de inventário operacional é somente leitura/preparado, ainda não executado no TEST.
+
 ## Estado vigente — migração comercial aplicada; Edge ainda bloqueada
 
 Ler [QA_PLATFORM_ADMIN_UI_RUNTIME_20261020.md](./QA_PLATFORM_ADMIN_UI_RUNTIME_20261020.md).

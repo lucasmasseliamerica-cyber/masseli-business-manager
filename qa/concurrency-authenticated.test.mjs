@@ -6,7 +6,7 @@ const EXPECTED_HOST='msinksoilkluooxenecy.supabase.co';
 const enabled=process.env.QA_TWO_TENANT_ENABLED==='true';
 const needed=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_TWO_TENANT_B_EMAIL','QA_TWO_TENANT_B_PASSWORD'];
 const missing=needed.filter(k=>!process.env[k]);
-const skipReason=!enabled?'Not run: QA_TWO_TENANT_ENABLED is not true (no write permission granted)':
+const skipReason=process.env.NEXALVO_PERSISTENT_QA_AUTHORIZED!=='TEST_ONLY_EXPLICIT'?'BLOCKED: explicit TEST write authorization required':!enabled?'Not run: QA_TWO_TENANT_ENABLED is not true (no write permission granted)':
  missing.length?'Not run: missing dedicated QA fixture/credentials: '+missing.join(', '):false;
 function config(){
  const base=new URL(process.env.QA_SUPABASE_URL);

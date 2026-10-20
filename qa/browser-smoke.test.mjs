@@ -7,6 +7,13 @@ const HOST='msinksoilkluooxenecy.supabase.co';
 const needs=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_TWO_TENANT_B_EMAIL','QA_TWO_TENANT_B_PASSWORD'];
 const missing=needs.filter(k=>!process.env[k]);
 const skip=process.env.QA_TWO_TENANT_ENABLED!=='true'?'TEST gate inactive':missing.length?'missing TEST secrets: '+missing.join(', '):false;
+async function fulfillReadonlyRows(route, rows) {
+ const target=new URL(route.request().url());
+ assert.equal(target.hostname,HOST);assert.equal(route.request().method(),'GET');
+ const offset=Number(target.searchParams.get('offset')||0),limit=Number(target.searchParams.get('limit')||rows.length||1);
+ const page=rows.slice(offset,offset+limit);
+ return route.fulfill({status:200,contentType:'application/json',headers:{'content-range':page.length?`${offset}-${offset+page.length-1}/${rows.length}`:`*/${rows.length}`},body:JSON.stringify(page)});
+}
 async function ready(){
  for(let i=0;i<60;i++){
   try{const r=await fetch('http://127.0.0.1:4179/',{signal:AbortSignal.timeout(1500)});if(r.ok)return}catch{}
@@ -296,35 +303,35 @@ test('headless QA browser: real owner B login, navigation and desktop/mobile scr
         const target=new URL(route.request().url());
         assert.equal(target.hostname,HOST,'Supplier route must be TEST only');
         assert.equal(target.searchParams.get('business_id'), 'eq.'+qaBusiness,'Do not fake suppliers for another tenant');
-        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+        await fulfillReadonlyRows(route,[{
           id:'10000000-0000-4000-8000-000000000099',
           business_id:qaBusiness,name:supplierLabel,active:true,created_at:'2026-10-13T00:00:00Z'
-        }])});
+        }]);
       });
       await purchasePage.route('**/rest/v1/locations?*',async route=>{
         if(route.request().method()!=='GET') return route.continue();
         const target=new URL(route.request().url());
         assert.equal(target.hostname,HOST,'Location route must be TEST only');
         assert.equal(target.searchParams.get('business_id'),'eq.'+qaBusiness,'Do not fake locations for another tenant');
-        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+        await fulfillReadonlyRows(route,[{
           id:qaLocation,business_id:qaBusiness,name:'QA_UI_ONLY_LOCATION_NOT_PERSISTED',type:'Retail',active:true,created_at:'2026-10-13T00:00:00Z'
-        }])});
+        }]);
       });
       await purchasePage.route('**/rest/v1/inventory_items?*',async route=>{
         if(route.request().method()!=='GET') return route.continue();
         const target=new URL(route.request().url());
         assert.equal(target.hostname,HOST,'Inventory route must be TEST only');
         assert.equal(target.searchParams.get('business_id'),'eq.'+qaBusiness,'Do not fake inventory for another tenant');
-        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+        await fulfillReadonlyRows(route,[{
           id:expectedQaItem,business_id:qaBusiness,name:'QA_UI_ONLY_ITEM_NOT_PERSISTED',sku:'QA-UI-ONLY',category:'QA',unit:'Units',
           min_qty:0,max_qty:100,supplier_id:'10000000-0000-4000-8000-000000000099',active:true,created_at:'2026-10-13T00:00:00Z'
-        }])});
+        }]);
       });
       await purchasePage.route('**/rest/v1/rpc/fn_read_inventory_stock_secure?*',async route=>{
         if(route.request().method()!=='GET') return route.continue();
-        await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify([{
+        await fulfillReadonlyRows(route,[{
           id:'10000000-0000-4000-8000-000000000096',inventory_item_id:expectedQaItem,location_id:qaLocation,qty:10,avg_cost_per_unit:3.5,created_at:'2026-10-13T00:00:00Z'
-        }])});
+        }]);
       });
       await purchasePage.route('**/rest/v1/rpc/fn_read_inventory_transactions_secure?*',async route=>{
         if(route.request().method()!=='GET') return route.continue();

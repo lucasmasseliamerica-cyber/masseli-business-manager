@@ -1,0 +1,129 @@
+{
+  "project_ref": "msinksoilkluooxenecy",
+  "branch": "automation/nexalvo-qa-actions",
+  "baseline_commit": "cad6ad0b36ce5bb03fe5aa8ce90572d7e317269d",
+  "read_only_inventory": {
+    "project_ref": "msinksoilkluooxenecy",
+    "read_only": true,
+    "checked_at_utc": "2026-10-20T21:44:16.727Z",
+    "checks": {
+      "rpc_visibility": {
+        "http_status": 200,
+        "functions": {
+          "fn_create_sale": true,
+          "fn_reverse_sale": true,
+          "fn_create_purchase_order": true,
+          "fn_create_purchase_order_idempotent": false,
+          "fn_receive_purchase_order": true,
+          "fn_pay_purchase_order": true,
+          "fn_create_expense": true,
+          "fn_create_expense_idempotent": false,
+          "fn_manage_staff_profile": false,
+          "fn_read_employees_secure": true,
+          "fn_read_sale_items_secure": true
+        }
+      },
+      "product_image_bucket": {
+        "http_status": 400,
+        "exists": false,
+        "private": null,
+        "bucket_missing_confirmed": true,
+        "supabase_reported_status": 404
+      },
+      "role_profile_inventory": {
+        "http_status": 200,
+        "total": 6,
+        "counts": {
+          "MANAGER": {
+            "active": 0,
+            "active_linked": 0
+          },
+          "EMPLOYEE": {
+            "active": 1,
+            "active_linked": 0
+          }
+        }
+      }
+    }
+  },
+  "acceptance_matrix": {
+    "version": 1,
+    "criteria": 52,
+    "complete": 13,
+    "pending": 14,
+    "blocked": 25,
+    "percent": 25,
+    "does_not_measure_code_completion": true
+  },
+  "confirmed_bug_reproduction": {
+    "rpc_outcome_before": {
+      "tests": 6,
+      "passed": 1,
+      "failed": 5
+    },
+    "rpc_outcome_after": {
+      "tests": 6,
+      "passed": 6,
+      "failed": 0
+    }
+  },
+  "local_validation": {
+    "full_static": {
+      "passed": 365,
+      "failed": 0,
+      "skipped": 0,
+      "includes_disposable_postgres": true
+    },
+    "operational_browser_http_simulated": {
+      "passed": 4,
+      "failed": 0,
+      "skipped": 0,
+      "not_live_test_homologation": true
+    },
+    "build": "PASS"
+  },
+  "dependency_change": {
+    "vite_from": "6.4.3",
+    "vite_to": "6.4.4",
+    "major_changed": false,
+    "other_locked_package_versions_changed": false,
+    "full_audit_before": {
+      "total": 8,
+      "high": 6,
+      "moderate": 2
+    },
+    "full_audit_after": {
+      "total": 7,
+      "high": 5,
+      "moderate": 2
+    },
+    "runtime_alerts": 0
+  },
+  "persistent_test_mutations": 0,
+  "commercial_ui_preserved": true,
+  "migration_or_edge_changes": false,
+  "ci_persistent_groups_blocked_without_explicit_manual_authorization": [
+    "authenticated-concurrency",
+    "replay-financial",
+    "network-after-commit",
+    "two-tenant-concurrency"
+  ],
+  "proof_hashes": [
+    {
+      "name": "full-static",
+      "sha256": "bc3ea78fda916af36d091f2c48d0e4d8f8d632bf4ea1c0bcd520ac52ba360837"
+    },
+    {
+      "name": "browser",
+      "sha256": "a19ec84e7c2a1be29037a0949dc15acf305efb71278c65075fd205a925f9f95f"
+    },
+    {
+      "name": "browser_vite_6_4_4",
+      "sha256": "7bc5512fb458fe740f45a6ce468acc4a23793fbbfd534585b9a10fb9269555e0"
+    },
+    {
+      "name": "build_vite_6_4_4",
+      "sha256": "9eb4e00bab73c52a519628125b059970ff6066a63147964aa71c9d5810c46557"
+    }
+  ]
+}

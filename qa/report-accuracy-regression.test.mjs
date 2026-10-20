@@ -66,7 +66,7 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
 
   test(`${label}: report UI validates custom dates and presents tax separately`, () => {
     const reports = section(source, 'function ReportsView(', '/* ============================== SETTINGS');
-    assert.match(reports, /const validDateInput = \(value\)/);
+    assert.match(reports, /const validDateInput = isValidCalendarDate/);
     assert.match(reports, /!validDateInput\(customStart\) \|\| !validDateInput\(customEnd\)/);
     assert.match(reports, /Net Sales \(excluding tax\)/);
     assert.match(reports, /Tax Collected/);

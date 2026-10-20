@@ -4,7 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {performance} from 'node:perf_hooks';
 
 const HOST='msinksoilkluooxenecy.supabase.co';
-const ENABLED=process.env.QA_TWO_TENANT_ENABLED==='true';
+const ENABLED=process.env.NEXALVO_PERSISTENT_QA_AUTHORIZED==='TEST_ONLY_EXPLICIT' && process.env.QA_TWO_TENANT_ENABLED==='true';
 const REQUIRED=['QA_SUPABASE_URL','QA_SUPABASE_ANON_KEY','QA_TWO_TENANT_A_EMAIL','QA_TWO_TENANT_A_PASSWORD','QA_TWO_TENANT_B_EMAIL','QA_TWO_TENANT_B_PASSWORD'];
 const FIXTURES={
  A:{business:'d627563b-2ce4-491d-8cf6-141ef28d0f63',price:11.25},
@@ -39,7 +39,7 @@ async function login(base,key,label){
  return r.value.access_token;
 }
 test('two TEST companies overlap within PostgreSQL transactions and cannot read each other', {
- skip:ENABLED?false:'Not certified: QA_TWO_TENANT_ENABLED is not true',
+ skip:ENABLED?false:'BLOCKED: explicit TEST write authorization or QA gate unavailable',
  timeout:120000
 },async()=>{
  const {base,key}=config();

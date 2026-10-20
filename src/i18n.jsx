@@ -1,6 +1,23 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 export const LANGUAGE_STORAGE_KEY = "nexalvo.ui.language.v1";
 export const PORTUGUESE = {
+  "Choose a valid business calendar date.": "Escolha uma data válida no calendário da empresa.",
+  "Add {0}": "Adicionar {0}",
+  "EXTERNAL CARD PAYMENT": "PAGAMENTO EM MAQUININHA EXTERNA",
+  "Confirm only after the external terminal approves the payment. NEXALVO records the sale; it does not charge the card.": "Confirme somente após a aprovação na maquininha externa. O NEXALVO registra a venda; ele não cobra o cartão.",
+  "Payment received on external terminal": "Pagamento recebido na maquininha externa",
+  "Record Card Payment — {0}": "Registrar pagamento com cartão — {0}",
+  "RECORDED IN NEXALVO": "REGISTRADO NO NEXALVO",
+  "This receipt records the NEXALVO entry. It does not confirm a charge or refund by a payment processor.": "Este comprovante registra o lançamento no NEXALVO. Ele não confirma cobrança ou reembolso pela operadora de pagamento.",
+  "Add at least one active product.": "Adicione pelo menos um produto ativo.",
+  "Received quantities must be finite numbers.": "As quantidades recebidas devem ser números finitos.",
+  "Enter a valid expense date.": "Informe uma data válida para a despesa.",
+  "Select a valid expense category.": "Selecione uma categoria de despesa válida.",
+  "Select active inventory items.": "Selecione insumos ativos.",
+  "The server returned an invalid collection response. Refresh before continuing.": "O servidor retornou uma lista inválida. Atualize antes de continuar.",
+  "Data changed while loading. Refresh before using these totals.": "Os dados mudaram durante o carregamento. Atualize antes de utilizar estes totais.",
+  "Too many records to load safely. A server-side report is required for this volume.": "Há registros demais para carregar com segurança. Este volume exige um relatório processado no servidor.",
+  "The server returned incomplete history. Refresh before using these totals.": "O servidor retornou um histórico incompleto. Atualize antes de utilizar estes totais.",
   "Platform Admin": "Administração comercial",
   "Platform Administration": "Administração comercial",
   "Platform access": "Acesso à plataforma",

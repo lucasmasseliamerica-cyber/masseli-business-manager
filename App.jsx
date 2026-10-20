@@ -76,6 +76,11 @@ const isSameDay = (iso, ymd) => { if (!iso) return false; return localDateStr(/^
 // Parses a bare "YYYY-MM-DD" as a local calendar date — `new Date("2026-08-14")` would instead
 // parse it as UTC midnight, which renders as the *previous* day in any timezone behind UTC.
 const parseLocalDate = (ymd) => { const [y, m, d] = ymd.split("-").map(Number); return new Date(y, m - 1, d); };
+function isValidCalendarDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
 /* ---- end centralized local-date utility ---- */
 
 // Supported currency symbols. USD stays the default exactly as before.
@@ -90,10 +95,10 @@ const fmtMoney = (n) => `${CURRENCY_SYMBOLS[_activeCurrency] || _activeCurrency 
 const fmtPct = (n) => `${(Number(n) || 0).toFixed(1)}%`;
 // For full ISO timestamps (sale.date, po.orderDate, etc) — these already carry real time+zone
 // info, so parsing with `new Date(iso)` is correct and has none of the bare-date pitfall above.
-const dateStr = (iso) => (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)).toLocaleDateString(currentLanguage(), { month: "short", day: "numeric" });
+const dateStr = (iso) => /^\d{4}-\d{2}-\d{2}$/.test(iso) ? dateStrLocal(iso) : new Date(iso).toLocaleDateString(currentLanguage(), { month: "short", day: "numeric", timeZone: _activeTimezone });
 // For bare "YYYY-MM-DD" values only (task due dates, birthdays) — uses parseLocalDate above.
 const dateStrLocal = (ymd) => (!ymd ? "" : parseLocalDate(ymd).toLocaleDateString(currentLanguage(), { month: "short", day: "numeric" }));
-const timeStr = (iso) => new Date(iso).toLocaleTimeString(currentLanguage(), { hour: "numeric", minute: "2-digit" });
+const timeStr = (iso) => new Date(iso).toLocaleTimeString(currentLanguage(), { hour: "numeric", minute: "2-digit", timeZone: _activeTimezone });
 const daysAgoISO = (n) => { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString(); };
 // Rolling time-window check (e.g. "last 7 days") — compares absolute timestamps, so it's already
 // timezone-safe and needed no change.
@@ -725,10 +730,10 @@ const InventoryService = {
  * one of its methods returns a "not configured" result and touches no network at all.
  * ============================================================================== */
 
-// The only place that decides which adapter handles a payment. Swapping "simulator" for
-// "stripe_terminal" here (once a backend exists) is the entire cutover — nothing in NewSaleModal
-// or the finalize/fail functions needs to change.
-const PAYMENT_MODE = "simulator"; // "simulator" | "stripe_terminal" (future)
+// Operational default: record a payment already approved on an external card terminal. No
+// simulated processor approval is used for normal operation. Simulation requires explicit QA
+// configuration; Stripe integration stays unconfigured and is outside this operational release.
+const PAYMENT_MODE = import.meta.env.VITE_CARD_PAYMENT_MODE === "simulator" ? "simulator" : "external";
 
 // The one payment-result shape every adapter returns, and the only shape finalizeSuccessfulPayment/
 // failSalePayment ever need to understand. `error` is null on success; `transactionId` is null
@@ -792,6 +797,22 @@ const simulatorAdapter = {
   },
 };
 
+const externalCardAdapter = {
+  processPayment(request) {
+    let settle;
+    let settled = false;
+    const promise = new Promise(resolve => { settle = resolve; });
+    const finish = (success) => {
+      if (settled) return;
+      settled = true;
+      settle(makePaymentResult({ success, status: success ? "succeeded" : "canceled",
+        paymentMethod: request.paymentMethod, provider: "external_card", amount: request.amount,
+        currency: request.currency, metadata: request.metadata }));
+    };
+    return { promise, readyPromise: Promise.resolve(), approve: () => finish(true), cancel: () => finish(false), decline: () => finish(false) };
+  },
+};
+
 // ---- Stripe Terminal adapter (placeholder — Phase B2+) ---------------------------------------
 // Every method is a real, callable function with the real future signature, and every one
 // returns an honest "not configured" result. None of them touch the network, generate a fake
@@ -828,7 +849,7 @@ const paymentService = {
   getMode() { return PAYMENT_MODE; },
   processPayment(request) {
     if (CARD_PAYMENT_METHODS.includes(request.paymentMethod)) {
-      const adapter = PAYMENT_MODE === "stripe_terminal" ? stripeTerminalAdapter : simulatorAdapter;
+      const adapter = PAYMENT_MODE === "simulator" ? simulatorAdapter : externalCardAdapter;
       return adapter.processPayment(request);
     }
     const result = makePaymentResult({
@@ -1720,7 +1741,7 @@ function renderPaymentReceiptBody(sale, ctx) {
   const { settings } = ctx;
   const status = sale.status === "cancelled"
     ? (getPaymentStatus(sale) === "failed" ? "DECLINED" : "REVERSED IN NEXALVO")
-    : getPaymentStatus(sale) === "paid" ? "APPROVED" : (getPaymentStatus(sale) || "").toUpperCase();
+    : getPaymentStatus(sale) === "paid" ? "RECORDED IN NEXALVO" : (getPaymentStatus(sale) || "").toUpperCase();
   return `
     <div class="center bold lg">${escHtml(settings?.businessName || "NEXALVO")}</div>
     <div class="center muted">${escHtml(translateCurrent("Payment Receipt"))}</div>
@@ -1729,6 +1750,7 @@ function renderPaymentReceiptBody(sale, ctx) {
     <div class="row"><span>${escHtml(translateCurrent("Payment Method"))}</span><span>${escHtml(translateCurrent((sale.paymentMethod || "").toUpperCase()))}</span></div>
     <div class="row"><span>${escHtml(translateCurrent("Status"))}</span><span class="bold">${escHtml(translateCurrent(status))}</span></div>
     <div class="row"><span>${escHtml(translateCurrent("Transaction ID"))}</span><span>${escHtml(sale.stripePaymentIntentId || "—")}</span></div>
+    <div class="muted">${escHtml(translateCurrent("This receipt records the NEXALVO entry. It does not confirm a charge or refund by a payment processor."))}</div>
     <div class="divider-solid"></div>
   `;
 }
@@ -2114,16 +2136,61 @@ const supabaseRest = {
     }
   },
   async select(table, query = "") {
-    const res = await supabaseFetch(`/rest/v1/${table}${query ? `?${query}` : ""}`, { method: "GET" });
-    const body = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(`select ${table} failed (${res.status}): ${JSON.stringify(body)}`);
-    return body;
+    // Keep dependent UUID filters below proxy URL limits, even with years of sales/products.
+    const filter = query.match(/(?:^|&)(\w+)=in\.\(([^)]+)\)/);
+    const ids = filter?.[2].split(",") || [];
+    if (ids.length > 100 && ids.every(id => /^[0-9a-f-]{36}$/i.test(id))) {
+      const rows = [];
+      for (let start = 0; start < ids.length; start += 100) {
+        rows.push(...await supabaseRest.readPages(table, query.replace(filter[2], ids.slice(start, start + 100).join(","))));
+        if (rows.length > 10000) throw new Error("Too many records to load safely. A server-side report is required for this volume.");
+      }
+      return rows;
+    }
+    return supabaseRest.readPages(table, query);
   },
   async selectRpc(fnName, query = "") {
-    const res = await supabaseFetch(`/rest/v1/rpc/${fnName}${query ? `?${query}` : ""}`, { method: "GET" });
-    const body = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(`read RPC ${fnName} failed (${res.status}): ${JSON.stringify(body)}`);
-    return body;
+    return supabaseRest.select(`rpc/${fnName}`, query);
+  },
+  async readPages(table, query = "") {
+    // Explicit single-row probes retain their contract. Collections must not silently inherit
+    // PostgREST's default row cap; financial reports need all matching rows or a visible error.
+    const bounded = /(?:^|&)(?:limit|offset)=/.test(query);
+    let base = query || "select=*";
+    if (!bounded) {
+      const order = base.match(/(?:^|&)order=([^&]+)/);
+      if (!order) base += "&order=id.asc";
+      else if (!/(?:^|,)id\./.test(order[1])) base = base.replace(`order=${order[1]}`, `order=${order[1]},id.asc`);
+    }
+    const rows = [], seen = new Set();
+    const maximum = 10000, pageSize = 200;
+    let expected = null;
+    for (;;) {
+      const pageQuery = bounded ? base : `${base}&limit=${Math.min(pageSize, maximum - rows.length + 1)}&offset=${rows.length}`;
+      const res = await supabaseFetch(`/rest/v1/${table}?${pageQuery}`, { method: "GET", headers: { Prefer: "count=exact" } });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(`select ${table} failed (${res.status}): ${JSON.stringify(body)}`);
+      if (!Array.isArray(body)) throw new Error("The server returned an invalid collection response. Refresh before continuing.");
+      if (bounded) return body;
+      const count = res.headers?.get?.("content-range")?.match(/\/(\d+)$/);
+      if (count) {
+        if (expected !== null && expected !== Number(count[1])) throw new Error("Data changed while loading. Refresh before using these totals.");
+        expected = Number(count[1]);
+        if (expected > maximum) throw new Error("Too many records to load safely. A server-side report is required for this volume.");
+      }
+      for (const row of body) {
+        if (!row || typeof row !== "object" || Array.isArray(row)) throw new Error("The server returned an invalid collection response. Refresh before continuing.");
+        if (row.id && seen.has(row.id)) throw new Error("Data changed while loading. Refresh before using these totals.");
+        if (row.id) seen.add(row.id);
+        rows.push(row);
+      }
+      if (rows.length > maximum) throw new Error("Too many records to load safely. A server-side report is required for this volume.");
+      if (expected !== null && rows.length === expected) return rows;
+      if (!body.length) {
+        if (expected !== null && rows.length !== expected) throw new Error("The server returned incomplete history. Refresh before using these totals.");
+        return rows;
+      }
+    }
   },
   async upsert(table, rows, onConflict = "id", returnSelect = null) {
     const selected = returnSelect ? `&select=${encodeURIComponent(returnSelect)}` : "";
@@ -2172,9 +2239,7 @@ const supabaseRest = {
     const harmless = ["current_business_id", "user_can", "fn_session_access_status", "fn_user_controls_employee", "fn_write_audit", "fn_reconcile_business_alerts"].includes(fnName);
     const replaySafe = ["fn_create_sale", "fn_create_purchase_order_idempotent", "fn_create_expense_idempotent"].includes(fnName);
     if (_unconfirmedRpcWrite && !harmless) { const error = new Error("A previous operation could not be confirmed. Refresh and check the history before making another change."); error.commitUncertain = true; throw error; }
-    let res;
-    try { res = await supabaseFetch("/rest/v1/rpc/" + fnName, { method: "POST", body: JSON.stringify(args) }); }
-    catch (cause) {
+    const unconfirmed = (cause, status = null) => {
       if (!harmless && !replaySafe) _unconfirmedRpcWrite = { fnName, at: Date.now() };
       const error = new Error(fnName === "fn_create_sale"
         ? "Connection interrupted. The sale may already have been saved. Retry saving this same sale without taking another payment."
@@ -2186,9 +2251,18 @@ const supabaseRest = {
       error.commitUncertain = !replaySafe || fnName === "fn_create_sale";
       error.retrySafe = replaySafe;
       error.cause = cause;
-      throw error;
-    }
-    const body = await res.json().catch(() => null);
+      error.status = status;
+      return error;
+    };
+    let res;
+    try { res = await supabaseFetch("/rest/v1/rpc/" + fnName, { method: "POST", body: JSON.stringify(args) }); }
+    catch (cause) { throw unconfirmed(cause); }
+    // A gateway can lose the database's successful response. A 5xx/timeout is not proof that a
+    // financial write rolled back, so it must follow the same fail-closed path as lost transport.
+    if (!harmless && (res.status === 408 || res.status >= 500)) throw unconfirmed(null, res.status);
+    let body = null;
+    try { if (res.status !== 204) body = await res.json(); }
+    catch (cause) { if (res.ok && !harmless) throw unconfirmed(cause, res.status); }
     if (!res.ok) throw new Error(`rpc ${fnName} failed (${res.status}): ${JSON.stringify(body)}`);
     return body;
   },
@@ -2949,7 +3023,7 @@ function useSupabaseInventory(businessId, locations, reportLoadError, clearLoadE
         expiresAt: i.expires_at || "", notes: i.notes || "", active: i.active !== false,
       };
     });
-    const txRows = await supabaseRest.select("rpc/fn_read_inventory_transactions_secure", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=500`);
+    const txRows = await supabaseRest.select("rpc/fn_read_inventory_transactions_secure", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
     setTransactions((txRows || []).map((t) => ({
       id: t.id, date: t.created_at, itemId: t.inventory_item_id, type: inventoryTxTypeLabel(t.type), qty: Number(t.qty_change || 0),
       unit: t.unit || "", unitCost: t.unit_cost == null ? null : Number(t.unit_cost), totalCost: t.total_cost == null ? null : Number(t.total_cost),
@@ -3097,7 +3171,7 @@ function useSupabaseSales(businessId, locations, reportLoadError, clearLoadError
 
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
-    const rows = await supabaseRest.select("sales", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=sale_date.desc&limit=500`);
+    const rows = await supabaseRest.select("sales", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=sale_date.desc`);
     const ids = (rows || []).map((r) => r.id);
     let itemRows = [];
     if (ids.length) itemRows = await supabaseRest.selectRpc("fn_read_sale_items_secure", `select=*&sale_id=in.(${ids.join(",")})`);
@@ -3217,7 +3291,7 @@ function useSupabaseLoyalty(businessId, reportLoadError, clearLoadError) {
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setTransactions([]); setRewards([]); return { transactions: [], rewards: [] }; }
     const [txRows, rewardRows] = await Promise.all([
-      supabaseRest.select("loyalty_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=2000`),
+      supabaseRest.select("loyalty_transactions", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`),
       supabaseRest.select("loyalty_rewards", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.asc`),
     ]);
     const mappedTx = (txRows || []).map((r) => ({
@@ -3308,8 +3382,8 @@ function useSupabaseCashFlow(businessId, reportLoadError, clearLoadError) {
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
     const [rows, paymentRows] = await Promise.all([
-      supabaseRest.select("cash_flow", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=transaction_date.desc&limit=1000`),
-      supabaseRest.select("purchase_order_payments", "select=*&order=paid_at.desc&limit=1000"),
+      supabaseRest.select("cash_flow", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=transaction_date.desc`),
+      supabaseRest.select("purchase_order_payments", "select=*&order=paid_at.desc"),
     ]);
     const poByPayment = Object.fromEntries((paymentRows || []).map((p) => [p.id, p.purchase_order_id]));
     const mapped = (rows || []).map((r) => ({
@@ -3337,7 +3411,7 @@ function useSupabaseExpenses(businessId, reloadCashFlow, reportLoadError, clearL
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
-    const rows = await supabaseRest.select("expenses", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=expense_date.desc&limit=500`);
+    const rows = await supabaseRest.select("expenses", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=expense_date.desc`);
     const mapped = (rows || []).map((r) => ({
       id: r.id, amount: Number(r.amount || 0), date: r.expense_date || r.created_at, category: r.category,
       vendor: r.vendor || "", paymentMethod: r.payment_method || "", locationId: r.location_id || "",
@@ -3410,7 +3484,7 @@ function useSupabasePurchases(businessId, reloadInventory, reloadCashFlow, repor
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
-    const pos = await supabaseRest.select("purchase_orders", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=order_date.desc&limit=500`);
+    const pos = await supabaseRest.select("purchase_orders", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=order_date.desc`);
     const ids = (pos || []).map((x) => x.id);
     let lines = [], payments = [];
     if (ids.length) {
@@ -3611,7 +3685,7 @@ function useSupabaseCashRegisters(businessId, reloadCashFlow, reportLoadError, c
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
-    const rows = await supabaseRest.select("cash_registers", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=opened_at.desc&limit=250`);
+    const rows = await supabaseRest.select("cash_registers", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=opened_at.desc`);
     const mapped = (rows || []).map((r) => ({
       id: r.id, locationId: r.location_id, openedByUserId: r.opened_by || "", openedAt: r.opened_at,
       openingCash: Number(r.opening_cash || 0), status: r.status, closedByUserId: r.closed_by || "", closedAt: r.closed_at || "",
@@ -3696,7 +3770,7 @@ function useSupabaseAudit(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
-    const rows = await supabaseRest.select("audit_logs", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=occurred_at.desc&limit=1000`);
+    const rows = await supabaseRest.select("audit_logs", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=occurred_at.desc`);
     const mapped = (rows || []).map((r) => ({ id:r.id, date:r.occurred_at, userId:r.user_id || "", userName:r.user_name_snapshot || "Unknown", role:r.role_snapshot || "", action:r.action, details:r.details || "" }));
     setData(mapped); clearLoadError?.("auditLog"); return mapped;
   }, [businessId, clearLoadError]);
@@ -3718,7 +3792,7 @@ function useSupabaseTasks(businessId, reportLoadError, clearLoadError) {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
     const [tasksRows, activityRows, userRows] = await Promise.all([
       supabaseRest.select("tasks", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`),
-      supabaseRest.select("task_activity", "select=*&order=occurred_at.desc&limit=2000"),
+      supabaseRest.select("task_activity", "select=*&order=occurred_at.desc"),
       supabaseRest.select("users", `select=id,name&business_id=eq.${encodeURIComponent(businessId)}`),
     ]);
     const userNames = Object.fromEntries((userRows || []).map((u) => [u.id,u.name]));
@@ -3752,8 +3826,8 @@ function useSupabaseShifts(businessId, reportLoadError, clearLoadError) {
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
     const [shiftRows, breakRows] = await Promise.all([
-      supabaseRest.select("shifts", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=clock_in_at.desc&limit=1000`),
-      supabaseRest.select("shift_breaks", "select=*&order=started_at.asc&limit=3000"),
+      supabaseRest.select("shifts", `select=*&business_id=eq.${encodeURIComponent(businessId)}&order=clock_in_at.desc`),
+      supabaseRest.select("shift_breaks", "select=*&order=started_at.asc"),
     ]);
     const breaksByShift = new Map();
     for (const b of breakRows || []) { if (!breaksByShift.has(b.shift_id)) breaksByShift.set(b.shift_id,[]); breaksByShift.get(b.shift_id).push({id:b.id,startedAt:b.started_at,endedAt:b.ended_at}); }
@@ -3780,7 +3854,7 @@ function useSupabaseAlerts(businessId, reportLoadError, clearLoadError) {
   const [data,setData]=useState(null);
   const reload=useCallback(async()=>{
     if(!businessId||!supabaseAuth.hasSession()){setData([]);return[];}
-    const rows=await supabaseRest.select("business_alerts",`select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc&limit=1000`);
+    const rows=await supabaseRest.select("business_alerts",`select=*&business_id=eq.${encodeURIComponent(businessId)}&order=created_at.desc`);
     const mapped=(rows||[]).map((a)=>({id:a.id,key:a.key,type:a.type,severity:a.severity,title:a.title,message:a.message||"",entityType:a.entity_type||"",entityId:a.entity_id||"",locationId:a.location_id||"",financial:!!a.financial,status:a.status,createdAt:a.created_at,resolvedAt:a.resolved_at,dismissedAt:a.dismissed_at}));
     setData(mapped);clearLoadError?.("businessAlerts");return mapped;
   },[businessId,clearLoadError]);
@@ -6202,7 +6276,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     if (submitting || paymentPhase !== "idle") return;
     setError("");
     if (!can("manageSales")) { setError("You don't have permission to create sales."); return; }
-    if (lineData.length === 0 || lineData.some((l) => !l.product)) { setError("Add at least one product."); return; }
+    if (lineData.length === 0 || lineData.some((l) => !l.product || l.product.active === false)) { setError("Add at least one active product."); return; }
     if (lineData.some((l) => !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Each sale item must have a quantity greater than zero."); return; }
     if (new Set(lineData.map((l) => l.productId)).size !== lineData.length) { setError("The same product can't appear more than once on a sale."); return; }
     if (!paymentMethod || !availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
@@ -6265,7 +6339,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
 
     // Single entry point for every payment method — the rest of this component never needs to
     // know whether the result came from an instant manual method or an adapter.
-    const handle = paymentService.processPayment({ paymentMethod, amount: total, currency: "USD", metadata: { saleId, orderNo } });
+    const handle = paymentService.processPayment({ paymentMethod, amount: total, currency: settings.currency || "USD", metadata: { saleId, orderNo } });
 
     if (CARD_PAYMENT_METHODS.includes(paymentMethod)) {
       setPendingCardSale(pendingSale);
@@ -6355,24 +6429,24 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           )}
         </div>
       ) : pendingCardSale ? (
-        // Payment Simulator — this whole block is replaced by the real Stripe Terminal UI once a
-        // backend and physical reader are connected (see paymentService/stripeTerminalAdapter
-        // above). Clearly labeled as a development/testing surface; never fakes a Stripe
-        // PaymentIntent or claims a real payment processor approved anything.
+        // External card confirmation records a payment received elsewhere; it never collects
+        // money. The separately configured QA simulator remains explicitly labeled.
         <div>
-          <div className="mb-3"><Badge dark={dark} tone="warn">{paymentPhase === "connecting" ? translateUI("CONNECTING…") : paymentPhase === "settling" ? translateUI("FINALIZING…") : translateUI("PAYMENT SIMULATOR")}</Badge></div>
+          <div className="mb-3"><Badge dark={dark} tone="warn">{paymentPhase === "settling" ? translateUI("FINALIZING…") : translateUI(paymentService.getMode() === "simulator" ? "PAYMENT SIMULATOR" : "EXTERNAL CARD PAYMENT")}</Badge></div>
           <div className="text-sm mb-2 font-semibold" style={{ color: dark ? C.white : C.black }}>{translateUI("Card payment of")}{fmtMoney(pendingCardSale.total)}{" "}{translateUI("for Order #")}{pendingCardSale.orderNo}
           </div>
           <div className="text-xs mb-4" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
-            {paymentPhase === "connecting"
+            {paymentService.getMode() !== "simulator"
+              ? translateUI("Confirm only after the external terminal approves the payment. NEXALVO records the sale; it does not charge the card.")
+              : paymentPhase === "connecting"
               ? translateUI("Connecting to card terminal (simulated)…")
               : translateUI("No physical card reader is connected yet — this is a development simulator standing in for Stripe Terminal. Choose an outcome to test the payment lifecycle.")}
           </div>
           <div className="flex gap-2">
             <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.cancel()}>{translateUI("Cancel")}</GhostButton>
-            <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.decline("The card was declined.")}>{translateUI("Decline")}</GhostButton>
+            {paymentService.getMode() === "simulator" && <GhostButton dark={dark} style={{ flex: 1, color: "#FF6B85", borderColor: "#FF6B85" }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.decline("The card was declined.")}>{translateUI("Decline")}</GhostButton>}
             <PrimaryButton style={{ flex: 1 }} disabled={paymentPhase !== "awaiting_outcome"} onClick={() => paymentHandle?.approve()}>
-              <Check size={16} />{translateUI("Approve")}</PrimaryButton>
+              <Check size={16} />{translateUI(paymentService.getMode() === "simulator" ? "Approve" : "Payment received on external terminal")}</PrimaryButton>
           </div>
         </div>
       ) : (
@@ -6508,7 +6582,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <PrimaryButton full disabled={submitting} onClick={submit}>
-        <Check size={16} /> {submitting ? translateUI("Saving…") : CARD_PAYMENT_METHODS.includes(paymentMethod) ? interpolateUI("Charge Card — {0}",[fmtMoney(total)]) : interpolateUI("Complete Sale — {0}",[fmtMoney(total)])}
+        <Check size={16} /> {submitting ? translateUI("Saving…") : CARD_PAYMENT_METHODS.includes(paymentMethod) ? interpolateUI("Record Card Payment — {0}",[fmtMoney(total)]) : interpolateUI("Complete Sale — {0}",[fmtMoney(total)])}
       </PrimaryButton>
       </>
       )}
@@ -7414,8 +7488,9 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     if (!suppliers.some((supplier) => supplier.id === supplierId && supplier.active !== false)) { setError("Select an active supplier."); return; }
     if (!(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active location."); return; }
     if (!availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(orderDate) || !/^\d{4}-\d{2}-\d{2}$/.test(expectedDate)) { setError("Enter valid order and delivery dates."); return; }
+    if (!isValidCalendarDate(orderDate) || !isValidCalendarDate(expectedDate)) { setError("Enter valid order and delivery dates."); return; }
     if (expectedDate < orderDate) { setError("Expected delivery can't be before the order date."); return; }
+    if (lineData.some(l => l.item?.active === false)) { setError("Select active inventory items."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.item || !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
     if (lineData.some((l) => String(l.unitCost).trim() === "" || !Number.isFinite(Number(l.unitCost)) || Number(l.unitCost) < 0)) { setError("Unit cost must be a valid number greater than or equal to zero."); return; }
     if (!Number.isFinite(Number(discount)) || !Number.isFinite(Number(tax)) || Number(discount) < 0 || Number(tax) < 0 || !Number.isFinite(grandTotal)) { setError("Discount and tax must be valid nonnegative amounts."); return; }
@@ -7490,7 +7565,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
           <div key={idx} className="flex gap-2 mb-2 items-end">
             <div className="flex-1">
               <Select dark={dark} value={it.itemId} onChange={(e) => { const ni = inventory.find((i) => i.id === e.target.value); updateItem(idx, { itemId: e.target.value, unitCost: ni?.costPerUnit ?? it.unitCost }); }}>
-                {inventory.map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)})</option>)}
+                {inventory.filter(i => i.active !== false).map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)})</option>)}
               </Select>
             </div>
             <div className="w-20"><Input dark={dark} type="number" min="0.01" step="0.01" value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} /></div>
@@ -7839,9 +7914,10 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
   const [receiveQtys, setReceiveQtys] = useState(Object.fromEntries(po.items.map((l) => [l.id, round2(l.qty - l.receivedQty)])));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
 
   const submit = async () => {
-    if (submitting) return;
+    if (submitting || uncertain) return;
     setError("");
     if (!can("receivePurchases")) { setError("You don't have permission to receive purchase orders."); return; }
     // Re-check the latest PO record right before writing — closes the window for double-counting
@@ -7851,6 +7927,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
     const lines = latestPO.items.map((l) => ({ line: l, receiveQty: Number(receiveQtys[l.id] || 0) }));
     for (const { line, receiveQty } of lines) {
       const remaining = round2(line.qty - line.receivedQty);
+      if (!Number.isFinite(receiveQty) || !Number.isFinite(remaining)) { setError("Received quantities must be finite numbers."); return; }
       if (receiveQty < 0) { setError("Received quantity can't be negative."); return; }
       if (receiveQty > remaining + 0.0001) { setError(`Can't receive more than the remaining ${remaining} for this item.`); return; }
     }
@@ -7875,7 +7952,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
           // onClose()) only because that's already how a true failure below behaves — the message
           // itself makes clear the receipt was saved, not that anything needs retrying.
           if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
-          else { setError(e?.message || "Could not receive this purchase order."); }
+          else { setUncertain(!!e?.commitUncertain); setError(e?.message || "Could not receive this purchase order."); }
         }
         return;
       }
@@ -7970,7 +8047,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
         );
       })}
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? translateUI("Receiving…") : translateUI("Confirm Receipt")}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? translateUI("Receiving…") : translateUI("Confirm Receipt")}</PrimaryButton>
     </Modal>
   );
 }
@@ -7983,15 +8060,17 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
   const [paymentMethod, setPaymentMethod] = useState(() => { const preferred = po.paymentMethod === "Net Terms" || po.paymentMethod === "COD" ? (language === "pt-BR" ? "Pix" : "Zelle") : po.paymentMethod; return availablePaymentMethods.includes(preferred) ? preferred : availablePaymentMethods[0] || "Other"; });
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
   useEffect(() => { if (!submitting && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting]);
 
   const submit = async () => {
-    if (submitting) return;
+    if (submitting || uncertain) return;
     setError("");
     if (!can("paySuppliers")) { setError("You don't have permission to pay suppliers."); return; }
     const amt = round2(Number(amount));
-    if (!amt || amt <= 0) { setError("Enter a payment amount greater than zero."); return; }
+    if (!Number.isFinite(amt) || amt <= 0 || !Number.isFinite(due) || due <= 0) { setError("Enter a payment amount greater than zero."); return; }
     if (amt > due + 0.01) { setError(`Payment can't exceed the amount due (${fmtMoney(due)}).`); return; }
+    if (!availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
     setSubmitting(true);
     try {
       if (purchaseOps?.remote) {
@@ -8004,7 +8083,7 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
           // already committed — only the subsequent screen refresh failed. This must never be
           // shown as "payment failed", or the user could be misled into paying again.
           if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
-          else { setError(e?.message || "Could not record this payment."); }
+          else { setUncertain(!!e?.commitUncertain); setError(e?.message || "Could not record this payment."); }
         }
         return;
       }
@@ -8035,7 +8114,7 @@ function PaymentModal({ dark, po, onClose, purchaseOrders, persistPO, purchaseOp
         </Select>
       </Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={submit}><Check size={16} /> {submitting ? translateUI("Recording…") : translateUI("Record Payment")}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || uncertain} onClick={submit}><Check size={16} /> {submitting ? translateUI("Recording…") : translateUI("Record Payment")}</PrimaryButton>
     </Modal>
   );
 }
@@ -8455,6 +8534,10 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
     if (!can("manageExpenses")) { setError("You don't have permission to add expenses."); return; }
     const amt = Number(amount);
     if (!Number.isFinite(amt) || amt <= 0) { setError("Enter a valid amount."); return; }
+    if (!isValidCalendarDate(date)) { setError("Enter a valid expense date."); return; }
+    if (!(settings.expenseCategories || []).includes(category)) { setError("Select a valid expense category."); return; }
+    if (!availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
+    if (!(locations || []).some(location => location.id === locationId && location.active !== false)) { setError("Select an active location."); return; }
     setSubmitting(true);
     try {
       const loc = (locations || []).find((l) => l.id === locationId);
@@ -9750,37 +9833,58 @@ const REPORT_RANGE_PRESETS = [
   { id: "custom", label: "Custom Range" },
 ];
 
-// Reuses businessNow()/parseLocalDate() — the same local-time date utilities the rest of the app
-// already uses — rather than introducing a second (e.g. UTC-based) date system. `end` is
-// inclusive of the whole final day (23:59:59.999).
-function getDateRange(rangeId, customStart, customEnd) {
-  const now = businessNow();
-  const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
-  const endOfDay = (d) => { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; };
-  if (rangeId === "yesterday") { const y = new Date(now); y.setDate(y.getDate() - 1); return { start: startOfDay(y), end: endOfDay(y) }; }
-  if (rangeId === "7d") { const s = new Date(now); s.setDate(s.getDate() - 6); return { start: startOfDay(s), end: endOfDay(now) }; }
-  if (rangeId === "30d") { const s = new Date(now); s.setDate(s.getDate() - 29); return { start: startOfDay(s), end: endOfDay(now) }; }
-  if (rangeId === "thisMonth") { const s = new Date(now.getFullYear(), now.getMonth(), 1); return { start: startOfDay(s), end: endOfDay(now) }; }
-  if (rangeId === "lastMonth") { const s = new Date(now.getFullYear(), now.getMonth() - 1, 1); const e = new Date(now.getFullYear(), now.getMonth(), 0); return { start: startOfDay(s), end: endOfDay(e) }; }
-  if (rangeId === "custom" && customStart && customEnd) {
-    const s = parseLocalDate(customStart), e = parseLocalDate(customEnd);
-    if (s.getTime() > e.getTime()) return { start: startOfDay(e), end: endOfDay(s) }; // swap rather than produce an inverted/empty range
-    return { start: startOfDay(s), end: endOfDay(e) };
+function offsetCalendarDate(value, days) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function startOfBusinessCalendarDay(value) {
+  // Find the first instant on this civil date in the configured business timezone. Searching
+  // calendar dates also handles DST days whose midnight is skipped; browser timezone is unused.
+  const nominal = Date.parse(`${value}T00:00:00Z`);
+  let low = nominal - 36 * 3600000, high = nominal + 36 * 3600000;
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (localDateStr(new Date(mid)) < value) low = mid + 1;
+    else high = mid;
   }
-  return { start: startOfDay(now), end: endOfDay(now) }; // "today" and safe fallback
+  if (localDateStr(new Date(low)) !== value) throw new Error("Choose a valid business calendar date.");
+  return new Date(low);
+}
+
+function businessCalendarRange(startDay, endDay) {
+  return { start: startOfBusinessCalendarDay(startDay), end: new Date(startOfBusinessCalendarDay(offsetCalendarDate(endDay, 1)).getTime() - 1) };
+}
+
+// All presets and comparisons use civil dates of the business, including 23/25-hour DST days.
+function getDateRange(rangeId, customStart, customEnd) {
+  const today = localDateStr(businessNow());
+  if (rangeId === "yesterday") { const day = offsetCalendarDate(today, -1); return businessCalendarRange(day, day); }
+  if (rangeId === "7d") return businessCalendarRange(offsetCalendarDate(today, -6), today);
+  if (rangeId === "30d") return businessCalendarRange(offsetCalendarDate(today, -29), today);
+  if (rangeId === "thisMonth") return businessCalendarRange(`${today.slice(0, 7)}-01`, today);
+  if (rangeId === "lastMonth") { const end = offsetCalendarDate(`${today.slice(0, 7)}-01`, -1); return businessCalendarRange(`${end.slice(0, 7)}-01`, end); }
+  if (rangeId === "custom" && isValidCalendarDate(customStart) && isValidCalendarDate(customEnd)) {
+    return customStart <= customEnd ? businessCalendarRange(customStart, customEnd) : businessCalendarRange(customEnd, customStart);
+  }
+  return businessCalendarRange(today, today);
 }
 
 // The immediately-preceding range of the SAME duration, used for period-over-period comparison —
 // e.g. selecting Aug 1–31 compares against Jul 1–31 (same day-count, ending the instant before
 // the selected range starts).
 function getPreviousRange(range) {
-  const durationMs = range.end.getTime() - range.start.getTime();
-  const end = new Date(range.start.getTime() - 1);
-  const start = new Date(end.getTime() - durationMs);
-  return { start, end };
+  const first = localDateStr(range.start), last = localDateStr(range.end);
+  const days = Math.round((Date.parse(`${last}T00:00:00Z`) - Date.parse(`${first}T00:00:00Z`)) / 86400000) + 1;
+  return businessCalendarRange(offsetCalendarDate(first, -days), offsetCalendarDate(first, -1));
 }
 
-const withinRange = (iso, range) => { const t = (/^\d{4}-\d{2}-\d{2}$/.test(iso) ? parseLocalDate(iso) : new Date(iso)).getTime(); return t >= range.start.getTime() && t <= range.end.getTime(); };
+const withinRange = (iso, range) => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return isValidCalendarDate(iso) && iso >= localDateStr(range.start) && iso <= localDateStr(range.end);
+  const t = new Date(iso).getTime();
+  return t >= range.start.getTime() && t <= range.end.getTime();
+};
 
 // The ONE place "valid sale for reporting" is defined — mirrors the exact canonical rule used
 // everywhere else in the app (sales.filter(s => s.status !== "cancelled")), scoped to a range.
@@ -9831,15 +9935,15 @@ function getSalesComparison(sales, range) {
 // ---- Revenue Trend — daily for <=31 days, weekly for <=90, monthly beyond that ----
 function getRevenueTrend(sales, range) {
   const inRange = filterSalesByRange(sales, range);
-  const spanDays = Math.max(1, Math.round((range.end - range.start) / 86400000) + 1);
+  const spanDays = Math.max(1, Math.round((Date.parse(localDateStr(range.end)) - Date.parse(localDateStr(range.start))) / 86400000) + 1);
   const bucket = spanDays <= 31 ? "day" : spanDays <= 90 ? "week" : "month";
   const buckets = {};
   for (const s of inRange) {
     const d = new Date(s.date);
     let key;
     if (bucket === "day") key = localDateStr(d);
-    else if (bucket === "week") { const monday = new Date(d); monday.setDate(d.getDate() - ((d.getDay() + 6) % 7)); key = localDateStr(monday); }
-    else key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    else if (bucket === "week") { const day = localDateStr(d); const weekday = new Date(`${day}T00:00:00Z`).getUTCDay(); key = offsetCalendarDate(day, -((weekday + 6) % 7)); }
+    else key = localDateStr(d).slice(0, 7);
     if (!buckets[key]) buckets[key] = { key, revenue: 0, orders: 0 };
     buckets[key].revenue = round2(buckets[key].revenue + saleNetRevenue(s));
     buckets[key].orders += 1;
@@ -10442,7 +10546,7 @@ function ReportsView({ dark, sales, expenses, inventory, wasteTx, purchaseOrders
   const [productSort, setProductSort] = useState("revenue"); // "revenue" | "qty"
   const canFinance = can ? can("viewFinancials") : true;
 
-  const validDateInput = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value) && localDateStr(parseLocalDate(value)) === value;
+  const validDateInput = isValidCalendarDate;
   const customRangeInvalid = rangeId === "custom" && (!validDateInput(customStart) || !validDateInput(customEnd) || parseLocalDate(customStart).getTime() > parseLocalDate(customEnd).getTime());
   const range = customRangeInvalid ? getDateRange("today") : getDateRange(rangeId, customStart, customEnd);
   // P&L recognizes net sales before tax. Collected tax is shown separately because it is a
