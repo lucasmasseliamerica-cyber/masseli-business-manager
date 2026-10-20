@@ -18,6 +18,12 @@ claims, executar cutover, rollback ou operações comerciais sem as autorizaçõ
 CI #175 (`39282742007`) e #177 (`39290656209`) foram consultadas e aparecem SUCCESS; essas execuções
 precedem as correções de configuração desta entrega. Nenhuma contagem foi inferida de seus logs.
 
+Correções publicadas em `8c11681ac9301d05411ee7d7c5b1ac2d410431ab`.
+[CI #178](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39375881341)
+confirmada SUCCESS: **12/12 jobs, 509/509 PASS, 0 FAIL, 0 SKIPPED** pelo agregado real.
+Regressões locais afetadas **95/95 PASS**, build/bundle PASS e SQL descartável **4/4 PASS**.
+Isso não remove os bloqueios de configuração, catálogo SQL e sessão SUPERADMIN descritos acima.
+
 ## Propósito
 Este arquivo é o ponto de entrada para retomar o NEXALVO em uma nova conversa do ChatGPT. Não é um retrato imutável nem prova de homologação: **sempre consultar os dados atuais no GitHub**.
 

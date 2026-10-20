@@ -89,3 +89,17 @@ qual Secret está ausente ou divergente sem inventário de gestão. Não remover
    empresas/licenças reais para homologar a leitura; não conceder/revogar licença nem suspender empresa.
 
 Administração Comercial permanece aberta até os passos reais serem comprovados.
+
+## Publicação e CI verificadas
+
+- Código publicado exclusivamente na branch QA: commit
+  [`8c11681ac9301d05411ee7d7c5b1ac2d410431ab`](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/commit/8c11681ac9301d05411ee7d7c5b1ac2d410431ab).
+- [CI #178](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39375881341)
+  terminou SUCCESS em 2m10s. Conferência independente dos 12 jobs: **12/12 PASS**, nenhum job
+  falho ou ignorado, incluindo build, preflight autenticado, acesso, browser-smoke e agregador.
+- O job [qa-summary](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39375881341/job/118474338846)
+  publicou literalmente **509/509 PASS; 0 FAIL; 0 SKIPPED**. A contagem foi lida do agregado real,
+  sem inferência a partir da baseline. As regressões locais afetadas permanecem **95/95 PASS**.
+- O preflight autenticado da CI utiliza as fixtures QA existentes e não comprova uma sessão de
+  SUPERADMIN no painel nem a implantação dos contratos comerciais. Os bloqueios reais acima
+  permanecem. A atualização documental posterior não altera o código validado nem repete a CI.
