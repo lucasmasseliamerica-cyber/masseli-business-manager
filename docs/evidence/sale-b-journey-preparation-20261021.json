@@ -7,8 +7,8 @@
   "evidence_kind": "LOCAL_NONPERSISTENT_TESTS",
   "local_results": {
     "b_guards": {
-      "tests": 10,
-      "pass": 10,
+      "tests": 11,
+      "pass": 11,
       "fail": 0,
       "skipped": 0
     },
@@ -56,5 +56,6 @@
     "pending": 15,
     "blocked": 31,
     "percent": 23.33
-  }
+  },
+  "executor_bug_fixed": "READONLY_FAILURE_MUST_NEVER_START_COMPENSATION"
 }

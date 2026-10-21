@@ -17,6 +17,17 @@ const checks = ['catalog', 'owner_a_b', 'permissions', 'read_isolation', 'exclus
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const stableRows = rows => rows.map(row => Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b)))).sort((a,b) => String(a.id).localeCompare(String(b.id)));
 
+export async function recordSaleFailure(error, {report,args,snapshot,compensate,checkpoint}) {
+  report.status=error instanceof SaleSignal?error.status:'BLOCKED';
+  report.code=error instanceof SaleSignal?error.code:'SALE_EXECUTION_UNCONFIRMED';
+  // Inspection modes must never fall through to a business write, even on a failed read.
+  if(!args.includes('--reconcile-readonly')&&!args.includes('--preflight')&&snapshot&&compensate&&!report.restored){
+    try{await compensate();}catch(e){report.compensation_code=e instanceof SaleSignal?e.code:'COMPENSATION_UNCONFIRMED';}
+  }
+  if(snapshot?.writeUncertain)report.code='UNKNOWN_SALE_RESULT_REQUIRES_RECONCILIATION';
+  report.recovery_checkpoint_retained=!!checkpoint;
+}
+
 export async function saleJourney(env = process.env, args = process.argv.slice(2)) {
   const report = { scope: 'B_JOURNEY_REAL_TEST_SALE', status: 'BLOCKED', code: 'NOT_STARTED',
     checks: Object.fromEntries(checks.map(c => [c, 'BLOCKED'])), restored: false,
@@ -320,10 +331,7 @@ export async function saleJourney(env = process.env, args = process.argv.slice(2
     requireSale(!routeFailure&&!stopped&&checks.every(name=>report.checks[name]==='PASS'),routeFailure?.code||'SALE_REQUIRED_CHECKS_INCOMPLETE');
     report.status='PASS';report.code='REAL_SALE_JOURNEY_REVERSED';
   }catch(e){
-    report.status=e instanceof SaleSignal?e.status:'BLOCKED';report.code=e instanceof SaleSignal?e.code:'SALE_EXECUTION_UNCONFIRMED';
-    if(snapshot&&compensate&&!report.restored){try{await compensate();}catch(e){report.compensation_code=e instanceof SaleSignal?e.code:'COMPENSATION_UNCONFIRMED';}}
-    if(snapshot?.writeUncertain)report.code='UNKNOWN_SALE_RESULT_REQUIRES_RECONCILIATION';
-    report.recovery_checkpoint_retained=!!checkpoint;
+    await recordSaleFailure(e,{report,args,snapshot,compensate,checkpoint});
   }finally{
     await browser?.close().catch(()=>{});server?.kill();
     for(const label of Object.keys(sessions)){

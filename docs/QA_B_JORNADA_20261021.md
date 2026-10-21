@@ -132,10 +132,17 @@ Venda cancelada, itens, auditoria e movimentos **permanecem**. Não restaurar ti
 apagando histórico. Só `REAL_SALE_JOURNEY_REVERSED`, todos os 17 checks PASS e `restored=true`
 permitem propor a promoção dos critérios efetivamente comprovados.
 
+## Correção adicional do executor
+
+A revisão encontrou e corrigiu um caminho de erro que poderia iniciar compensação depois de
+uma falha de inspeção `--reconcile-readonly`. Preflight e reconciliação somente leitura agora
+nunca chamam a compensação, inclusive com resultado pendente. Regressão executa o handler
+com um callback observável: zero chamadas nesses modos e uma no modo de recuperação autorizada.
+Nenhuma escrita TEST foi realizada antes ou depois dessa correção.
+
 ## Validação local e entrega
 
-Resultados locais: 10/10 guards B, 2/2 SQL em PostgreSQL descartável, 74/74 regressões P0 e
-19/19 cenários de navegador com HTTP simulado; build PASS. Contagens se sobrepõem e não devem
-ser somadas como testes distintos. Não são gravações/homologação Supabase B.
+Resultados locais: 11/11 guards B, 2/2 SQL em PostgreSQL descartável, 64/64 outras regressões P0 e
+19/19 cenários de navegador com HTTP simulado; build PASS. Esses quatro conjuntos são distintos nesta entrega. Não são gravações/homologação Supabase B.
 CI, SHA publicado e evidência final serão registrados no handoff após a execução observada.
 Próxima prioridade: catálogo atual + preflight seguro no Windows, depois a única jornada B autorizada.

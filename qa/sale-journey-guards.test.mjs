@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { SALE_HOST, SALE_ACTORS, SALE_FINGERPRINTS, SALE_INTERNAL_FUNCTIONS, SALE_TABLES, saleConfiguration, validateSaleCatalog,
   validateSaleFixture, validateSalePayload, assertSaleObserved, safeSaleReport } from './sale-journey-core.mjs';
-import { saleJourney } from './sale-journey.TEST.mjs';
+import { saleJourney, recordSaleFailure } from './sale-journey.TEST.mjs';
 
 const product='11111111-1111-4111-8111-111111111111',location='22222222-2222-4222-8222-222222222222';
 const item='33333333-3333-4333-8333-333333333333',sale='44444444-4444-4444-8444-444444444444';
@@ -45,6 +45,22 @@ test('B authorization never grants A/C/D/E, changes target, uses privileged cred
 test('B runner without secure configuration blocks before login, filesystem snapshot or mutations',async()=>{
   const report=await saleJourney({});assert.equal(report.code,'SALE_AUTHORIZATION_REQUIRED');assert.equal(report.status,'BLOCKED');
   assert.equal(report.create_requests_forwarded,0);assert.equal(report.reversal_requests_forwarded,0);assert.equal(report.restored,false);
+});
+test('failed read-only recovery or preflight never starts compensation; write recovery remains explicit',async()=>{
+  let writes=0;
+  for(const args of [['--reconcile-readonly','private-checkpoint'],['--preflight']]){
+    const report={restored:false};
+    await recordSaleFailure(new Error('private upstream error'),{report,args,snapshot:{writeUncertain:true},
+      compensate:async()=>{writes++;},checkpoint:'private-checkpoint'});
+    assert.equal(writes,0);assert.equal(report.status,'BLOCKED');
+    assert.equal(report.code,'UNKNOWN_SALE_RESULT_REQUIRES_RECONCILIATION');
+    assert.equal(report.recovery_checkpoint_retained,true);
+    assert.doesNotMatch(JSON.stringify(report),/private upstream error|private-checkpoint/);
+  }
+  const report={restored:false};
+  await recordSaleFailure(new Error('private error'),{report,args:['--recover'],snapshot:{writeUncertain:false},
+    compensate:async()=>{writes++;report.restored=true;},checkpoint:'private-checkpoint'});
+  assert.equal(writes,1);assert.equal(report.restored,true);assert.equal(report.status,'BLOCKED');
 });
 test('fresh SQL attestation is required and drift, public grants or incomplete RLS never become PASS',()=>{
   const catalog={project_ref_expected:SALE_HOST.split('.')[0],captured_at:new Date().toISOString(),status:'PASS_VERSIONED_CONTRACTS',
