@@ -2317,8 +2317,13 @@ const supabaseProductImages = {
       const signedValue = row?.signedURL || row?.signedUrl;
       if (!reference || typeof signedValue !== "string") continue;
       try {
-        const signedUrl = new URL(signedValue, expectedOrigin);
-        if (signedUrl.protocol === "https:" && signedUrl.origin === expectedOrigin && signedUrl.pathname.startsWith("/storage/v1/object/sign/")) {
+        // Supabase Storage signs multiple paths with a relative /object/sign/... URL.
+        // Resolve that trusted API-relative form under /storage/v1, not at the origin root.
+        const normalizedSignedValue = signedValue.startsWith("/object/sign/")
+          ? `/storage/v1${signedValue}`
+          : signedValue;
+        const signedUrl = new URL(normalizedSignedValue, expectedOrigin);
+        if (signedUrl.protocol === "https:" && signedUrl.origin === expectedOrigin && signedUrl.pathname.startsWith(`/storage/v1/object/sign/${PRODUCT_IMAGE_BUCKET}/`)) {
           result.set(reference, signedUrl.href);
         }
       } catch {
