@@ -143,6 +143,7 @@ try {
 } finally { [IO.Directory]::Delete($suite,$true) }
 $script:tap.Add("1..$script:number"); $script:tap.Add("# tests $script:number"); $script:tap.Add("# pass $($script:number-$script:failed)")
 $script:tap.Add("# fail $script:failed"); $script:tap.Add('# skipped 0')
-[IO.File]::WriteAllLines([IO.Path]::GetFullPath($TapFile),$script:tap,[Text.UTF8Encoding]::new($false))
+# The Linux aggregator consumes exact root TAP lines: always emit UTF-8/LF, including PS 5.1.
+[IO.File]::WriteAllText([IO.Path]::GetFullPath($TapFile),([string]::Join("`n",$script:tap)+"`n"),[Text.UTF8Encoding]::new($false))
 $script:tap | Write-Output
 if ($script:failed -gt 0) { exit 1 }; exit 0
