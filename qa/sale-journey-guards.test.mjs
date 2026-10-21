@@ -18,7 +18,7 @@ function fixture(){
     recipes:[{product_id:product,inventory_item_id:item,qty_per_unit:0.25}],
     recipeUsage:[{product_id:product,inventory_item_id:item}],inventoryItems:[{id:item,business_id:business,name:'ZZ_QA_INGREDIENT',active:true}],
     stocks:[{id:'stock',inventory_item_id:item,location_id:location,qty:10,avg_cost_per_unit:0.2}],
-    salesHistory:[],purchaseLines:[],lists:[{list_type:'payment_methods',value:'Other'},{list_type:'channels',value:'In Store'}]};
+    salesHistory:[],purchaseLines:[],lists:[{list_type:'payment_method',value:'Other',active:true},{list_type:'channel',value:'In Store',active:true}]};
   s.expected=validateSaleFixture(s);return s;
 }
 function payload(s){return{p_sale_id:sale,p_business_id:business,p_location_id:location,p_payment_method:'Other',p_channel:s.expected.channel,
@@ -88,6 +88,36 @@ test('eligible fixture has USD price/tax within one dollar, exclusive ingredient
     s=>s.recipes[0].qty_per_unit=0.0001,s=>s.lists=[]];
   for(const change of invalid){const s=fixture();change(s);assert.throws(()=>validateSaleFixture(s));}
 });
+test('B settings accept the real singular types with active Other and an existing active channel',()=>{
+  const s=fixture();
+  s.lists.unshift({list_type:'channel',value:'Retired channel',active:false},{list_type:'channel',value:' ',active:true});
+  const before=structuredClone(s);
+  assert.deepEqual(validateSaleFixture(s),s.expected);
+  assert.equal(s.expected.channel,'In Store');assert.equal(s.expected.paymentMethod,'Other');
+  assert.deepEqual(s,before,'validation must not activate, rename or create settings');
+});
+test('B settings reject missing or inactive Other and never substitute another payment method or plural type',()=>{
+  const reject=s=>assert.throws(()=>validateSaleFixture(s),e=>e.code==='EXISTING_OTHER_PAYMENT_AND_CHANNEL_REQUIRED');
+  for(const active of [false,null,undefined,'true',1]){
+    const s=fixture();s.lists[0].active=active;reject(s);
+  }
+  for(const value of ['Cash','Credit Card','other',' Other ',null]){
+    const s=fixture();s.lists[0].value=value;reject(s);
+  }
+  const missing=fixture();missing.lists=missing.lists.filter(row=>row.list_type!=='payment_method');reject(missing);
+  const plural=fixture();plural.lists[0].list_type='payment_methods';reject(plural);
+});
+test('B settings require a singular active channel with a nonempty string value',()=>{
+  const reject=s=>assert.throws(()=>validateSaleFixture(s),e=>e.code==='EXISTING_OTHER_PAYMENT_AND_CHANNEL_REQUIRED');
+  for(const active of [false,null,undefined,'true',1]){
+    const s=fixture();s.lists[1].active=active;reject(s);
+  }
+  for(const value of ['', ' \t\n', null,undefined,0,[]]){
+    const s=fixture();s.lists[1].value=value;reject(s);
+  }
+  const missing=fixture();missing.lists=missing.lists.filter(row=>row.list_type!=='channel');reject(missing);
+  const plural=fixture();plural.lists[1].list_type='channels';reject(plural);
+});
 test('only one item, same ID, same full payload and Other payment can be forwarded',()=>{
   const s=fixture(),p=payload(s);validateSalePayload(p,s);s.saleId=p.p_sale_id;s.salePayload=structuredClone(p);
   assert.doesNotThrow(()=>validateSalePayload(structuredClone(p),s));
@@ -126,6 +156,12 @@ test('Windows wrapper protects secrets, journal and the mutex without automatica
 });
 test('executor journals before forward, refuses ambiguous replay and compensates only its captured sale',()=>{
   const runner=readFileSync(new URL('./sale-journey.TEST.mjs',import.meta.url),'utf8');
+  const settingsQuery=runner.match(/lists:await api\(`([^`]+)`\)/)[1].replace('${b}',business);
+  const settingsUrl=new URL(settingsQuery,env.QA_SUPABASE_URL);
+  assert.equal(settingsUrl.pathname,'/rest/v1/business_settings_lists');
+  assert.ok(settingsUrl.searchParams.get('select').split(',').includes('active'),'REST projection must expose the active flag');
+  assert.equal(settingsUrl.searchParams.get('active'),'eq.true');
+  assert.equal(settingsUrl.searchParams.get('business_id'),'eq.'+business);
   assert.match(runner,/save\('SALE_FORWARD_PENDING'\)[\s\S]*?route.fetch/);
   assert.match(runner,/OVERLAPPING_SALE_MUTATION_FORBIDDEN/);assert.match(runner,/createForwards<2/);
   assert.match(runner,/req.postDataJSON\(\).p_sale_id===snapshot.saleId/);

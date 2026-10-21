@@ -113,7 +113,7 @@ export async function saleJourney(env = process.env, args = process.argv.slice(2
       stocks:await readStocks(),recipeUsage:await api(`/rest/v1/product_recipes?select=*&inventory_item_id=in.(${ids})&limit=1000`),
       salesHistory:await api(`/rest/v1/rpc/fn_read_sale_items_secure?select=id&product_id=eq.${product.id}&limit=1`),
       purchaseLines:await api(`/rest/v1/rpc/fn_read_purchase_order_items_secure?select=id&inventory_item_id=in.(${ids})&limit=1`),
-      lists:await api(`/rest/v1/business_settings_lists?select=list_type,value&business_id=eq.${b}&order=sort_order.asc&limit=1000`),
+      lists:await api(`/rest/v1/business_settings_lists?select=list_type,value,active&business_id=eq.${b}&active=eq.true&order=sort_order.asc&limit=1000`),
       inventoryHistory:await readItemHistory(),registers:await registers(),sourceSha:report.source_sha,catalogSha256:report.catalog_sha256,saleId:null,salePayload:null,writeUncertain:false,
       createForwards:0,reverseAttempted:false,startedAt:new Date().toISOString()};
     // Recovery must not reuse fixture eligibility (the authorized sale now exists in history).

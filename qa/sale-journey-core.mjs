@@ -81,8 +81,10 @@ export function validateSaleFixture(s) {
     seen.add(item.id);
   }
   requireSale(Array.isArray(s.purchaseLines) && s.purchaseLines.length === 0, 'INGREDIENT_HAS_PURCHASE_DEPENDENCIES');
-  const methods = s.lists.filter(row => row.list_type === 'payment_methods').map(row => row.value);
-  const channels = s.lists.filter(row => row.list_type === 'channels').map(row => row.value);
+  const activeLists = Array.isArray(s.lists) ? s.lists.filter(row => row?.active === true
+    && typeof row.value === 'string' && row.value.trim().length > 0) : [];
+  const methods = activeLists.filter(row => row.list_type === 'payment_method').map(row => row.value);
+  const channels = activeLists.filter(row => row.list_type === 'channel').map(row => row.value);
   requireSale(methods.includes('Other') && channels.length > 0, 'EXISTING_OTHER_PAYMENT_AND_CHANNEL_REQUIRED');
   const taxRate = s.business.tax_enabled === false ? 0 : Number(s.business.tax_rate);
   requireSale(Number.isFinite(taxRate) && taxRate >= 0 && taxRate <= 100, 'INVALID_BUSINESS_TAX');
