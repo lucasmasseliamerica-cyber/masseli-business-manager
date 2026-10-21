@@ -423,6 +423,39 @@ jobs:
           path: qa-two-tenants-results.tap
           retention-days: 14
 
+  windows-sale-launcher:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Select isolated QA branch for local launcher guards
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'CI_SOURCE_MISMATCH' }
+          $branch = git branch --show-current
+          if (-not $branch) { git switch -c automation/nexalvo-qa-actions }
+          elseif ($branch -ne 'automation/nexalvo-qa-actions') { throw 'QA_BRANCH_REQUIRED' }
+      - name: Native Windows PowerShell 5.1 recovery launcher regression
+        shell: powershell
+        run: .\qa\Test-QaSaleRecoveryLauncher.ps1 -TapFile "$env:RUNNER_TEMP\sale-launcher-ps51.tap"
+      - name: Native PowerShell 7 recovery launcher regression
+        if: always()
+        shell: pwsh
+        run: .\qa\Test-QaSaleRecoveryLauncher.ps1 -TapFile "$env:RUNNER_TEMP\sale-launcher-ps7.tap"
+      - name: Archive synthetic Windows-only launcher reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-windows-sale-launcher
+          path: ${{ runner.temp }}/sale-launcher-*.tap
+          retention-days: 14
+
   qa-summary:
     needs:
       - build-and-security
@@ -436,6 +469,7 @@ jobs:
       - browser-smoke
       - performance-read
       - two-tenant-concurrency
+      - windows-sale-launcher
     if: always() && github.ref == 'refs/heads/automation/nexalvo-qa-actions'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -451,10 +485,10 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t tap_files < <(find qa-artifacts -type f -name '*.tap' -print | sort)
-          expected_reports=6
+          expected_reports=8
           blocked_groups=4
           if [[ "$PERSISTENT_SCOPE_AUTHORIZED" == 'true' ]]; then
-            expected_reports=10
+            expected_reports=12
             blocked_groups=0
           fi
           echo "Persistent TEST groups: $blocked_groups BLOCKED; explicit manual authorization required" >> "$GITHUB_STEP_SUMMARY"

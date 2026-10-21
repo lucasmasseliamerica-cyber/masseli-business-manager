@@ -229,13 +229,18 @@ test('public evidence excludes credentials and private references',()=>{
 });
 test('Windows wrapper protects secrets, journal and the mutex without automatically granting other scopes',()=>{
   const ps=readFileSync(new URL('./Invoke-QaSaleJourney.ps1',import.meta.url),'utf8');
+  const helper=readFileSync(new URL('./sale-launcher-core.ps1',import.meta.url),'utf8');
   assert.match(ps,/Read-Host[^\n]+-AsSecureString/);assert.match(ps,/ZeroFreeBSTR/);
-  assert.match(ps,/SetAccessRuleProtection\(\$true, \$false\)/);assert.match(ps,/finally[\s\S]*SetEnvironmentVariable\(\$name, \$previous\[\$name\], 'Process'\)/);
-  const name=ps.match(/New-Object System.Threading.Mutex\(\$false, '([^']+)'\)/)[1];
+  assert.match(helper,/SetAccessRuleProtection\(\$true,\$false\)/);assert.match(ps,/finally[\s\S]*SetEnvironmentVariable\(\$name, \$previous\[\$name\], 'Process'\)/);
+  const name=ps.match(/\[Threading.Mutex\]::new\(\$false,'([^']+)'\)/)[1];
   assert.equal(name,'Local\\NEXALVOSaleJourneyTEST');assert.equal([...name].filter(c=>c==='\\').length,1);
   assert.doesNotMatch(ps,/QA_PHOTO_JOURNEY_AUTHORIZED|NEXALVO_PERSISTENT_QA_AUTHORIZED/);
   assert.doesNotMatch(ps,/^\s*(?:Start-Transcript|Tee-Object)\b/m);
   assert.match(ps,/UNFINISHED_SALE_CHECKPOINT_EXISTS/);assert.match(ps,/--reconcile-readonly/);
+  assert.match(ps,/if \(\$RecoveryFile\) \{ Assert-QaSalePrivateAcl/);
+  assert.match(ps,/if \(-not \$RecoveryFile -and -not \$PreflightOnly\)/);
+  assert.match(ps,/ValidateLauncherOnly/);assert.doesNotMatch(ps,/Exception\.Message|Private recovery snapshot retained in/);
+  assert.match(helper,/-ccontains \[string\]\$Exception.Data\['QaSaleGuardCode'\]/);
 });
 test('executor journals before forward, refuses ambiguous replay and compensates only its captured sale',()=>{
   const runner=readFileSync(new URL('./sale-journey.TEST.mjs',import.meta.url),'utf8');
