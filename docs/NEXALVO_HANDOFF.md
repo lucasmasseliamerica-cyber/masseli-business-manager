@@ -2,6 +2,11 @@
 
 ## Atualização vigente — helpers reconciliados após cutover (21/10/2026)
 
+Código aprovado: **`5f9d5aad2ec826c75072f96721cc9a3ab054a707`**. [CI #194](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39605307683):
+**649/649 PASS**, zero falhas/skips nos testes; **8 jobs PASS, 4 grupos persistentes BLOCKED**.
+[Resultado verificável](./evidence/sale-b-ci-194-20261021.json). Usar esse SHA em `ValidatedCodeSha`.
+B real permanece BLOCKED até o novo catálogo e preflight Windows dessa fixture passarem.
+
 [Revisão semântica, hashes e preflight Windows](./QA_B_HELPER_RECONCILIATION_20261021.md).
 Os hashes informados de `current_business_id` e `user_can` foram reproduzidos exatamente pela
 compilação das definições versionadas em PostgreSQL 17. Mudança legítima: empresa ACTIVE,

@@ -3,6 +3,24 @@
 Somente QA `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`.
 **Baseline B corrigido; novo export e preflight autenticado real ainda necessários.**
 
+## Entrega e status
+
+Código publicado e aprovado: **`5f9d5aad2ec826c75072f96721cc9a3ab054a707`**.
+[CI #194](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39605307683): **649/649 verificações PASS**, zero falhas/skips nos testes executados.
+**8 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**, não 12/12 aprovados.
+[Evidência real da CI](./evidence/sale-b-ci-194-20261021.json).
+
+| Verificação | Resultado | Evidência / pendência |
+| --- | --- | --- |
+| Reconciliação semântica e hashes | PASS | Duas definições versionadas compiladas reproduzem exatamente os hashes informados |
+| Regressões B | PASS | 16/16, incluindo 5 testes PostgreSQL |
+| Administração Comercial | PASS | 45/45 regressões relacionadas, com aplicação/pós-preflight/rollback descartáveis |
+| Build e CI | PASS | Build local e CI #194; 649 verificações aprovadas |
+| Falha reproduzida no baseline anterior | CORRIGIDO | 4/5 PASS + 1 FAIL antes; zero falhas atuais |
+| Novo catálogo real B | BLOCKED | Executar novamente o SQL somente leitura atualizado no TEST |
+| Preflight Windows e fixture autenticada | BLOCKED | Sessões A/B e execução nativa indisponíveis nesta sessão; comando pronto abaixo |
+| Venda, estoque, financeiro e estorno B reais | BLOCKED | Nenhuma operação executada; dependem de todos os gates PASS |
+
 ## Revisão semântica e proveniência
 
 | Função | Baseline anterior ao cutover | Baseline após cutover informado e reproduzido |
@@ -54,7 +72,7 @@ nesses testes são simulados: não equivalem a login ou homologação de perfis 
 Não houve alteração de migração, função implantada, claims, contas, estoque ou financeiro remoto.
 Regressões da Administração Comercial: **45/45 PASS**, incluindo aplicação/pós-preflight/rollback
 em PostgreSQL descartável. Build PASS. [Evidência sanitizada](./evidence/sale-b-helper-reconciliation-20261021.json).
-Nova CI e SHA aprovado serão registrados após a publicação observada.
+CI e SHA aprovado estão registrados no início deste relatório.
 
 ## Fixture fornecida e preparação Windows
 
@@ -73,7 +91,7 @@ Esses valores informados **não são snapshot de uma venda executada nesta sess�
 
 ```powershell
 Set-Location 'C:\Users\lucas\Documents\NEXALVO-P005-ISOLATED'
-$validatedSha = '<SHA_COMPLETO_APROVADO_NA_NOVA_CI>'
+$validatedSha = '5f9d5aad2ec826c75072f96721cc9a3ab054a707'
 $catalogFile = Join-Path $env:TEMP 'nexalvo-b-catalog.json'
 .\qa\Invoke-QaSaleJourney.ps1 -ValidatedCodeSha $validatedSha `
   -FixtureProductId '5ba917cd-362b-42f5-83f6-345fb3dccddf' `
