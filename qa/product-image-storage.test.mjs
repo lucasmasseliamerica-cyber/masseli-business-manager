@@ -42,7 +42,8 @@ for (const file of files) {
     assert.match(adapter, /method: "DELETE"[\s\S]*prefixes: \[object\.path\]/);
     assert.match(adapter, /createSignedUrls\(references, expiresIn = 600\)/);
     assert.match(adapter, /signedUrl\.origin === expectedOrigin/);
-    assert.match(adapter, /signedUrl\.pathname\.startsWith\("\/storage\/v1\/object\/sign\/"\)/);
+    assert.ok(adapter.includes('signedUrl.pathname.startsWith(`/storage/v1/object/sign/${PRODUCT_IMAGE_BUCKET}/`)'));
+    assert.ok(adapter.includes('signedValue.startsWith("/object/sign/")'));
     assert.doesNotMatch(adapter, /publicUrl|\/object\/public\//i);
   });
 
@@ -95,7 +96,7 @@ test('Storage adapter protocol uploads, signs and removes the same isolated obje
     newDbId: () => object,
     supabaseFetch: async (path, options) => {
       calls.push({ path, options });
-      if (path.includes('/sign/')) return { ok: true, status: 200, json: async () => [{ path: expectedPath, signedURL: `/storage/v1/object/sign/nexalvo-product-images/${expectedPath}?token=mock` }] };
+      if (path.includes('/sign/')) return { ok: true, status: 200, json: async () => [{ path: expectedPath, signedURL: `/object/sign/nexalvo-product-images/${expectedPath}?token=mock` }] };
       return { ok: true, status: 200, json: async () => ({}) };
     },
   });
