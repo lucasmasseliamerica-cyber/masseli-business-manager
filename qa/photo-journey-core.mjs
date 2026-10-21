@@ -32,7 +32,9 @@ export function validatePhotoConfiguration(env) {
 }
 
 export function assertDedicatedPhotoFixture(row, { recipes, history, objects }) {
-  ensure(row?.name === PHOTO_FIXTURE && row.business_id === PHOTO_ACTORS.A.business && row.active === true, 'DEDICATED_FIXTURE_REQUIRED');
+  // Photos may be edited on inactive products. Require a known boolean state, then preserve
+  // that exact value via the snapshot and validatePhotoProductWrite; never activate the fixture.
+  ensure(row?.name === PHOTO_FIXTURE && row.business_id === PHOTO_ACTORS.A.business && typeof row.active === 'boolean', 'DEDICATED_FIXTURE_REQUIRED');
   ensure(/^[0-9a-f-]{36}$/i.test(row.id) && row.image_url === null, 'EMPTY_PHOTO_FIXTURE_REQUIRED');
   ensure(typeof row.category === 'string' && row.category.trim().length > 0, 'FIXTURE_CATEGORY_REQUIRED');
   ensure(Array.isArray(recipes) && recipes.length === 0, 'FIXTURE_HAS_RECIPE');

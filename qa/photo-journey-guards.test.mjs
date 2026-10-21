@@ -36,13 +36,55 @@ test('real runner without secure configuration returns BLOCKED without login, wr
   assert.ok(Object.values(report.checks).every(status => status === 'BLOCKED'));
 });
 
-test('a familiar QA name alone is insufficient: old image, sales, recipe, historic objects and wrong tenant all block', () => {
+test('a familiar QA name alone is insufficient: invalid state, old image, sales, recipe, historic objects and wrong tenant all block', () => {
   const clean = { recipes: [], history: [], objects: [] };
-  assert.doesNotThrow(() => assertDedicatedPhotoFixture(row, clean));
-  for (const change of [{ image_url: '' }, { image_url: 'https://example.invalid/historical.png' }, { active: false }, { business_id: PHOTO_ACTORS.B.business }, { name: 'COMMERCIAL' }, { category: null }]) {
-    assert.throws(() => assertDedicatedPhotoFixture({ ...row, ...change }, clean));
+  for (const active of [true, false]) {
+    const fixture = { ...row, active };
+    for (const change of [{ image_url: '' }, { image_url: 'https://example.invalid/historical.png' },
+      { active: null }, { active: undefined }, { active: 'false' }, { active: 0 },
+      { business_id: PHOTO_ACTORS.B.business }, { name: 'COMMERCIAL' }, { category: null }]) {
+      assert.throws(() => assertDedicatedPhotoFixture({ ...fixture, ...change }, clean));
+    }
+    for (const key of ['recipes', 'history', 'objects']) assert.throws(() => assertDedicatedPhotoFixture(fixture, { ...clean, [key]: [{}] }));
   }
-  for (const key of ['recipes', 'history', 'objects']) assert.throws(() => assertDedicatedPhotoFixture(row, { ...clean, [key]: [{}] }));
+});
+
+test('inactive dedicated fixture is accepted without changing its original state or safety inputs', () => {
+  for (const active of [true, false]) {
+    const fixture = Object.freeze({ ...row, active });
+    const safety = Object.freeze({ recipes: Object.freeze([]), history: Object.freeze([]), objects: Object.freeze([]) });
+    const before = JSON.stringify({ fixture, safety });
+    assert.doesNotThrow(() => assertDedicatedPhotoFixture(fixture, safety));
+    assert.equal(JSON.stringify({ fixture, safety }), before);
+  }
+});
+
+test('inactive photo upload, replacement, removal and compensation preserve status, price, SKU, recipe and historical metadata', () => {
+  const fixture = Object.freeze({ ...row, active: false, sku: 'QA-INACTIVE-PHOTO', price: 12.34,
+    created_at: 'original-created-at', notes: 'original-notes' });
+  const secondPath = path.replace('22222222-2222-4222-8222-222222222222.png', '33333333-3333-4333-8333-333333333333.webp');
+  const snap = { product: fixture, ownedPaths: [path, secondPath] };
+  const before = JSON.stringify(snap);
+  const restore = restorePhotoPayload(fixture);
+  for (const image of [null, `storage://${PHOTO_BUCKET}/${path}`, `storage://${PHOTO_BUCKET}/${secondPath}`, null]) {
+    const payload = { ...restore, p_image_url: image };
+    assert.equal(payload.p_active, false);
+    assert.equal(payload.p_price, fixture.price); assert.equal(payload.p_sku, fixture.sku);
+    assert.deepEqual(payload.p_recipe, []);
+    assert.doesNotThrow(() => validatePhotoProductWrite(payload, snap));
+    assert.doesNotThrow(() => assertProductRestorable(fixture, { ...fixture, image_url: image, updated_at: 'after' }));
+    for (const patch of [{ p_active: true }, { p_active: null }, { p_active: undefined },
+      { p_price: 99 }, { p_sku: 'changed' }, { p_recipe: [{}] }, { p_operation: 'deactivate' }]) {
+      assert.throws(() => validatePhotoProductWrite({ ...payload, ...patch }, snap));
+    }
+  }
+  for (const patch of [{ active: true }, { price: 99 }, { sku: 'changed' }, { notes: 'changed' }, { created_at: 'changed' }]) {
+    assert.throws(() => assertProductRestorable(fixture, { ...fixture, ...patch }), /FIXTURE_CHANGED_BY_OTHER_WRITER/);
+  }
+  const pending = { ...snap, unresolvedWrite: true, pending: { kind: 'product', expectedImage: `storage://${PHOTO_BUCKET}/${path}`, previousUpdatedAt: fixture.updated_at } };
+  assert.doesNotThrow(() => assertPositivePhotoReconciliation(pending, { ...fixture, image_url: pending.pending.expectedImage, updated_at: 'after' }));
+  assert.throws(() => assertPositivePhotoReconciliation(pending, { ...fixture, active: true, image_url: pending.pending.expectedImage, updated_at: 'after' }));
+  assert.equal(JSON.stringify(snap), before, 'neither the snapshot nor its historical metadata may be rewritten');
 });
 
 test('snapshot preserves business values and history while allowing timestamp/audit progression', () => {

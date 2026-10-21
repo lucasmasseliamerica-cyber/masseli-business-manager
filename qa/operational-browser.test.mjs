@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -47,6 +47,16 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   if (saleFault === 'negative-price') tables.products[0].price = -1;
   if (saleFault === 'invalid-stock') state.stock = 'NaN';
   if (csvName) tables.inventory_items[0].name = csvName;
+  tables.products[0].active = photoProductActive;
+  if (!photoProductActive) {
+    tables.products[0].sku = 'QA-INACTIVE-PHOTO';
+    tables.product_recipes = [];
+  }
+  state.productBaseline = structuredClone(tables.products[0]);
+  state.recipeBaseline = structuredClone(tables.product_recipes);
+  state.uploadProductSnapshots = [];
+  state.auditRows = [{ id: randomUUID(), business_id: business, action: 'Prior QA event', details: 'Historical event to preserve', occurred_at: now, user_id: owner }];
+  state.auditBaseline = structuredClone(state.auditRows);
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 } });
   context.setDefaultTimeout(10000);
   await context.addInitScript(({ owner, language }) => {
@@ -81,6 +91,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     if (url.pathname.startsWith('/storage/v1/object/nexalvo-product-images/') && request.method() === 'POST') {
       const path = decodeURIComponent(url.pathname.slice('/storage/v1/object/nexalvo-product-images/'.length));
       assert.ok(path.startsWith(`${business}/${product}/`));
+      state.uploadProductSnapshots.push(structuredClone(tables.products[0]));
       state.photoUploads.push(path);
       state.images.set(path, request.postDataBuffer());
       return reply({}, photoFault === 'upload-unknown' ? 504 : 200);
@@ -93,7 +104,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     if (url.pathname === '/rest/v1/') return reply({});
     const name = url.pathname.replace('/rest/v1/', '');
     if (request.method() === 'GET') {
-      let rows = name === 'sales' ? state.sales : name === 'customers' ? state.customers
+      let rows = name === 'sales' ? state.sales : name === 'customers' ? state.customers : name === 'audit_logs' ? state.auditRows
         : name === 'purchase_orders' ? state.purchaseOrders : name === 'rpc/fn_read_purchase_order_items_secure' ? state.purchaseLines
         : name === 'rpc/fn_read_sale_items_secure' ? state.saleItems
         : name === 'rpc/fn_read_inventory_stock_secure' ? [{ id: '66666666-6666-4666-8666-666666666666', inventory_item_id: item, location_id: location, qty: state.stock, avg_cost_per_unit: 2 }]
@@ -125,8 +136,14 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     if (name === 'rpc/fn_save_product' && request.method() === 'POST') {
       assert.equal(body.p_product_id, product); assert.equal(body.p_business_id, business);
       assert.equal(body.p_operation, 'upsert');
+      const baseline = state.productBaseline;
+      assert.equal(body.p_active, baseline.active);
+      assert.equal(body.p_name, baseline.name); assert.equal(body.p_price, baseline.price);
+      assert.equal(body.p_sku, baseline.sku || null); assert.equal(body.p_category, baseline.category);
+      assert.equal(body.p_description, baseline.description || null);
+      assert.deepEqual(body.p_recipe, state.recipeBaseline.map(row => ({ inventory_item_id: row.inventory_item_id, qty_per_unit: row.qty_per_unit })));
       state.productWrites.push(body);
-      tables.products[0] = { ...tables.products[0], image_url: body.p_image_url, updated_at: new Date().toISOString() };
+      tables.products[0] = { ...tables.products[0], active: body.p_active, image_url: body.p_image_url, updated_at: new Date().toISOString() };
       return reply(tables.products[0], photoFault === 'save-unknown' && state.productWrites.length === 1 ? 504 : 200);
     }
     if (name === 'rpc/fn_create_sale' && request.method() === 'POST') {
@@ -152,7 +169,11 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
       }
       return reply(values);
     }
-    if (name === 'rpc/fn_write_audit') return reply({});
+    if (name === 'rpc/fn_write_audit') {
+      const entry = { id: randomUUID(), business_id: business, action: body.p_action, details: body.p_details, user_id: owner, occurred_at: new Date().toISOString() };
+      state.auditRows.push(entry);
+      return reply(entry);
+    }
     if (name === 'rpc/fn_reconcile_business_alerts') return reply([]);
     state.blocked.push({ method: request.method(), resource: name });
     return route.abort();
@@ -162,7 +183,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(local, { waitUntil: 'domcontentloaded' });
   await page.locator('main').waitFor();
-  return { context, page, state, errors };
+  return { context, page, state, errors, catalog: tables };
 }
 
 test('SIMULATED HTTP: inventory CSV download treats an untrusted name as text', { timeout: 30000 }, async () => {
@@ -426,11 +447,13 @@ for (const photoFault of ['upload-unknown', 'save-unknown']) {
   });
 }
 
-test('SIMULATED HTTP: photo upload, reload, replacement and removal preserve the product and leave no simulated objects', { timeout: 60000 }, async () => {
-  const { context, page, state, errors } = await isolated();
+for (const photoProductActive of [true, false]) {
+test(`SIMULATED HTTP: ${photoProductActive ? 'active' : 'inactive'} product photo upload, reload, replacement and removal preserve state and leave no simulated objects`, { timeout: 60000 }, async () => {
+  const { context, page, state, errors, catalog } = await isolated({ photoProductActive });
   try {
     for (let file = 0; file < 2; file++) {
       const dialog = await editPhoto(page);
+      assert.equal(await dialog.locator('input[type=checkbox]').isChecked(), photoProductActive);
       await dialog.locator('input[type=file]').setInputFiles({ name: `${file}.png`, mimeType: 'image/png', buffer: photoPng });
       await dialog.locator('img[src^="blob:"]').waitFor();
       await dialog.getByRole('button', { name: 'Save Product', exact: true }).click();
@@ -444,10 +467,20 @@ test('SIMULATED HTTP: photo upload, reload, replacement and removal preserve the
     await dialog.waitFor({ state: 'hidden' });
     await page.reload({ waitUntil: 'domcontentloaded' });
     const final = await editPhoto(page);
+    assert.equal(await final.locator('input[type=checkbox]').isChecked(), photoProductActive);
     assert.equal(await final.locator('img').count(), 0);
     assert.equal(state.photoUploads.length, 2); assert.equal(state.photoDeletes.length, 2);
     assert.equal(state.images.size, 0); assert.equal(state.productWrites.length, 3);
-    assert.ok(state.productWrites.every(args => args.p_name === 'Bowl QA' && args.p_price === 10 && args.p_active === true));
+    assert.ok(state.productWrites.every(args => args.p_name === 'Bowl QA' && args.p_price === 10 && args.p_active === photoProductActive));
+    const unchangedFields = product => Object.fromEntries(Object.entries(product).filter(([key]) => !['image_url', 'updated_at'].includes(key)));
+    for (const duringUpload of state.uploadProductSnapshots) assert.deepEqual(unchangedFields(duringUpload), unchangedFields(state.productBaseline));
+    assert.deepEqual(unchangedFields(catalog.products[0]), unchangedFields(state.productBaseline));
+    assert.equal(catalog.products[0].image_url, null);
+    assert.deepEqual(catalog.product_recipes, state.recipeBaseline);
+    assert.equal(state.sales.length, 0); assert.equal(state.saleItems.length, 0);
+    assert.deepEqual(state.auditRows.slice(0, state.auditBaseline.length), state.auditBaseline);
+    assert.equal(state.auditRows.length, state.auditBaseline.length + 3, 'photo saves append audit events without rewriting prior history');
     assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
   } finally { await context.close(); }
 });
+}

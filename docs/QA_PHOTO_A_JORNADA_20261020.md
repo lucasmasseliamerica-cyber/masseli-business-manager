@@ -7,6 +7,21 @@ políticas, novos produtos/contas, finanças, Stripe ou comercialização autom�
 
 [Evidência agregada e hashes](./evidence/photo-a-journey-preparation-20261020.json).
 
+## Fixture inativa — correção de 21/10/2026
+
+O usuário confirmou a fixture existente com `active=false` e `image_url=null`. O preflight agora
+aceita `active` estritamente booleano, inclusive `false`; não reativa o produto. Os guards de save,
+conciliação e compensação continuam exigindo o valor exato do snapshot, preço/SKU preservados e
+receita vazia. Nome/empresa, OWNER A/B, permissões, ausência de vendas/objetos históricos, janela
+exclusiva, snapshot e compensação permanecem obrigatórios. Valores NULL/ausentes/textuais são negados.
+
+Regressão reproduzida antes da correção: 1/1 FAIL (`DEDICATED_FIXTURE_REQUIRED`). Depois: 32/32
+Storage/guards e 4/4 cenários de fotos no navegador PASS, zero falhas/skips; build PASS. O browser
+usa HTTP inteiramente simulado: confirma produto inativo durante uploads/saves/reloads/remoção,
+preço/SKU/receita preservados e eventos novos de auditoria sem reescrever histórico anterior.
+Nenhum upload persistente foi executado nesta correção. O cenário real continua sem homologação;
+consultar a CI associada ao novo commit QA antes de atualizar `ValidatedCodeSha` no notebook.
+
 ## Estado vigente — integração publicada, A-Jornada real BLOCKED
 
 O commit `9b381e891af2b6f0e0e783560168bb6039e5503f` já está no GitHub e foi integrado
@@ -89,7 +104,8 @@ Arquivos: `qa/Invoke-QaPhotoJourney.ps1`, `qa/photo-journey.TEST.mjs`,
    de comandos, argumentos, arquivos, logs, Git, traces ou estado de browser exportado.
 3. Não utiliza credencial administrativa para autenticar usuários. Confirma Auth/perfil ativo,
    OWNER A/B fixos, contexto de empresa, `manageRecipesAndCosts` e leitura cruzada negada.
-4. Só aceita a fixture `ZZ_QA_PHOTO_CATALOG_20261009_AUTO`, única/ativa na empresa A, com foto
+4. Só aceita a fixture `ZZ_QA_PHOTO_CATALOG_20261009_AUTO`, única na empresa A e com estado
+   `active` booleano preservado (inclusive `false`), com foto
    originalmente **NULL**, pasta vazia, sem receita, itens de venda ou eventos prévios de atualização
    desse produto. Foto/histórico existente gera BLOCKED; não limpar para forçar um preflight verde.
 5. Exige uma janela operacional exclusiva confirmada e mutex local contra dois executores no
