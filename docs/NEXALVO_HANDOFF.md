@@ -1,5 +1,28 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Retomada vigente — integração Git e lote operacional (20/10/2026)
+
+Ler primeiro [QA_OPERATIONAL_INTEGRATION_20261020.md](./QA_OPERATIONAL_INTEGRATION_20261020.md).
+`9b381e8` e `396afac` foram integrados por merge `50fc57b`, publicado na QA sem force push.
+CI #187: **612/612 PASS**; código funcional `9f0fbca`: CI #188 **627/627 PASS**. Oito jobs PASS e
+quatro grupos persistentes BLOCKED em cada execução; nunca 12/12 PASS. Último lote de código:
+`441634a` (CSV seguro e bloqueio atualizado da matriz): CI #189 **629/629 PASS**, oito jobs PASS,
+quatro grupos persistentes BLOCKED/ignorados; detalhes no relatório vigente.
+As referências históricas abaixo a commit 9b ausente, CI #185 falha e bucket ausente estão superadas.
+
+Correções: compra rápida usa RPC existente/unidade do insumo, custos/desconto/imposto da compra
+consistentes com payload, seleções ativas, insumo com commit incerto travado, PDV valida composição/
+preço/saldo antes do pagamento externo, CSV neutraliza fórmulas sem alterar números financeiros.
+Patch de compras **não aplicado** nega `user_can=NULL`; sete testes reais em PostgreSQL descartável
+provam guards/replay/concorrência/rollback, não homologação da RPC de compras no TEST.
+
+A-Jornada está expressamente autorizada, mas execução real permanece BLOCKED por sessões QA locais,
+acesso Windows e janela exclusiva/fixture verificadas. Não pedir senhas no chat, não usar service role,
+não remover histórico ou reexecutar infraestrutura. Wrapper `qa/Invoke-QaPhotoJourney.ps1` recebe
+credenciais por prompts ocultos. Nenhuma jornada de fotos executada neste ambiente.
+Matriz **13/60 (21,67%)**, 15 pendentes e 32 bloqueados. Dependências: zero runtime, sete build.
+B/C/D/E, migrações, deploy, contas, pagamentos e comercialização automática continuam desautorizados.
+
 ## A-Jornada de fotos autorizada — execução real BLOCKED
 
 Infra Storage privada/quatro policies instaladas e preflight A/B PASS informados pelo usuário.

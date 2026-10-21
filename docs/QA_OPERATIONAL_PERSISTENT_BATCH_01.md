@@ -2,7 +2,7 @@
 
 Atualização: **A-Infra instalada/aprovada e A-Jornada expressamente autorizada pelo usuário**.
 Não reaplicar a infraestrutura nem pedir novamente essa autorização. A execução real de fotos
-continua [BLOCKED por acesso/source/fixtures](./QA_PHOTO_A_JORNADA_20261020.md). B/C/D/E seguem
+continua [BLOCKED por sessões/janela exclusiva/fixtures](./QA_PHOTO_A_JORNADA_20261020.md). B/C/D/E seguem
 sem autorização persistente específica; as restrições históricas abaixo para A estão superadas.
 
 Preparado após a CI #183 aprovar o escopo seguro. TEST exclusivo `msinksoilkluooxenecy`, branch
@@ -47,6 +47,16 @@ ou exigir valores diferentes, interromper a unidade antes da escrita e obter rev
 Não alterar preço/custo/configuração de produto histórico para atingir o limite.
 
 ## Artefatos e dependências que já existem
+
+Revisão complementar: wrapper de idempotência de compras passa a negar `user_can=NULL` e empresa
+NULL antes de reservar a chave. Sete regressões em PostgreSQL descartável aprovam negação, replay,
+revogação, concorrência real com espera por lock, grants/RLS e rollback sem descarte de histórico.
+O corpo legado criador foi um stub local permissivo para isolar a prova do wrapper; isso **não**
+valida o ciclo de compras implantado nem substitui seu preflight TEST. SQL permanece preparado.
+Para financeiro, os guards finitos e de permissão são preservados; normalização Cash exige lock do
+caixa e saldo finito. Idempotência depende da normalização. Baselines anteriores/ACLs reais precisam
+ser capturados/revisados antes de liberar rollback/aplicação; scripts de verificação `ROLLBACK` não
+são rollback de implantação. Nenhuma migração foi executada por esta entrega.
 
 - Storage: `qa/sql/product_images_storage_preflight_readonly_TEST.sql`, migração de Storage e
   `migrations/20261016_product_images_storage_rollback_TEST.sql`. O rollback bloqueia remoção

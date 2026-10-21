@@ -1,0 +1,407 @@
+{
+  "recorded_at_utc": "2026-10-21T04:01:56.616763+00:00",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref": "msinksoilkluooxenecy",
+  "code_status": "PASS_AUTOMATIC_SCOPE",
+  "photo_journey_status": "BLOCKED",
+  "operational_readiness": {
+    "completed": 13,
+    "total": 60,
+    "percent": 21.67,
+    "pending": 15,
+    "blocked": 32
+  },
+  "history": {
+    "received_commit": "9b381e891af2b6f0e0e783560168bb6039e5503f",
+    "preserved_local_commit": "396afacaa8d4bf256edaeb22032c45c5954f7126",
+    "integration_commit": "50fc57b5e864d983a6a0b0df457f2c7c0d3cb84a",
+    "functional_commit": "9f0fbcaebd38d082aaf9c762ac0fa9f61bf5c147",
+    "csv_commit": "441634a5bdc775f30a6e5086a6c5a075c1eddd3d",
+    "both_original_commits_confirmed_remote_ancestors": true,
+    "force_push": false
+  },
+  "ci": [
+    {
+      "number": 187,
+      "run_id": "39540216913",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39540216913",
+      "head_sha": "50fc57b5e864d983a6a0b0df457f2c7c0d3cb84a",
+      "observation_method": "PUBLIC_GITHUB_HTML_AGGREGATE_AND_JOB_STATUS",
+      "tests": {
+        "total": 612,
+        "passed": 612,
+        "failed": 0,
+        "skipped": 0
+      },
+      "jobs": [
+        {
+          "job": "build-and-security",
+          "job_id": "119025998142",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "test-api-smoke",
+          "job_id": "119026174646",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "authenticated-preflight",
+          "job_id": "119026245359",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "authenticated-concurrency",
+          "job_id": "119026322790",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "access-regression",
+          "job_id": "119026321126",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "auth-lifecycle",
+          "job_id": "119026321048",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "replay-financial",
+          "job_id": "119026322878",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "network-after-commit",
+          "job_id": "119026323109",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "browser-smoke",
+          "job_id": "119026321102",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "performance-read",
+          "job_id": "119026321147",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "two-tenant-concurrency",
+          "job_id": "119026322504",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "qa-summary",
+          "job_id": "119026643843",
+          "classification": "PASS",
+          "github_status": "success"
+        }
+      ],
+      "scope": "SAFE_AUTOMATIC_SCOPE_WITH_FOUR_PERSISTENT_GROUPS_BLOCKED"
+    },
+    {
+      "number": 188,
+      "run_id": "39541023169",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39541023169",
+      "head_sha": "9f0fbcaebd38d082aaf9c762ac0fa9f61bf5c147",
+      "observation_method": "PUBLIC_GITHUB_HTML_AGGREGATE_AND_JOB_STATUS",
+      "tests": {
+        "total": 627,
+        "passed": 627,
+        "failed": 0,
+        "skipped": 0
+      },
+      "jobs": [
+        {
+          "job": "build-and-security",
+          "job_id": "119028535749",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "test-api-smoke",
+          "job_id": "119028721215",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "authenticated-preflight",
+          "job_id": "119028780413",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "authenticated-concurrency",
+          "job_id": "119028845317",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "access-regression",
+          "job_id": "119028843977",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "auth-lifecycle",
+          "job_id": "119028843785",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "replay-financial",
+          "job_id": "119028844932",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "network-after-commit",
+          "job_id": "119028845008",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "browser-smoke",
+          "job_id": "119028843773",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "performance-read",
+          "job_id": "119028843813",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "two-tenant-concurrency",
+          "job_id": "119028845664",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "qa-summary",
+          "job_id": "119029101564",
+          "classification": "PASS",
+          "github_status": "success"
+        }
+      ],
+      "scope": "SAFE_AUTOMATIC_SCOPE_WITH_FOUR_PERSISTENT_GROUPS_BLOCKED"
+    },
+    {
+      "number": 189,
+      "run_id": "39541323542",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39541323542",
+      "head_sha": "441634a5bdc775f30a6e5086a6c5a075c1eddd3d",
+      "observation_method": "PUBLIC_GITHUB_HTML_AGGREGATE_AND_JOB_STATUS",
+      "tests": {
+        "total": 629,
+        "passed": 629,
+        "failed": 0,
+        "skipped": 0
+      },
+      "jobs": [
+        {
+          "job": "build-and-security",
+          "job_id": "119029488343",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "test-api-smoke",
+          "job_id": "119029703656",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "authenticated-preflight",
+          "job_id": "119029750887",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "authenticated-concurrency",
+          "job_id": "119029810408",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "access-regression",
+          "job_id": "119029808440",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "auth-lifecycle",
+          "job_id": "119029808589",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "replay-financial",
+          "job_id": "119029809571",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "network-after-commit",
+          "job_id": "119029810135",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "browser-smoke",
+          "job_id": "119029808399",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "performance-read",
+          "job_id": "119029808512",
+          "classification": "PASS",
+          "github_status": "success"
+        },
+        {
+          "job": "two-tenant-concurrency",
+          "job_id": "119029810033",
+          "classification": "BLOCKED",
+          "github_status": "skipped"
+        },
+        {
+          "job": "qa-summary",
+          "job_id": "119030120214",
+          "classification": "PASS",
+          "github_status": "success"
+        }
+      ],
+      "scope": "SAFE_AUTOMATIC_SCOPE_WITH_FOUR_PERSISTENT_GROUPS_BLOCKED"
+    }
+  ],
+  "local_tests_overlapping_do_not_sum": {
+    "storage_guards": {
+      "kind": "UNIT_AND_CONTRACT",
+      "tests": 30,
+      "pass": 30,
+      "fail": 0,
+      "skipped": 0,
+      "log_sha256": "cfbc1682f34f7c62bf7aa6e8b4d7ab10d441cffb3b19b16cb310a52a73356531"
+    },
+    "affected_static": {
+      "kind": "LOCAL_REGRESSION",
+      "tests": 80,
+      "pass": 80,
+      "fail": 0,
+      "skipped": 0,
+      "log_sha256": "cbf758de6c5db5c6cc6cddbbe4b0c1c90443e9084f87a76b71e780e117ddadc6"
+    },
+    "prepared_packages": {
+      "kind": "STATIC_SECURITY_AND_PACKAGE",
+      "tests": 33,
+      "pass": 33,
+      "fail": 0,
+      "skipped": 0,
+      "log_sha256": "f02ea66ea329237aa8f6a2181e3d81f8673ac985d52bb6a159c3de98f6f32794"
+    },
+    "purchase_postgres": {
+      "kind": "DISPOSABLE_POSTGRES_17_STUBBED_LEGACY_CREATOR",
+      "tests": 7,
+      "pass": 7,
+      "fail": 0,
+      "skipped": 0,
+      "log_sha256": "0bf9df86cd1834fe6fdeb7a57630f3868819623a3341ccadb3a11c353a5d2819"
+    },
+    "functional_browser": {
+      "kind": "REACT_VITE_SIMULATED_HTTP",
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "skipped": 0,
+      "log_sha256": "46de2174ac133f140e20b83cce5c077489515bebf59ffe7507acb2c66b1bbb9c"
+    },
+    "csv_and_reports": {
+      "kind": "LOCAL_REGRESSION",
+      "tests": 34,
+      "pass": 34,
+      "fail": 0,
+      "skipped": 0,
+      "log_sha256": "6caacc9adeda6f306d64e6d74e84cf9a2df2640557fdb5a7154019c329f5e870"
+    },
+    "csv_download": {
+      "kind": "BROWSER_DOWNLOAD_SIMULATED_HTTP",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "log_sha256": "02fadf70fc0e6e737d29595d0a86f9cf66c3841c3e2d95572646bb841e20a30a"
+    }
+  },
+  "build": {
+    "status": "PASS",
+    "log_sha256": "b4cd4667c2b87852f8405c4f453af58c3d0a3cb07b591109498f7941e0ad65c6"
+  },
+  "npm_audit": {
+    "runtime_vulnerabilities": 0,
+    "full": {
+      "total": 7,
+      "high": 5,
+      "moderate": 2,
+      "critical": 0
+    },
+    "policy": "PASS_KNOWN_BUILD_ONLY_CEILING",
+    "installed_versions": {
+      "braces": "3.0.3",
+      "chokidar": "3.6.0",
+      "fast-glob": "3.3.3",
+      "micromatch": "4.0.8",
+      "postcss-nested": "6.2.0",
+      "postcss-selector-parser": "6.1.4",
+      "tailwindcss": "3.4.17"
+    },
+    "full_log_sha256": "e6324ebdc28404db8431a48ad99fc7abfa808157989b36338b9672bb5294ca60",
+    "runtime_log_sha256": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3",
+    "dependencies_changed": false
+  },
+  "photo": {
+    "authorization_already_granted": true,
+    "runner_executed": false,
+    "local_qa_credential_variables_present": 0,
+    "windows_access_in_this_session": false,
+    "windows_native_validation": "BLOCKED",
+    "fixture_current_safety": "NOT_OBSERVED",
+    "exclusive_window": "NOT_CONFIRMED",
+    "storage_before": "NOT_MEASURED",
+    "storage_after": "NOT_MEASURED",
+    "persistent_checks": "16_CHECKS_NOT_EXECUTED",
+    "residual_objects": "NOT_MEASURED",
+    "private_objects_deleted": 0
+  },
+  "database_changes": {
+    "test_migrations_applied": false,
+    "edge_deploy": false,
+    "production_access": false,
+    "new_business_journeys_executed": false,
+    "user_or_claim_changes": false,
+    "purchase_wrapper_change": "PREPARED_UNAPPLIED_NULL_PERMISSION_FAIL_CLOSED"
+  },
+  "code_hashes": {
+    "App.jsx": "dc8739f5230af41ce9bb2129dbba5e480dcfdb8c3b07d52e62ce0eb32cb4853f",
+    "src/App.jsx": "dc8739f5230af41ce9bb2129dbba5e480dcfdb8c3b07d52e62ce0eb32cb4853f",
+    "src/i18n.jsx": "9dc7881306c51df839a29a3415f69a3d850754cfe39de8044a532fb72ba10b5e",
+    "qa/photo-journey.TEST.mjs": "841e77c02d65330f4a5005226087b7e0b4a0defcba81b49eadafe1701d24c403",
+    "qa/photo-journey-core.mjs": "947735b70e0644b11d06a91963bd2c82190d775f951cd903a017202182bf0f23",
+    "qa/Invoke-QaPhotoJourney.ps1": "159ff9cb8bae38bba764bc2ae9cc82fb1902556d8dc2ccf2b9c173aacbef8871",
+    "qa/operational-browser.test.mjs": "23b53df6d03e2585b454f9c7a9f5fac6a84bc06b9e10609d62d86c7fc63be02f",
+    "qa/purchase-idempotency-postgres.test.mjs": "4617c0be4ea8308820d57145c60e05137e6c327b503f5a5e82e117df683b612b",
+    "migrations/20261012_purchase_order_idempotency_TEST.sql": "a739efc26152a031a43117857d4a347d50a75b7d06bec89437a1370517578c04"
+  },
+  "credential_policy": "NO_PRIVATE_CREDENTIALS_SIGNED_URLS_RAW_CATALOGS_OR_ENV_FILES_VERSIONED"
+}

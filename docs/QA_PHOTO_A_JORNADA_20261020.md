@@ -7,7 +7,30 @@ políticas, novos produtos/contas, finanças, Stripe ou comercialização autom�
 
 [Evidência agregada e hashes](./evidence/photo-a-journey-preparation-20261020.json).
 
-## Resultado desta execução
+## Estado vigente — integração publicada, A-Jornada real BLOCKED
+
+O commit `9b381e891af2b6f0e0e783560168bb6039e5503f` já está no GitHub e foi integrado
+por merge com `396afacaa8d4bf256edaeb22032c45c5954f7126`, sem recriar commits ou force push.
+O merge publicado `50fc57b5e864d983a6a0b0df457f2c7c0d3cb84a` foi aprovado na
+[CI #187](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39540216913):
+**612/612 TAP PASS**, oito jobs PASS e quatro grupos persistentes BLOCKED/ignorados pelo gate.
+Storage + guards: **30/30 PASS** locais. Os dois testes de URLs assinadas estão corrigidos.
+O lote funcional posterior também passou na [CI #188](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39541023169), **627/627**.
+
+**O bloqueio de Git e das asserções antigas está resolvido.** O bloqueio real continua sendo a
+execução segura com sessões QA A/B, janela exclusiva e fixture validada. Não há Desktop Commander,
+PowerShell/Windows nem sessões QA nesta sessão Linux. Isso não afirma que o notebook está offline.
+As sessões de CI comprovam o preflight A/B daquela execução; não fornecem credenciais locais nem
+comprovam a jornada real de fotos. Não foram medidos snapshots reais Storage antes/depois.
+Não houve execução do runner persistente; não foi removido nenhum objeto histórico.
+
+CI final do lote operacional `441634a`: [#189](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39541323542), **629/629 PASS**, oito jobs PASS e quatro grupos persistentes BLOCKED.
+Usar o SHA de código aprovado e o comando Windows no
+[relatório vigente](./QA_OPERATIONAL_INTEGRATION_20261020.md). A autorização A-Jornada já existe;
+não solicitar outra autorização genérica nem reexecutar A-Infra. A tabela abaixo é histórica e
+não descreve os bloqueios atuais. Sua evidência original foi preservada.
+
+## Registro histórico — preparação antes da integração de 9b381e8
 
 **BLOCKED, sem gravações TEST.** Infraestrutura Storage privada instalada/quatro políticas e
 preflight OWNER A/B PASS foram informados pelo usuário. Não foram apresentados como nova
