@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -46,6 +46,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   if (saleFault === 'negative-recipe') tables.product_recipes[0].qty_per_unit = -1;
   if (saleFault === 'negative-price') tables.products[0].price = -1;
   if (saleFault === 'invalid-stock') state.stock = 'NaN';
+  if (csvName) tables.inventory_items[0].name = csvName;
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 } });
   context.setDefaultTimeout(10000);
   await context.addInitScript(({ owner, language }) => {
@@ -163,6 +164,23 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   await page.locator('main').waitFor();
   return { context, page, state, errors };
 }
+
+test('SIMULATED HTTP: inventory CSV download treats an untrusted name as text', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ csvName: '=1+1' });
+  try {
+    await page.getByText('Inventory', { exact: true }).first().click();
+    const downloading = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Export CSV', exact: true }).click();
+    const download = await downloading;
+    assert.equal(download.suggestedFilename(), 'nexalvo-inventory-valuation.csv');
+    const chunks = [];
+    for await (const chunk of await download.createReadStream()) chunks.push(chunk);
+    const csv = Buffer.concat(chunks).toString('utf8');
+    assert.match(csv, /\n'=1\+1,/);
+    assert.doesNotMatch(csv, /\n=1\+1,/);
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
 
 test('SIMULATED HTTP: inventory reorder preserves location and uses the purchase RPC', { timeout: 30000 }, async () => {
   const { context, page, state, errors } = await isolated({ purchaseScenario: true });

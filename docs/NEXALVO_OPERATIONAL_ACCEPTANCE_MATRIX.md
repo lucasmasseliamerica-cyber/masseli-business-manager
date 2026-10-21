@@ -53,7 +53,7 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | --- | --- | --- |
 | UI: criar, editar/desativar produto e reconsultar persistência | BLOQUEADO | Autorização de CRUD TEST isolado e compensação |
 | Receita/composição e custo conferidos com baixa por local | PENDENTE | Jornada real de composição, venda e conciliação |
-| Storage privado: upload/substituição/remoção e isolamento | BLOQUEADO | Infra privada/quatro policies confirmadas pelo usuário; A-Jornada autorizada, bloqueada por commit 9b381e8/sessões/fixture exclusiva ainda não disponíveis nesta sessão |
+| Storage privado: upload/substituição/remoção e isolamento | BLOQUEADO | Infra privada/quatro policies confirmadas pelo usuário; commits 9b381e8 e 396afac integrados/publicados; A-Jornada autorizada, mas faltam sessões QA seguras, janela exclusiva e validação da fixture nesta sessão |
 | Foto real reaparece no catálogo/PDV depois do reload | BLOQUEADO | Infra e autorização informadas; falta evidência da jornada real com snapshot/compensação e reload |
 
 ### Estoque

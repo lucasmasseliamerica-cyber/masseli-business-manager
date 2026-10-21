@@ -17,6 +17,22 @@ function rest(fetchImpl) {
   return context.api;
 }
 
+test('CSV reports neutralize spreadsheet formulas without changing numeric financial amounts', () => {
+  const context = vm.createContext({ String });
+  vm.runInContext(section('const csvEscape =', 'function downloadCSV(') + ';globalThis.escape=csvEscape;', context);
+  for (const input of ['=1+1', '+cmd', '-cmd', '@SUM(A1)', '  =HYPERLINK("https://example.invalid")', '\ufeff=1', '\t=1', '\r=1', '\n=1']) {
+    const encoded = context.escape(input);
+    // Decode one RFC4180 field to verify the actual spreadsheet value starts with an apostrophe.
+    const decoded = encoded.startsWith('"') ? encoded.slice(1, -1).replace(/""/g, '"') : encoded;
+    assert.equal(decoded, "'" + input);
+  }
+  for (const value of [-25.5, 0, 12.34]) assert.equal(context.escape(value), String(value));
+  assert.equal(context.escape(null), '');
+  assert.equal(context.escape('Açaí'), 'Açaí');
+  assert.equal(context.escape('a\rb'), '"a\rb"');
+  assert.equal(context.escape('a,"b"'), '"a,""b"""');
+});
+
 for (const [status, malformed] of [[502, false], [504, false], [408, false], [200, true]]) {
   test(`non-idempotent supplier payment: ${malformed ? 'malformed success' : status} freezes further mutations`, async () => {
     let calls = 0;

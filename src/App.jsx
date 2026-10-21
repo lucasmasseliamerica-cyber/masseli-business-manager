@@ -122,7 +122,13 @@ async function withTimeout(promise, ms, label) {
 }
 // Single shared CSV export used by every report — keeps download behavior (filename pattern,
 // escaping, blob handling) consistent everywhere instead of each view rolling its own.
-const csvEscape = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+const csvEscape = (v) => {
+  let s = String(v ?? "");
+  // Spreadsheet applications may evaluate formulas even in quoted CSV fields. Neutralize
+  // untrusted text while preserving native numeric amounts, including negative adjustments.
+  if (typeof v === "string" && (/^\s*[=+\-@]/.test(s) || /^[\t\r\n]/.test(s))) s = "'" + s;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
 function downloadCSV(filename, headerRow, rows) {
   const csv = [headerRow.map(translateCurrent), ...rows].map((r) => r.map(csvEscape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv" });

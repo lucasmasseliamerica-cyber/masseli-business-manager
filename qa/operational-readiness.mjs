@@ -31,7 +31,7 @@ export const operationalModules = [
   { id: 'products', name: 'Produtos e fotos', criteria: [
     blocked('UI: criar, editar/desativar produto e reconsultar persistência', 'Autorização de CRUD TEST isolado e compensação'),
     pending('Receita/composição e custo conferidos com baixa por local', 'Jornada real de composição, venda e conciliação'),
-    blocked('Storage privado: upload/substituição/remoção e isolamento', 'Infra privada/quatro policies confirmadas pelo usuário; A-Jornada autorizada, bloqueada por commit 9b381e8/sessões/fixture exclusiva ainda não disponíveis nesta sessão'),
+    blocked('Storage privado: upload/substituição/remoção e isolamento', 'Infra privada/quatro policies confirmadas pelo usuário; commits 9b381e8 e 396afac integrados/publicados; A-Jornada autorizada, mas faltam sessões QA seguras, janela exclusiva e validação da fixture nesta sessão'),
     blocked('Foto real reaparece no catálogo/PDV depois do reload', 'Infra e autorização informadas; falta evidência da jornada real com snapshot/compensação e reload'),
   ] },
   { id: 'inventory', name: 'Estoque', criteria: [
