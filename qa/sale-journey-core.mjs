@@ -6,9 +6,11 @@ export const SALE_ACTORS = PHOTO_ACTORS;
 export const SALE_LIMIT_CENTS = 100;
 export const SALE_TABLES = Object.freeze(['sales','sale_items','products','product_recipes','inventory_items','inventory_stock',
   'inventory_transactions','cash_flow','cash_registers','businesses','locations','business_settings_lists','audit_logs']);
+// Post-cutover helpers: exact canonical definitions from 20261016_platform_admin_TEST.sql.
+// Historical pre-cutover/rollback hashes remain in those artifacts, not this runtime baseline.
 export const SALE_FINGERPRINTS = Object.freeze({
-  current_business_id: 'cb88feae5114dab5ff53ad35319544d4',
-  user_can: 'dda7b605c2b77befc9ec56f7af184103',
+  current_business_id: '8326e5f1bc2ecf720cb0aa3be9a0d0d6',
+  user_can: '78e7ac15c93a208fdec8baf37e2b9c02',
   fn_create_sale: 'aabbddc8a9c4a37a171b8a269e9c3139',
   fn_reverse_sale: 'ce3f22be25a16639e7b14155fa9452a0',
   fn_read_inventory_stock_secure: '57116f28b9ae161d5240058a34b8afa9',

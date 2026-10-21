@@ -1,5 +1,17 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Atualização vigente — helpers reconciliados após cutover (21/10/2026)
+
+[Revisão semântica, hashes e preflight Windows](./QA_B_HELPER_RECONCILIATION_20261021.md).
+Os hashes informados de `current_business_id` e `user_can` foram reproduzidos exatamente pela
+compilação das definições versionadas em PostgreSQL 17. Mudança legítima: empresa ACTIVE,
+perfil ativo e search_path vazio. Baseline B atualizado; baselines históricos de aplicação/rollback
+preservados. Nenhuma função/migração implantada, claim, estoque ou financeiro foi alterado.
+Fixture exclusiva já identificada pelo usuário; falta revalidação autenticada de seu estado atual.
+B permanece BLOCKED até novo export real com os oito hashes/ACLs e preflight Windows PASS.
+Cobertura real inalterada: **14/60 (23,33%)**. Não usar SHA anterior à reconciliação como aprovação
+do novo executor; a entrega indica o novo SHA validado. Histórico abaixo preservado.
+
 ## Estado vigente — A real confirmada; B autorizada e preparada (21/10/2026)
 
 Código B publicado: **`7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9`** (inclui `9c3184c`).

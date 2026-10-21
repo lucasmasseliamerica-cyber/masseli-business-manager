@@ -70,10 +70,17 @@ test('fresh SQL attestation is required and drift, public grants or incomplete R
   for(const change of [{captured_at:'2020-01-01'},{status:'BLOCKED_CATALOG_DRIFT'},
     {functions:catalog.functions.map((r,i)=>i? r:{...r,fingerprint:'changed'})},
     {functions:catalog.functions.map((r,i)=>i? r:{...r,anon_execute:true})},
+    {functions:catalog.functions.map(r=>r.name==='current_business_id'?{...r,fingerprint:'cb88feae5114dab5ff53ad35319544d4'}:r)},
+    {functions:catalog.functions.map(r=>r.name==='user_can'?{...r,fingerprint:'dda7b605c2b77befc9ec56f7af184103'}:r)},
+    {functions:catalog.functions.map(r=>r.name==='user_can'?{...r,authenticated_execute:false}:r)},
+    {functions:catalog.functions.map(r=>r.name==='fn_record_inventory_movement'?{...r,authenticated_execute:true}:r)},
     {tables:catalog.tables.map((r,i)=>i?r:{...r,rls:false})},{tables:catalog.tables.map(()=>catalog.tables[0])}])assert.throws(()=>validateSaleCatalog({...catalog,...change}));
 });
 test('eligible fixture has USD price/tax within one dollar, exclusive ingredients and no history',()=>{
   const s=fixture();assert.equal(s.expected.totalCents,53);assert.equal(s.expected.discount,0.01);assert.equal(s.expected.paymentMethod,'Other');
+  const reportedFixture=fixture();reportedFixture.product.name='ZZ_QA_SALE_B_20261021_EXCLUSIVE';
+  reportedFixture.stocks[0].qty=1;reportedFixture.stocks[0].avg_cost_per_unit=0.1;
+  assert.equal(validateSaleFixture(reportedFixture).totalCents,53,'reported fixture remains within USD 1 with this synthetic tax');
   const invalid=[s=>s.business.currency='BRL',s=>s.product.price=1.01,s=>s.product.price=1,s=>s.product.active=false,
     s=>s.product.name='Commercial',s=>s.salesHistory.push({}),s=>s.purchaseLines.push({}),s=>s.recipes=[],
     s=>s.stocks[0].qty=0.25,s=>s.stocks[0].avg_cost_per_unit=NaN,s=>s.inventoryItems[0].name='Commercial ingredient',

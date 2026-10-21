@@ -1,9 +1,10 @@
 -- B-Jornada only, Supabase TEST msinksoilkluooxenecy. STRICTLY READ ONLY.
 -- Confirm TEST in the SQL connection itself; the expected marker below is not connection proof.
+-- The two tenant helpers use the reviewed post-platform-cutover baseline, not rollback.
 -- Hash drift stays BLOCKED: review actual definitions; never replace expected hashes blindly.
 WITH expected(name,fingerprint,expected_authenticated) AS (VALUES
-    ('current_business_id','cb88feae5114dab5ff53ad35319544d4',true),
-    ('user_can','dda7b605c2b77befc9ec56f7af184103',true),
+    ('current_business_id','8326e5f1bc2ecf720cb0aa3be9a0d0d6',true),
+    ('user_can','78e7ac15c93a208fdec8baf37e2b9c02',true),
     ('fn_create_sale','aabbddc8a9c4a37a171b8a269e9c3139',true),
     ('fn_reverse_sale','ce3f22be25a16639e7b14155fa9452a0',true),
     ('fn_read_inventory_stock_secure','57116f28b9ae161d5240058a34b8afa9',true),

@@ -1,5 +1,17 @@
 # B-Jornada — venda TEST única, replay e estorno
 
+## Atualização vigente — helpers reconciliados após cutover (21/10/2026)
+
+[Revisão semântica, hashes e preflight Windows](./QA_B_HELPER_RECONCILIATION_20261021.md).
+Os hashes informados de `current_business_id` e `user_can` foram reproduzidos exatamente pela
+compilação das definições versionadas em PostgreSQL 17. Mudança legítima: empresa ACTIVE,
+perfil ativo e search_path vazio. Baseline B atualizado; baselines históricos de aplicação/rollback
+preservados. Nenhuma função/migração implantada, claim, estoque ou financeiro foi alterado.
+Fixture exclusiva já identificada pelo usuário; falta revalidação autenticada de seu estado atual.
+B permanece BLOCKED até novo export real com os oito hashes/ACLs e preflight Windows PASS.
+Cobertura real inalterada: **14/60 (23,33%)**. Não usar SHA anterior à reconciliação como aprovação
+do novo executor; a entrega indica o novo SHA validado. Histórico abaixo preservado.
+
 Estado: **PREPARAÇÃO VALIDADA LOCALMENTE; HOMOLOGAÇÃO REAL BLOCKED**. Somente
 `automation/nexalvo-qa-actions` e projeto `msinksoilkluooxenecy`.
 
@@ -15,7 +27,7 @@ Estado: **PREPARAÇÃO VALIDADA LOCALMENTE; HOMOLOGAÇÃO REAL BLOCKED**. Soment
 - [Evidência agregada da CI](./evidence/sale-b-ci-193-20261021.json) e
   [evidência local](./evidence/sale-b-journey-preparation-20261021.json).
 
-Usar o SHA completo **7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9** em `ValidatedCodeSha`.
+A referência `7b33a0b` é histórica. Usar o novo SHA completo aprovado indicado no relatório de reconciliação em `ValidatedCodeSha`.
 Commit posterior exclusivamente documental não invalida essa referência; qualquer mudança posterior
 fora de `docs/` exige nova validação. Nenhum push com force, mudança em main/produção ou escrita B.
 
@@ -63,7 +75,7 @@ habilita os quatro grupos persistentes existentes.
 
 - Sessões QA A/B: **0/4 campos de credenciais disponíveis**; nenhum login B tentado.
 - Sem Desktop Commander/Windows ou integração SQL nesta sessão. Isso não declara o notebook offline.
-- Catálogo atual, fixture elegível e janela exclusiva ainda não comprovados. Nenhuma venda,
+- Fixture identificada pelo usuário; catálogo atual, elegibilidade autenticada e janela exclusiva ainda não comprovados. Nenhuma venda,
   movimento, estorno ou probe de escrita B foi executado no TEST.
 - PowerShell nativo/ACL/mutex deste novo wrapper: **BLOCKED** até validação no Windows. Testes
   de fonte não equivalem a execução nativa. A confirmação anterior da A não homologa o wrapper B.
@@ -90,9 +102,9 @@ Somente empresa USD é aceita; não há conversão cambial implícita. Um candid
 
 ```powershell
 Set-Location 'C:\Users\lucas\Documents\NEXALVO-P005-ISOLATED'
-$validatedSha = '7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9'
-$productId = Read-Host 'UUID do produto QA elegível'
-$locationId = Read-Host 'UUID da unidade QA reservada'
+$validatedSha = '<SHA_COMPLETO_APROVADO_NA_NOVA_CI>'
+$productId = '5ba917cd-362b-42f5-83f6-345fb3dccddf'
+$locationId = 'a3e4b2ed-eb00-4963-afd0-38c256aff87d'
 $catalogFile = Join-Path $env:TEMP 'nexalvo-b-catalog.json'
 .\qa\Invoke-QaSaleJourney.ps1 -ValidatedCodeSha $validatedSha `
   -FixtureProductId $productId -LocationId $locationId -CatalogFile $catalogFile `

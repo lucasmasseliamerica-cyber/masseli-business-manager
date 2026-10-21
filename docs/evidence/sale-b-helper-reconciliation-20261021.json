@@ -1,0 +1,74 @@
+{
+  "scope": "B_HELPER_BASELINE_RECONCILIATION",
+  "date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "status": "PASS_LOCAL_RECONCILIATION_REAL_B_BLOCKED",
+  "evidence_kind": "REPORTED_REMOTE_HASHES_AND_REAL_DISPOSABLE_POSTGRES",
+  "project_ref_expected": "msinksoilkluooxenecy",
+  "migration_source": "migrations/20261016_platform_admin_TEST.sql",
+  "migration_file_sha256": "9f71e3e998d2c62e8d31aeb58423fde93d05ba9cd55f4fc42a29bd526292f944",
+  "definitions_unchanged_since": "25d4038",
+  "canonical_hashes_reproduced": {
+    "current_business_id": "8326e5f1bc2ecf720cb0aa3be9a0d0d6",
+    "user_can": "78e7ac15c93a208fdec8baf37e2b9c02"
+  },
+  "classification": "LEGITIMATE_SEMANTIC_PLATFORM_CUTOVER_BASELINE_NOT_FORMAT_ONLY",
+  "semantic_delta": [
+    "ACTIVE_BUSINESS_JOIN",
+    "EMPTY_SEARCH_PATH",
+    "QUALIFIED_RELATIONS"
+  ],
+  "preserved_contracts": [
+    "ACTIVE_PROFILE",
+    "AUTH_UID_TENANT",
+    "OWNER_DEFAULTS_AND_BOOLEAN_OVERRIDES",
+    "NO_GLOBAL_CLAIM_TENANT_PRIVILEGE",
+    "ANON_EXECUTE_DENIED",
+    "AUTHENTICATED_EXECUTE_PRESERVED",
+    "ALL_EIGHT_FINGERPRINTS_REQUIRED",
+    "RLS_AND_FRESHNESS",
+    "HISTORICAL_MIGRATION_AND_ROLLBACK_HASHES_UNCHANGED"
+  ],
+  "local_results": {
+    "baseline_before": {
+      "tests": 5,
+      "pass": 4,
+      "fail": 1,
+      "skipped": 0
+    },
+    "b_after": {
+      "tests": 16,
+      "pass": 16,
+      "fail": 0,
+      "skipped": 0
+    },
+    "platform_related": {
+      "tests": 45,
+      "pass": 45,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "build": "PASS",
+  "fixture_reported": {
+    "name": "ZZ_QA_SALE_B_20261021_EXCLUSIVE",
+    "product_id": "5ba917cd-362b-42f5-83f6-345fb3dccddf",
+    "location_id": "a3e4b2ed-eb00-4963-afd0-38c256aff87d",
+    "currency": "USD",
+    "price": 0.5,
+    "recipe_qty": 0.25,
+    "initial_qty": 1,
+    "initial_avg_cost": 0.1,
+    "potentially_eligible": true,
+    "revalidated_by_this_session": false
+  },
+  "remote_function_definitions_read_in_this_session": false,
+  "current_catalog_export_received": false,
+  "authenticated_b_preflight_executed": false,
+  "b_sale_executed": false,
+  "supabase_business_writes": 0,
+  "migrations_applied": 0,
+  "production_accessed": false,
+  "operational_criteria_completed": 14,
+  "operational_criteria_total": 60
+}
