@@ -2264,6 +2264,10 @@ function encodeStorageObjectPath(path) {
   return path.split("/").map((part) => encodeURIComponent(part)).join("/");
 }
 
+// Closing/reopening a modal must not bypass an unknown photo outcome in the same page. The
+// controlled QA executor additionally keeps a private durable recovery checkpoint across restart.
+const uncertainProductPhotoWrites = new Map();
+
 const supabaseProductImages = {
   async upload(file, businessId, productId) {
     const validation = validateProductImageFile(file);
@@ -2276,11 +2280,19 @@ const supabaseProductImages = {
         headers: { "Content-Type": validation.contentType, "x-upsert": "false" },
         body: file,
       });
-      if (!res.ok) throw new Error(`Image upload was rejected (HTTP ${res.status}).`);
+      if (!res.ok) {
+        const rejection = new Error(`Image upload was rejected (HTTP ${res.status}).`);
+        rejection.uploadUncertain = res.status === 408 || res.status >= 500;
+        throw rejection;
+      }
       return reference;
     } catch (cause) {
       const error = new Error(cause?.message || "The product image could not be uploaded.");
       error.objectReference = reference;
+      // A gateway timeout/5xx or lost transport can follow an accepted Storage write. Preserve
+      // its unique path for reconciliation; deleting/reuploading blindly can race the upload.
+      error.uploadUncertain = cause?.uploadUncertain !== false;
+      error.commitUncertain = error.uploadUncertain;
       error.cause = cause;
       throw error;
     }
@@ -8203,9 +8215,10 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
   const updateIngredient = (idx, patch) => setRecipe(recipe.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   const removeIngredient = (idx) => setRecipe(recipe.filter((_, i) => i !== idx));
 
-  const [error, setError] = useState("");
+  const [error, setError] = useState(uncertainProductPhotoWrites.get(`${businessId}/${productIdRef.current}`) || "");
   const [submitting, setSubmitting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [imageOutcomeUnknown, setImageOutcomeUnknown] = useState(uncertainProductPhotoWrites.has(`${businessId}/${productIdRef.current}`));
 
   useEffect(() => {
     if (!pendingImageFile) { setPendingImagePreview(""); return undefined; }
@@ -8215,6 +8228,7 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
   }, [pendingImageFile]);
 
   const selectImageFile = (event) => {
+    if (submitting || imageOutcomeUnknown) return;
     const file = event.target.files?.[0] || null;
     event.target.value = "";
     if (!file) return;
@@ -8227,6 +8241,7 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
   };
 
   const removeProductImage = () => {
+    if (submitting || imageOutcomeUnknown) return;
     setPendingImageFile(null);
     setImage("");
     setRemoveExistingImage(true);
@@ -8234,7 +8249,7 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
   };
 
   const save = async () => {
-    if (submitting) return;
+    if (submitting || imageOutcomeUnknown) return;
     setError("");
     if (!can("manageRecipesAndCosts")) { setError("You don't have permission to edit products."); return; }
     if (!businessId) { setError("No authenticated business is available."); return; }
@@ -8275,6 +8290,7 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
       onClose();
     } catch (e) {
       const uncommittedImage = uploadedReference || e?.objectReference || "";
+      if (e?.commitUncertain) setImageOutcomeUnknown(true);
       let cleanupFailed = false;
       // A network interruption can occur after fn_save_product committed but before its response
       // arrived. Keep that object's path intact until a reload proves whether the product refers
@@ -8285,8 +8301,11 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
       }
       const baseMessage = e?.message || "Could not save this product. Nothing was changed — you can try again.";
       const uncertaintyNotice = e?.commitUncertain && uncommittedImage
-        ? "The uploaded image was preserved because the product save may have committed. Refresh and verify the product before trying again."
+        ? e?.uploadUncertain
+          ? "The upload result is unknown. Its path was preserved. Refresh and reconcile Storage before uploading or saving again."
+          : "The uploaded image was preserved because the product save may have committed. Refresh and verify the product before trying again."
         : "";
+      if (e?.commitUncertain) uncertainProductPhotoWrites.set(`${businessId}/${productIdRef.current}`, uncertaintyNotice || baseMessage);
       setError(cleanupFailed
         ? `${baseMessage} The private upload cleanup could not be confirmed; an administrator should check this product's image folder.`
         : [baseMessage, uncertaintyNotice].filter(Boolean).join(" "));
@@ -8300,7 +8319,7 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
   // preserved. Named and worded accordingly throughout, instead of using delete/remove language
   // that would incorrectly suggest the record itself is destroyed.
   const deactivateProduct = async () => {
-    if (submitting) return;
+    if (submitting || imageOutcomeUnknown) return;
     if (!can("manageRecipesAndCosts")) { showToast("You don't have permission to deactivate products.", "danger"); return; }
     setSubmitting(true);
     try {
@@ -8346,10 +8365,10 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
       </Field>
       <div className="flex flex-col sm:flex-row gap-2 mb-3">
         <label className="font-semibold rounded-2xl px-4 py-3 flex items-center justify-center gap-2 cursor-pointer" style={{ border: `1px solid ${dark ? C.borderDark : C.borderLight}`, color: dark ? C.white : C.black }}>
-          <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={selectImageFile} />
+          <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" disabled={submitting || imageOutcomeUnknown} onChange={selectImageFile} />
           <Upload size={16} /> {translateUI(pendingImageFile ? "Choose a different photo" : "Upload product photo")}
         </label>
-        {(pendingImageFile || (!removeExistingImage && (image || existingImageReference))) && <GhostButton dark={dark} onClick={removeProductImage}>{translateUI("Remove photo")}</GhostButton>}
+        {(pendingImageFile || (!removeExistingImage && (image || existingImageReference))) && <GhostButton dark={dark} disabled={submitting || imageOutcomeUnknown} onClick={removeProductImage}>{translateUI("Remove photo")}</GhostButton>}
       </div>
       <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("JPEG, PNG or WebP, up to 5 MB. Uploaded photos are stored privately for this business.")}</div>
       {(pendingImagePreview || normalizeProductImageUrl(image) || (!removeExistingImage && product?.imageDisplayUrl)) && (
@@ -8394,8 +8413,8 @@ function ProductModal({ dark, businessId, onClose, product, products, setProduct
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       <div className="flex gap-2">
-        {product && <GhostButton dark={dark} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{" "}{translateUI("Deactivate")}</GhostButton>}
-        <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Product")}</PrimaryButton>
+        {product && <GhostButton dark={dark} disabled={submitting || imageOutcomeUnknown} onClick={() => setConfirmingDelete(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85" }}><Trash2 size={15} />{" "}{translateUI("Deactivate")}</GhostButton>}
+        <PrimaryButton full disabled={submitting || imageOutcomeUnknown} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Product")}</PrimaryButton>
       </div>
       {confirmingDelete && (
         <ConfirmDialog dark={dark} title={interpolateUI("Deactivate {0}?",[product?.name])} message="This deactivates the product — it will no longer be available for new sales. Its name, price, and recipe are preserved (not deleted), and past sales records are unaffected."

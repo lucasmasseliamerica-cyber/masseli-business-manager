@@ -1,5 +1,19 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## A-Jornada de fotos autorizada — execução real BLOCKED
+
+Infra Storage privada/quatro policies instaladas e preflight A/B PASS informados pelo usuário.
+Não reaplicar migração/políticas. A autorização de fotos já foi concedida nesta tarefa.
+[Relatório e executor Windows](./QA_PHOTO_A_JORNADA_20261020.md): commit 9b381e8 ausente neste
+workspace e no remoto QA observado; nenhuma recriação. Fast-forward para 454500d preservado.
+Correção local de upload incerto; 50/50 regressões afetadas, 8/8 browser HTTP simulado e build PASS.
+Testes Storage remotos ainda 13/15 (2 asserções antigas); CI #185 FAIL, 2 jobs falhos e 10 ignorados.
+Executor real guardado por source/CI, sessões A/B e janela exclusiva. Sem gravações TEST.
+PowerShell nativo/Windows não validado nesta sessão. Nenhum check de jornada real promovido.
+Cobertura comprovada permanece 13/60 (21,67%). Menções históricas a bucket ausente estão superadas
+pela informação de implantação do usuário; jornadas reais ainda pendentes.
+
+
 ## Publicação e CI confirmadas — 20/10/2026
 
 `8faade0`, `a472146` e `ea72a16` publicados e confirmados no histórico remoto QA, sem force push.

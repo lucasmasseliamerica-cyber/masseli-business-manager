@@ -13,19 +13,20 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
   const product = '44444444-4444-4444-8444-444444444444';
   const item = '55555555-5555-4555-8555-555555555555';
   const now = new Date().toISOString();
-  const state = { sales: [], saleItems: [], customers: [], stock: 100, saleAttempts: [], blocked: [], remoteRequests: 0 };
+  const state = { sales: [], saleItems: [], customers: [], stock: 100, saleAttempts: [], blocked: [], remoteRequests: 0,
+    images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [] };
   const tables = {
     users: [{ id: owner, business_id: business, name: 'OWNER LOCAL SIMULADO', role: 'OWNER', active: true, permission_overrides: {} }],
     businesses: [{ id: business, name: 'MASSELI QA HTTP SIMULADO', currency: 'BRL', timezone: 'America/Sao_Paulo', tax_enabled: false, tax_rate: 0, status: 'ACTIVE' }],
     locations: [{ id: location, business_id: business, name: 'Unidade simulada', active: true, created_at: now }],
-    products: [{ id: product, business_id: business, name: 'Bowl QA', price: 10, active: true, category: 'Bowls', created_at: now }],
+    products: [{ id: product, business_id: business, name: 'Bowl QA', price: 10, active: true, category: 'Bowls', image_url: null, created_at: now }],
     product_recipes: [{ id: randomUUID(), product_id: product, inventory_item_id: item, qty_per_unit: 1 }],
     inventory_items: [{ id: item, business_id: business, name: 'Açaí QA', unit: 'Units', active: true, min_qty: 0, max_qty: 200, created_at: now }],
   };
@@ -50,6 +51,26 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     }
     if (url.hostname !== host) return route.abort();
     const reply = (body, status = 200, headers = {}) => route.fulfill({ status, contentType: 'application/json', headers, body: JSON.stringify(body) });
+    if (url.pathname.startsWith('/storage/v1/object/sign/nexalvo-product-images/') && request.method() === 'GET') {
+      const path = decodeURIComponent(url.pathname.slice('/storage/v1/object/sign/nexalvo-product-images/'.length));
+      const png = state.images.get(path);
+      return png ? route.fulfill({ status: 200, contentType: 'image/png', body: png }) : reply({}, 404);
+    }
+    if (url.pathname === '/storage/v1/object/sign/nexalvo-product-images' && request.method() === 'POST') {
+      return reply(request.postDataJSON().paths.map(path => state.images.has(path)
+        ? { path, signedURL: `/object/sign/nexalvo-product-images/${path}?token=LOCAL_SIMULATED` } : { path, error: 'not found' }));
+    }
+    if (url.pathname.startsWith('/storage/v1/object/nexalvo-product-images/') && request.method() === 'POST') {
+      const path = decodeURIComponent(url.pathname.slice('/storage/v1/object/nexalvo-product-images/'.length));
+      assert.ok(path.startsWith(`${business}/${product}/`));
+      state.photoUploads.push(path);
+      state.images.set(path, request.postDataBuffer());
+      return reply({}, photoFault === 'upload-unknown' ? 504 : 200);
+    }
+    if (url.pathname === '/storage/v1/object/nexalvo-product-images' && request.method() === 'DELETE') {
+      for (const path of request.postDataJSON().prefixes) { state.photoDeletes.push(path); state.images.delete(path); }
+      return reply([]);
+    }
     if (url.pathname === '/auth/v1/user') return reply({ id: owner, app_metadata: {} });
     if (url.pathname === '/rest/v1/') return reply({});
     const name = url.pathname.replace('/rest/v1/', '');
@@ -66,6 +87,13 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
       return reply(rows.slice(offset, offset + limit), 200, { 'content-range': `${rows.length ? `${offset}-${Math.min(offset + limit, rows.length) - 1}` : '*'}/${rows.length}` });
     }
     const body = request.postDataJSON();
+    if (name === 'rpc/fn_save_product' && request.method() === 'POST') {
+      assert.equal(body.p_product_id, product); assert.equal(body.p_business_id, business);
+      assert.equal(body.p_operation, 'upsert');
+      state.productWrites.push(body);
+      tables.products[0] = { ...tables.products[0], image_url: body.p_image_url, updated_at: new Date().toISOString() };
+      return reply(tables.products[0], photoFault === 'save-unknown' && state.productWrites.length === 1 ? 504 : 200);
+    }
     if (name === 'rpc/fn_create_sale' && request.method() === 'POST') {
       assert.equal(body.p_business_id, business);
       state.saleAttempts.push(body.p_sale_id);
@@ -214,5 +242,69 @@ test('SIMULATED HTTP: Stripe mode shows disconnected in PT and blocks card befor
       assert.deepEqual(state.blocked, []); assert.deepEqual(errors, []);
       if (!visit) await page.reload({ waitUntil: 'domcontentloaded' });
     }
+  } finally { await context.close(); }
+});
+
+const photoPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+async function editPhoto(page) {
+  await page.getByRole('button', { name: 'Products', exact: true }).first().click();
+  await page.getByText('Bowl QA', { exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  return dialog;
+}
+
+for (const photoFault of ['upload-unknown', 'save-unknown']) {
+  test(`SIMULATED HTTP: ${photoFault} freezes product photo retries without deleting the uncertain object`, { timeout: 60000 }, async () => {
+    const { context, page, state, errors } = await isolated({ photoFault });
+    try {
+      const dialog = await editPhoto(page);
+      await dialog.locator('input[type=file]').setInputFiles({ name: 'one.png', mimeType: 'image/png', buffer: photoPng });
+      await dialog.locator('img[src^="blob:"]').waitFor();
+      await dialog.getByRole('button', { name: 'Save Product', exact: true }).click();
+      await dialog.getByText(photoFault === 'upload-unknown' ? /The upload result is unknown/ : /The uploaded image was preserved/).waitFor();
+      assert.equal(await dialog.getByRole('button', { name: 'Save Product', exact: true }).isDisabled(), true);
+      assert.equal(await dialog.getByRole('button', { name: 'Deactivate', exact: true }).isDisabled(), true);
+      assert.equal(await dialog.locator('input[type=file]').isDisabled(), true);
+      assert.equal(state.photoUploads.length, 1); assert.equal(state.photoDeletes.length, 0); assert.equal(state.images.size, 1);
+      assert.equal(state.productWrites.length, photoFault === 'upload-unknown' ? 0 : 1);
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+      const reopenedUnknown = await editPhoto(page);
+      assert.equal(await reopenedUnknown.getByRole('button', { name: 'Save Product', exact: true }).isDisabled(), true, 'closing a modal cannot reset an uncertain attempt');
+      assert.equal(state.photoUploads.length, 1);
+      if (photoFault === 'save-unknown') {
+        await page.reload({ waitUntil: 'domcontentloaded' });
+        const reopened = await editPhoto(page);
+        const image = reopened.locator('img'); await image.waitFor(); await image.scrollIntoViewIfNeeded();
+        assert.equal(await image.evaluate(async img => { try { await img.decode(); return img.naturalWidth > 0; } catch { return false; } }), true);
+        assert.equal(state.productWrites.length, 1, 'reload reconciles and never repeats the write');
+      }
+      assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+    } finally { await context.close(); }
+  });
+}
+
+test('SIMULATED HTTP: photo upload, reload, replacement and removal preserve the product and leave no simulated objects', { timeout: 60000 }, async () => {
+  const { context, page, state, errors } = await isolated();
+  try {
+    for (let file = 0; file < 2; file++) {
+      const dialog = await editPhoto(page);
+      await dialog.locator('input[type=file]').setInputFiles({ name: `${file}.png`, mimeType: 'image/png', buffer: photoPng });
+      await dialog.locator('img[src^="blob:"]').waitFor();
+      await dialog.getByRole('button', { name: 'Save Product', exact: true }).click();
+      await dialog.waitFor({ state: 'hidden' });
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      assert.equal(state.images.size, 1);
+    }
+    const dialog = await editPhoto(page);
+    await dialog.getByRole('button', { name: 'Remove photo', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Save Product', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const final = await editPhoto(page);
+    assert.equal(await final.locator('img').count(), 0);
+    assert.equal(state.photoUploads.length, 2); assert.equal(state.photoDeletes.length, 2);
+    assert.equal(state.images.size, 0); assert.equal(state.productWrites.length, 3);
+    assert.ok(state.productWrites.every(args => args.p_name === 'Bowl QA' && args.p_price === 10 && args.p_active === true));
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
   } finally { await context.close(); }
 });

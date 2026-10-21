@@ -1,4 +1,18 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
+
+## A-Jornada de fotos autorizada — execução real BLOCKED
+
+Infra Storage privada/quatro policies instaladas e preflight A/B PASS informados pelo usuário.
+Não reaplicar migração/políticas. A autorização de fotos já foi concedida nesta tarefa.
+[Relatório e executor Windows](./QA_PHOTO_A_JORNADA_20261020.md): commit 9b381e8 ausente neste
+workspace e no remoto QA observado; nenhuma recriação. Fast-forward para 454500d preservado.
+Correção local de upload incerto; 50/50 regressões afetadas, 8/8 browser HTTP simulado e build PASS.
+Testes Storage remotos ainda 13/15 (2 asserções antigas); CI #185 FAIL, 2 jobs falhos e 10 ignorados.
+Executor real guardado por source/CI, sessões A/B e janela exclusiva. Sem gravações TEST.
+PowerShell nativo/Windows não validado nesta sessão. Nenhum check de jornada real promovido.
+Cobertura comprovada permanece 13/60 (21,67%). Menções históricas a bucket ausente estão superadas
+pela informação de implantação do usuário; jornadas reais ainda pendentes.
+
 Atualizado: 2026-10-20. Fonte: Issue #1, relatórios P0.01/P0.04/P0.05, CI #116, CI #118, CI #121–#126, [CI #126 tentativa 2](./QA_DELIVERY_CI_126_ATTEMPT2_20261015.md), CI #159, [CI #168](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39099580726), [CI #169](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39122084977), [CI #172](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39124630797), CI #174, [auditoria definitiva do catálogo público](./QA_DEFINITIVE_SQL_CATALOG_AUDIT_20261017.md), [auditoria privada](./QA_PRIVATE_SECURITY_CATALOG_AUDIT_20261018.md) e [pacote de autoridade única](./QA_PLATFORM_ADMIN_SINGLE_AUTHORITY_20261019.md).
 Escopo de trabalho: somente `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`. Não modificar produção, main ou publicar deploy.
 

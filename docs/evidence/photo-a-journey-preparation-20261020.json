@@ -1,0 +1,96 @@
+{
+  "recorded_at_utc": "2026-10-21T03:31:52.055901+00:00",
+  "client_date": "2026-10-20",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref": "msinksoilkluooxenecy",
+  "status": "BLOCKED",
+  "remote_head_observed": "454500da688e1d49e1ea734e8f40cdbddd76fbbb",
+  "requested_commit": {
+    "short_sha": "9b381e8",
+    "full_sha": null,
+    "available_locally": false,
+    "available_remote_history": false,
+    "public_patch_http": 404,
+    "recreated": false,
+    "published_by_this_run": false
+  },
+  "authorization": "A_JORNADA_PHOTOS_EXPLICIT_USER_AUTHORIZATION_ALREADY_GRANTED",
+  "test_results": {
+    "focused_guard_pos_catalog_security": {
+      "passed": 50,
+      "failed": 0,
+      "skipped": 0
+    },
+    "existing_storage_tests": {
+      "passed": 13,
+      "failed": 2,
+      "skipped": 0,
+      "failure": "STALE_SIGNED_PATH_ASSERTIONS"
+    },
+    "combined_static": {
+      "passed": 63,
+      "total": 65,
+      "failed": 2,
+      "skipped": 0
+    },
+    "browser": {
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "kind": "REAL_REACT_SIMULATED_HTTP",
+      "photo_scenarios": 3
+    },
+    "build": "PASS",
+    "node_syntax": "PASS",
+    "secret_scan": "PASS",
+    "powershell_native_ast": "BLOCKED_IMAGE_PULL_403",
+    "windows_runtime": "BLOCKED_NO_SESSION_TOOL"
+  },
+  "github_actions": {
+    "number": 185,
+    "run_id": "39531682082",
+    "code_sha": "454500da688e1d49e1ea734e8f40cdbddd76fbbb",
+    "status": "FAIL",
+    "failed_jobs": 2,
+    "skipped_jobs": 10,
+    "root_tap_totals": null,
+    "new_local_package_ci": "NOT_DISPATCHED_AWAITING_EXACT_USER_COMMIT"
+  },
+  "real_journey": {
+    "status": "BLOCKED",
+    "checks_passed_this_session": 0,
+    "mandatory_checks_blocked": 16,
+    "owner_a_b_authenticated_this_session": false,
+    "fixture_exclusivity_confirmed_this_session": false,
+    "storage_before": null,
+    "storage_after": null,
+    "supabase_requests_this_session": 0,
+    "persistent_mutations": 0,
+    "objects_created": 0,
+    "objects_removed": 0,
+    "snapshot_created": false,
+    "audit_rows_removed": 0,
+    "service_credentials_used_as_user": false
+  },
+  "operational_acceptance": {
+    "completed": 13,
+    "total": 60,
+    "percent": 21.67,
+    "pending": 15,
+    "blocked": 32
+  },
+  "log_sha256": {
+    "nexalvo-photo-final-static.tap": "093cf5a0512867597e0b58859e895aeccad69ecbd110473f0c60b200c3790cba",
+    "nexalvo-photo-final-browser.tap": "b1dd5cfac5c337d198e1b2adf224fa1e187e6dc6093b8a622964f25f4b0a37b4",
+    "nexalvo-photo-final-build.log": "200e86fe0e484d6e1c216f8974fcfc13b5619108deaa02c2cea65135078b6681"
+  },
+  "artifact_sha256": {
+    "src/App.jsx": "bd328b1c14481cd1182fdb85af9e77e3220ea8e3f0ab7f90505126105879a667",
+    "App.jsx": "bd328b1c14481cd1182fdb85af9e77e3220ea8e3f0ab7f90505126105879a667",
+    "qa/Invoke-QaPhotoJourney.ps1": "159ff9cb8bae38bba764bc2ae9cc82fb1902556d8dc2ccf2b9c173aacbef8871",
+    "qa/photo-journey.TEST.mjs": "841e77c02d65330f4a5005226087b7e0b4a0defcba81b49eadafe1701d24c403",
+    "qa/photo-journey-core.mjs": "947735b70e0644b11d06a91963bd2c82190d775f951cd903a017202182bf0f23",
+    "qa/photo-journey-guards.test.mjs": "2b2a75244e0a0b17ea15b89cbdb12fde2bfb76f791e41db3d78c3c7e0afbf263",
+    ".github/workflows/nexalvo-test.yml": "bf8cef645dbb3fdcc56511ebd1462cd32a6d132b7900da0585f9e9816e8f671b"
+  }
+}

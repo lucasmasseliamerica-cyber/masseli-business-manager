@@ -1,5 +1,10 @@
 # Próximo lote P0 — preparação, não autorização de execução
 
+Atualização: **A-Infra instalada/aprovada e A-Jornada expressamente autorizada pelo usuário**.
+Não reaplicar a infraestrutura nem pedir novamente essa autorização. A execução real de fotos
+continua [BLOCKED por acesso/source/fixtures](./QA_PHOTO_A_JORNADA_20261020.md). B/C/D/E seguem
+sem autorização persistente específica; as restrições históricas abaixo para A estão superadas.
+
 Preparado após a CI #183 aprovar o escopo seguro. TEST exclusivo `msinksoilkluooxenecy`, branch
 `automation/nexalvo-qa-actions`. Produção/main intocáveis. Não executar nada persistente deste
 plano sem aprovação específica. Compras browser e quatro grupos persistentes da CI permanecem OFF.

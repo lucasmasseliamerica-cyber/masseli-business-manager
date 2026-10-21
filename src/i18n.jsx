@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 export const LANGUAGE_STORAGE_KEY = "nexalvo.ui.language.v1";
 export const PORTUGUESE = {
+  "The upload result is unknown. Its path was preserved. Refresh and reconcile Storage before uploading or saving again.": "O resultado do upload é desconhecido. O caminho foi preservado. Atualize e confira o Storage antes de enviar ou salvar novamente.",
   "Stripe Terminal payments require online verification by the backend. Do not record them through this manual mode.": "Pagamentos Stripe Terminal exigem verificação online pelo backend. Não os registre por este modo manual.",
   "Connected": "Conectado",
   "Disconnected": "Desconectado",
