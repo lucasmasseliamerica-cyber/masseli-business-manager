@@ -1,0 +1,49 @@
+{
+  "scope": "B_SALE_AUDIT_AND_READONLY_RECOVERY_FIX",
+  "date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "code_sha": "65029918238f2e51200addef9963797c5a998e5d",
+  "status": "PASS_LOCAL_REAL_INSPECTION_BLOCKED",
+  "reported_existing_execution": {
+    "evidence_kind": "USER_REPORTED_REAL_SQL",
+    "order_number": 1253,
+    "status": "cancelled",
+    "income_usd": 0.49,
+    "compensation_usd": 0.49,
+    "net_usd": 0,
+    "sale_movement": -0.25,
+    "reversal_movement": 0.25,
+    "final_stock": 1,
+    "final_average_cost": 0.1,
+    "audit_formats": [
+      "SERVER_CREATED_AMOUNT",
+      "SERVER_CANCELLED_BARE_ORDER",
+      "CLIENT_REVERSED_AMOUNT_RESTORED"
+    ]
+  },
+  "root_cause": "TRAILING_SPACE_WILDCARD_EXCLUDED_BARE_CANCELLED_AUDIT",
+  "server_creation_and_cancellation_required_exactly_once": true,
+  "client_reversal_optional_at_most_once_never_substitutes_server_logs": true,
+  "order_prefix_collisions_rejected": true,
+  "tenant_revalidated_in_query_and_result": true,
+  "local_tests": {
+    "tests": 25,
+    "pass": 25,
+    "fail": 0,
+    "skipped": 0
+  },
+  "build": "PASS",
+  "checkpoint_bytes_preserved_in_local_tests": true,
+  "checkpoint_uncertainty_and_phase_preserved_in_local_tests": true,
+  "readonly_recovery_blocks_business_and_checkpoint_writes": true,
+  "real_windows_checkpoint_available_in_this_session": false,
+  "real_readonly_recovery_executed": false,
+  "new_sales_executed_by_this_session": 0,
+  "new_reversals_executed_by_this_session": 0,
+  "audits_changed_or_deleted": 0,
+  "rpc_or_database_changes": 0,
+  "full_b_journey_approved": false,
+  "operational_completed": 14,
+  "operational_total": 60,
+  "next_step": "READ_ONLY_RECOVERY_OF_ORIGINAL_CHECKPOINT_ONLY"
+}

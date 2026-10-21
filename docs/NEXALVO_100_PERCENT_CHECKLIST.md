@@ -1,5 +1,19 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Atualização vigente — recuperar #1253 somente por leitura (21/10/2026)
+
+[Auditorias corrigidas e comando de recuperação](./QA_B_AUDIT_RECOVERY_20261021.md).
+O usuário confirmou venda #1253 cancelada, receita/despesa USD0,49, movimentos −0,25/+0,25,
+estoque1/custo0,10 e as três auditorias. A execução original terminou BLOCKED por defeito no LIKE.
+Código validado **`65029918238f2e51200addef9963797c5a998e5d`**. [CI #196](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39618474475):
+**658/658 PASS**, zero falhas/skips nos testes executados; **8 jobs PASS, 4 grupos persistentes BLOCKED**.
+[Evidência real da CI](./evidence/sale-b-ci-196-20261021.json).
+25/25 regressões locais e build PASS. Correção preserva empresa/número/ações/cardinalidade;
+recuperação somente leitura confere invariantes e mantém bytes/fase/flags do checkpoint original.
+**Não repetir venda, estorno, preflight normal ou criação de fixture. Usar apenas ReadOnlyRecovery.**
+A inspeção real ainda não foi executada nesta sessão. B integral segue BLOCKED, matriz14/60 (23,33%).
+Procedimentos de nova jornada/compensação abaixo são históricos e não autorizam novas operações.
+
 ## Atualização vigente — configurações ativas B corrigidas (21/10/2026)
 
 [Correção e comando Windows de preflight](./QA_B_SETTINGS_CONTRACT_20261021.md).

@@ -1,5 +1,7 @@
 # B-Jornada — reconciliação dos helpers após Administração Comercial
 
+> Retomada atual: #1253 já criada/cancelada. Não repetir preflight normal, venda ou estorno; usar somente a [recuperação de leitura com checkpoint original](./QA_B_AUDIT_RECOVERY_20261021.md). O procedimento abaixo é histórico.
+
 > Atualização posterior: configurações singulares/ativas corrigidas. Reutilizar o catálogo e a fixture já preparados e executar apenas o [preflight Windows com o novo código](./QA_B_SETTINGS_CONTRACT_20261021.md). O registro de CI #194 abaixo é histórico.
 
 Somente QA `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`.

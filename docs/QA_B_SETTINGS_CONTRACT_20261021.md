@@ -1,5 +1,7 @@
 # B-Jornada — configurações ativas de pagamento e canal
 
+> Retomada atual: #1253 já criada/cancelada. Não repetir preflight normal, venda ou estorno; usar somente a [recuperação de leitura com checkpoint original](./QA_B_AUDIT_RECOVERY_20261021.md). O procedimento abaixo é histórico.
+
 Branch exclusiva `automation/nexalvo-qa-actions`; projeto TEST `msinksoilkluooxenecy`.
 Correção publicada: `c515d8a4fb47570821db81913f0342bc3c14b9dc`.
 [CI #195](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39608013041): **652/652 PASS**, zero falhas/skips nos testes executados.

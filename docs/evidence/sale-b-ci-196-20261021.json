@@ -1,0 +1,41 @@
+{
+  "evidence_kind": "REAL_GITHUB_ACTIONS_PUBLIC_SUMMARY",
+  "observed_date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "run": 196,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39618474475",
+  "validated_code_sha": "65029918238f2e51200addef9963797c5a998e5d",
+  "status": "PASS_EXECUTED_SCOPE",
+  "tests": {
+    "passed": 658,
+    "total": 658,
+    "failed": 0,
+    "skipped": 0
+  },
+  "jobs": {
+    "build-and-security": "PASS",
+    "test-api-smoke": "PASS",
+    "authenticated-preflight": "PASS",
+    "authenticated-concurrency": "BLOCKED",
+    "access-regression": "PASS",
+    "auth-lifecycle": "PASS",
+    "replay-financial": "BLOCKED",
+    "network-after-commit": "BLOCKED",
+    "browser-smoke": "PASS",
+    "performance-read": "PASS",
+    "two-tenant-concurrency": "BLOCKED",
+    "qa-summary": "PASS"
+  },
+  "persistent_groups_blocked": 4,
+  "b_journey_persistent_execution": false,
+  "b_dedicated_fixture_preflight_executed": false,
+  "current_sql_catalog_export_received": false,
+  "windows_native_validation": false,
+  "note": "Existing authenticated CI preflight PASS does not inspect the original Windows checkpoint or approve B-Jornada #1253. Four gated jobs were skipped/BLOCKED. No new sale or reversal was executed by this patch.",
+  "build_job_status_evidence": {
+    "workflow_conclusion": "SUCCESS",
+    "successful_job_steps_including_complete_job": 16,
+    "cached_header_observation": "in_progress",
+    "status_corroborated_by_completed_job_steps": true
+  }
+}
