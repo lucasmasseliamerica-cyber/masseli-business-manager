@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { SALE_TABLES, SALE_ACTORS, SALE_FINGERPRINTS } from './sale-journey-core.mjs';
+import { SALE_TABLES, SALE_ACTORS, SALE_FINGERPRINTS, saleAuditQuery, assertSaleAudit } from './sale-journey-core.mjs';
 
 // Exact read-only SQL on disposable PostgreSQL. No Supabase access or remote writes.
 const name=`nexalvo-sale-preflight-${process.pid}-${randomBytes(4).toString('hex')}`;
@@ -134,4 +134,27 @@ test('tenant defaults and boolean overrides stay fail-closed; global claims and 
   assert.deepEqual(actorContext(employee,'viewFinancials',spoof),{business:businessA,allowed:false});
   assert.deepEqual(actorContext(manager,'missingPermission',spoof),{business:businessA,allowed:false});
   assert.equal(readonly(catalog).functions.find(f=>f.name==='user_can').fingerprint,reported.user_can);
+});
+test('audit filter predicates execute read-only in PostgreSQL and exclude adjacent order numbers and other businesses',()=>{
+  sql(`ALTER TABLE audit_logs ADD COLUMN business_id uuid, ADD COLUMN action text, ADD COLUMN details text;
+    INSERT INTO audit_logs(id,business_id,action,details) VALUES
+    ('10000000-0000-4000-8000-000000000001','${businessA}','Sale Created','Order #1253 - 0.49'),
+    ('10000000-0000-4000-8000-000000000002','${businessA}','Sale Cancelled','Order #1253'),
+    ('10000000-0000-4000-8000-000000000003','${businessA}','Client: Sale Reversed','Order #1253 · $0.49 · inventory restored'),
+    ('10000000-0000-4000-8000-000000000004','${businessA}','Sale Created','Order #12530 - 0.49'),
+    ('10000000-0000-4000-8000-000000000005','${businessA}','Sale Cancelled','Order #12530'),
+    ('10000000-0000-4000-8000-000000000006','${businessB}','Sale Cancelled','Order #1253'),
+    ('10000000-0000-4000-8000-000000000007','${businessA}','Client: Sale Created','Order #1253 · $0.49 · In Store');`);
+  const url=new URL(saleAuditQuery(businessA,1253),'https://unit.invalid');
+  const quoted=value=>"'"+value.replaceAll("'","''")+"'";
+  const conditions=[...url.searchParams.get('or').matchAll(/details\.(eq|like)\."([^"]+)"/g)].map(([,operator,value])=>
+    `details ${operator==='eq'?'=':'LIKE'} ${quoted(value.replaceAll('*','%'))}`);
+  assert.equal(conditions.length,3);
+  const actions=[...url.searchParams.get('action').matchAll(/"([^"]+)"/g)].map(([,action])=>quoted(action));
+  const tenant=url.searchParams.get('business_id').slice(3);
+  const rows=readonly(`SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id) FROM audit_logs a
+    WHERE business_id=${quoted(tenant)}::uuid AND action IN (${actions.join(',')}) AND (${conditions.join(' OR ')});`);
+  assert.equal(rows.length,3);
+  assert.deepEqual(assertSaleAudit(rows,{business:{id:businessA},expected:{totalCents:49}},1253),{created:1,cancelled:1,client_reversed:1});
+  assert.equal(sql('SELECT count(*) FROM audit_logs;'),'7','audit reads never remove adjacent or historical entries');
 });

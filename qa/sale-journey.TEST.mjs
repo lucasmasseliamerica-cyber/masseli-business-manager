@@ -5,9 +5,9 @@ import { readFileSync, writeFileSync, renameSync, existsSync, chmodSync, realpat
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { SALE_ACTORS, SaleSignal, requireSale, saleHash, saleConfiguration, validateSaleCatalog,
-  validateSaleFixture, validateSalePayload, assertSaleObserved, safeSaleReport } from './sale-journey-core.mjs';
+  validateSaleFixture, validateSalePayload, assertSaleObserved, saleAuditQuery, assertSaleAudit, safeSaleReport } from './sale-journey-core.mjs';
 
 const LOCAL = 'http://127.0.0.1:4188';
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -16,6 +16,35 @@ const checks = ['catalog', 'owner_a_b', 'permissions', 'read_isolation', 'exclus
   'ui_reversal', 'history_preserved', 'stock_and_cost_restored', 'financial_net_zero'];
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 const stableRows = rows => rows.map(row => Object.fromEntries(Object.entries(row).sort(([a], [b]) => a.localeCompare(b)))).sort((a,b) => String(a.id).localeCompare(String(b.id)));
+
+export async function inspectCancelledSale({snapshot,readView,preserveFixture,readAudit}) {
+  requireSale(snapshot.saleId,'SALE_ID_NOT_CAPTURED');
+  requireSale(snapshot.pending!=='probe_reverse','CROSS_TENANT_PROBE_UNSETTLED');
+  requireSale(!snapshot.writeUncertain||snapshot.pending==='reverse','SALE_WRITE_STILL_UNSETTLED');
+  await preserveFixture();
+  const state=await readView();assertSaleObserved(state,snapshot,true);
+  requireSale(snapshot.committedRows,'ORIGINAL_SALE_HISTORY_SNAPSHOT_REQUIRED');
+  for(const [key,rows] of Object.entries({items:state.items,cash:state.cash.filter(row=>row.type==='income'),movements:state.movements.filter(row=>row.type==='SALE')})){
+    requireSale(saleHash(stableRows(rows))===saleHash(stableRows(snapshot.committedRows[key])),'ORIGINAL_SALE_HISTORY_CHANGED');
+  }
+  const audit=await readAudit(saleAuditQuery(snapshot.business.id,state.sales[0].order_no));
+  const auditSummary=assertSaleAudit(audit,snapshot,state.sales[0].order_no);
+  const positions=rows=>stableRows(rows.map(({id,inventory_item_id,location_id,qty,avg_cost_per_unit})=>({id,inventory_item_id,location_id,qty:Number(qty),avg_cost_per_unit:Number(avg_cost_per_unit)})));
+  return {restored:true,audit_entries_observed:audit.length,audit_summary:auditSummary,
+    stock_before_sha256:saleHash(positions(snapshot.stocks)),stock_after_sha256:saleHash(positions(state.stocks)),
+    stock_comparison:snapshot.stocks.map((before,index)=>{const after=state.stocks.find(row=>row.id===before.id);return{
+      position:index+1,qty_before:Number(before.qty),qty_after:Number(after.qty),
+      average_cost_before:Number(before.avg_cost_per_unit),average_cost_after:Number(after.avg_cost_per_unit)};}),
+    financial_summary:{currency:'USD',income_rows:1,refund_rows:1,net_cents:0},net_financial_cents:0};
+}
+export async function inspectCancelledSaleCheckpoint({checkpoint,snapshot,...readers}) {
+  const original=readFileSync(checkpoint);
+  requireSale(saleHash(JSON.parse(original.toString('utf8')))===saleHash(snapshot),'RECOVERY_CHECKPOINT_CHANGED_DURING_READ');
+  const evidence=await inspectCancelledSale({snapshot,...readers});
+  requireSale(readFileSync(checkpoint).equals(original),'RECOVERY_CHECKPOINT_CHANGED_DURING_READ');
+  return {...evidence,recovery_checkpoint_unchanged:true,
+    recovery_checkpoint_sha256:createHash('sha256').update(original).digest('hex')};
+}
 
 export async function recordSaleFailure(error, {report,args,snapshot,compensate,checkpoint}) {
   report.status=error instanceof SaleSignal?error.status:'BLOCKED';
@@ -29,6 +58,7 @@ export async function recordSaleFailure(error, {report,args,snapshot,compensate,
 }
 
 export async function saleJourney(env = process.env, args = process.argv.slice(2)) {
+  const readonlyRecovery=args.includes('--reconcile-readonly');
   const report = { scope: 'B_JOURNEY_REAL_TEST_SALE', status: 'BLOCKED', code: 'NOT_STARTED',
     checks: Object.fromEntries(checks.map(c => [c, 'BLOCKED'])), restored: false,
     sale_ids_forwarded: 0, create_requests_forwarded: 0, reversal_requests_forwarded: 0,
@@ -38,6 +68,7 @@ export async function saleJourney(env = process.env, args = process.argv.slice(2
   const stop = () => { stopped = true; };
   const pass = name => { report.checks[name] = 'PASS'; };
   const save = phase => {
+    requireSale(!readonlyRecovery,'READONLY_CHECKPOINT_WRITE_FORBIDDEN');
     snapshot.phase = phase;
     const encoded=JSON.stringify(snapshot);
     requireSale(!/Bearer\s|eyJ[A-Za-z0-9_-]{16,}\.|[?&](?:access_token|token)=|sb_secret_|-----BEGIN [A-Z ]*PRIVATE KEY-----/i.test(encoded),'SECRET_IN_SALE_SNAPSHOT');
@@ -47,6 +78,7 @@ export async function saleJourney(env = process.env, args = process.argv.slice(2
   let view, preserveFixture, compensate;
   try {
     config = saleConfiguration(env); // Missing credentials/authorization: no network, file or DB access.
+    requireSale(!(readonlyRecovery&&args.includes('--recover')),'RECOVERY_MODE_CONFLICT');
     requireSale(git('branch','--show-current') === 'automation/nexalvo-qa-actions' && !git('status','--porcelain'), 'CLEAN_QA_BRANCH_REQUIRED');
     requireSale(/^[a-f0-9]{40}$/.test(env.QA_SALE_VALIDATED_CODE_SHA || ''), 'VALIDATED_CODE_SHA_REQUIRED');
     git('merge-base','--is-ancestor',env.QA_SALE_VALIDATED_CODE_SHA,'HEAD');
@@ -58,6 +90,7 @@ export async function saleJourney(env = process.env, args = process.argv.slice(2
     report.catalog_sha256 = saleHash(catalog); pass('catalog');
     process.on('SIGINT',stop); process.on('SIGTERM',stop);
     api = async (path, label='A', { body, method, denied=false }={}) => {
+      requireSale(!readonlyRecovery||(body===undefined&&(!method||['GET','HEAD'].includes(method))),'READONLY_BUSINESS_WRITE_FORBIDDEN');
       const target = new URL(path,config.origin);
       requireSale(target.origin === config.origin && !target.username && !target.password, 'API_TARGET_OUTSIDE_TEST');
       let response;
@@ -201,28 +234,20 @@ export async function saleJourney(env = process.env, args = process.argv.slice(2
         await api('/rest/v1/rpc/fn_reverse_sale','A',{body:{p_sale_id:snapshot.saleId}});
         state=await reconcile();
       }
-      assertSaleObserved(state,snapshot,true);await preserveFixture();
-      requireSale(snapshot.committedRows,'ORIGINAL_SALE_HISTORY_SNAPSHOT_REQUIRED');
-      for(const [key,rows] of Object.entries({items:state.items,cash:state.cash.filter(row=>row.type==='income'),movements:state.movements.filter(row=>row.type==='SALE')})){
-        requireSale(saleHash(stableRows(rows))===saleHash(stableRows(snapshot.committedRows[key])),'ORIGINAL_SALE_HISTORY_CHANGED');
-      }
-      const audit=await api(`/rest/v1/audit_logs?select=id,action,details&business_id=eq.${b}&details=like.${encodeURIComponent('Order #'+state.sales[0].order_no+' *')}&limit=1000`);
-      requireSale(audit.filter(row=>row.action==='Sale Created').length===1&&audit.filter(row=>row.action==='Sale Cancelled').length===1,'SALE_AUDIT_NOT_CONFIRMED');
-      report.audit_entries_observed=audit.length;
-      const positions=rows=>stableRows(rows.map(({id,inventory_item_id,location_id,qty,avg_cost_per_unit})=>({id,inventory_item_id,location_id,qty:Number(qty),avg_cost_per_unit:Number(avg_cost_per_unit)})));
-      report.stock_before_sha256=saleHash(positions(snapshot.stocks));report.stock_after_sha256=saleHash(positions(state.stocks));
-      report.net_financial_cents=0;report.restored=true;
+      Object.assign(report,await inspectCancelledSale({snapshot,readView:view,preserveFixture,readAudit:path=>api(path)}));
       pass('history_preserved');pass('stock_and_cost_restored');pass('financial_net_zero');save('RESTORED');
     };
     if(recovery){
-      if(snapshot.writeUncertain)await reconcile();
-      if(args.includes('--recover'))await compensate();
-      else{
-        await preserveFixture();
-        if(snapshot.saleId){const state=await view();assertSaleObserved(state,snapshot,state.sales[0]?.status==='cancelled');}
-        else requireSale(saleHash(stableRows(await readStocks()))===saleHash(stableRows(snapshot.stocks)),'STOCK_CHANGED_WITHOUT_SALE');
+      if(readonlyRecovery){
+        Object.assign(report,await inspectCancelledSaleCheckpoint({checkpoint,snapshot,readView:view,preserveFixture,readAudit:path=>api(path)}));
+        pass('history_preserved');pass('stock_and_cost_restored');pass('financial_net_zero');
+        report.scope='B_JOURNEY_READONLY_RECOVERY';report.recovery_status='PASS';
+        report.code='READONLY_CANCELLED_SALE_CONFIRMED_NOT_FULL_HOMOLOGATION';
+        return safeSaleReport(report);
       }
-      report.code=args.includes('--recover')?'RECOVERY_ONLY_NOT_FULL_HOMOLOGATION':'READONLY_RESULT_RECONCILED';
+      if(snapshot.writeUncertain)await reconcile();
+      await compensate();
+      report.code='RECOVERY_ONLY_NOT_FULL_HOMOLOGATION';
       return safeSaleReport(report);
     }
     await delay(1000);await preserveFixture();requireSale(saleHash(stableRows(await readStocks()))===saleHash(stableRows(snapshot.stocks)),'CONCURRENT_STOCK_WRITER');

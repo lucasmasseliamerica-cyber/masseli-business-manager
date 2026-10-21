@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { SALE_HOST, SALE_ACTORS, SALE_FINGERPRINTS, SALE_INTERNAL_FUNCTIONS, SALE_TABLES, saleConfiguration, validateSaleCatalog,
-  validateSaleFixture, validateSalePayload, assertSaleObserved, safeSaleReport } from './sale-journey-core.mjs';
-import { saleJourney, recordSaleFailure } from './sale-journey.TEST.mjs';
+  validateSaleFixture, validateSalePayload, assertSaleObserved, saleAuditQuery, assertSaleAudit, safeSaleReport } from './sale-journey-core.mjs';
+import { saleJourney, recordSaleFailure, inspectCancelledSaleCheckpoint } from './sale-journey.TEST.mjs';
 
 const product='11111111-1111-4111-8111-111111111111',location='22222222-2222-4222-8222-222222222222';
 const item='33333333-3333-4333-8333-333333333333',sale='44444444-4444-4444-8444-444444444444';
@@ -33,6 +35,18 @@ function observation(s,cancelled=false){
     stocks:[{...s.stocks[0],qty:cancelled?10:9.75}],
     movements:[{id:'sale-movement',type:'SALE',inventory_item_id:item,business_id:business,location_id:location,sale_id:sale,qty_change:-0.25},
       ...(cancelled?[{id:'reversal',type:'REVERSAL',inventory_item_id:item,business_id:business,location_id:location,sale_id:null,related_transaction_id:'sale-movement',qty_change:0.25}]:[])]};
+}
+function cancelledExecution(){
+  const snapshot=fixture();snapshot.business.tax_enabled=false;snapshot.stocks[0].qty=1;snapshot.stocks[0].avg_cost_per_unit=0.1;
+  snapshot.expected=validateSaleFixture(snapshot);snapshot.saleId=sale;snapshot.salePayload=payload(snapshot);
+  snapshot.schemaVersion=1;snapshot.scope='B_JOURNEY_TEST';snapshot.phase='REVERSAL_CONFIRMED';
+  snapshot.pending=null;snapshot.writeUncertain=false;snapshot.reverseAttempted=true;
+  const before=observation(snapshot),state=observation(snapshot,true);state.sales[0].order_no=1253;state.stocks[0].qty=1;
+  snapshot.committedRows={items:before.items,cash:before.cash,movements:before.movements};
+  const audit=[{id:'created',business_id:business,action:'Sale Created',details:'Order #1253 - 0.49'},
+    {id:'cancelled',business_id:business,action:'Sale Cancelled',details:'Order #1253'},
+    {id:'client-reversed',business_id:business,action:'Client: Sale Reversed',details:'Order #1253 · $0.49 · inventory restored'}];
+  return {snapshot,state,audit};
 }
 test('B authorization never grants A/C/D/E, changes target, uses privileged credentials or shares identities',()=>{
   assert.equal(saleConfiguration(env).productId,product);
@@ -140,6 +154,75 @@ test('reversal requires exact stock/cost and net-zero financial history, includi
     const v=observation(s,true);change(v);assert.throws(()=>assertSaleObserved(v,s,true));
   }
 });
+test('audit confirmation recognizes the three reported formats and requires independent server creation and cancellation',()=>{
+  const {snapshot,audit}=cancelledExecution();
+  assert.deepEqual(assertSaleAudit(audit,snapshot,1253),{created:1,cancelled:1,client_reversed:1});
+  assert.deepEqual(assertSaleAudit(audit.slice(0,2),snapshot,'1253'),{created:1,cancelled:1,client_reversed:0});
+});
+test('audit confirmation rejects partial order numbers, wrong tenants/actions/amounts, missing logs and duplicates',()=>{
+  const {snapshot,audit}=cancelledExecution();
+  const invalid=[rows=>rows[1].details='Order #12530',rows=>rows[0].details='Order #12530 - 0.49',
+    rows=>rows[2].details='Order #12530 · $0.49 · inventory restored',rows=>rows[1].details='Order #1253 ',
+    rows=>rows[1].details='Order #1253 · extra',rows=>rows[0].details='prefix Order #1253 - 0.49',
+    rows=>rows[0].details='Order #1253 - Infinity',rows=>rows[0].details='Order #1253 - 0.50',
+    rows=>rows[2].details='Order #1253 · $0.50 · inventory restored',rows=>rows[1].business_id=SALE_ACTORS.B.business,
+    rows=>rows[1].action='Client: Sale Cancelled',rows=>rows[2].action='Unrelated Action',
+    rows=>rows.splice(1,1),rows=>rows[2]={...rows[0],id:'duplicate-created'},rows=>rows[2].id=rows[0].id,
+    rows=>rows.push({...rows[2],id:'duplicate-client'})];
+  for(const change of invalid){const rows=structuredClone(audit);change(rows);assert.throws(()=>assertSaleAudit(rows,snapshot,1253),e=>e.code==='SALE_AUDIT_NOT_CONFIRMED');}
+});
+test('audit REST query pins tenant/actions and exact or delimited order number, with no numeric-prefix wildcard',()=>{
+  const url=new URL(saleAuditQuery(business,1253),env.QA_SUPABASE_URL);
+  assert.equal(url.pathname,'/rest/v1/audit_logs');assert.equal(url.searchParams.get('business_id'),'eq.'+business);
+  assert.ok(url.searchParams.get('select').split(',').includes('business_id'));
+  assert.equal(url.searchParams.get('action'),'in.("Sale Created","Sale Cancelled","Client: Sale Reversed")');
+  assert.equal(url.searchParams.get('or'),'(details.eq."Order #1253",details.like."Order #1253 - *",details.like."Order #1253 · *")');
+  assert.equal(url.searchParams.get('limit'),'1000');
+  for(const number of [0,-1,1253.5,'01253','1253*','1253"','1e3',Number.MAX_SAFE_INTEGER+1])assert.throws(()=>saleAuditQuery(business,number));
+  assert.throws(()=>saleAuditQuery('not-a-tenant',1253));
+});
+test('read-only recovery verifies the cancelled execution and preserves checkpoint bytes, phase, history and uncertainty flags',async()=>{
+  const directory=mkdtempSync(join(tmpdir(),'nexalvo-sale-inspection-unit-'));
+  try{
+    for(const pendingReverse of [false,true]){
+      const {snapshot,state,audit}=cancelledExecution();
+      if(pendingReverse){snapshot.pending='reverse';snapshot.writeUncertain=true;}
+      const checkpoint=join(directory,'sale-recovery.json'),original=JSON.stringify(snapshot,null,2)+'\n';
+      writeFileSync(checkpoint,original,{mode:0o600});const reads=[];
+      const result=await inspectCancelledSaleCheckpoint({checkpoint,snapshot,
+        preserveFixture:async()=>{reads.push('read-fixture');},readView:async()=>{reads.push('read-view');return state;},
+        readAudit:async path=>{assert.equal(path,saleAuditQuery(business,1253));reads.push('read-audit');return audit;}});
+      assert.deepEqual(reads,['read-fixture','read-view','read-audit']);
+      assert.equal(result.restored,true);assert.equal(result.net_financial_cents,0);assert.equal(result.audit_entries_observed,3);
+      assert.deepEqual(result.audit_summary,{created:1,cancelled:1,client_reversed:1});
+      assert.equal(result.stock_before_sha256,result.stock_after_sha256);assert.equal(result.recovery_checkpoint_unchanged,true);
+      assert.match(result.recovery_checkpoint_sha256,/^[a-f0-9]{64}$/);
+      assert.equal(readFileSync(checkpoint,'utf8'),original);assert.equal(JSON.stringify(snapshot,null,2)+'\n',original);
+      assert.equal(snapshot.phase,'REVERSAL_CONFIRMED');assert.equal(result.status,undefined,'inspection alone never approves the full journey');
+    }
+  }finally{rmSync(directory,{recursive:true,force:true});}
+});
+test('read-only recovery fails closed on changed history, unbalanced effects or missing audits without changing its checkpoint or compensating',async()=>{
+  const directory=mkdtempSync(join(tmpdir(),'nexalvo-sale-inspection-unit-'));
+  try{
+    const invalid=[x=>x.state.items[0].product_name_snapshot='changed',x=>x.state.cash.push({...x.state.cash[0],id:'another-income'}),
+      x=>x.state.stocks[0].qty=0.75,x=>x.state.stocks[0].avg_cost_per_unit=0.11,x=>x.audit.splice(1,1),
+      x=>x.snapshot.pending='probe_reverse',x=>x.snapshot.committedRows=null];
+    for(const change of invalid){
+      const x=cancelledExecution();change(x);const checkpoint=join(directory,'sale-recovery.json'),original=JSON.stringify(x.snapshot);
+      writeFileSync(checkpoint,original,{mode:0o600});let compensations=0;
+      try{
+        await inspectCancelledSaleCheckpoint({checkpoint,snapshot:x.snapshot,preserveFixture:async()=>{},readView:async()=>x.state,readAudit:async()=>x.audit});
+        assert.fail('invalid inspection must block');
+      }catch(error){
+        assert.ok(error.code,'a fixed guard code is required');
+        const report={restored:false};await recordSaleFailure(error,{report,args:['--reconcile-readonly'],snapshot:x.snapshot,
+          compensate:async()=>{compensations++;},checkpoint});assert.equal(report.status,'BLOCKED');
+      }
+      assert.equal(compensations,0);assert.equal(readFileSync(checkpoint,'utf8'),original);
+    }
+  }finally{rmSync(directory,{recursive:true,force:true});}
+});
 test('public evidence excludes credentials and private references',()=>{
   assert.equal(safeSaleReport({status:'BLOCKED'}).status,'BLOCKED');
   for(const detail of ['Bearer TOKEN','a@example.invalid','sb_secret_ABC','https://example.invalid/?token=ABC'])assert.throws(()=>safeSaleReport({detail}));
@@ -167,6 +250,10 @@ test('executor journals before forward, refuses ambiguous replay and compensates
   assert.match(runner,/req.postDataJSON\(\).p_sale_id===snapshot.saleId/);
   assert.match(runner,/REVERSAL_ALREADY_ATTEMPTED_RECONCILE_ONLY/);assert.match(runner,/CROSS_TENANT_PROBE_UNSETTLED/);
   assert.match(runner,/count===data.length/);assert.match(runner,/SECRET_IN_SALE_SNAPSHOT/);assert.match(runner,/RECOVERY_ONLY_NOT_FULL_HOMOLOGATION/);
+  assert.match(runner,/READONLY_CHECKPOINT_WRITE_FORBIDDEN/);assert.match(runner,/READONLY_BUSINESS_WRITE_FORBIDDEN/);
+  const readonlyBranch=runner.slice(runner.indexOf('if(readonlyRecovery){'),runner.indexOf('if(snapshot.writeUncertain)await reconcile();',runner.indexOf('if(readonlyRecovery){')));
+  assert.match(readonlyBranch,/inspectCancelledSaleCheckpoint/);assert.match(readonlyBranch,/recovery_status='PASS'/);
+  assert.doesNotMatch(readonlyBranch,/await compensate|await reconcile|save\(|report.status='PASS'/);
   assert.doesNotMatch(runner,/method:\s*['"]DELETE|scope=global|storageState\(|tracing.start\(|screenshot\(/);
   const sql=readFileSync(new URL('./sql/sale_journey_preflight_readonly_TEST.sql',import.meta.url),'utf8').replace(/--[^\n]*/g,'');
   assert.doesNotMatch(sql,/\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT|REVOKE|CALL|DO|TRUNCATE)\b/i);

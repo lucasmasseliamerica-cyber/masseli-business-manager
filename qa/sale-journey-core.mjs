@@ -142,6 +142,41 @@ export function assertSaleObserved(view, s, cancelled = false) {
   }
   return true;
 }
+const saleAuditAnchor = orderNo => {
+  const number=String(orderNo);
+  requireSale(/^[1-9][0-9]*$/.test(number) && Number.isSafeInteger(Number(number)), 'SALE_AUDIT_ORDER_REQUIRED');
+  return `Order #${number}`;
+};
+export function saleAuditQuery(businessId,orderNo) {
+  requireSale(uuid(businessId),'SALE_AUDIT_BUSINESS_REQUIRED');
+  const anchor=saleAuditAnchor(orderNo);
+  const query=new URLSearchParams({select:'id,business_id,action,details',business_id:'eq.'+businessId,
+    action:'in.("Sale Created","Sale Cancelled","Client: Sale Reversed")',
+    or:`(details.eq."${anchor}",details.like."${anchor} - *",details.like."${anchor} · *")`,limit:'1000'});
+  return '/rest/v1/audit_logs?'+query;
+}
+export function assertSaleAudit(rows,snapshot,orderNo) {
+  const anchor=saleAuditAnchor(orderNo), counts={created:0,cancelled:0,client_reversed:0},seen=new Set();
+  requireSale(Array.isArray(rows)&&rows.length>=2&&rows.length<=3,'SALE_AUDIT_NOT_CONFIRMED');
+  for(const row of rows){
+    requireSale(row?.business_id===snapshot.business.id&&typeof row.id==='string'&&row.id.length>0&&!seen.has(row.id)
+      &&typeof row.details==='string','SALE_AUDIT_NOT_CONFIRMED');
+    seen.add(row.id);
+    let amount;
+    if(row.action==='Sale Created'&&row.details.startsWith(anchor+' - ')){
+      amount=row.details.slice((anchor+' - ').length);counts.created++;
+    }else if(row.action==='Sale Cancelled'&&row.details===anchor){counts.cancelled++;continue;}
+    else if(row.action==='Client: Sale Reversed'&&row.details.startsWith(anchor+' · $')&&row.details.endsWith(' · inventory restored')){
+      amount=row.details.slice((anchor+' · $').length,-' · inventory restored'.length);counts.client_reversed++;
+    }else throw new SaleSignal('SALE_AUDIT_NOT_CONFIRMED');
+    requireSale(/^[0-9]+(?:\.[0-9]+)?$/.test(amount)&&Number.isFinite(Number(amount))
+      &&Math.abs(Number(amount)-snapshot.expected.totalCents/100)<1e-8,'SALE_AUDIT_NOT_CONFIRMED');
+  }
+  // Server creation/cancellation are mandatory. The optional client event never substitutes them;
+  // official RPC compensation can complete without a browser-generated client audit.
+  requireSale(counts.created===1&&counts.cancelled===1&&counts.client_reversed<=1,'SALE_AUDIT_NOT_CONFIRMED');
+  return counts;
+}
 export function safeSaleReport(report) {
   requireSale(!/Bearer\s|eyJ[A-Za-z0-9_-]{16,}\.|[?&]token=|@|sb_secret_|service_role|storage:\/\//i.test(JSON.stringify(report)), 'SALE_REPORT_CONTAINS_SENSITIVE_DATA');
   return report;
