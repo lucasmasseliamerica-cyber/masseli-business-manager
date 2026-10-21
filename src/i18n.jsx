@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 export const LANGUAGE_STORAGE_KEY = "nexalvo.ui.language.v1";
 export const PORTUGUESE = {
+  "Tax rate must be between 0 and 100.": "A alíquota deve estar entre 0 e 100.",
+  "Check the product recipe before taking payment.": "Confira a composição do produto antes de receber o pagamento.",
+  "Refresh inventory before taking payment.": "Atualize o estoque antes de receber o pagamento.",
+  "Unit costs, discount and tax are rounded to two decimal places before totals are calculated.": "Custos unitários, desconto e imposto são arredondados para duas casas decimais antes do cálculo dos totais.",
   "The upload result is unknown. Its path was preserved. Refresh and reconcile Storage before uploading or saving again.": "O resultado do upload é desconhecido. O caminho foi preservado. Atualize e confira o Storage antes de enviar ou salvar novamente.",
   "Stripe Terminal payments require online verification by the backend. Do not record them through this manual mode.": "Pagamentos Stripe Terminal exigem verificação online pelo backend. Não os registre por este modo manual.",
   "Connected": "Conectado",

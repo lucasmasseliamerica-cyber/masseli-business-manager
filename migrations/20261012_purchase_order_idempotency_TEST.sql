@@ -38,10 +38,10 @@ DECLARE
 BEGIN
  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'authentication required'; END IF;
  IF p_request_id IS NULL THEN RAISE EXCEPTION 'p_request_id is required'; END IF;
- IF p_business_id IS DISTINCT FROM public.current_business_id() THEN
+ IF p_business_id IS NULL OR p_business_id IS DISTINCT FROM public.current_business_id() THEN
    RAISE EXCEPTION 'business_id mismatch';
  END IF;
- IF NOT public.user_can('managePurchases') THEN
+ IF public.user_can('managePurchases') IS NOT TRUE THEN
    RAISE EXCEPTION 'permission denied: managePurchases required';
  END IF;
  -- Retain the complete canonical payload. Exact retry only; changed terms or line-items with the

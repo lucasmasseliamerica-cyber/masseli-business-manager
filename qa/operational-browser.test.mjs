@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -21,7 +21,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   const item = '55555555-5555-4555-8555-555555555555';
   const now = new Date().toISOString();
   const state = { sales: [], saleItems: [], customers: [], stock: 100, saleAttempts: [], blocked: [], remoteRequests: 0,
-    images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [] };
+    images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [], purchaseWrites: [], purchaseOrders: [], purchaseLines: [], initialStockWrites: [] };
   const tables = {
     users: [{ id: owner, business_id: business, name: 'OWNER LOCAL SIMULADO', role: 'OWNER', active: true, permission_overrides: {} }],
     businesses: [{ id: business, name: 'MASSELI QA HTTP SIMULADO', currency: 'BRL', timezone: 'America/Sao_Paulo', tax_enabled: false, tax_rate: 0, status: 'ACTIVE' }],
@@ -30,7 +30,24 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     product_recipes: [{ id: randomUUID(), product_id: product, inventory_item_id: item, qty_per_unit: 1 }],
     inventory_items: [{ id: item, business_id: business, name: 'Açaí QA', unit: 'Units', active: true, min_qty: 0, max_qty: 200, created_at: now }],
   };
+  if (purchaseScenario) {
+    const supplier = '88888888-8888-4888-8888-888888888888';
+    tables.suppliers = [
+      { id: '99999999-9999-4999-8999-999999999999', business_id: business, name: 'Inactive supplier', active: false },
+      { id: supplier, business_id: business, name: 'Active QA supplier', active: true },
+    ];
+    tables.locations.unshift({ id: '77777777-7777-4777-8777-777777777777', business_id: business, name: 'Other QA location', active: true });
+    tables.inventory_items[0] = { ...tables.inventory_items[0], min_qty: 5, max_qty: 10, supplier_id: supplier };
+    tables.inventory_items.unshift({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', business_id: business, name: 'Inactive ingredient', active: false, unit: 'Units' });
+    state.stock = 1;
+  }
+  if (saleFault === 'missing-ingredient') tables.inventory_items = [];
+  if (saleFault === 'inactive-ingredient') tables.inventory_items[0].active = false;
+  if (saleFault === 'negative-recipe') tables.product_recipes[0].qty_per_unit = -1;
+  if (saleFault === 'negative-price') tables.products[0].price = -1;
+  if (saleFault === 'invalid-stock') state.stock = 'NaN';
   const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 } });
+  context.setDefaultTimeout(10000);
   await context.addInitScript(({ owner, language }) => {
     localStorage.setItem('nexalvo.ui.language.v1', language);
     localStorage.setItem('nexalvo.supabase.session.v1', JSON.stringify({ accessToken: 'LOCAL_HTTP_SIMULATED_SESSION', expiresAt: Date.now() + 3600000, user: { id: owner, app_metadata: {} } }));
@@ -76,6 +93,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     const name = url.pathname.replace('/rest/v1/', '');
     if (request.method() === 'GET') {
       let rows = name === 'sales' ? state.sales : name === 'customers' ? state.customers
+        : name === 'purchase_orders' ? state.purchaseOrders : name === 'rpc/fn_read_purchase_order_items_secure' ? state.purchaseLines
         : name === 'rpc/fn_read_sale_items_secure' ? state.saleItems
         : name === 'rpc/fn_read_inventory_stock_secure' ? [{ id: '66666666-6666-4666-8666-666666666666', inventory_item_id: item, location_id: location, qty: state.stock, avg_cost_per_unit: 2 }]
         : tables[name] || [];
@@ -87,6 +105,22 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
       return reply(rows.slice(offset, offset + limit), 200, { 'content-range': `${rows.length ? `${offset}-${Math.min(offset + limit, rows.length) - 1}` : '*'}/${rows.length}` });
     }
     const body = request.postDataJSON();
+    if (name === 'rpc/fn_create_purchase_order' && request.method() === 'POST') {
+      assert.equal(body.p_business_id, business);
+      state.purchaseWrites.push(body);
+      const po = { id: randomUUID(), business_id: business, po_number: 30001, supplier_id: body.p_supplier_id, location_id: body.p_location_id,
+        order_date: body.p_order_date, expected_date: body.p_expected_date, status: body.p_status, payment_method: body.p_payment_method,
+        discount: body.p_discount, tax: body.p_tax, notes: body.p_notes };
+      state.purchaseOrders.push(po);
+      state.purchaseLines.push(...body.p_items.map(line => ({ ...line, id: randomUUID(), purchase_order_id: po.id, qty_ordered: line.qty, received_qty: 0 })));
+      return reply(po);
+    }
+    if (name === 'rpc/fn_add_initial_stock' && request.method() === 'POST' && initialStockUnknown) {
+      assert.equal(body.p_business_id, business);
+      state.initialStockWrites.push(body);
+      tables.inventory_items.push({ id: randomUUID(), business_id: business, name: body.p_name, unit: body.p_unit, active: true, created_at: now });
+      return reply({}, 504);
+    }
     if (name === 'rpc/fn_save_product' && request.method() === 'POST') {
       assert.equal(body.p_product_id, product); assert.equal(body.p_business_id, business);
       assert.equal(body.p_operation, 'upsert');
@@ -128,6 +162,97 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   await page.goto(local, { waitUntil: 'domcontentloaded' });
   await page.locator('main').waitFor();
   return { context, page, state, errors };
+}
+
+test('SIMULATED HTTP: inventory reorder preserves location and uses the purchase RPC', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ purchaseScenario: true });
+  try {
+    await page.getByText('Inventory', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Create Purchase', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    // Opening the shortcut must retain the ingredient's location rather than the first location.
+    assert.equal(await dialog.locator('select').nth(1).inputValue(), '33333333-3333-4333-8333-333333333333');
+    await dialog.getByRole('button', { name: 'Submit Order', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    assert.equal(state.purchaseWrites.length, 1);
+    const request = state.purchaseWrites[0];
+    assert.equal(request.p_location_id, '33333333-3333-4333-8333-333333333333');
+    assert.equal(request.p_supplier_id, '88888888-8888-4888-8888-888888888888');
+    assert.equal(request.p_items[0].inventory_item_id, '55555555-5555-4555-8555-555555555555');
+    assert.equal(state.stock, 1, 'creating an order must not receive stock');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByText('Purchases', { exact: true }).first().click();
+    await page.getByText(/^PO-30001 ·/).waitFor();
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP: purchase preview matches canonical costs, discount and tax after reload', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ purchaseScenario: true });
+  try {
+    await page.getByText('Purchases', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'New Purchase', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    assert.equal(await dialog.locator('select').first().inputValue(), '88888888-8888-4888-8888-888888888888');
+    assert.equal(await dialog.locator('select').last().inputValue(), '55555555-5555-4555-8555-555555555555');
+    const inputs = dialog.locator('input[type="number"]');
+    await inputs.nth(0).fill('3'); await inputs.nth(1).fill('1.234');
+    await inputs.nth(2).fill('0.005'); await inputs.nth(3).fill('0.004');
+    assert.match(await dialog.getByText('Subtotal', { exact: true }).locator('..').innerText(), /3[.,]69/);
+    assert.match(await dialog.getByText('Grand Total', { exact: true }).locator('..').innerText(), /3[.,]68/);
+    await dialog.getByRole('button', { name: 'Submit Order', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    assert.equal(state.purchaseWrites.length, 1);
+    const request = state.purchaseWrites[0];
+    assert.equal(request.p_items[0].unit_cost, 1.23);
+    assert.equal(request.p_discount, 0.01); assert.equal(request.p_tax, 0);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.getByText('Purchases', { exact: true }).first().click();
+    await page.getByText(/^PO-30001 ·/).click();
+    assert.match(await page.getByRole('dialog').getByText('Grand Total', { exact: true }).locator('..').innerText(), /3[.,]68/);
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP: unknown initial-stock creation freezes save and cannot replay after reopening', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ initialStockUnknown: true });
+  try {
+    await page.getByText('Inventory', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'New Item', exact: true }).click();
+    let dialog = page.getByRole('dialog');
+    await dialog.locator('input').first().fill('Unknown initial stock QA');
+    await dialog.getByRole('button', { name: 'Save Item', exact: true }).click();
+    assert.equal(await dialog.getByRole('button', { name: 'Refresh required', exact: true }).isDisabled(), true);
+    assert.equal(state.initialStockWrites.length, 1);
+    await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('button', { name: 'New Item', exact: true }).click();
+    dialog = page.getByRole('dialog');
+    await dialog.locator('input').first().fill('Another initial stock QA');
+    await dialog.getByRole('button', { name: 'Save Item', exact: true }).click();
+    assert.equal(await dialog.getByRole('button', { name: 'Refresh required', exact: true }).isDisabled(), true);
+    assert.equal(state.initialStockWrites.length, 1);
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
+
+for (const saleFault of ['missing-ingredient', 'inactive-ingredient', 'negative-recipe', 'negative-price', 'invalid-stock']) {
+  test(`SIMULATED HTTP: ${saleFault} blocks external payment before confirmation`, { timeout: 30000 }, async () => {
+    const { context, page, state, errors } = await isolated({ saleFault });
+    try {
+      await page.getByText('Sales', { exact: true }).first().click();
+      await page.getByRole('button', { name: 'New Sale', exact: true }).click();
+      await page.getByRole('button', { name: 'Add Bowl QA', exact: true }).click();
+      const dialog = page.getByRole('dialog');
+      await dialog.locator('select').filter({ has: page.locator('option[value="Credit Card"]') }).selectOption('Credit Card');
+      await dialog.getByRole('button', { name: /Record Card Payment/ }).click();
+      const message = saleFault === 'negative-price' ? 'Selling price must be a valid number, zero or greater.'
+        : saleFault === 'invalid-stock' ? 'Refresh inventory before taking payment.' : 'Check the product recipe before taking payment.';
+      await dialog.getByText(message, { exact: true }).waitFor();
+      assert.equal(await dialog.getByText('EXTERNAL CARD PAYMENT', { exact: true }).count(), 0);
+      assert.equal(state.saleAttempts.length, 0);
+      assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+    } finally { await context.close(); }
+  });
 }
 
 for (const loseSaleResponse of [false, true]) {

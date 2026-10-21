@@ -6294,12 +6294,14 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     if (!can("manageSales")) { setError("You don't have permission to create sales."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.product || l.product.active === false)) { setError("Add at least one active product."); return; }
     if (lineData.some((l) => !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Each sale item must have a quantity greater than zero."); return; }
+    if (lineData.some((l) => l.product.price === null || l.product.price === "" || !Number.isFinite(Number(l.product.price)) || Number(l.product.price) < 0)) { setError("Selling price must be a valid number, zero or greater."); return; }
     if (new Set(lineData.map((l) => l.productId)).size !== lineData.length) { setError("The same product can't appear more than once on a sale."); return; }
     if (!paymentMethod || !availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
     if (paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod)) { setError(STRIPE_TERMINAL_UNAVAILABLE); return; }
     if (!channel || !(settings.channels || []).includes(channel)) { setError("Select a valid sales channel."); return; }
     if (!locationId || !(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active sales location."); return; }
     if (!Number.isFinite(manualDiscount) || manualDiscount < 0 || !Number.isFinite(totalDiscount) || !Number.isFinite(taxAmt) || !Number.isFinite(total)) { setError("Discount and tax must be valid finite amounts."); return; }
+    if (settings.taxEnabled && (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100)) { setError("Tax rate must be between 0 and 100."); return; }
     if (totalDiscount > subtotal || total < 0) { setError("Discount can't make the sale total negative."); return; }
     // Cash payments require an active register at this location — this only applies to genuine
     // physical-cash sales. Card (including the future Stripe Terminal flow) and Zelle/Other are
@@ -6309,23 +6311,32 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       return;
     }
 
-    // check inventory sufficiency
+    // Reject stale or malformed recipes before any external payment confirmation. Allowing
+    // negative balances never permits a missing ingredient or invalid quantity.
     const deductions = {};
     for (const l of lineData) {
+      if (l.product.recipe != null && !Array.isArray(l.product.recipe)) { setError("Check the product recipe before taking payment."); return; }
+      const seenIngredients = new Set();
       for (const r of l.product.recipe || []) {
-        deductions[r.itemId] = (deductions[r.itemId] || 0) + r.qty * l.qty;
+        const ingredient = inventory.find((i) => i.id === r?.itemId && i.active !== false);
+        const needed = Number(r?.qty) * Number(l.qty);
+        if (!ingredient || !Number.isFinite(Number(r?.qty)) || Number(r.qty) <= 0 || !Number.isFinite(needed) || seenIngredients.has(r.itemId)) {
+          setError("Check the product recipe before taking payment."); return;
+        }
+        seenIngredients.add(r.itemId);
+        deductions[r.itemId] = (deductions[r.itemId] || 0) + needed;
+        if (!Number.isFinite(deductions[r.itemId])) { setError("Check the product recipe before taking payment."); return; }
       }
     }
-    if (!settings.allowNegativeInventory) {
-      for (const [itemId, needed] of Object.entries(deductions)) {
-        const inv = inventory.find((i) => i.id === itemId);
-        const availableQty = Array.isArray(inv?.stocks)
-          ? Number(inv.stocks.find((stock) => stock.locationId === locationId)?.qty || 0)
-          : Number(inv?.qty || 0);
-        if (inv && availableQty - needed < 0) {
-          setError(`Not enough stock: ${inv.name} (have ${availableQty} ${inv.unit}, need ${round2(needed)}).`);
-          return;
-        }
+    for (const [itemId, needed] of Object.entries(deductions)) {
+      const inv = inventory.find((i) => i.id === itemId);
+      const availableQty = Array.isArray(inv.stocks)
+        ? Number(inv.stocks.find((stock) => stock.locationId === locationId)?.qty ?? 0)
+        : Number(inv.qty ?? 0);
+      if (!Number.isFinite(availableQty)) { setError("Refresh inventory before taking payment."); return; }
+      if (!settings.allowNegativeInventory && availableQty - needed < 0) {
+        setError(`Not enough stock: ${inv.name} (have ${availableQty} ${inv.unit}, need ${round2(needed)}).`);
+        return;
       }
     }
 
@@ -6670,7 +6681,7 @@ function CashFlowView({ dark, cashTx, showToast }) {
 }
 
 /* ============================== INVENTORY ============================== */
-function InventoryView({ dark, inventory, setInventory, products, settings, suppliers, showToast, wasteTx, persistWaste, invTx, setInvTx, purchaseOrders, persistPO, employees, locations, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
+function InventoryView({ dark, inventory, setInventory, products, settings, suppliers, showToast, wasteTx, persistWaste, invTx, setInvTx, purchaseOrders, persistPO, purchaseOps, employees, locations, currentUser, can, auditLog, setAuditLog, inventoryOps }) {
   const { translateUI , interpolateUI } = useLanguage();
   const [tabMode, setTabMode] = useState("all");
   const [modal, setModal] = useState(null); // 'receive' | 'adjust' | 'waste' | 'new' | 'history' | null
@@ -6751,7 +6762,7 @@ function InventoryView({ dark, inventory, setInventory, products, settings, supp
                 <div className="font-semibold text-sm" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
                 <div className="text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Current")}{" "}{i.qty}{" "}{translateUI("· Recommended purchase")}{" "}{suggestedOrderQty(i)} {translateUI(i.unit)}</div>
               </div>
-              {can("managePurchases") && !inventoryOps?.remote && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setQuickPO(i)}>{translateUI("Create Purchase")}</GhostButton>}
+              {can("managePurchases") && (!inventoryOps?.remote || purchaseOps?.remote) && <GhostButton dark={dark} style={{ padding: "6px 10px", fontSize: 12, whiteSpace: "nowrap" }} onClick={() => setQuickPO(i)}>{translateUI("Create Purchase")}</GhostButton>}
             </div>
           ))}
         </Card>
@@ -6819,8 +6830,8 @@ function InventoryView({ dark, inventory, setInventory, products, settings, supp
 
       {quickPO && (
         <NewPurchaseModal dark={dark} onClose={() => setQuickPO(null)} inventory={inventory} suppliers={suppliers}
-          purchaseOrders={purchaseOrders} persistPO={persistPO} showToast={showToast} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog}
-          prefill={{ supplierId: quickPO.supplierId, items: [{ itemId: quickPO.id, qty: suggestedOrderQty(quickPO), unitCost: quickPO.costPerUnit }] }} />
+          purchaseOrders={purchaseOrders} persistPO={persistPO} purchaseOps={purchaseOps} locations={locations} showToast={showToast} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog}
+          prefill={{ supplierId: quickPO.supplierId, locationId: quickPO.locationId, items: [{ itemId: quickPO.id, qty: suggestedOrderQty(quickPO), unitCost: quickPO.costPerUnit }] }} />
       )}
     </div>
   );
@@ -6873,15 +6884,17 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
   const [minQty, setMinQty] = useState(0);
   const [maxQty, setMaxQty] = useState(0);
   const [costPerUnit, setCostPerUnit] = useState(0);
-  const [supplierId, setSupplierId] = useState(suppliers[0]?.id || "");
+  const [supplierId, setSupplierId] = useState(suppliers.find((supplier) => supplier.active !== false)?.id || "");
   const [locationId, setLocationId] = useState((locations || []).find((l) => l.active !== false)?.id || "");
   const [expiresAt, setExpiresAt] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
 
   const save = async () => {
-    if (submitting) return;
+    if (submitting || uncertain) return;
+    setError("");
     if (!can("adjustInventory")) { setError("You don't have permission to add inventory items."); return; }
     if (!name.trim()) { setError("Item name is required."); return; }
     // Reject invalid inputs rather than silently converting negative stock/cost to zero.
@@ -6893,6 +6906,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
     }
     if (!locationId) { setError("Select a storage location."); return; }
     if (!(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active storage location."); return; }
+    if (supplierId && !suppliers.some((supplier) => supplier.id === supplierId && supplier.active !== false)) { setError("Select an active supplier."); return; }
     const catalogValidation = validateInventoryCatalogDraft({ id: "new", name, sku, category, unit, minQty, maxQty, supplierId, expiresAt, notes, active: true }, { inventory });
     if (!catalogValidation.ok) { setError(catalogValidation.error); return; }
     setSubmitting(true);
@@ -6915,7 +6929,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
           // itself already committed — the item really exists. This must never be shown as
           // "create failed", or the user could be misled into creating a duplicate item.
           if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
-          else { setError(e?.message || "Could not create this item."); }
+          else { if (e?.commitUncertain) setUncertain(true); setError(e?.message || "Could not create this item."); }
         }
         return;
       }
@@ -6935,6 +6949,9 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
       await logAudit(auditLog, setAuditLog, currentUser, "Inventory Item Created", `${item.name} · starting qty ${item.qty} ${item.unit}`);
       showToast(`${item.name} added to inventory`);
       onClose();
+    } catch (e) {
+      if (e?.commitUncertain) setUncertain(true);
+      setError(e?.message || "Could not create this item.");
     } finally {
       setSubmitting(false);
     }
@@ -6971,7 +6988,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
       </Field>
       <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      <PrimaryButton full disabled={submitting} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : translateUI("Save Item")}</PrimaryButton>
+      <PrimaryButton full disabled={submitting || uncertain} onClick={save}><Check size={16} /> {submitting ? translateUI("Saving…") : uncertain ? translateUI("Refresh required") : translateUI("Save Item")}</PrimaryButton>
     </Modal>
   );
 }
@@ -7458,8 +7475,8 @@ function PurchasesView({ dark, inventory, setInventory, suppliers, purchaseOrder
 function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders, persistPO, purchaseOps, locations, currentUser, can, auditLog, setAuditLog, showToast, prefill }) {
   const { translateUI, language } = useLanguage();
   const availablePaymentMethods = useMemo(() => paymentMethodsForLanguage(["Net Terms", "Cash", "Credit Card", "Debit Card", "Zelle", "COD", "Other"], language), [language]);
-  const [supplierId, setSupplierId] = useState(prefill?.supplierId || suppliers[0]?.id || "");
-  const [locationId, setLocationId] = useState(prefill?.locationId || (locations || []).find((l) => l.active !== false)?.id || inventory.find((i) => i.locationId)?.locationId || "");
+  const [supplierId, setSupplierId] = useState(suppliers.find((s) => s.id === prefill?.supplierId && s.active !== false)?.id || suppliers.find((s) => s.active !== false)?.id || "");
+  const [locationId, setLocationId] = useState((locations || []).find((l) => l.id === prefill?.locationId && l.active !== false)?.id || (locations || []).find((l) => l.active !== false)?.id || "");
   const [orderDate, setOrderDate] = useState(todayStr());
   const [expectedDate, setExpectedDate] = useState(todayStr());
   const [paymentMethod, setPaymentMethod] = useState("Net Terms");
@@ -7467,13 +7484,13 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   const [discount, setDiscount] = useState("0");
   const [tax, setTax] = useState("0");
   const [items, setItems] = useState(
-    prefill?.items?.length ? prefill.items.map((it) => ({ itemId: it.itemId, qty: it.qty, unitCost: it.unitCost })) : [{ itemId: inventory[0]?.id || "", qty: 1, unitCost: inventory[0]?.costPerUnit || 0 }]
+    prefill?.items?.length ? prefill.items.map((it) => ({ itemId: it.itemId, qty: it.qty, unitCost: it.unitCost })) : [{ itemId: inventory.find((i) => i.active !== false)?.id || "", qty: 1, unitCost: inventory.find((i) => i.active !== false)?.costPerUnit || 0 }]
   );
   // Inventory can finish loading after this modal mounts. React useState's initializer
   // does not run again, so populate only genuinely blank product selections once
   // the first inventory item is available. Never replace an explicit selection.
   useEffect(() => {
-    const first = inventory[0];
+    const first = inventory.find((i) => i.active !== false);
     if (!first) return;
     setItems(previous => {
       if (!previous.some(it => !it.itemId)) return previous;
@@ -7482,6 +7499,8 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
         : it);
     });
   }, [inventory]);
+  useEffect(() => { setSupplierId((id) => id || suppliers.find((s) => s.active !== false)?.id || ""); }, [suppliers]);
+  useEffect(() => { setLocationId((id) => id || (locations || []).find((l) => l.active !== false)?.id || ""); }, [locations]);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uncertain, setUncertain] = useState(false);
@@ -7489,18 +7508,23 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
   const requestIdRef = useRef(newDbId());
   useEffect(() => { if (!submitting && !availablePaymentMethods.includes(paymentMethod)) setPaymentMethod(availablePaymentMethods[0] || "Other"); }, [availablePaymentMethods, paymentMethod, submitting]);
 
-  const addItem = () => setItems([...items, { itemId: inventory[0]?.id || "", qty: 1, unitCost: inventory[0]?.costPerUnit || 0 }]);
+  const addItem = () => {
+    const first = inventory.find((i) => i.active !== false);
+    setItems([...items, { itemId: first?.id || "", qty: 1, unitCost: first?.costPerUnit || 0 }]);
+  };
   const updateItem = (idx, patch) => setItems(items.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
   const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
 
   const lineData = items.map((it) => {
     const qty = Number(it.qty);
-    const unitCost = Number(it.unitCost);
-    return { ...it, item: inventory.find((i) => i.id === it.itemId), lineTotal: Number.isFinite(qty) && Number.isFinite(unitCost) ? round2(qty * unitCost) : NaN };
+    // Preview the same two-decimal unit cost sent to both persistence paths. Rounding only
+    // after multiplication showed 3 x 1.234 as 3.70, while the saved 1.23 cost yielded 3.69.
+    const roundedUnitCost = round2(Number(it.unitCost));
+    return { ...it, item: inventory.find((i) => i.id === it.itemId), roundedUnitCost, lineTotal: Number.isFinite(qty) && Number.isFinite(roundedUnitCost) ? round2(qty * roundedUnitCost) : NaN };
   });
   const subtotal = round2(lineData.reduce((a, l) => a + l.lineTotal, 0));
-  const discountNumber = Number(discount);
-  const taxNumber = Number(tax);
+  const discountNumber = round2(Number(discount));
+  const taxNumber = round2(Number(tax));
   const grandTotal = Number.isFinite(subtotal) && Number.isFinite(discountNumber) && Number.isFinite(taxNumber) ? round2(subtotal - discountNumber + taxNumber) : NaN;
 
   const submit = async (status) => {
@@ -7524,7 +7548,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
         try {
           await purchaseOps.create({ requestId: requestIdRef.current, supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
             discount: discountNumber, tax: taxNumber,
-            items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)) })) });
+            items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: l.roundedUnitCost })) });
           showToast(`Purchase order created · ${fmtMoney(grandTotal)}`);
           onClose();
         } catch (e) {
@@ -7544,7 +7568,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
       const po = {
         id: uid("po"), poNumber, supplierId, orderDate: parseLocalDate(orderDate).toISOString(), expectedDate: parseLocalDate(expectedDate).toISOString(),
         status, paymentMethod, notes: notes.trim(), amountPaid: 0, discount: discountNumber, tax: taxNumber, createdBy: currentUser?.id,
-        items: lineData.map((l) => ({ id: uid("poi"), itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: round2(Number(l.unitCost)), receivedQty: 0 })),
+        items: lineData.map((l) => ({ id: uid("poi"), itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: l.roundedUnitCost, receivedQty: 0 })),
       };
       await persistPO([po, ...purchaseOrders]);
       await logAudit(auditLog, setAuditLog, currentUser, "Purchase Order Created", `${poNumber} · ${suppliers.find((s) => s.id === supplierId)?.name || ""} · ${fmtMoney(grandTotal)}`);
@@ -7592,7 +7616,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
             </div>
             <div className="w-20"><Input dark={dark} type="number" min="0.01" step="0.01" value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} /></div>
             <div className="w-24"><Input dark={dark} type="number" min="0" step="0.01" value={it.unitCost} onChange={(e) => updateItem(idx, { unitCost: e.target.value })} /></div>
-            <div className="w-16 text-xs text-right font-semibold pb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{invItem && Number.isFinite(Number(it.qty)) && Number.isFinite(Number(it.unitCost)) ? fmtMoney(Number(it.qty) * Number(it.unitCost)) : "—"}</div>
+            <div className="w-16 text-xs text-right font-semibold pb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{invItem && Number.isFinite(lineData[idx]?.lineTotal) ? fmtMoney(lineData[idx].lineTotal) : "—"}</div>
             {items.length > 1 && (
               <button onClick={() => removeItem(idx)} className="mb-0 w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "#3A0F1E" }}>
                 <Trash2 size={14} color="#FF6B85" />
@@ -7609,6 +7633,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
       </div>
       <Field dark={dark} label={translateUI("Notes")}><TextArea dark={dark} value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
 
+      <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Unit costs, discount and tax are rounded to two decimal places before totals are calculated.")}</div>
       <div className="rounded-2xl p-3 mb-4" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
         <Row dark={dark} label={translateUI("Subtotal")} value={fmtMoney(subtotal)} />
         <Row dark={dark} label={translateUI("Discount")} value={Number.isFinite(discountNumber) ? `-${fmtMoney(discountNumber)}` : "—"} />
