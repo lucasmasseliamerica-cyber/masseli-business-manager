@@ -82,7 +82,13 @@ function Assert-QaSalePrivateAcl {
         $isDirectory = $path -eq $Directory
         $code = if ($isDirectory) { 'PRIVATE_DIRECTORY_ACL_UNSAFE' } else { 'PRIVATE_CHECKPOINT_ACL_UNSAFE' }
         $acl = Get-Acl -LiteralPath $path -ErrorAction Stop
-        if ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $identity.User.Value -or ($isDirectory -and -not $acl.AreAccessRulesProtected)) { Stop-QaSaleLauncher $code }
+        $owner=$acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
+        $ownedByCurrentIdentity=$owner -eq $identity.User.Value
+        # Files created by an elevated Windows token can use its default owner (Administrators).
+        # Accept only that token owner, inside the protected user-only parent; ACL rules below
+        # still allow access exclusively to the current user. No existing ACL is rewritten.
+        if (-not $isDirectory -and $null -ne $identity.Owner) { $ownedByCurrentIdentity=$ownedByCurrentIdentity -or $owner -eq $identity.Owner.Value }
+        if (-not $ownedByCurrentIdentity -or ($isDirectory -and -not $acl.AreAccessRulesProtected)) { Stop-QaSaleLauncher $code }
         $fullControl = $false
         foreach ($rule in $acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])) {
             if ($rule.AccessControlType -ne [Security.AccessControl.AccessControlType]::Allow -or $rule.IdentityReference.Value -ne $identity.User.Value) { Stop-QaSaleLauncher $code }

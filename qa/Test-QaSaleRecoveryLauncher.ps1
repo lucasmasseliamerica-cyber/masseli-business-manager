@@ -113,12 +113,13 @@ try {
         Assert-Test ((Get-Acl -LiteralPath $checkpoint).Sddl -eq $unsafeAcl -and (Get-FileHash -LiteralPath $checkpoint -Algorithm SHA256).Hash -eq $originalHash)
         [void]$acl.RemoveAccessRuleSpecific($rule); Set-Acl -LiteralPath $checkpoint -AclObject $acl
     }
-    Invoke-Case 'unclassified path errors return fixed stage codes before credential prompts' {
+    Invoke-Case 'invalid checkpoint filename returns a fixed path code before credential prompts' {
         $savedCheckpoint=$checkpoint
-        $checkpoint=Join-Path $private 'missing-checkpoint.json'
+        $checkpoint=Join-Path $private 'misnamed-checkpoint.json'
+        [IO.File]::WriteAllText($checkpoint,'{}')
         try {
             $result=Invoke-Validation
-            Assert-Test ($result.ExitCode -eq 2 -and $result.Report.code -eq 'WINDOWS_SALE_PRIVATE_PATH_BLOCKED' -and $result.Report.stage -eq 'PRIVATE_PATH')
+            Assert-Test ($result.ExitCode -eq 2 -and $result.Report.code -eq 'RECOVERY_CHECKPOINT_REQUIRED' -and $result.Report.stage -eq 'PRIVATE_PATH')
         } finally { $checkpoint=$savedCheckpoint }
         Assert-Test ((Get-FileHash -LiteralPath $checkpoint -Algorithm SHA256).Hash -eq $originalHash)
     }
