@@ -1,0 +1,35 @@
+{
+  "evidence_kind": "LOCAL_REGRESSION_NOT_OPERATIONAL_HOMOLOGATION",
+  "date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref": "msinksoilkluooxenecy",
+  "local_tests": {
+    "command": "node --test --test-reporter=tap qa/sale-journey-guards.test.mjs qa/operational-p0-regression.test.mjs",
+    "passed": 41,
+    "failed": 0,
+    "skipped": 0
+  },
+  "build": "PASS",
+  "powershell_7_4_6_linux": {
+    "parsed_files": 3,
+    "parse_errors": 0,
+    "unclassified_exception_sanitization": "PASS",
+    "fixed_guard_code_preserved": "PASS",
+    "native_stderr_discarded_exit_7_preserved": "PASS",
+    "duplicate_path_resolution_reproduced_then_corrected": "PASS",
+    "non_windows_launcher_fixed_platform_guard": "PASS",
+    "utf8_lf_tap_serialization": "PASS"
+  },
+  "git_diff_check": "PASS",
+  "secret_pattern_scan": {
+    "scope": "changed_code_and_workflow",
+    "hits": 0
+  },
+  "native_windows_evidence": "SEPARATE_GITHUB_ACTIONS_REPORT_REQUIRED",
+  "original_windows_checkpoint_accessed": false,
+  "supabase_business_writes": 0,
+  "new_sales": 0,
+  "new_reversals": 0,
+  "b_real_journey": "BLOCKED_PENDING_ORIGINAL_CHECKPOINT_READONLY_RECOVERY_AND_ALL_CRITERIA",
+  "note": "Linux parser/helper results are not native Windows ACL or operational B approval. The user-reported original pre-credential exception is not reproduced against the original Windows directory in this session."
+}

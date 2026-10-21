@@ -1,5 +1,10 @@
 # B-Jornada #1253 — auditoria e recuperação somente leitura
 
+O inicializador Windows foi revisado depois desta correção. Usar o
+[procedimento vigente com diagnóstico seguro](./QA_B_WINDOWS_LAUNCHER_20261021.md), código
+`032fa87fcbb79863da4c043a4008e45ac90d15b6`. A CI #196 abaixo documenta a correção das auditorias;
+a validação do launcher atualizado está registrada no novo relatório.
+
 Somente branch `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`.
 Código validado: **`65029918238f2e51200addef9963797c5a998e5d`**.
 [CI #196](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39618474475): **658/658 PASS**, zero falhas/skips nos testes executados;
@@ -72,7 +77,7 @@ Após CI aprovada, árvore limpa e reserva da janela exclusiva:
 
 ```powershell
 Set-Location 'C:\Users\lucas\Documents\NEXALVO-P005-ISOLATED'
-$validatedSha = '65029918238f2e51200addef9963797c5a998e5d'
+$validatedSha = '032fa87fcbb79863da4c043a4008e45ac90d15b6'
 $recoveryFile = Read-Host 'Caminho privado do sale-recovery.json ORIGINAL da venda #1253'
 $beforeHash = (Get-FileHash -LiteralPath $recoveryFile -Algorithm SHA256).Hash
 .\qa\Invoke-QaSaleJourney.ps1 -ValidatedCodeSha $validatedSha `

@@ -1,5 +1,29 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Atualização vigente — inicializador Windows de #1253 (21/10/2026)
+
+[Diagnóstico seguro e comando exclusivo ReadOnlyRecovery](./QA_B_WINDOWS_LAUNCHER_20261021.md).
+Código do pacote: **`032fa87fcbb79863da4c043a4008e45ac90d15b6`**.
+[CI #202](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262):
+**680/680 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes
+BLOCKED/ignorados pelo gate**. [Evidência da CI](./evidence/sale-b-windows-launcher-ci-202-20261021.json).
+PowerShell 5.1: 11/11 PASS; PowerShell 7: 11/11 PASS, exclusivamente arquivos sintéticos.
+41/41 regressões locais e build PASS. Recuperação não instala navegadores/npm nem reaplica ACLs
+na pasta existente. Guards de caminho literal/TEMP/reparse point, ACL exclusiva, snapshot,
+credenciais ocultas, projeto TEST e hash antes/depois preservados. Exceções retornam somente
+códigos/etapas fixos. ValidateLauncherOnly testa localmente sem credenciais nem Supabase.
+
+- [x] Regressão nativa Windows 5.1/7 com pasta preexistente, ACLs/bytes preservados e mutex liberado.
+- [x] Bloqueio de ACLs inseguras e caminhos inválidos, sem credenciais ou correção automática de ACL.
+- [ ] Inspeção somente leitura do checkpoint original #1253 no notebook, ainda não executada nesta sessão.
+- [ ] Homologação B integral: conferir todos os 17 critérios e evidências originais.
+
+Nenhuma nova venda, reversão, escrita de negócio no TEST ou alteração do checkpoint original.
+O bloqueio inicial do notebook não foi reproduzido contra sua pasta real; os novos códigos permitem
+identificar a etapa sem expor detalhes. CI/mocks não promovem B a PASS. Matriz macro preservada:
+**14/60 (23,33%)**, 15 pendentes e 31 bloqueados. Não repetir venda/estorno ou usar SHA anterior
+para executar o launcher atualizado. Procedimentos de nova jornada abaixo são históricos.
+
 ## Atualização vigente — recuperar #1253 somente por leitura (21/10/2026)
 
 [Auditorias corrigidas e comando de recuperação](./QA_B_AUDIT_RECOVERY_20261021.md).

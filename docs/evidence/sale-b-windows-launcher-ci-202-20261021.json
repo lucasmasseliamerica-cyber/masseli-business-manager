@@ -1,0 +1,126 @@
+{
+  "evidence_kind": "REAL_GITHUB_ACTIONS_PUBLIC_SUMMARY_AND_NATIVE_WINDOWS_STEPS",
+  "date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "run": 202,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262",
+  "validated_code_sha": "032fa87fcbb79863da4c043a4008e45ac90d15b6",
+  "status": "PASS_EXECUTED_SCOPE",
+  "tests": {
+    "passed": 680,
+    "total": 680,
+    "failed": 0,
+    "skipped": 0
+  },
+  "jobs": [
+    {
+      "name": "build-and-security",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119344656197"
+    },
+    {
+      "name": "windows-sale-launcher",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119344656017"
+    },
+    {
+      "name": "test-api-smoke",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345051088"
+    },
+    {
+      "name": "authenticated-preflight",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345205445"
+    },
+    {
+      "name": "authenticated-concurrency",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345356174"
+    },
+    {
+      "name": "access-regression",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345352422"
+    },
+    {
+      "name": "auth-lifecycle",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345352303"
+    },
+    {
+      "name": "replay-financial",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345355114"
+    },
+    {
+      "name": "network-after-commit",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345354163"
+    },
+    {
+      "name": "browser-smoke",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345352287"
+    },
+    {
+      "name": "performance-read",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345352582"
+    },
+    {
+      "name": "two-tenant-concurrency",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345354717"
+    },
+    {
+      "name": "qa-summary",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39635483262/job/119345963229"
+    }
+  ],
+  "native_windows": {
+    "fixture": "SYNTHETIC_TEMP_ONLY_NOT_ORIGINAL_CHECKPOINT",
+    "test_cases_per_engine_in_successful_suite": 11,
+    "steps": [
+      {
+        "name": "Native Windows PowerShell 5.1 recovery launcher regression",
+        "status": "PASS"
+      },
+      {
+        "name": "Native PowerShell 7 recovery launcher regression",
+        "status": "PASS"
+      }
+    ],
+    "credentials_required": false,
+    "supabase_requests": 0,
+    "existing_directory_acl_checkpoint_bytes_preserved": "PASS",
+    "unsafe_directory_or_checkpoint_acl_blocked_without_rewrite": "PASS",
+    "mutex_released_between_repeated_validations": "PASS",
+    "literal_paths_and_junction_rejection": "PASS",
+    "errors_sanitized_by_fixed_codes": "PASS"
+  },
+  "persistent_groups_blocked": 4,
+  "prior_attempts": [
+    {
+      "run": 199,
+      "status": "FAIL",
+      "issue": "Native executable resolution and test assertions; TAP root format invalid"
+    },
+    {
+      "run": 200,
+      "status": "FAIL",
+      "issue": "Elevated token checkpoint ownership and invalid-path test; TAP root format invalid"
+    },
+    {
+      "run": 201,
+      "status": "FAIL",
+      "native_windows_steps": "PASS",
+      "issue": "CRLF TAP rejected by strict Linux root summary parser"
+    }
+  ],
+  "original_windows_checkpoint_accessed": false,
+  "new_sales_or_reversals_executed": false,
+  "b_journey_operational_homologation": "BLOCKED",
+  "note": "Four persistent-flow jobs were skipped/BLOCKED, not approved. Native Windows regressions use synthetic files and prove launcher behavior, not the real sale 1253 recovery or the 17 original B acceptance criteria."
+}
