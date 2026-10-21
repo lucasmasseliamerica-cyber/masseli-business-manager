@@ -35,7 +35,8 @@ function ConvertTo-QaSaleLauncherFailure {
 }
 function Invoke-QaSaleNative {
     param([string]$FilePath, [string[]]$Arguments, [AllowNull()][string]$InputText)
-    $application = Get-Command -Name $FilePath -CommandType Application -ErrorAction Stop
+    # PATH can resolve git/node more than once on Windows; invoke one application, never an array.
+    $application = Get-Command -Name $FilePath -CommandType Application -ErrorAction Stop | Select-Object -First 1
     $savedPreference = $ErrorActionPreference
     try {
         # PS 5.1 converts native stderr to NativeCommandError; discard it and classify exit codes.

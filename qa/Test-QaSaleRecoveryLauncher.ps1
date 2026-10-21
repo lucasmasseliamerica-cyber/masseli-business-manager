@@ -50,7 +50,7 @@ try {
         $exception.Data['QaSaleGuardCode']='SYNTHETIC_SECRET'
         $failure=ConvertTo-QaSaleLauncherFailure -Exception $exception -Stage PRIVATE_ACL
         Assert-Test ($failure.code -eq 'WINDOWS_SALE_PRIVATE_ACL_BLOCKED' -and $failure.stage -eq 'PRIVATE_ACL')
-        Assert-Test (-not (($failure | ConvertTo-Json -Compress) -match 'private|example\.invalid|Bearer|SYNTHETIC_SECRET'))
+        Assert-Test (-not (($failure | ConvertTo-Json -Compress) -match 'C:\\private\\|example\.invalid|Bearer|SYNTHETIC_SECRET'))
     }
     Invoke-Case 'recovery path is literal normalized and constrained by a directory boundary' {
         Assert-Test ((Resolve-QaSaleRecoveryDirectory -RecoveryFile $checkpoint -TempRoot $suite) -eq $private)
@@ -68,6 +68,17 @@ try {
         [IO.File]::WriteAllText($errorScript,"[Console]::Error.WriteLine('person@example.invalid Bearer SYNTHETIC_SECRET'); exit 7")
         $result=Invoke-QaSaleNative -FilePath $engine -Arguments @('-NoProfile','-NonInteractive','-File',$errorScript)
         Assert-Test ($result.ExitCode -eq 7 -and $result.Output.Count -eq 0)
+    }
+    Invoke-Case 'duplicate PATH applications resolve to one executable without raw errors' {
+        $savedPath=$env:PATH
+        try {
+            $node=Get-Command node -CommandType Application | Select-Object -First 1
+            $nodeDirectory=Split-Path $node.Source -Parent
+            $env:PATH=$nodeDirectory+[IO.Path]::PathSeparator+$nodeDirectory+[IO.Path]::PathSeparator+$savedPath
+            Assert-Test (@(Get-Command node -CommandType Application).Count -gt 1)
+            $result=Invoke-QaSaleNative node @('-p','parseInt(process.versions.node)')
+            Assert-Test ($result.ExitCode -eq 0 -and [int]($result.Output -join '') -ge 22)
+        } finally { $env:PATH=$savedPath }
     }
     Invoke-Case 'existing private checkpoint validates without browser installation credentials or network' {
         $beforeDependencies=Test-Path -LiteralPath (Join-Path (Split-Path $PSScriptRoot -Parent) 'node_modules/playwright')
@@ -113,14 +124,20 @@ try {
     }
     Invoke-Case 'junction recovery directory is rejected without touching the target' {
         $junction=Join-Path $suite 'nexalvo-sale-junction'
-        [void](New-Item -ItemType Junction -Path $junction -Target $private)
+        $target=Join-Path $suite 'nexalvo-sale-junction-target'
+        [void][IO.Directory]::CreateDirectory($target)
+        $targetFile=Join-Path $target 'sale-recovery.json'; [IO.File]::WriteAllText($targetFile,'{}')
+        $targetHash=(Get-FileHash -LiteralPath $targetFile -Algorithm SHA256).Hash
+        $script:lastCode='JUNCTION_SETUP'
+        [void](New-Item -ItemType Junction -Path $junction -Target $target)
         try {
             $denied=$false
             try { [void](Resolve-QaSaleRecoveryDirectory -RecoveryFile (Join-Path $junction 'sale-recovery.json') -TempRoot $suite) }
-            catch { $denied=(ConvertTo-QaSaleLauncherFailure -Exception $_.Exception -Stage PRIVATE_PATH).code -eq 'PRIVATE_REPARSE_POINT_FORBIDDEN' }
+            catch { $script:lastCode=(ConvertTo-QaSaleLauncherFailure -Exception $_.Exception -Stage PRIVATE_PATH).code; $denied=$script:lastCode -eq 'PRIVATE_REPARSE_POINT_FORBIDDEN' }
             Assert-Test $denied
+            Assert-Test ((Get-FileHash -LiteralPath $targetFile -Algorithm SHA256).Hash -eq $targetHash)
             Assert-Test ((Get-FileHash -LiteralPath $checkpoint -Algorithm SHA256).Hash -eq $originalHash)
-        } finally { [IO.Directory]::Delete($junction) }
+        } finally { $script:lastCode='JUNCTION_CLEANUP'; [IO.Directory]::Delete($junction) }
     }
 } finally { [IO.Directory]::Delete($suite,$true) }
 $script:tap.Add("1..$script:number"); $script:tap.Add("# tests $script:number"); $script:tap.Add("# pass $($script:number-$script:failed)")
