@@ -104,7 +104,7 @@ Arquivos: `qa/Invoke-QaPhotoJourney.ps1`, `qa/photo-journey.TEST.mjs`,
    de comandos, argumentos, arquivos, logs, Git, traces ou estado de browser exportado.
 3. Não utiliza credencial administrativa para autenticar usuários. Confirma Auth/perfil ativo,
    OWNER A/B fixos, contexto de empresa, `manageRecipesAndCosts` e leitura cruzada negada.
-4. Só aceita a fixture `ZZ_QA_PHOTO_CATALOG_20261009_AUTO`, única na empresa A e com estado
+4. Só aceita a fixture `ZZ_QA_PHOTO_CATALOG_20261021_EXCLUSIVE`, única na empresa A e com estado
    `active` booleano preservado (inclusive `false`), com foto
    originalmente **NULL**, pasta vazia, sem receita, itens de venda ou eventos prévios de atualização
    desse produto. Foto/histórico existente gera BLOCKED; não limpar para forçar um preflight verde.

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 export const PHOTO_HOST = 'msinksoilkluooxenecy.supabase.co';
 export const PHOTO_BUCKET = 'nexalvo-product-images';
-export const PHOTO_FIXTURE = 'ZZ_QA_PHOTO_CATALOG_20261009_AUTO';
+export const PHOTO_FIXTURE = 'ZZ_QA_PHOTO_CATALOG_20261021_EXCLUSIVE';
 export const PHOTO_ACTORS = Object.freeze({
   A: { business: 'd627563b-2ce4-491d-8cf6-141ef28d0f63', owner: 'f37e9907-47c4-48bf-94b7-9a6fa5de1f88' },
   B: { business: '3849b750-20f7-4929-8699-737a4e1983c8', owner: '88eddcda-d8b5-4474-b5d7-19860dd97fba' },
