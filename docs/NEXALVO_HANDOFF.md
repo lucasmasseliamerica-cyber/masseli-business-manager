@@ -2,6 +2,13 @@
 
 ## Estado vigente — A real confirmada; B autorizada e preparada (21/10/2026)
 
+Código B publicado: **`7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9`** (inclui `9c3184c`).
+[CI #193](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39600731619):
+**646/646 PASS, 0 FAIL, 0 SKIPPED nos testes; 8 jobs PASS, 4 grupos persistentes BLOCKED**.
+CI #192 no pacote inicial: 645/645 PASS. Correção adicional impede compensação em falha dos
+modos somente leitura; 11/11 guards B, 64/64 outros P0, 2/2 PostgreSQL descartável e 19/19
+browser HTTP simulado PASS. Build PASS. Não tratar os mocks como homologação B real.
+
 Ler [B-Jornada: executor e procedimento seguro](./QA_B_JORNADA_20261021.md).
 QA sincronizada por fast-forward para `ea19a2a1a5f7be5a9e309f27dac0b28057098c8e`, preservando
 os commits anteriores. O usuário confirmou A `REAL_PHOTO_JOURNEY_RESTORED`, dois uploads,

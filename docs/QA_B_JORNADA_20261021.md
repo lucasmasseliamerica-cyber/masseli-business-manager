@@ -3,6 +3,22 @@
 Estado: **PREPARAÇÃO VALIDADA LOCALMENTE; HOMOLOGAÇÃO REAL BLOCKED**. Somente
 `automation/nexalvo-qa-actions` e projeto `msinksoilkluooxenecy`.
 
+## Entrega publicada e CI observada
+
+- Pacote: `9c3184c05dcaa27076f569f501d91066bab4c151`, [CI #192](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39600443774), **645/645 PASS**.
+- Correção obrigatória de inspeção sem compensação: **`7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9`**,
+  [CI #193](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39600731619), **646/646 PASS**.
+- Cada execução: **8 jobs PASS, 4 grupos persistentes BLOCKED/ignorados pelo gate**. Testes
+  executados: zero falhas/skips. Não são 12/12 jobs aprovados.
+- Build/segurança, API, preflight autenticado existente, acesso, sessão, browser, performance e
+  agregador PASS. O preflight existente não atesta a fixture/catálogo específicos da B-Jornada.
+- [Evidência agregada da CI](./evidence/sale-b-ci-193-20261021.json) e
+  [evidência local](./evidence/sale-b-journey-preparation-20261021.json).
+
+Usar o SHA completo **7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9** em `ValidatedCodeSha`.
+Commit posterior exclusivamente documental não invalida essa referência; qualquer mudança posterior
+fora de `docs/` exige nova validação. Nenhum push com force, mudança em main/produção ou escrita B.
+
 ## Autorização e evidência anterior
 
 O proprietário autorizou expressamente uma venda fictícia, quantidade 1, total até **USD 1**,
@@ -74,7 +90,7 @@ Somente empresa USD é aceita; não há conversão cambial implícita. Um candid
 
 ```powershell
 Set-Location 'C:\Users\lucas\Documents\NEXALVO-P005-ISOLATED'
-$validatedSha = Read-Host 'SHA completo do código B aprovado na CI (40 caracteres)'
+$validatedSha = '7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9'
 $productId = Read-Host 'UUID do produto QA elegível'
 $locationId = Read-Host 'UUID da unidade QA reservada'
 $catalogFile = Join-Path $env:TEMP 'nexalvo-b-catalog.json'
@@ -144,5 +160,5 @@ Nenhuma escrita TEST foi realizada antes ou depois dessa correção.
 
 Resultados locais: 11/11 guards B, 2/2 SQL em PostgreSQL descartável, 64/64 outras regressões P0 e
 19/19 cenários de navegador com HTTP simulado; build PASS. Esses quatro conjuntos são distintos nesta entrega. Não são gravações/homologação Supabase B.
-CI, SHA publicado e evidência final serão registrados no handoff após a execução observada.
+CI e SHA de código aprovado estão registrados no início deste relatório e no handoff.
 Próxima prioridade: catálogo atual + preflight seguro no Windows, depois a única jornada B autorizada.

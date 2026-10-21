@@ -1,0 +1,65 @@
+{
+  "evidence_kind": "REAL_GITHUB_ACTIONS_PUBLIC_SUMMARY",
+  "observed_date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "runs": [
+    {
+      "number": 192,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39600443774",
+      "commit": "9c3184c05dcaa27076f569f501d91066bab4c151",
+      "status": "PASS_EXECUTED_SCOPE",
+      "tests": {
+        "passed": 645,
+        "total": 645,
+        "failed": 0,
+        "skipped": 0
+      },
+      "jobs": {
+        "build-and-security": "PASS",
+        "test-api-smoke": "PASS",
+        "authenticated-preflight": "PASS",
+        "authenticated-concurrency": "BLOCKED",
+        "access-regression": "PASS",
+        "auth-lifecycle": "PASS",
+        "replay-financial": "BLOCKED",
+        "network-after-commit": "BLOCKED",
+        "browser-smoke": "PASS",
+        "performance-read": "PASS",
+        "two-tenant-concurrency": "BLOCKED",
+        "qa-summary": "PASS"
+      },
+      "persistent_groups_blocked": 4
+    },
+    {
+      "number": 193,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39600731619",
+      "commit": "7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9",
+      "status": "PASS_EXECUTED_SCOPE",
+      "tests": {
+        "passed": 646,
+        "total": 646,
+        "failed": 0,
+        "skipped": 0
+      },
+      "jobs": {
+        "build-and-security": "PASS",
+        "test-api-smoke": "PASS",
+        "authenticated-preflight": "PASS",
+        "authenticated-concurrency": "BLOCKED",
+        "access-regression": "PASS",
+        "auth-lifecycle": "PASS",
+        "replay-financial": "BLOCKED",
+        "network-after-commit": "BLOCKED",
+        "browser-smoke": "PASS",
+        "performance-read": "PASS",
+        "two-tenant-concurrency": "BLOCKED",
+        "qa-summary": "PASS"
+      },
+      "persistent_groups_blocked": 4
+    }
+  ],
+  "b_journey_persistent_execution": false,
+  "b_fixture_preflight_executed": false,
+  "windows_native_validation": false,
+  "note": "Existing authenticated CI preflight PASS is not a B fixture/catalog attestation. Four gated persistent jobs were skipped/BLOCKED, never approved."
+}

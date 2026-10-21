@@ -2,6 +2,12 @@
 
 ## Estado vigente — A real confirmada; B autorizada e preparada (21/10/2026)
 
+Código B publicado: `7b33a0bc22713bcaef0bcfaf04bf44d9fbae01d9` (inclui `9c3184c`).
+[CI #193](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39600731619):
+**646/646 PASS**, zero falhas/skips nos testes executados; **8 jobs PASS, 4 grupos persistentes BLOCKED**.
+A correção de erro em modo somente leitura está incluída e coberta por regressão com zero chamadas
+de compensação. CI não comprova venda B persistente nem validação nativa do novo PowerShell.
+
 Ler [B-Jornada: executor e procedimento seguro](./QA_B_JORNADA_20261021.md).
 QA sincronizada por fast-forward para `ea19a2a1a5f7be5a9e309f27dac0b28057098c8e`, preservando
 os commits anteriores. O usuário confirmou A `REAL_PHOTO_JOURNEY_RESTORED`, dois uploads,
