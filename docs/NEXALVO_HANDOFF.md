@@ -1,5 +1,18 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Atualização vigente — configurações ativas B corrigidas (21/10/2026)
+
+[Correção e comando Windows de preflight](./QA_B_SETTINGS_CONTRACT_20261021.md).
+Código validado **`c515d8a4fb47570821db81913f0342bc3c14b9dc`**. [CI #195](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39608013041):
+**652/652 PASS**, zero falhas/skips nos testes executados; **8 jobs PASS, 4 grupos persistentes BLOCKED**.
+[Evidência real](./evidence/sale-b-ci-195-20261021.json).
+O bloqueio real informado pelo usuário foi reproduzido e corrigido: `payment_method` e `channel`
+singulares, `active === true`, Other obrigatório e canal existente válido. REST inclui/filtra active.
+19/19 regressões B e build PASS. Fixture e catálogo já preparados: repetir **somente o preflight
+Windows autenticado**, sem recriar fixture/export SQL, mantendo todos os gates e sua validade.
+Nenhuma venda ou alteração de dados TEST nesta correção; cobertura real permanece 14/60 (23,33%).
+As referências e comandos de entregas anteriores abaixo são históricos; usar o novo SHA acima.
+
 ## Atualização vigente — helpers reconciliados após cutover (21/10/2026)
 
 Código aprovado: **`5f9d5aad2ec826c75072f96721cc9a3ab054a707`**. [CI #194](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39605307683):

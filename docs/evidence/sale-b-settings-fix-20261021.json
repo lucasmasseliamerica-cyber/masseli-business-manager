@@ -1,0 +1,43 @@
+{
+  "scope": "B_SETTINGS_CONTRACT_FIX",
+  "date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "code_sha": "c515d8a4fb47570821db81913f0342bc3c14b9dc",
+  "status": "PASS_LOCAL_REAL_PREFLIGHT_PENDING",
+  "reported_real_windows_status": "BLOCKED_EXISTING_OTHER_PAYMENT_AND_CHANNEL_REQUIRED",
+  "root_cause": "PLURAL_LIST_TYPES_AND_MISSING_ACTIVE_PROJECTION",
+  "correct_types": [
+    "payment_method",
+    "channel"
+  ],
+  "required_active": true,
+  "required_payment": "Other",
+  "empty_or_non_string_channel_rejected": true,
+  "active_checked_in_rest_and_core": true,
+  "local_results": {
+    "before": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 1,
+      "skipped": 0
+    },
+    "after": {
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "build": "PASS",
+  "current_catalog_reported_ready_by_user": true,
+  "fixture_reported_ready_by_user": true,
+  "new_catalog_export_requested": false,
+  "real_preflight_reexecuted_by_this_session": false,
+  "supabase_business_writes": 0,
+  "b_sales_executed": 0,
+  "migrations_applied": false,
+  "fingerprints_changed": false,
+  "operational_completed": 14,
+  "operational_total": 60,
+  "next_step": "WINDOWS_AUTHENTICATED_PREFLIGHT_ONLY"
+}

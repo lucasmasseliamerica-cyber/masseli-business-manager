@@ -1,5 +1,18 @@
 # B-Jornada — venda TEST única, replay e estorno
 
+## Atualização vigente — configurações ativas B corrigidas (21/10/2026)
+
+[Correção e comando Windows de preflight](./QA_B_SETTINGS_CONTRACT_20261021.md).
+Código validado **`c515d8a4fb47570821db81913f0342bc3c14b9dc`**. [CI #195](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39608013041):
+**652/652 PASS**, zero falhas/skips nos testes executados; **8 jobs PASS, 4 grupos persistentes BLOCKED**.
+[Evidência real](./evidence/sale-b-ci-195-20261021.json).
+O bloqueio real informado pelo usuário foi reproduzido e corrigido: `payment_method` e `channel`
+singulares, `active === true`, Other obrigatório e canal existente válido. REST inclui/filtra active.
+19/19 regressões B e build PASS. Fixture e catálogo já preparados: repetir **somente o preflight
+Windows autenticado**, sem recriar fixture/export SQL, mantendo todos os gates e sua validade.
+Nenhuma venda ou alteração de dados TEST nesta correção; cobertura real permanece 14/60 (23,33%).
+As referências e comandos de entregas anteriores abaixo são históricos; usar o novo SHA acima.
+
 ## Atualização vigente — helpers reconciliados após cutover (21/10/2026)
 
 Código aprovado: **`5f9d5aad2ec826c75072f96721cc9a3ab054a707`**. [CI #194](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39605307683):
@@ -98,16 +111,16 @@ Somente empresa USD é aceita; não há conversão cambial implícita. Um candid
    só com a árvore limpa; divergência deve ser integrada preservando as duas linhas.
 2. Confirmar a CI do **SHA completo do código B publicado**, indicado no handoff/relatório de entrega.
    Não usar o SHA antigo `ea19a2a` como aprovação deste novo executor.
-3. Na integração SQL **TEST**, executar os dois SQLs somente leitura acima. Salvar apenas o JSON
-   do preflight em `$env:TEMP\nexalvo-b-catalog.json`, fora do repositório. Rever os candidatos
-   privadamente; o campo `potentially_eligible` não substitui o preflight autenticado.
+3. Reutilizar o catálogo e a fixture TEST já preparados, com JSON em `$env:TEMP\nexalvo-b-catalog.json`,
+   fora do repositório. Manter a validade de 24 horas; não editar hashes/status/horário. Repetir
+   apenas o preflight autenticado. `potentially_eligible` não substitui essa revalidação.
 4. Reservar a fixture/unidade contra outros dispositivos. O mutex só impede concorrência local.
 5. Executar primeiro o preflight. Os prompts de e-mail, senha e chave pública são ocultos; nenhum
    segredo deve ser colocado na linha de comando. Não iniciar transcript, gravação de tela ou traces.
 
 ```powershell
 Set-Location 'C:\Users\lucas\Documents\NEXALVO-P005-ISOLATED'
-$validatedSha = '5f9d5aad2ec826c75072f96721cc9a3ab054a707'
+$validatedSha = 'c515d8a4fb47570821db81913f0342bc3c14b9dc'
 $productId = '5ba917cd-362b-42f5-83f6-345fb3dccddf'
 $locationId = 'a3e4b2ed-eb00-4963-afd0-38c256aff87d'
 $catalogFile = Join-Path $env:TEMP 'nexalvo-b-catalog.json'

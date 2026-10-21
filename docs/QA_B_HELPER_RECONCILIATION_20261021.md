@@ -1,5 +1,7 @@
 # B-Jornada — reconciliação dos helpers após Administração Comercial
 
+> Atualização posterior: configurações singulares/ativas corrigidas. Reutilizar o catálogo e a fixture já preparados e executar apenas o [preflight Windows com o novo código](./QA_B_SETTINGS_CONTRACT_20261021.md). O registro de CI #194 abaixo é histórico.
+
 Somente QA `automation/nexalvo-qa-actions` e Supabase TEST `msinksoilkluooxenecy`.
 **Baseline B corrigido; novo export e preflight autenticado real ainda necessários.**
 
@@ -82,16 +84,16 @@ do candidato; elegibilidade, ausência de histórico e estado atual serão reval
 Esses valores informados **não são snapshot de uma venda executada nesta sessão**.
 
 1. Sincronizar a QA preservando mudanças locais. Confirmar o SHA completo aprovado na nova CI.
-2. Executar **novamente**, somente na conexão SQL TEST confirmada:
-   `qa/sql/sale_journey_preflight_readonly_TEST.sql`.
-3. Salvar o novo JSON real fora do Git em `%TEMP%\nexalvo-b-catalog.json`. Exigir
-   `PASS_VERSIONED_CONTRACTS`; os oito fingerprints e ACLs devem coincidir. Não reaplicar cutover.
+2. Reutilizar o catálogo e a fixture TEST já preparados pelo usuário; não repetir o export SQL.
+3. Exigir `PASS_VERSIONED_CONTRACTS` no JSON existente em `%TEMP%\nexalvo-b-catalog.json`,
+   com validade preservada de 24 horas, oito fingerprints e ACLs coincidentes. Não editar o JSON
+   para contornar bloqueios nem reaplicar cutover. Repetir somente o preflight autenticado.
 4. Reservar a fixture/unidade, sem uso concorrente. Só então utilizar `-ExclusiveWindowConfirmed`.
 5. Executar o comando abaixo, que faz **apenas preflight**, sem criar venda ou estorno:
 
 ```powershell
 Set-Location 'C:\Users\lucas\Documents\NEXALVO-P005-ISOLATED'
-$validatedSha = '5f9d5aad2ec826c75072f96721cc9a3ab054a707'
+$validatedSha = 'c515d8a4fb47570821db81913f0342bc3c14b9dc'
 $catalogFile = Join-Path $env:TEMP 'nexalvo-b-catalog.json'
 .\qa\Invoke-QaSaleJourney.ps1 -ValidatedCodeSha $validatedSha `
   -FixtureProductId '5ba917cd-362b-42f5-83f6-345fb3dccddf' `
