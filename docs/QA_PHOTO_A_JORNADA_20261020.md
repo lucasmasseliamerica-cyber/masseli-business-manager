@@ -1,4 +1,13 @@
-# A-Jornada de fotos — executor preparado, homologação real BLOCKED
+# A-Jornada de fotos — PASS real confirmado pelo usuário
+
+## Confirmação real — 21/10/2026
+
+Usuário confirmou `PASS — REAL_PHOTO_JOURNEY_RESTORED`, dois uploads, substituição/remoção/reload,
+isolamento A/B/anônimo, zero objetos residuais e fixture restaurada por SQL independente.
+[Proveniência sanitizada](./evidence/photo-a-journey-user-confirmed-20261021.json). Esta sessão Linux
+não reexecutou A; não repetir a jornada já comprovada. Só Storage promovido, **14/60 (23,33%)**;
+foto no PDV e CRUD geral continuam pendentes. [Próximo escopo B autorizado](./QA_B_JORNADA_20261021.md).
+As seções abaixo preservam o histórico de preparação/bloqueios já superados pela execução informada.
 
 Data do cliente: 20/10/2026. Escopo: QA `automation/nexalvo-qa-actions`, somente Supabase TEST
 `msinksoilkluooxenecy`. A autorização explícita desta tarefa cobre a jornada isolada de fotos;

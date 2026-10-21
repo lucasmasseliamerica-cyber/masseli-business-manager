@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -21,7 +21,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   const item = '55555555-5555-4555-8555-555555555555';
   const now = new Date().toISOString();
   const state = { sales: [], saleItems: [], customers: [], stock: 100, saleAttempts: [], blocked: [], remoteRequests: 0,
-    images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [], purchaseWrites: [], purchaseOrders: [], purchaseLines: [], initialStockWrites: [] };
+    images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [], purchaseWrites: [], purchaseOrders: [], purchaseLines: [], initialStockWrites: [], cashMovements: [], inventoryMovements: [], reversalAttempts: [] };
   const tables = {
     users: [{ id: owner, business_id: business, name: 'OWNER LOCAL SIMULADO', role: 'OWNER', active: true, permission_overrides: {} }],
     businesses: [{ id: business, name: 'MASSELI QA HTTP SIMULADO', currency: 'BRL', timezone: 'America/Sao_Paulo', tax_enabled: false, tax_rate: 0, status: 'ACTIVE' }],
@@ -47,6 +47,11 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   if (saleFault === 'negative-price') tables.products[0].price = -1;
   if (saleFault === 'invalid-stock') state.stock = 'NaN';
   if (csvName) tables.inventory_items[0].name = csvName;
+  if(saleJourneyFixture){
+    tables.businesses[0]={...tables.businesses[0],currency:'USD',tax_enabled:true,tax_rate:7.25};
+    tables.products[0]={...tables.products[0],name:'ZZ_QA_SALE_BROWSER',price:0.5};
+    tables.product_recipes[0].qty_per_unit=0.25;
+  }
   tables.products[0].active = photoProductActive;
   if (!photoProductActive) {
     tables.products[0].sku = 'QA-INACTIVE-PHOTO';
@@ -106,6 +111,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     if (request.method() === 'GET') {
       let rows = name === 'sales' ? state.sales : name === 'customers' ? state.customers : name === 'audit_logs' ? state.auditRows
         : name === 'purchase_orders' ? state.purchaseOrders : name === 'rpc/fn_read_purchase_order_items_secure' ? state.purchaseLines
+        : name === 'cash_flow' ? state.cashMovements : name === 'rpc/fn_read_inventory_transactions_secure' ? state.inventoryMovements
         : name === 'rpc/fn_read_sale_items_secure' ? state.saleItems
         : name === 'rpc/fn_read_inventory_stock_secure' ? [{ id: '66666666-6666-4666-8666-666666666666', inventory_item_id: item, location_id: location, qty: state.stock, avg_cost_per_unit: 2 }]
         : tables[name] || [];
@@ -151,13 +157,25 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
       state.saleAttempts.push(body.p_sale_id);
       let sale = state.sales.find(row => row.id === body.p_sale_id);
       if (!sale) {
+        const unitPrice=Number(body.p_items[0].unit_price),qty=Number(body.p_items[0].qty);
+        const subtotal=Math.round(unitPrice*qty*100)/100,total=Math.round((subtotal-body.p_discount+body.p_tax)*100)/100;
         sale = { id: body.p_sale_id, business_id: business, order_no: 20001, sale_date: now, status: 'completed', payment_method: body.p_payment_method, location_id: location,
-          fulfillment_status: body.p_fulfillment_status, subtotal: 10, total: 10, discount: body.p_discount, tax: body.p_tax, channel: body.p_channel, created_by: owner };
+          fulfillment_status: body.p_fulfillment_status, subtotal, total, discount: body.p_discount, tax: body.p_tax, channel: body.p_channel, notes:body.p_notes,created_by: owner };
         state.sales.push(sale);
-        state.saleItems.push({ id: randomUUID(), sale_id: sale.id, product_id: product, product_name_snapshot: 'Bowl QA', qty: 1, unit_price: 10, unit_cost_snapshot: 2 });
-        state.stock--;
+        state.saleItems.push({ id: randomUUID(), sale_id: sale.id, product_id: product, product_name_snapshot: tables.products[0].name, qty, unit_price: unitPrice, unit_cost_snapshot: 2 });
+        const deduction=Number(tables.product_recipes[0].qty_per_unit)*qty;state.stock-=deduction;
+        state.cashMovements.push({id:randomUUID(),business_id:business,location_id:location,sale_id:sale.id,type:'income',amount:total,payment_method:body.p_payment_method});
+        state.inventoryMovements.push({id:randomUUID(),business_id:business,location_id:location,inventory_item_id:item,sale_id:sale.id,type:'SALE',qty_change:-deduction});
       }
       if (loseSaleResponse && state.saleAttempts.length === 1) return reply({}, 504);
+      return reply(sale);
+    }
+    if(name==='rpc/fn_reverse_sale'&&saleJourneyFixture){
+      const sale=state.sales.find(row=>row.id===body.p_sale_id);assert.ok(sale);assert.notEqual(sale.status,'cancelled');
+      state.reversalAttempts.push(body.p_sale_id);sale.status='cancelled';sale.cancelled_at=new Date().toISOString();
+      const deduction=-state.inventoryMovements.find(row=>row.sale_id===sale.id&&row.type==='SALE').qty_change;state.stock+=deduction;
+      state.inventoryMovements.push({id:randomUUID(),business_id:business,location_id:location,inventory_item_id:item,sale_id:sale.id,type:'REVERSAL',qty_change:deduction});
+      state.cashMovements.push({id:randomUUID(),business_id:business,location_id:location,sale_id:sale.id,type:'expense',category:'Sale Cancellation',amount:sale.total,payment_method:sale.payment_method});
       return reply(sale);
     }
     if (name === 'customers' && ['POST', 'PATCH'].includes(request.method())) {
@@ -293,6 +311,41 @@ for (const saleFault of ['missing-ingredient', 'inactive-ingredient', 'negative-
     } finally { await context.close(); }
   });
 }
+
+test('SIMULATED HTTP: B-Jornada Other sale below USD 1, same-ID replay, reload, UI reversal and PT/EN', {timeout:60000}, async()=>{
+  const {context,page,state,errors}=await isolated({saleJourneyFixture:true,loseSaleResponse:true});
+  try{
+    await page.getByText('Sales',{exact:true}).first().click();await page.getByRole('button',{name:'New Sale',exact:true}).click();
+    let dialog=page.getByRole('dialog');await dialog.getByRole('button',{name:'Add ZZ_QA_SALE_BROWSER',exact:true}).click();
+    await dialog.getByText('Payment Method',{exact:true}).locator('..').locator('select').selectOption('Other');
+    await dialog.locator('input[type=number]').last().fill('0.01');await dialog.locator('textarea').fill('NEXALVO_B_BROWSER_SIMULATED');
+    assert.match(await dialog.getByText('Subtotal',{exact:true}).locator('..').innerText(),/0\.50/);
+    assert.match(await dialog.getByText('Tax (7.25%)',{exact:true}).locator('..').innerText(),/0\.04/);
+    assert.match(await dialog.getByText('Total',{exact:true}).locator('..').innerText(),/0\.53/);
+    await dialog.getByRole('button',{name:/^Complete Sale/}).click();
+    await dialog.getByRole('button',{name:'Retry Saving Same Sale',exact:true}).waitFor();
+    assert.equal(state.sales.length,1);assert.equal(state.stock,99.75);assert.equal(state.cashMovements.length,1);
+    assert.equal(await dialog.getByRole('button',{name:/^Complete Sale/}).count(),0);
+    await dialog.getByRole('button',{name:'Retry Saving Same Sale',exact:true}).click();
+    await dialog.getByText('Payment Successful',{exact:true}).waitFor();
+    await dialog.getByRole('button',{name:'Done',exact:true}).click();
+    assert.equal(state.saleAttempts.length,2);assert.equal(state.saleAttempts[0],state.saleAttempts[1]);
+    await page.reload({waitUntil:'domcontentloaded'});await page.getByText('Sales',{exact:true}).first().click();
+    await page.getByText('Order #20001 · In Store',{exact:true}).click();
+    await page.getByRole('dialog').getByRole('button',{name:'Cancel Sale',exact:true}).click();
+    await page.getByRole('alertdialog').getByRole('button',{name:'Cancel Sale',exact:true}).click();
+    await page.getByRole('dialog').waitFor({state:'hidden'});
+    await page.reload({waitUntil:'domcontentloaded'});await page.getByText('Sales',{exact:true}).first().click();
+    await page.getByText('Order #20001 · In Store',{exact:true}).click();
+    dialog=page.getByRole('dialog');await dialog.getByText('CANCELLED',{exact:false}).first().waitFor();
+    await page.getByLabel('Language',{exact:true}).first().selectOption('pt-BR');
+    await dialog.getByText('CANCELADO',{exact:false}).first().waitFor();
+    assert.equal(state.reversalAttempts.length,1);assert.equal(state.stock,100);
+    assert.equal(state.inventoryMovements.length,2);assert.equal(state.sales[0].status,'cancelled');assert.equal(state.saleItems.length,1);
+    assert.equal(state.cashMovements.reduce((sum,row)=>sum+(row.type==='income'?1:-1)*Math.round(row.amount*100),0),0);
+    assert.equal(state.sales[0].payment_method,'Other');assert.deepEqual(errors,[]);assert.deepEqual(state.blocked,[]);
+  }finally{await context.close();}
+});
 
 for (const loseSaleResponse of [false, true]) {
   test(`SIMULATED HTTP: external-card sale, ${loseSaleResponse ? 'lost commit response and stable retry' : 'cancel then confirm'}, reload and stock`, { timeout: 60000 }, async () => {

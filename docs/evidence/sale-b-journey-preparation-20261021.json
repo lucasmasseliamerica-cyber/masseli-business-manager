@@ -1,0 +1,60 @@
+{
+  "scope": "B_JOURNEY_PREPARATION_ONLY",
+  "status": "BLOCKED_REAL_EXECUTION",
+  "date": "2026-10-21",
+  "branch": "automation/nexalvo-qa-actions",
+  "baseline_sha": "ea19a2a1a5f7be5a9e309f27dac0b28057098c8e",
+  "evidence_kind": "LOCAL_NONPERSISTENT_TESTS",
+  "local_results": {
+    "b_guards": {
+      "tests": 10,
+      "pass": 10,
+      "fail": 0,
+      "skipped": 0
+    },
+    "related_p0": {
+      "tests": 64,
+      "pass": 64,
+      "fail": 0,
+      "skipped": 0
+    },
+    "readonly_sql_disposable_postgres": {
+      "tests": 2,
+      "pass": 2,
+      "fail": 0,
+      "skipped": 0
+    },
+    "browser_simulated_http": {
+      "tests": 19,
+      "pass": 19,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "build": "PASS",
+  "secret_scan_findings": 0,
+  "real_b_journey_executed": false,
+  "test_business_writes": 0,
+  "fixture_identified": false,
+  "stock_before_after": "NOT_MEASURED",
+  "financial_before_after": "NOT_MEASURED",
+  "real_isolation": "NOT_EXECUTED_FOR_B",
+  "windows_native_validation": "BLOCKED_SESSION_CAPABILITY",
+  "blocks": [
+    "SECURE_QA_A_B_CREDENTIALS_UNAVAILABLE",
+    "CURRENT_READONLY_CATALOG_REQUIRED",
+    "EXCLUSIVE_FIXTURE_LOCATION_WINDOW_NOT_CONFIRMED",
+    "WINDOWS_UNAVAILABLE_TO_THIS_SESSION"
+  ],
+  "production_accessed": false,
+  "migrations_applied": false,
+  "stripe_calls": 0,
+  "new_acceptance": "A_STORAGE_ONLY_USER_CONFIRMED",
+  "operational_criteria": {
+    "completed": 14,
+    "total": 60,
+    "pending": 15,
+    "blocked": 31,
+    "percent": 23.33
+  }
+}

@@ -1,6 +1,6 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
-Cobertura comprovada: **13/60 critérios (21.67%)**; 15 PENDENTES e 32 BLOQUEADOS.
+Cobertura comprovada: **14/60 critérios (23.33%)**; 15 PENDENTES e 31 BLOQUEADOS.
 Este percentual mede os critérios explícitos abaixo, não linhas de código, quantidade de testes ou probabilidade de o aplicativo estar pronto.
 Critérios API/SQL concluídos não homologam a jornada UI correspondente. SQL com JWT simulado está identificado. CI #180 é baseline histórica; nenhuma escrita foi repetida nesta auditoria.
 Escopo ampliado pelo requisito P0 Terminal online-only: oito novos critérios. A v1 tinha 13/52 (25%); a mudança de denominador não é regressão. Nenhum teste simulado promove estes novos critérios a concluído.
@@ -10,7 +10,7 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | --- | --- | --- | --- |
 | Vendas/PDV | BLOQUEADO | 1/4 | 25% |
 | P0 Stripe Terminal exclusivamente online | BLOQUEADO | 0/8 | 0% |
-| Produtos e fotos | BLOQUEADO | 0/4 | 0% |
+| Produtos e fotos | BLOQUEADO | 1/4 | 25% |
 | Estoque | BLOQUEADO | 1/4 | 25% |
 | Compras e fornecedores | BLOQUEADO | 2/4 | 50% |
 | Financeiro/caixa/despesas | BLOQUEADO | 1/4 | 25% |
@@ -30,7 +30,7 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
 | RPC: venda, replay por ID e estorno com financeiro líquido zero | CONCLUÍDO | [REAL_API_CI](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096): replay-financial; registros históricos isolados da CI #180 |
-| UI: venda, desconto/imposto, reconsulta após reload e cancelamento | BLOQUEADO | Autorização específica para venda TEST isolada, caixa/fixture e compensação |
+| UI: venda, desconto/imposto, reconsulta após reload e cancelamento | BLOQUEADO | B-Jornada autorizada: uma venda QA em USD até 1 e estorno do mesmo ID; faltam sessões seguras, catálogo atual e fixture/unidade aprovados no preflight |
 | Todos os pagamentos operacionais e recibos conferidos | PENDENTE | Cartão externo implementado; validar recebimento real sem cobrança pela aplicação |
 | Pagamento misto e regras de devolução homologados | PENDENTE | Decisão/implementação de split e aceite operacional das devoluções |
 
@@ -53,8 +53,8 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | --- | --- | --- |
 | UI: criar, editar/desativar produto e reconsultar persistência | BLOQUEADO | Autorização de CRUD TEST isolado e compensação |
 | Receita/composição e custo conferidos com baixa por local | PENDENTE | Jornada real de composição, venda e conciliação |
-| Storage privado: upload/substituição/remoção e isolamento | BLOQUEADO | Infra privada/quatro policies confirmadas pelo usuário; commits 9b381e8 e 396afac integrados/publicados; A-Jornada autorizada, mas faltam sessões QA seguras, janela exclusiva e validação da fixture nesta sessão |
-| Foto real reaparece no catálogo/PDV depois do reload | BLOQUEADO | Infra e autorização informadas; falta evidência da jornada real com snapshot/compensação e reload |
+| Storage privado: upload/substituição/remoção e isolamento | CONCLUÍDO | [USER_CONFIRMED_JOURNEY](../docs/evidence/photo-a-journey-user-confirmed-20261021.json): Usuário confirmou REAL_PHOTO_JOURNEY_RESTORED, dois uploads, isolamento A/B/anon, restauração e zero objetos residuais, com consulta SQL independente; não reexecutado nesta sessão |
+| Foto real reaparece no catálogo/PDV depois do reload | BLOQUEADO | A-Jornada confirmou edição/reload de foto, mas não a exibição no PDV de produto vendável; critério combinado ainda não homologado |
 
 ### Estoque
 

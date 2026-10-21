@@ -1,5 +1,15 @@
 # Próximo lote P0 — preparação, não autorização de execução
 
+## Atualização de autorização — 21/10/2026
+
+A real foi confirmada pelo usuário como PASS/restaurada, sem nova execução nesta sessão.
+**B está autorizada**, uma venda quantidade 1, **USD 1 no máximo**, Other, replay do mesmo ID e
+um estorno. [Executor e limites vigentes](./QA_B_JORNADA_20261021.md); não aplicar conversão cambial.
+Execução B BLOCKED por sessões seguras/catálogo/fixture/janela ainda não disponíveis aqui.
+C/D/E, criação de fixtures e migrações continuam sem autorização. O workflow manual amplo
+não é autorizado pelo escopo B. As restrições históricas A/B abaixo estão superadas somente
+nesses limites; compra persistente e demais grupos continuam OFF.
+
 Atualização: **A-Infra instalada/aprovada e A-Jornada expressamente autorizada pelo usuário**.
 Não reaplicar a infraestrutura nem pedir novamente essa autorização. A execução real de fotos
 continua [BLOCKED por sessões/janela exclusiva/fixtures](./QA_PHOTO_A_JORNADA_20261020.md). B/C/D/E seguem

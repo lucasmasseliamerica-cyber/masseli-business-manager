@@ -14,7 +14,7 @@ const pending = (title, remaining) => ({ title, status: 'PENDENTE', remaining })
 export const operationalModules = [
   { id: 'sales', name: 'Vendas/PDV', criteria: [
     done('RPC: venda, replay por ID e estorno com financeiro líquido zero', 'REAL_API_CI', ci, 'replay-financial; registros históricos isolados da CI #180'),
-    blocked('UI: venda, desconto/imposto, reconsulta após reload e cancelamento', 'Autorização específica para venda TEST isolada, caixa/fixture e compensação'),
+    blocked('UI: venda, desconto/imposto, reconsulta após reload e cancelamento', 'B-Jornada autorizada: uma venda QA em USD até 1 e estorno do mesmo ID; faltam sessões seguras, catálogo atual e fixture/unidade aprovados no preflight'),
     pending('Todos os pagamentos operacionais e recibos conferidos', 'Cartão externo implementado; validar recebimento real sem cobrança pela aplicação'),
     pending('Pagamento misto e regras de devolução homologados', 'Decisão/implementação de split e aceite operacional das devoluções'),
   ] },
@@ -31,8 +31,8 @@ export const operationalModules = [
   { id: 'products', name: 'Produtos e fotos', criteria: [
     blocked('UI: criar, editar/desativar produto e reconsultar persistência', 'Autorização de CRUD TEST isolado e compensação'),
     pending('Receita/composição e custo conferidos com baixa por local', 'Jornada real de composição, venda e conciliação'),
-    blocked('Storage privado: upload/substituição/remoção e isolamento', 'Infra privada/quatro policies confirmadas pelo usuário; commits 9b381e8 e 396afac integrados/publicados; A-Jornada autorizada, mas faltam sessões QA seguras, janela exclusiva e validação da fixture nesta sessão'),
-    blocked('Foto real reaparece no catálogo/PDV depois do reload', 'Infra e autorização informadas; falta evidência da jornada real com snapshot/compensação e reload'),
+    done('Storage privado: upload/substituição/remoção e isolamento', 'USER_CONFIRMED_JOURNEY', 'docs/evidence/photo-a-journey-user-confirmed-20261021.json', 'Usuário confirmou REAL_PHOTO_JOURNEY_RESTORED, dois uploads, isolamento A/B/anon, restauração e zero objetos residuais, com consulta SQL independente; não reexecutado nesta sessão'),
+    blocked('Foto real reaparece no catálogo/PDV depois do reload', 'A-Jornada confirmou edição/reload de foto, mas não a exibição no PDV de produto vendável; critério combinado ainda não homologado'),
   ] },
   { id: 'inventory', name: 'Estoque', criteria: [
     done('RPC: ajuste/perda/transferência e saldos sob ROLLBACK', 'REAL_SQL_ROLLBACK', sql, 'P0.04 executado no TEST com contexto SQL JWT simulado; não prova login ou UI'),
@@ -103,7 +103,7 @@ export const operationalModules = [
 ];
 
 export function evaluateOperationalReadiness(modules = operationalModules) {
-  const kinds = new Set(['REAL_API_CI', 'REAL_SQL_ROLLBACK', 'USER_CONFIRMED_SQL', 'REAL_READONLY']);
+  const kinds = new Set(['REAL_API_CI', 'REAL_SQL_ROLLBACK', 'USER_CONFIRMED_SQL', 'USER_CONFIRMED_JOURNEY', 'REAL_READONLY']);
   const ids = new Set();
   let completed = 0, pendingCount = 0, blockedCount = 0;
   const rows = modules.map(module => {

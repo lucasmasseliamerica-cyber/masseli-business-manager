@@ -209,6 +209,16 @@ test('automatic CI cannot run persistent TEST groups without an explicit manual 
 });
 
 test('operational coverage cannot count mocks or blocked journeys as acceptance', () => {
+  const products = operationalModules.find(module => module.id === 'products');
+  const storage = products.criteria.find(c => c.title.startsWith('Storage privado:'));
+  const photoEvidence = JSON.parse(readFileSync(new URL('../docs/evidence/photo-a-journey-user-confirmed-20261021.json', import.meta.url), 'utf8'));
+  assert.equal(storage.status, 'CONCLUÍDO');
+  assert.equal(storage.evidence.kind, 'USER_CONFIRMED_JOURNEY');
+  assert.equal(photoEvidence.code, 'REAL_PHOTO_JOURNEY_RESTORED');
+  assert.equal(photoEvidence.executed_by_this_linux_session, false);
+  assert.deepEqual(photoEvidence.acceptance_promoted, [storage.title]);
+  assert.equal(products.criteria.find(c => c.title.startsWith('Foto real')).status, 'BLOQUEADO');
+  assert.equal(operationalModules.find(m => m.id === 'sales').criteria.find(c => c.title.startsWith('UI:')).status, 'BLOQUEADO');
   const criterion = operationalModules[0].criteria[0];
   const half = evaluateOperationalReadiness([{ id: 'case', criteria: [criterion, { title: 'Live journey', status: 'BLOQUEADO', blocker: 'specific authorization' }] }]);
   assert.equal(half.percent, 50);

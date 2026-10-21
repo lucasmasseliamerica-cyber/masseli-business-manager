@@ -1,5 +1,28 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Estado vigente — A real confirmada; B autorizada e preparada (21/10/2026)
+
+Ler [B-Jornada: executor e procedimento seguro](./QA_B_JORNADA_20261021.md).
+QA sincronizada por fast-forward para `ea19a2a1a5f7be5a9e309f27dac0b28057098c8e`, preservando
+os commits anteriores. O usuário confirmou A `REAL_PHOTO_JOURNEY_RESTORED`, dois uploads,
+restauração, isolamento e zero resíduos, com SQL independente. A não foi reexecutada nesta sessão.
+[Proveniência sanitizada](./evidence/photo-a-journey-user-confirmed-20261021.json).
+Somente Storage promovido: **14/60 (23,33%)**, 15 PENDENTES, 31 BLOQUEADOS.
+
+B está expressamente autorizada: **uma** venda QA de quantidade 1, total até **USD 1**, Other,
+replay do mesmo ID e um estorno oficial, sem Stripe. Executor Windows separado, snapshot privado,
+catálogo atual obrigatório, negação A/B/anônimo e reconciliação implementados. Homologação B
+continua **BLOCKED**: esta sessão não possui credenciais QA A/B, integração SQL atual ou acesso
+Windows; fixture/unidade/janela exclusiva não foram comprovadas. Nenhuma venda B foi executada.
+Validação nativa do novo wrapper Windows ainda BLOCKED. Não repetir A nem pedir novamente
+permissão para o escopo B já autorizado. C/D/E persistentes, novas fixtures e migrações exigem
+suas próprias autorizações. Histórico abaixo preservado; suas pendências A estão superadas.
+
+- [x] A real: Storage privado, substituição/remoção/reload, isolamento e restauração confirmados pelo usuário.
+- [x] B: gates, executor, SQLs somente leitura, browser simulado e regressões locais preparados/aprovados.
+- [ ] B real: preflight e 17 checks, estoque/custo restaurados, financeiro líquido zero e histórico preservado.
+- [ ] Windows B: execução nativa do mutex/ACL e preflight com sessões seguras.
+
 ## Estado vigente — integração e correções P0 publicadas
 
 [Relatório consolidado](./QA_OPERATIONAL_INTEGRATION_20261020.md). Commits `9b381e8` e `396afac`
