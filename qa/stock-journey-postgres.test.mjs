@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { STOCK_ACTORS, STOCK_FINGERPRINTS, STOCK_PRECISION_TARGET_FINGERPRINT, validateStockCatalog } from './stock-journey-core.mjs';
+import { STOCK_ACTORS, STOCK_FINGERPRINTS, STOCK_PRECISION_TARGET_FINGERPRINT, validateStockCatalog, validateStockWasteReaderContract } from './stock-journey-core.mjs';
 import { C1_FIXTURE, makeC1State, c1Plan, c1Payload, verifyC1View, sealC1Checkpoint, c1AuditContract } from './stock-c1-protocol.mjs';
 import { reconcileC1Readonly } from './stock-journey.TEST.mjs';
 
@@ -76,6 +76,7 @@ before(async()=>{
     GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
     ${Object.keys(STOCK_FINGERPRINTS).filter(n=>n!=='fn_record_inventory_movement').map(n=>`GRANT EXECUTE ON FUNCTION public.${n} TO authenticated;`).join('\n')}
     GRANT EXECUTE ON FUNCTION public.fn_write_audit(text,text) TO authenticated;
+    GRANT EXECUTE ON FUNCTION public.fn_read_waste_transactions_secure() TO authenticated;
     ${['inventory_items','inventory_stock','inventory_transactions','waste_transactions','locations','product_recipes','purchase_orders','purchase_order_items','cash_flow','audit_logs'].map(t=>`ALTER TABLE public.${t} ENABLE ROW LEVEL SECURITY;`).join('\n')}`);
   reset();
 });
@@ -94,6 +95,89 @@ test('C exact historical definitions and tenant helpers reproduce all nine finge
   assert.equal(readonly(catalog).status,'BLOCKED_CATALOG_DRIFT');
   sql('REVOKE SELECT(id) ON public.inventory_items FROM anon;');
   assert.equal(readonly(precision).status,'READY_FOR_REVIEW_NOT_AUTHORIZED');assert.deepEqual(counts(),before);
+});
+const readWaste=(actor=id.owner)=>JSON.parse(sql(context(actor)+`BEGIN READ ONLY;
+  SELECT coalesce(jsonb_agg(to_jsonb(w) ORDER BY w.id),'[]'::jsonb)
+  FROM public.fn_read_waste_transactions_secure() AS w;
+  ROLLBACK;`));
+const seedWaste=()=>sql(`TRUNCATE public.waste_transactions;
+  INSERT INTO public.waste_transactions(id,business_id,inventory_item_id,location_id,qty,unit,cost,reason,notes,inventory_transaction_id,created_by)
+  VALUES('88888888-8888-4888-8888-888888888888','${id.a}','${id.item}','${id.src}',0.125,'kg',0.25,'SYNTHETIC HISTORICAL WASTE','SYNTHETIC ONLY',NULL,'${id.owner}'),
+        ('99999999-9999-4999-8999-999999999999','${id.b}','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',0.5,'unit',0.75,'SYNTHETIC OTHER TENANT','SYNTHETIC ONLY',NULL,'${id.other}');`);
+test('C waste reader catalog reproduces the captured tenant-scoped body and permits no direct authenticated table SELECT',()=>{
+  const observed=readonly(catalog);
+  assert.doesNotThrow(()=>validateStockWasteReaderContract(observed));
+  const table=observed.tables.find(row=>row.name==='waste_transactions');
+  assert.equal(table.authenticated_table_select,false);
+  assert.equal(table.authenticated_any_column_select,false);
+  assert.equal(table.authenticated_select_all_columns,false);
+  assert.equal(observed.waste_reader_contract.body_fingerprint,'4dbda260df3b744caf55d2c2ba8c031f');
+  assert.equal(observed.waste_reader_contract.body_sha256,'7c2a163faa7d766485c6cfd3d8acb84815f2e3faf7260de02830cdc5d81e3b1a');
+  assert.equal(sql("SELECT pg_catalog.has_table_privilege('authenticated','public.waste_transactions','SELECT');"),'f');
+  assert.throws(()=>sql(context()+"SELECT * FROM public.waste_transactions;"),'the rejected direct read is reproduced without granting table SELECT');
+  assert.throws(()=>sql("SET ROLE anon; SELECT * FROM public.fn_read_waste_transactions_secure();"));
+});
+test('C waste secure reader preserves orphan history and tenant isolation with costs masked by the existing permission',()=>{
+  seedWaste();const initial=counts();
+  try {
+    assert.equal(Number(sql('SELECT count(*) FROM public.inventory_transactions;')),0,'empty inventory ledger must not imply empty waste history');
+    const owner=readWaste(),other=readWaste(id.other),manager=readWaste(id.manager);
+    assert.equal(owner.length,1);assert.equal(owner[0].business_id,id.a);assert.equal(owner[0].cost,0.25);
+    assert.equal(owner[0].inventory_transaction_id,null,'unlinked historical waste remains visible');
+    assert.equal(other.length,1);assert.equal(other[0].business_id,id.b);assert.equal(other[0].cost,0.75);
+    assert.equal(manager.length,1);assert.equal(manager[0].id,owner[0].id);assert.equal(manager[0].cost,null,'cost masking must not hide historical rows');
+    sql(`UPDATE public.users SET permission_overrides='{"manageRecipesAndCosts":true}' WHERE id='${id.manager}';`);
+    assert.equal(readWaste(id.manager)[0].cost,0.25,'a valid custom override exposes only the permitted cost');
+    sql(`UPDATE public.users SET permission_overrides='{"manageRecipesAndCosts":false}' WHERE id='${id.manager}';`);
+    assert.equal(readWaste(id.manager)[0].cost,null);
+    sql(`UPDATE public.users SET permission_overrides='{"manageRecipesAndCosts":"true"}' WHERE id='${id.manager}';`);
+    assert.equal(readWaste(id.manager)[0].cost,null,'non-boolean overrides remain fail closed');
+    assert.throws(()=>sql(context()+`SELECT * FROM public.fn_read_waste_transactions_secure('${id.b}'::uuid);`),'there is no caller-controlled tenant parameter');
+    assert.deepEqual(counts(),initial,'read-only secure calls preserve every historical row and stock count');
+  } finally {
+    sql(`UPDATE public.users SET permission_overrides='{}' WHERE id='${id.manager}'; TRUNCATE public.waste_transactions;`);
+  }
+});
+test('C waste secure reader yields no rows for NULL missing or inactive identities and suspended businesses',()=>{
+  seedWaste();const initial=counts();
+  try {
+    assert.deepEqual(readWaste(''),[]);
+    assert.deepEqual(readWaste('aaaaaaaa-0000-4000-8000-000000000000'),[]);
+    sql(`UPDATE public.users SET active=false WHERE id='${id.owner}';`);
+    try { assert.deepEqual(readWaste(),[]); } finally { sql(`UPDATE public.users SET active=true WHERE id='${id.owner}';`); }
+    sql(`UPDATE public.businesses SET platform_status='SUSPENDED' WHERE id='${id.a}';`);
+    try { assert.deepEqual(readWaste(),[]);assert.equal(readWaste(id.other).length,1); }
+    finally { sql(`UPDATE public.businesses SET platform_status='ACTIVE' WHERE id='${id.a}';`); }
+    assert.deepEqual(counts(),initial);
+  } finally { sql('TRUNCATE public.waste_transactions;'); }
+});
+test('C waste reader catalog rejects effective grant path owner overload and execution-attribute drift',()=>{
+  const blocked=statement=>{
+    assert.doesNotThrow(()=>validateStockWasteReaderContract(readonly(catalog)),'each independent drift starts from a valid complete contract');
+    sql(statement);assert.throws(()=>validateStockWasteReaderContract(readonly(catalog)));
+  };
+  try {
+    blocked('GRANT EXECUTE ON FUNCTION public.fn_read_waste_transactions_secure() TO anon;');
+    sql('REVOKE EXECUTE ON FUNCTION public.fn_read_waste_transactions_secure() FROM anon;');
+    blocked("ALTER FUNCTION public.fn_read_waste_transactions_secure() SET search_path TO 'public';");
+    sql("ALTER FUNCTION public.fn_read_waste_transactions_secure() SET search_path TO '';");
+    blocked('ALTER FUNCTION public.fn_read_waste_transactions_secure() OWNER TO authenticated;');
+    sql('ALTER FUNCTION public.fn_read_waste_transactions_secure() OWNER TO postgres; GRANT EXECUTE ON FUNCTION public.fn_read_waste_transactions_secure() TO authenticated;');
+    blocked('ALTER FUNCTION public.fn_read_waste_transactions_secure() VOLATILE;');
+    sql('ALTER FUNCTION public.fn_read_waste_transactions_secure() STABLE;');
+    blocked('ALTER FUNCTION public.fn_read_waste_transactions_secure() STRICT;');
+    sql('ALTER FUNCTION public.fn_read_waste_transactions_secure() CALLED ON NULL INPUT;');
+    blocked('REVOKE EXECUTE ON FUNCTION public.fn_read_waste_transactions_secure() FROM authenticated;');
+    sql('GRANT EXECUTE ON FUNCTION public.fn_read_waste_transactions_secure() TO authenticated;');
+    blocked('CREATE FUNCTION public.fn_read_waste_transactions_secure(uuid) RETURNS SETOF public.waste_transactions LANGUAGE sql AS $$SELECT * FROM public.waste_transactions$$;');
+    sql('DROP FUNCTION public.fn_read_waste_transactions_secure(uuid);');
+  } finally {
+    sql('DROP FUNCTION IF EXISTS public.fn_read_waste_transactions_secure(uuid);');
+    sql('ALTER FUNCTION public.fn_read_waste_transactions_secure() OWNER TO postgres;');
+    sql(captured.functions.find(f=>f.name==='fn_read_waste_transactions_secure').definition+';');
+    sql('REVOKE ALL ON FUNCTION public.fn_read_waste_transactions_secure() FROM PUBLIC,anon; GRANT EXECUTE ON FUNCTION public.fn_read_waste_transactions_secure() TO authenticated;');
+  }
+  assert.doesNotThrow(()=>validateStockWasteReaderContract(readonly(catalog)));
 });
 test('C1 audit catalog distinguishes historical hardening from the exact post-cutover tenant-active body',()=>{
   const observed=readonly(catalog);

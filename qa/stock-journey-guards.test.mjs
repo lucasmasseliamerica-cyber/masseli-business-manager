@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { STOCK_ACTORS, STOCK_FINGERPRINTS, STOCK_TABLES, stockConfiguration,
   validateStockCatalog, validateStockFixture, validateStockReadPath } from './stock-journey-core.mjs';
 import { stockPreflight } from './stock-preflight-readonly.TEST.mjs';
+import { STOCK_WASTE_READER_CONTRACT } from './stock-waste-reader-contract.mjs';
 const item='11111111-aaaa-4111-8111-111111111111',src='22222222-bbbb-4222-8222-222222222222',dst='33333333-cccc-4333-8333-333333333333';
 const env={QA_SUPABASE_URL:'https://msinksoilkluooxenecy.supabase.co',QA_SUPABASE_ANON_KEY:'sb_publishable_SIMULATED',
   QA_TWO_TENANT_A_EMAIL:'a@example.invalid',QA_TWO_TENANT_A_PASSWORD:'SIMULATED_A',QA_TWO_TENANT_B_EMAIL:'b@example.invalid',QA_TWO_TENANT_B_PASSWORD:'SIMULATED_B',
@@ -17,7 +18,8 @@ const fixture=()=>({item:{id:item,business_id:STOCK_ACTORS.A.business,name:'ZZ_Q
   recipes:[],purchaseLines:[],transactions:[],waste:[]});
 const catalog=()=>({project_ref_expected:'msinksoilkluooxenecy',mode:'READ_ONLY',captured_at:new Date().toISOString(),status:'PASS_MATCHED_HISTORICAL_CONTRACTS',
   functions:Object.entries(STOCK_FINGERPRINTS).map(([name,fingerprint])=>({name,fingerprint,present:true,anon_execute:false,authenticated_execute:name!=='fn_record_inventory_movement'})),
-  tables:STOCK_TABLES.map(name=>({name,present:true,rls:true,anon_select:false})),public_schema:{anon_create:false,authenticated_create:false}});
+  tables:STOCK_TABLES.map(name=>({name,present:true,rls:true,anon_select:false})),public_schema:{anon_create:false,authenticated_create:false},
+  waste_reader_contract:{...STOCK_WASTE_READER_CONTRACT.expected}});
 test('C preflight has no persistent mode and missing credentials or unsupported arguments perform no network calls',async()=>{
   let calls=0;const fetcher=async()=>{calls++;throw Error('MUST_NOT_REACH_NETWORK');};
   assert.equal((await stockPreflight({},[],fetcher)).code,'C_SECURE_QA_CREDENTIALS_REQUIRED');
@@ -30,7 +32,8 @@ test('C rejects production, service keys, duplicate identities and unspecified o
 test('C catalog expiry drift overloaded RPCs NULL grants and column/schema privileges cannot become PASS',()=>{
   validateStockCatalog(catalog());
   for(const change of [c=>c.captured_at='2000-01-01',c=>c.functions.push(c.functions[0]),c=>c.functions[0].anon_execute=null,
-    c=>c.functions[0].fingerprint='changed',c=>c.tables[0].rls=false,c=>c.tables[0].anon_select=true,c=>c.public_schema.authenticated_create=true]){
+    c=>c.functions[0].fingerprint='changed',c=>c.tables[0].rls=false,c=>c.tables[0].anon_select=true,c=>c.public_schema.authenticated_create=true,
+    c=>delete c.waste_reader_contract,c=>c.waste_reader_contract.body_sha256='a'.repeat(64),c=>c.waste_reader_contract.anon_execute=true]){
     const c=catalog();change(c);assert.throws(()=>validateStockCatalog(c));
   }
 });
@@ -45,7 +48,7 @@ test('C requires independent unused fixtures and equal finite average costs with
 });
 test('C read transport cannot reach a mutating RPC, outside host or credentials embedded in URL',()=>{
   for(const path of ['/rest/v1/rpc/fn_transfer_inventory','/rest/v1/rpc/fn_adjust_inventory_count','/rest/v1/rpc/fn_record_waste',
-    'https://other.invalid/rest/v1/inventory_items','https://x:y@msinksoilkluooxenecy.supabase.co/rest/v1/inventory_items'])assert.throws(()=>validateStockReadPath(path));
+    '/rest/v1/waste_transactions?select=*','https://other.invalid/rest/v1/inventory_items','https://x:y@msinksoilkluooxenecy.supabase.co/rest/v1/inventory_items'])assert.throws(()=>validateStockReadPath(path));
 });
 test('stock helpers preserve quantity/cost precision and reject excess fractions before user RPCs',()=>{
   const source=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');const a=source.indexOf('const roundStockQty =');const b=source.indexOf('function validateInventoryCatalogDraft',a);

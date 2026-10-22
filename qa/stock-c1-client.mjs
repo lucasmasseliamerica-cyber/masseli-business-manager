@@ -1,28 +1,50 @@
 // Public key + independent user sessions only. No administrative fallback, retries or arbitrary writes.
 import { STOCK_HOST, STOCK_ACTORS, StockSignal, requireStock, validateStockReadPath } from './stock-journey-core.mjs';
 import { C1_FIXTURE, c1Plan } from './stock-c1-protocol.mjs';
+import { sanitizeC1Diagnostic } from './stock-c1-diagnostics.mjs';
+
+const resources = new Map([
+  ['/auth/v1/token', 'AUTH_SESSION'], ['/auth/v1/logout', 'AUTH_SESSION'], ['/auth/v1/user', 'AUTH_USER'],
+  ['/rest/v1/users', 'USER_PROFILE'], ['/rest/v1/rpc/current_business_id', 'TENANT_CONTEXT'], ['/rest/v1/rpc/user_can', 'PERMISSIONS'],
+  ['/rest/v1/inventory_items', 'INVENTORY_ITEM'], ['/rest/v1/locations', 'LOCATIONS'],
+  ['/rest/v1/rpc/fn_read_inventory_stock_secure', 'INVENTORY_STOCK'], ['/rest/v1/rpc/fn_read_inventory_transactions_secure', 'INVENTORY_HISTORY'],
+  ['/rest/v1/product_recipes', 'PRODUCT_RECIPES'], ['/rest/v1/rpc/fn_read_purchase_order_items_secure', 'PURCHASE_LINES'],
+  ['/rest/v1/rpc/fn_read_waste_transactions_secure', 'WASTE_SECURE'], ['/rest/v1/waste_transactions', 'WASTE_DIRECT'],
+  ['/rest/v1/audit_logs', 'AUDIT_HISTORY'], ['/rest/v1/rpc/fn_adjust_inventory_count', 'COUNT_PROBE'],
+]);
+const stageFor = (path, resource) => path === '/auth/v1/token' ? 'AUTH_LOGIN' : path === '/auth/v1/logout' ? 'AUTH_LOGOUT'
+  : resource === 'PERMISSIONS' ? 'PERMISSION_READ' : resource === 'COUNT_PROBE' ? 'NEGATIVE_PROBE'
+    : ['AUTH_USER', 'USER_PROFILE', 'TENANT_CONTEXT'].includes(resource) ? 'AUTH_IDENTITY' : 'FIXTURE_READ';
 
 export async function openC1Client(config, env, fetchImpl = fetch) {
   const sessions = {};
   const headers = actor => ({ apikey: config.key, Prefer: 'count=exact',
     ...(actor === 'anon' ? (config.key.startsWith('eyJ') ? { Authorization: `Bearer ${config.key}` } : {}) : { Authorization: `Bearer ${sessions[actor]?.access_token}` }) });
-  const request = async (path, actor, method = 'GET', body, denied = false) => {
+  const request = async (path, actor, method = 'GET', body, denied = false, stage) => {
     const url = new URL(path, `https://${STOCK_HOST}`);
     requireStock(url.origin === config.origin && !url.username && !url.password && !url.hash, 'C1_TEST_TARGET_REQUIRED');
     let response, data;
+    const resource = resources.get(url.pathname);
+    const fail = (code, reason) => {
+      const error = new StockSignal(code);
+      error.diagnostic = sanitizeC1Diagnostic({ stage: stage || stageFor(url.pathname, resource), resource,
+        actor: actor === 'anon' ? 'ANON' : actor, method, reason,
+        http_status: response?.status ?? null, upstream_code: data?.code });
+      throw error;
+    };
     try { response = await fetchImpl(url, { method, redirect: 'error', headers: { ...headers(actor), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(20000) }); }
-    catch { throw new StockSignal(method === 'GET' ? 'C1_READ_UNAVAILABLE' : 'C1_RESULT_UNKNOWN_READONLY_RECOVERY_REQUIRED'); }
-    try { data = response.status === 204 ? null : await response.json(); } catch { throw new StockSignal('C1_RESPONSE_UNCONFIRMED'); }
+    catch { fail(method === 'GET' ? 'C1_READ_UNAVAILABLE' : 'C1_RESULT_UNKNOWN_READONLY_RECOVERY_REQUIRED', 'NETWORK_UNAVAILABLE'); }
+    try { data = response.status === 204 ? null : await response.json(); } catch { fail('C1_RESPONSE_UNCONFIRMED', 'INVALID_JSON'); }
     if (response.ok && Array.isArray(data)) {
       const count = Number((response.headers.get('content-range') || '').match(/\/(\d+)$/)?.[1] ?? NaN);
-      requireStock(data.length < 1000 && Number.isFinite(count) && count === data.length, 'C1_INCOMPLETE_READ');
+      if (!(data.length < 1000 && Number.isFinite(count) && count === data.length)) fail('C1_INCOMPLETE_READ', 'INCOMPLETE_READ');
     }
     if (denied) return { ok: response.ok, status: response.status, data };
-    requireStock(response.ok, 'C1_AUTH_OR_READ_REJECTED');
+    if (!response.ok) fail('C1_AUTH_OR_READ_REJECTED', 'HTTP_REJECTED');
     return data;
   };
-  const read = (path, actor = 'A', denied = false) => { validateStockReadPath(path); return request(path, actor, 'GET', undefined, denied); };
+  const read = (path, actor = 'A', denied = false) => { validateStockReadPath(path); return request(path, actor, 'GET', undefined, denied, denied ? 'READ_ISOLATION' : undefined); };
   const close = async () => {
     for (const actor of Object.keys(sessions)) {
       try { await request('/auth/v1/logout?scope=local', actor, 'POST'); } catch { /* never print response or secrets */ }
@@ -57,11 +79,11 @@ export async function openC1Client(config, env, fetchImpl = fetch) {
         transactions: await read(`/rest/v1/rpc/fn_read_inventory_transactions_secure?select=*&inventory_item_id=eq.${C1_FIXTURE.item}`),
         recipes: await read(`/rest/v1/product_recipes?select=*&inventory_item_id=eq.${C1_FIXTURE.item}`),
         purchaseLines: await read(`/rest/v1/rpc/fn_read_purchase_order_items_secure?select=*&inventory_item_id=eq.${C1_FIXTURE.item}`),
-        waste: await read(`/rest/v1/waste_transactions?select=*&inventory_item_id=eq.${C1_FIXTURE.item}`),
+        waste: await read(`/rest/v1/rpc/fn_read_waste_transactions_secure?select=*&inventory_item_id=eq.${C1_FIXTURE.item}`),
         audit: await read(`/rest/v1/audit_logs?select=*&business_id=eq.${STOCK_ACTORS.A.business}&details=like.${C1_FIXTURE.name}*`) };
     },
     async isolation() {
-      for (const actor of ['B', 'anon']) for (const table of ['inventory_items', 'rpc/fn_read_inventory_stock_secure', 'rpc/fn_read_inventory_transactions_secure', 'waste_transactions']) {
+      for (const actor of ['B', 'anon']) for (const table of ['inventory_items', 'rpc/fn_read_inventory_stock_secure', 'rpc/fn_read_inventory_transactions_secure', 'rpc/fn_read_waste_transactions_secure']) {
         const filter = table === 'inventory_items' ? 'id' : 'inventory_item_id';
         const r = await read(`/rest/v1/${table}?select=id&${filter}=eq.${C1_FIXTURE.item}`, actor, true);
         requireStock(r.ok ? Array.isArray(r.data) && r.data.length === 0 : [401, 403].includes(r.status), 'C1_READ_ISOLATION_FAILED');

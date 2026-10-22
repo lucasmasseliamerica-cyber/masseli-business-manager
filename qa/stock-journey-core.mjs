@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { PHOTO_HOST, PHOTO_ACTORS } from './photo-journey-core.mjs';
+import { STOCK_WASTE_READER_CONTRACT } from './stock-waste-reader-contract.mjs';
 
 export const STOCK_HOST = PHOTO_HOST;
 export const STOCK_ACTORS = PHOTO_ACTORS;
@@ -56,7 +57,14 @@ export function validateStockCatalog(input, now = Date.now()) {
   }
   requireStock(Array.isArray(c.tables) && c.tables.length === STOCK_TABLES.length && new Set(c.tables.map(t => t.name)).size === STOCK_TABLES.length
     && c.tables.every(t => STOCK_TABLES.includes(t.name) && t.present === true && t.rls === true && t.anon_select === false), 'C_TABLE_SECURITY_MISMATCH');
+  validateStockWasteReaderContract(c);
   return c;
+}
+export function validateStockWasteReaderContract(catalog) {
+  const reader = catalog?.waste_reader_contract;
+  requireStock(reader != null && Object.entries(STOCK_WASTE_READER_CONTRACT.expected)
+    .every(([key, value]) => reader[key] === value), 'C_WASTE_READER_CONTRACT_REQUIRED');
+  return catalog;
 }
 export function validateStockFixture(s) {
   requireStock(s.item?.business_id === STOCK_ACTORS.A.business && s.item.active === true && uuid(s.item.id)
@@ -80,8 +88,9 @@ export function validateStockFixture(s) {
 }
 export function validateStockReadPath(path) {
   const url = new URL(path, `https://${STOCK_HOST}`);
-  const allowed = new Set(['/auth/v1/user', ...['users', ...STOCK_TABLES].map(t => '/rest/v1/' + t),
-    ...['current_business_id', 'user_can', 'fn_read_inventory_stock_secure', 'fn_read_inventory_transactions_secure', 'fn_read_purchase_order_items_secure'].map(f => '/rest/v1/rpc/' + f)]);
+  const allowed = new Set(['/auth/v1/user', ...['users', ...STOCK_TABLES.filter(t => t !== 'waste_transactions')].map(t => '/rest/v1/' + t),
+    ...['current_business_id', 'user_can', 'fn_read_inventory_stock_secure', 'fn_read_inventory_transactions_secure',
+      'fn_read_purchase_order_items_secure', 'fn_read_waste_transactions_secure'].map(f => '/rest/v1/rpc/' + f)]);
   requireStock(url.origin === `https://${STOCK_HOST}` && !url.username && !url.password && !url.hash && allowed.has(url.pathname), 'C_READONLY_PATH_REQUIRED');
   return url;
 }

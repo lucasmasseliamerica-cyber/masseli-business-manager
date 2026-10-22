@@ -22,7 +22,11 @@ WITH expected(name,fingerprint,auth_execute) AS (VALUES
  LEFT JOIN pg_catalog.pg_proc p ON p.pronamespace=n.oid AND p.proname=e.name AND p.prokind='f'
 ), required_tables(name) AS (VALUES ('inventory_items'),('inventory_stock'),('inventory_transactions'),('waste_transactions'),('locations'),('product_recipes'),('purchase_orders'),('purchase_order_items'),('cash_flow'),('audit_logs')), tables AS (
  SELECT t.name,c.oid IS NOT NULL AS present,coalesce(c.relrowsecurity,false) AS rls,
-   coalesce(pg_catalog.has_table_privilege('anon',c.oid,'SELECT') OR pg_catalog.has_any_column_privilege('anon',c.oid,'SELECT'),false) AS anon_select
+   coalesce(pg_catalog.has_table_privilege('anon',c.oid,'SELECT') OR pg_catalog.has_any_column_privilege('anon',c.oid,'SELECT'),false) AS anon_select,
+   coalesce(pg_catalog.has_table_privilege('authenticated',c.oid,'SELECT'),false) AS authenticated_table_select,
+   coalesce(pg_catalog.has_any_column_privilege('authenticated',c.oid,'SELECT'),false) AS authenticated_any_column_select,
+   coalesce((SELECT bool_and(pg_catalog.has_column_privilege('authenticated',c.oid,a.attnum,'SELECT'))
+     FROM pg_catalog.pg_attribute a WHERE a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped),false) AS authenticated_select_all_columns
  FROM required_tables t LEFT JOIN pg_catalog.pg_namespace n ON n.nspname='public'
  LEFT JOIN pg_catalog.pg_class c ON c.relnamespace=n.oid AND c.relname=t.name AND c.relkind IN('r','p')
 ), schema_security AS (
@@ -43,6 +47,20 @@ SELECT jsonb_build_object(
  'tables',(SELECT jsonb_agg(to_jsonb(t) ORDER BY name) FROM tables t),
  'precision_target_fingerprint','27bb16e1ab20acc78ef5bb2f25eb9c04',
  'public_schema',(SELECT to_jsonb(s) FROM schema_security s),
+ 'waste_reader_contract',(SELECT jsonb_build_object(
+   'body_fingerprint',pg_catalog.md5(p.prosrc),
+   'body_sha256',pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(p.prosrc,'UTF8')),'hex'),
+   'identity_arguments',pg_catalog.pg_get_function_identity_arguments(p.oid),
+   'returns_waste_transactions',p.prorettype=pg_catalog.to_regtype('public.waste_transactions'),
+   'language',l.lanname,'volatility',p.provolatile,'is_strict',p.proisstrict,
+   'returns_set',p.proretset,'argument_defaults',p.pronargdefaults,
+   'security_definer',p.prosecdef,'owner',pg_catalog.pg_get_userbyid(p.proowner),
+   'empty_search_path',coalesce('search_path=""'=ANY(p.proconfig),false),
+   'anon_execute',pg_catalog.has_function_privilege('anon',p.oid,'EXECUTE'),
+   'authenticated_execute',pg_catalog.has_function_privilege('authenticated',p.oid,'EXECUTE'),
+   'overloads',(SELECT count(*) FROM pg_catalog.pg_proc q WHERE q.pronamespace=p.pronamespace AND q.proname=p.proname))
+   FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_language l ON l.oid=p.prolang
+   WHERE p.oid=pg_catalog.to_regprocedure('public.fn_read_waste_transactions_secure()')),
  'c1_audit_contract',(SELECT jsonb_build_object(
    'body_fingerprint',pg_catalog.md5(p.prosrc),
    'body_sha256',pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(p.prosrc,'UTF8')),'hex'),

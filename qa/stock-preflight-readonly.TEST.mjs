@@ -64,9 +64,9 @@ export async function stockPreflight(env = process.env, args = process.argv.slic
       transactions: await read(`/rest/v1/rpc/fn_read_inventory_transactions_secure?select=id&inventory_item_id=eq.${config.itemId}`),
       recipes: await read(`/rest/v1/product_recipes?select=id&inventory_item_id=eq.${config.itemId}`),
       purchaseLines: await read(`/rest/v1/rpc/fn_read_purchase_order_items_secure?select=id&inventory_item_id=eq.${config.itemId}`),
-      waste: await read(`/rest/v1/waste_transactions?select=id&inventory_item_id=eq.${config.itemId}`) };
+      waste: await read(`/rest/v1/rpc/fn_read_waste_transactions_secure?select=id&inventory_item_id=eq.${config.itemId}`) };
     validateStockFixture(fixture); report.checks.dedicated_fixture = 'PASS';
-    for (const actor of ['B', 'anon']) for (const table of ['inventory_items', 'rpc/fn_read_inventory_stock_secure', 'rpc/fn_read_inventory_transactions_secure', 'waste_transactions']) {
+    for (const actor of ['B', 'anon']) for (const table of ['inventory_items', 'rpc/fn_read_inventory_stock_secure', 'rpc/fn_read_inventory_transactions_secure', 'rpc/fn_read_waste_transactions_secure']) {
       const filter = table === 'inventory_items' ? 'id' : 'inventory_item_id';
       const rows = await read(`/rest/v1/${table}?select=id&${filter}=eq.${config.itemId}`, actor, true);
       requireStock(Array.isArray(rows) && rows.length === 0, 'C_CROSS_TENANT_READ');

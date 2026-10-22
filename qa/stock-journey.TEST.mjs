@@ -10,6 +10,7 @@ import { C1_FIXTURE, C1_CHECKS, c1Mode, c1Scope, c1Window, c1Precision, c1AuditC
   verifyC1View, sealC1Checkpoint, unsealC1Checkpoint } from './stock-c1-protocol.mjs';
 import { openC1Client } from './stock-c1-client.mjs';
 import { createC1BrowserGuard } from './stock-c1-browser-guard.mjs';
+import { sanitizeC1Diagnostic } from './stock-c1-diagnostics.mjs';
 
 const LOCAL = 'http://127.0.0.1:4189';
 const delay = ms => new Promise(r => setTimeout(r, ms));
@@ -193,6 +194,8 @@ export async function stockJourney(env = process.env, args = process.argv.slice(
     report.checkpoint_sha256 = digest(readFileSync(checkpoint));
   } catch (error) {
     report.code = routeFailure?.code || (error instanceof StockSignal ? error.code : 'C1_EXECUTION_UNCONFIRMED');
+    const diagnostic = sanitizeC1Diagnostic(routeFailure?.diagnostic || (error instanceof StockSignal ? error.diagnostic : null));
+    if (diagnostic) report.diagnostic = diagnostic;
     if (state?.pending) report.code = 'C1_PENDING_RESULT_READONLY_RECOVERY_REQUIRED';
     report.recovery_checkpoint_retained = !!checkpoint && existsSync(checkpoint);
     // No automatic compensation, restart or retry after any failure. This includes UI/timeout failures.

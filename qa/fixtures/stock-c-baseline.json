@@ -1,5 +1,5 @@
 {
-  "source": "Reviewed six-function subset of user-supplied historical TEST export; not a current deployment attestation",
+  "source": "Reviewed eight-function subset of user-supplied historical TEST export; not a current deployment attestation",
   "source_sha256": "a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f",
   "functions": [
     {
@@ -36,6 +36,11 @@
       "name": "fn_read_purchase_order_items_secure",
       "fingerprint": "de4aa1b81b87e33433ef3bbf1b072076",
       "definition": "CREATE OR REPLACE FUNCTION public.fn_read_purchase_order_items_secure()\n RETURNS SETOF purchase_order_items\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$ SELECT pi.id,pi.purchase_order_id,pi.inventory_item_id,pi.qty_ordered,pi.unit,\nCASE WHEN public.user_can('managePurchases') OR public.user_can('manageRecipesAndCosts') THEN pi.unit_cost ELSE NULL END,\npi.received_qty FROM public.purchase_order_items pi JOIN public.purchase_orders po ON po.id=pi.purchase_order_id WHERE po.business_id=public.current_business_id() $function$\n"
+    },
+    {
+      "name": "fn_read_waste_transactions_secure",
+      "fingerprint": "27054c6cd813e97f4416d3445fdfa5d2",
+      "definition": "CREATE OR REPLACE FUNCTION public.fn_read_waste_transactions_secure()\n RETURNS SETOF waste_transactions\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n SELECT w.id,w.business_id,w.inventory_item_id,w.location_id,w.qty,w.unit,w.reason,\n CASE WHEN public.user_can('manageRecipesAndCosts') THEN w.cost ELSE NULL END,\n w.notes,w.inventory_transaction_id,w.created_by,w.created_at\n FROM public.waste_transactions w WHERE w.business_id=public.current_business_id()\n$function$\n"
     }
   ]
 }
