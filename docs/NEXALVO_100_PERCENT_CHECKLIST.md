@@ -1,5 +1,35 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Atualização vigente — C preparada, precisão corrigida localmente (22/10/2026)
+
+[Pacote C, evidências, procedimento Windows e sequência de autorizações](./QA_C_STOCK_20261022.md).
+Código **16813e0022600344b4f08b5acee6c9c0569cb201**. [CI #204](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123):
+**712/712 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 persistentes BLOCKED**.
+[Evidência CI](./evidence/stock-c-ci-204-20261022.json). Local: 63/63 regressões relacionadas e 3/3
+browser HTTP simulado PASS; build PASS. C Windows: 4/4 PS 5.1 e 4/4 PS 7, somente arquivos sintéticos.
+
+- [x] Quantidade de estoque preservada em três casas e custo inicial em quatro; entradas incompatíveis e seleção de inativo bloqueadas antes do RPC. PT/EN atualizado.
+- [x] Preflight C somente leitura, SQLs de catálogo/fixtures/precisão e inventário de contratos D/E preparados e testados.
+- [x] Bug de precisão reproduzido na função histórica em PostgreSQL descartável; patch/rollback exatos preparados e verificados, sem aplicação no TEST.
+- [x] Concorrência local de transferências opostas, deriva de custo no retorno com médias diferentes e retenção de perda comprovadas; não equivalem à C real.
+- [ ] C real: credenciais OWNER A/B, catálogo vigente e fixtures C dedicadas ainda não verificados nesta sessão.
+- [ ] Patch TEST: revisão/preflight real e autorização específica de aplicação, em janela sem outras gravações.
+- [ ] C1 persistente: fixture/janela/snapshot/compensação e autorização própria. C2: decisão sobre histórico de perda residual.
+
+Preflight nesta sessão: **BLOCKED C_SECURE_QA_CREDENTIALS_REQUIRED**, antes de rede. Credencial
+administrativa não foi utilizada como usuário QA. Sem integração SQL/Desktop Commander nesta
+sessão; não declarar notebook offline. Sem fixtures elegíveis confirmadas, não criar ou reutilizar
+histórico. Executor entregue é **somente leitura**, sem modo persistente e sem tocar checkpoint B.
+
+Legado interno: b5ac605f98d630ec318651bfb70eda63; alvo preparado: 27bb16e1ab20acc78ef5bb2f25eb9c04.
+Mudança previne diferença entre saldo arredondado e movimento com mais de três casas; não repara
+histórico. Não substituir hashes por drift desconhecido nem aplicar/rollback com base apenas na CI.
+
+**A/B preservadas; B 17/17. Matriz real permanece 16/60 (26,67%), 15 pendentes e 29 bloqueados.**
+Nenhuma nova homologação real foi inferida dos testes. Não repetir #1253, estorno ou recuperação.
+Não alterar main, produção, usuários/claims ou habilitar grupos persistentes. D/E continuam
+aguardando seus próprios contratos atuais, pré-requisitos e autorizações. Comercial segue congelado.
+
 ## Atualização vigente — B #1253 concluída por conciliação (21/10/2026)
 
 [Relatório final B e origem dos 17 checks](./QA_B_CLOSURE_20261021.md).

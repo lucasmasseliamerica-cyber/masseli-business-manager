@@ -1,0 +1,98 @@
+{
+  "evidence_kind": "REAL_GITHUB_ACTIONS_PUBLIC_SUMMARY",
+  "run": 204,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123",
+  "branch": "automation/nexalvo-qa-actions",
+  "validated_code_sha": "16813e0022600344b4f08b5acee6c9c0569cb201",
+  "status": "PASS_EXECUTED_SCOPE",
+  "tests": {
+    "passed": 712,
+    "total": 712,
+    "failed": 0,
+    "skipped": 0
+  },
+  "jobs": [
+    {
+      "name": "build-and-security",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642249288"
+    },
+    {
+      "name": "windows-sale-launcher",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642249524"
+    },
+    {
+      "name": "test-api-smoke",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642453495"
+    },
+    {
+      "name": "authenticated-preflight",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642518155"
+    },
+    {
+      "name": "authenticated-concurrency",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642601087"
+    },
+    {
+      "name": "access-regression",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642599172"
+    },
+    {
+      "name": "auth-lifecycle",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642599157"
+    },
+    {
+      "name": "replay-financial",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642601011"
+    },
+    {
+      "name": "network-after-commit",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642600490"
+    },
+    {
+      "name": "browser-smoke",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642599121"
+    },
+    {
+      "name": "performance-read",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642599212"
+    },
+    {
+      "name": "two-tenant-concurrency",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642600806"
+    },
+    {
+      "name": "qa-summary",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123/job/119642994097"
+    }
+  ],
+  "native_c_windows_steps": [
+    {
+      "name": "Native Windows PowerShell 5.1 C preflight launcher",
+      "status": "PASS",
+      "cases": 4
+    },
+    {
+      "name": "Native PowerShell 7 C preflight launcher",
+      "status": "PASS",
+      "cases": 4
+    }
+  ],
+  "persistent_groups_blocked": 4,
+  "c_supabase_persistent_execution": false,
+  "c_authenticated_fixture_preflight_executed_by_this_ci": false,
+  "test_migration_applied": false,
+  "note": "CI proves regressions, disposable PostgreSQL and synthetic Windows launchers. It does not approve or execute the real C journey, a migration or D/E writes."
+}

@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-22",
+  "branch": "automation/nexalvo-qa-actions",
+  "code_sha": "16813e0022600344b4f08b5acee6c9c0569cb201",
+  "scope": "C_PREPARATION_AND_LOCAL_FIXES_NOT_PERSISTENT_HOMOLOGATION",
+  "legacy_expression_reproduction": {
+    "source_commit": "4a278c9c0d5ceacc74ee9150b54cc5f4d6a931d2",
+    "input_count": 0.125,
+    "observed_count": 0.13,
+    "input_initial_cost": 0.1234,
+    "observed_initial_cost": 0.12
+  },
+  "related_regressions": {
+    "passed": 63,
+    "failed": 0,
+    "skipped": 0,
+    "includes_disposable_postgres": true
+  },
+  "browser_http_simulated": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "not_supabase_homologation": true
+  },
+  "historical_sql_findings": {
+    "fractional_ledger_mismatch_reproduced": true,
+    "patch_apply_tested_only_in_disposable_postgres": true,
+    "exact_rollback_definition_and_acl_tested": true,
+    "opposite_transfers_lock_overlap_observed": true,
+    "unequal_cost_reverse_transfer_does_not_restore_average_cost": true,
+    "waste_history_remains_after_quantity_restore": true
+  },
+  "precision_contract": {
+    "legacy_fingerprint": "b5ac605f98d630ec318651bfb70eda63",
+    "target_fingerprint": "27bb16e1ab20acc78ef5bb2f25eb9c04",
+    "legacy_definition_sha256": "add167d342ef3ff04902660403c2ccaf2ea84eac6211e9f81a05831c39f0159d",
+    "target_definition_sha256": "ced70a81653844beb6d6306f26d7741c229b4336a12a068cad33782da6cfd6fa",
+    "scope": "INTERNAL_QUANTITY_PRECISION_ONLY_NO_GRANTS_OR_HISTORY_CHANGES"
+  },
+  "live_c_preflight": {
+    "scope": "C_JOURNEY_AUTHENTICATED_READONLY_PREFLIGHT",
+    "status": "BLOCKED",
+    "code": "C_SECURE_QA_CREDENTIALS_REQUIRED",
+    "checks": {},
+    "stock_mutations": 0,
+    "fixtures_created": 0,
+    "checkpoints_modified": 0,
+    "persistent_authorized": false
+  },
+  "current_test_catalog_verified": false,
+  "live_c_fixtures_verified": false,
+  "live_supabase_writes": 0,
+  "private_admin_credential_used_as_qa_user": false,
+  "original_b_checkpoint_accessed": false,
+  "macro_acceptance": {
+    "completed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67
+  },
+  "evidence_hashes": {
+    "related_tap": "15c5b5136cb456b3b4233d46c5725c4f824361e3b48fa7270f2aa3d2ee1fd54f",
+    "browser_tap": "e3d1a6d7d1f51e94bc320a9c68aa125665e2c9c3c81cc298a5b822ab3e0bd7cc",
+    "reviewed_function_subset": "3a8757314e8a25555d8c2355306c0b50f8154883b7b75f76c339435c759cfde6"
+  },
+  "build": "PASS",
+  "ci": {
+    "run": 204,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123",
+    "status": "PASS_EXECUTED_SCOPE",
+    "passed": 712,
+    "failed": 0,
+    "skipped": 0,
+    "jobs_passed": 9,
+    "persistent_jobs_blocked": 4,
+    "evidence": "docs/evidence/stock-c-ci-204-20261022.json"
+  },
+  "native_c_windows": {
+    "powershell_5_1": {
+      "passed": 4,
+      "failed": 0
+    },
+    "powershell_7": {
+      "passed": 4,
+      "failed": 0
+    },
+    "synthetic_only": true
+  },
+  "test_harness_corrections": [
+    "Wait for final TCP PostgreSQL startup rather than temporary init socket",
+    "Synthetic C location labels normalized uppercase; fixture restrictions unchanged"
+  ]
+}
