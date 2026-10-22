@@ -25,7 +25,7 @@ const uuid = value => typeof value === 'string' && /^[a-f0-9]{8}-(?:[a-f0-9]{4}-
 const finite = value => value !== null && value !== '' && value !== undefined && Number.isFinite(Number(value));
 export const stockHash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export function stockConfiguration(env) {
-  // This runner has no persistent mode. A service key must never substitute either owner.
+  // Shared public-key/user configuration. Each runner must enforce its own mode/authorization.
   for (const name of ['QA_SUPABASE_URL', 'QA_SUPABASE_ANON_KEY', 'QA_TWO_TENANT_A_EMAIL', 'QA_TWO_TENANT_A_PASSWORD', 'QA_TWO_TENANT_B_EMAIL', 'QA_TWO_TENANT_B_PASSWORD']) {
     requireStock(typeof env[name] === 'string' && env[name].length > 0, 'C_SECURE_QA_CREDENTIALS_REQUIRED');
   }
@@ -74,7 +74,7 @@ export function validateStockFixture(s) {
       && finite(p.avg_cost_per_unit) && Number(p.avg_cost_per_unit) > 0 && Number(p.avg_cost_per_unit) <= 1), 'C_SAFE_EXISTING_POSITIONS_REQUIRED');
   requireStock(Number(s.stocks[0].avg_cost_per_unit) === Number(s.stocks[1].avg_cost_per_unit), 'C_EQUAL_AVERAGE_COST_REQUIRED');
   requireStock(s.stocks.every(p => Math.abs(Number(p.avg_cost_per_unit) * 10000 - Math.round(Number(p.avg_cost_per_unit) * 10000)) < 1e-8), 'C_COST_PRECISION_REQUIRED');
-  return { maxQuantityPerOperation: 1, createFixtures: false, deleteHistory: false, persistentAuthorized: false,
+  return { maxQuantityPerOperation: 0.5, createFixtures: false, deleteHistory: false, persistentAuthorized: false,
     allowedAfterSeparateAuthorization: ['adjust', 'transfer', 'reverse_transfer', 'restore_count'],
     wasteRequiresExplicitResidualHistoryAcceptance: true };
 }

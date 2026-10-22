@@ -854,6 +854,7 @@ export const PORTUGUESE = {
   "Enter a quantity greater than zero.": "Informe uma quantidade maior que zero.",
   "Transfer quantity exceeds stock at the source location.": "A quantidade supera o estoque disponível na origem.",
   "Stock transferred": "Estoque transferido",
+  "Stock transferred, but its audit entry could not be confirmed. Check history before another transfer.": "Estoque transferido, mas a auditoria não pôde ser confirmada. Confira o histórico antes de outra transferência.",
   "Select an active location.": "Selecione um local ativo.",
   "Stock quantities support up to 3 decimal places.": "As quantidades de estoque aceitam até 3 casas decimais.",
   "Stock costs support up to 4 decimal places.": "Os custos de estoque aceitam até 4 casas decimais.",

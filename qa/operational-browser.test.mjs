@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false, c1Baseline = false, inventoryAuditFault } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -45,6 +45,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     tables.locations.push({ id: '77777777-7777-4777-8777-777777777777', business_id: business, name: 'Secondary QA location', active: true });
     tables.inventory_items.push({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', business_id: business, name: 'Inactive ingredient', active: false, unit: 'Units' });
     state.stockSlots = tables.locations.map((l, index) => ({ id: randomUUID(), inventory_item_id: item, location_id: l.id, qty: index ? 2.125 : 1.125, avg_cost_per_unit: 0.1234 }));
+    if (c1Baseline) state.stockSlots.forEach(s => { s.qty = 2; s.avg_cost_per_unit = 0.1; });
     state.inventoryWrites = [];
   }
   if (saleFault === 'missing-ingredient') tables.inventory_items = [];
@@ -147,7 +148,8 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
       const delta = name.endsWith('fn_adjust_inventory_count') ? body.p_new_qty - stock.qty : -body.p_qty;
       stock.qty = Math.round((stock.qty + delta) * 1000) / 1000;
       const tx = { id: randomUUID(), business_id: business, inventory_item_id: item, location_id: stock.location_id,
-        type: name.endsWith('fn_record_waste') ? 'WASTE' : name.endsWith('fn_transfer_inventory') ? 'TRANSFER_OUT' : 'ADJUSTMENT', qty_change: delta, created_at: now };
+        type: name.endsWith('fn_record_waste') ? 'WASTE' : name.endsWith('fn_transfer_inventory') ? 'TRANSFER_OUT' : 'ADJUSTMENT', qty_change: delta, created_at: now,
+        note: name.endsWith('fn_adjust_inventory_count') ? `Reason: ${body.p_reason} — ${body.p_notes}` : body.p_notes };
       state.inventoryMovements.push(tx);
       if (name.endsWith('fn_transfer_inventory')) {
         const target = state.stockSlots.find(row => row.location_id === body.p_to_location_id); assert.ok(target);
@@ -220,6 +222,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     if (name === 'rpc/fn_write_audit') {
       const entry = { id: randomUUID(), business_id: business, action: body.p_action, details: body.p_details, user_id: owner, occurred_at: new Date().toISOString() };
       state.auditRows.push(entry);
+      if (inventoryAuditFault === 'unknown' && body.p_action === 'Stock Transferred') return route.abort();
       return reply(entry);
     }
     if (name === 'rpc/fn_reconcile_business_alerts') return reply([]);
@@ -625,5 +628,56 @@ test('SIMULATED HTTP C: fractional transfer rejects excess precision and preserv
     assert.equal(state.stockSlots[0].qty, 1); assert.equal(state.stockSlots[1].qty, 2.25);
     assert.ok(state.stockSlots.every(row => row.avg_cost_per_unit === 0.1234));
     assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP C1: four UI operations reload history and restore two balances and costs without deleting audit', { timeout: 60000 }, async () => {
+  const { context, page, state, errors } = await isolated({ inventoryScenario: true, c1Baseline: true });
+  const source = '33333333-3333-4333-8333-333333333333', target = '77777777-7777-4777-8777-777777777777';
+  const row = () => page.locator('[data-inventory-item-id="55555555-5555-4555-8555-555555555555"]');
+  try {
+    for (const [i, name] of ['COUNT', 'TRANSFER', 'RETURN', 'RESTORE'].entries()) {
+      await page.getByText('Inventory', { exact: true }).first().click();
+      await row().getByRole('button', { name: i === 0 || i === 3 ? 'Adjust' : 'Transfer', exact: true }).click();
+      const dialog = page.getByRole('dialog');
+      if (i === 0 || i === 3) {
+        await dialog.getByText('Location', { exact: true }).locator('..').locator('select').selectOption(source);
+        await dialog.locator('input[type=number]').fill(i === 0 ? '2.125' : '2');
+      } else {
+        await dialog.getByText('From Location', { exact: true }).locator('..').locator('select').selectOption(i === 1 ? source : target);
+        await dialog.getByText('To Location', { exact: true }).locator('..').locator('select').selectOption(i === 1 ? target : source);
+        await dialog.locator('input[type=number]').fill('0.5');
+      }
+      await dialog.locator('textarea').fill('C1_SIMULATED_' + name);
+      await dialog.getByRole('button', { name: i === 0 || i === 3 ? 'Save' : 'Transfer Stock', exact: true }).click();
+      await dialog.waitFor({ state: 'hidden' });
+      assert.equal(state.inventoryWrites.length, i + 1);
+      assert.equal(state.auditRows.length, state.auditBaseline.length + i + 1);
+      await page.reload({ waitUntil: 'domcontentloaded' });
+    }
+    await page.getByText('Inventory', { exact: true }).first().click();
+    await row().getByRole('button', { name: 'History', exact: true }).click();
+    const history = page.getByRole('dialog');
+    for (const step of ['COUNT', 'TRANSFER', 'RETURN', 'RESTORE']) await history.getByText('C1_SIMULATED_' + step, { exact: false }).first().waitFor();
+    assert.deepEqual(state.stockSlots.map(s => [s.qty, s.avg_cost_per_unit]), [[2, 0.1], [2, 0.1]]);
+    assert.equal(state.inventoryMovements.length, 6);
+    for (const id of [source, target]) assert.equal(state.inventoryMovements.filter(r => r.location_id === id).reduce((sum, r) => sum + r.qty_change, 0), 0);
+    assert.deepEqual(state.auditRows.slice(0, state.auditBaseline.length), state.auditBaseline);
+    assert.equal(state.cashMovements.length, 0); assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP C1: lost audit response after a confirmed transfer never replays stock or reports transfer failure', { timeout: 30000 }, async () => {
+  const { context, page, state } = await isolated({ inventoryScenario: true, inventoryAuditFault: 'unknown' });
+  try {
+    await page.getByText('Inventory', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Transfer', exact: true }).first().click();
+    const dialog = page.getByRole('dialog'); await dialog.locator('input[type=number]').fill('0.125');
+    await dialog.getByRole('button', { name: 'Transfer Stock', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    await page.getByText('Stock transferred, but its audit entry could not be confirmed. Check history before another transfer.', { exact: true }).waitFor();
+    assert.equal(state.inventoryWrites.length, 1); assert.equal(state.auditRows.length, state.auditBaseline.length + 1);
+    assert.deepEqual(state.stockSlots.map(s => s.qty), [1, 2.25]);
+    assert.equal(await page.getByText('Unable to transfer stock.', { exact: true }).count(), 0);
   } finally { await context.close(); }
 });

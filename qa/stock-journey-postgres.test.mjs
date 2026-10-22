@@ -2,8 +2,12 @@ import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { STOCK_ACTORS, STOCK_FINGERPRINTS, STOCK_PRECISION_TARGET_FINGERPRINT, validateStockCatalog } from './stock-journey-core.mjs';
+import { C1_FIXTURE, makeC1State, c1Plan, c1Payload, verifyC1View, sealC1Checkpoint, c1AuditContract } from './stock-c1-protocol.mjs';
+import { reconcileC1Readonly } from './stock-journey.TEST.mjs';
 
 // Exact captured functions, synthetic profiles/rows, isolated PostgreSQL only. No Supabase access.
 const container=`nexalvo-stock-c-${process.pid}-${randomBytes(4).toString('hex')}`;
@@ -15,6 +19,7 @@ const precision=readFileSync(new URL('./sql/stock_quantity_precision_preflight_r
 const patch=readFileSync(new URL('../migrations/20261022_inventory_quantity_precision_TEST.sql',import.meta.url),'utf8');
 const rollback=readFileSync(new URL('../migrations/20261022_inventory_quantity_precision_rollback_TEST.sql',import.meta.url),'utf8');
 const platform=readFileSync(new URL('../migrations/20261016_platform_admin_TEST.sql',import.meta.url),'utf8');
+const hardening=readFileSync(new URL('../migrations/20261017_catalog_security_hardening_TEST.sql',import.meta.url),'utf8');
 const id={a:STOCK_ACTORS.A.business,b:STOCK_ACTORS.B.business,
   owner:'11111111-aaaa-4111-8111-111111111111',other:'22222222-bbbb-4222-8222-222222222222',manager:'33333333-cccc-4333-8333-333333333333',
   item:'44444444-dddd-4444-8444-444444444444',src:'55555555-eeee-4555-8555-555555555555',dst:'66666666-ffff-4666-8666-666666666666'};
@@ -64,9 +69,11 @@ before(async()=>{
     const match=platform.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${helper}\\([\\s\\S]*?\\$function\\$\\s*;`));assert.ok(match);sql(match[0]);
   }
   for(const f of captured.functions)sql(f.definition+';');
+  sql(hardening.match(/CREATE OR REPLACE FUNCTION public\.fn_write_audit\([\s\S]*?\$function\$\s*;/)[0]);
   sql(`REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC,anon,authenticated;
     GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
     ${Object.keys(STOCK_FINGERPRINTS).filter(n=>n!=='fn_record_inventory_movement').map(n=>`GRANT EXECUTE ON FUNCTION public.${n} TO authenticated;`).join('\n')}
+    GRANT EXECUTE ON FUNCTION public.fn_write_audit(text,text) TO authenticated;
     ${['inventory_items','inventory_stock','inventory_transactions','waste_transactions','locations','product_recipes','purchase_orders','purchase_order_items','cash_flow','audit_logs'].map(t=>`ALTER TABLE public.${t} ENABLE ROW LEVEL SECURITY;`).join('\n')}`);
   reset();
 });
@@ -75,6 +82,10 @@ after(()=>{if(started)docker(['stop',container]);});
 test('C exact historical definitions and tenant helpers reproduce all nine fingerprints in READ ONLY catalog SQL',()=>{
   const before=counts();const report=readonly(catalog);
   assert.equal(report.status,'PASS_MATCHED_HISTORICAL_CONTRACTS');assert.equal(report.functions.length,9);validateStockCatalog(report);
+  c1AuditContract(report);
+  sql('GRANT EXECUTE ON FUNCTION public.fn_write_audit(text,text) TO anon;');
+  assert.throws(()=>c1AuditContract(readonly(catalog)));
+  sql('REVOKE EXECUTE ON FUNCTION public.fn_write_audit(text,text) FROM anon;');
   const discovery=readonly(nextPhases);assert.equal(discovery.functions.length,12);assert.equal(discovery.persistent_authorized,false);
   for(const f of report.functions)assert.equal(f.fingerprint,STOCK_FINGERPRINTS[f.name],f.name);
   sql('GRANT SELECT(id) ON public.inventory_items TO anon;');
@@ -143,4 +154,49 @@ test('C precision bug reproduced, explicit patch rejects sub-milliquantities ato
   assert.equal(readonly(catalog).functions.find(f=>f.name==='fn_record_inventory_movement').fingerprint,STOCK_FINGERPRINTS.fn_record_inventory_movement);
   assert.equal(sql("SELECT proacl::text FROM pg_proc WHERE proname='fn_record_inventory_movement';"),acl);
   assert.deepEqual(counts(),beforeRollback);
+});
+
+test('C1 exact patched SQL proves six linked movements and read-only reconciliation after a lost response without replay', async()=>{
+  reset();
+  sql("SET nexalvo.stock_precision_authorized='msinksoilkluooxenecy:APPLY_EXPLICIT';"+patch);
+  // Synthetic isolated database only. UUIDs mirror the authorized scope, never Supabase data.
+  sql(`UPDATE users SET id='${STOCK_ACTORS.A.owner}' WHERE id='${id.owner}';
+    UPDATE inventory_items SET id='${C1_FIXTURE.item}',name='${C1_FIXTURE.name}' WHERE id='${id.item}';
+    UPDATE locations SET id='${C1_FIXTURE.source}',name='${C1_FIXTURE.sourceName}' WHERE id='${id.src}';
+    UPDATE locations SET id='${C1_FIXTURE.target}',name='${C1_FIXTURE.targetName}' WHERE id='${id.dst}';
+    UPDATE inventory_stock SET inventory_item_id='${C1_FIXTURE.item}',location_id=CASE WHEN location_id='${id.src}' THEN '${C1_FIXTURE.source}'::uuid ELSE '${C1_FIXTURE.target}'::uuid END;`);
+  const view=()=>JSON.parse(sql(`SELECT jsonb_build_object(
+    'item',(SELECT to_jsonb(i) FROM inventory_items i),'locations',(SELECT jsonb_agg(to_jsonb(l)) FROM locations l),
+    'stocks',(SELECT jsonb_agg(to_jsonb(s)) FROM inventory_stock s),
+    'transactions',(SELECT coalesce(jsonb_agg(to_jsonb(t)),'[]'::jsonb) FROM inventory_transactions t),
+    'recipes','[]'::jsonb,'purchaseLines','[]'::jsonb,'waste','[]'::jsonb,'audit','[]'::jsonb);`));
+  const {audit,...fixture}=view();
+  const state=makeC1State(fixture,audit,'a'.repeat(40),'b'.repeat(64),{at:Date.now(),until:Date.now()+60000});
+  const directory=mkdtempSync(join(tmpdir(),'nexalvo-stock-c1-local-pg-')),file=join(directory,'stock-recovery.json');
+  try {
+    for(const [i,step] of c1Plan(state).entries()){
+      if(i===0)c1Payload(state,step.rpc,step.payload);
+      state.operations.push({name:step.name,status:'DISPATCHED',auditAttempted:false});state.pending='MOVEMENT';
+      const p=step.payload,quote=value=>`'${String(value).replaceAll("'","''")}'`;
+      const args=step.rpc==='fn_adjust_inventory_count'
+        ? [p.p_business_id,p.p_inventory_item_id,p.p_location_id,p.p_new_qty,p.p_reason,p.p_notes]
+        : [p.p_business_id,p.p_inventory_item_id,p.p_from_location_id,p.p_to_location_id,p.p_qty,p.p_notes];
+      sql(context(STOCK_ACTORS.A.owner)+call(step.rpc,args.map(quote).join(',')));
+      const observed=view();verifyC1View(state,observed,i+1,0);
+      if(i===0){
+        writeFileSync(file,sealC1Checkpoint(state),{mode:0o600});const bytes=readFileSync(file),before=counts();
+        const proof=await reconcileC1Readonly(file,{view:async()=>view()});
+        assert.equal(proof.reconciliation.stage,1);assert.equal(proof.stock_requests_forwarded,0);assert.equal(proof.full_homologation,false);
+        assert.ok(readFileSync(file).equals(bytes));assert.deepEqual(counts(),before);
+        assert.throws(()=>c1Payload(state,step.rpc,step.payload),'unknown response never permits replay');
+      }
+      const note=step.rpc==='fn_adjust_inventory_count'?'Reason: Physical Count — '+p.p_notes:p.p_notes;
+      Object.assign(state.operations.at(-1),{status:'CONFIRMED',rows:observed.transactions.filter(r=>r.note===note)});
+      state.confirmed=i+1;state.pending=null;
+    }
+    assert.equal(verifyC1View(state,view(),4,0).stock_restored,true);
+    assert.equal(counts().tx,6);assert.equal(counts().waste,0);
+    assert.equal(Number(sql('SELECT sum(qty_change) FROM inventory_transactions;')),0);
+    assert.equal(Number(sql('SELECT count(*) FROM cash_flow;')),0);
+  }finally{rmSync(directory,{recursive:true,force:true});}
 });

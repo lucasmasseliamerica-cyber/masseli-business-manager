@@ -545,7 +545,8 @@ function applyPurchaseReceipt(inventory, receiveItems, meta = {}) {
 // closure) so it always writes against the caller's own live `auditLog` prop, not a stale one.
 async function logAudit(auditLog, setAuditLog, user, action, details) {
   const entry = { id: uid("audit"), date: nowISO(), userId: user?.id || "", userName: user?.name || "Unknown", role: user?.role || "", action, details: details || "" };
-  try { await setAuditLog([entry, ...(auditLog || [])]); } catch (e) { console.error("audit log error", e); }
+  try { await setAuditLog([entry, ...(auditLog || [])]); return true; }
+  catch { console.error("Audit entry could not be confirmed."); return false; }
 }
 
 // Idempotent append for ledger arrays with deterministic IDs. If an entry with this exact `id`
@@ -6783,7 +6784,7 @@ function InventoryView({ dark, inventory, setInventory, products, settings, supp
 
       <Card dark={dark}>
         {filtered.length === 0 ? <EmptyState dark={dark} title={translateUI("No items")} /> : filtered.map((i) => (
-          <div key={i.id} className="py-3 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
+          <div key={i.id} data-inventory-item-id={i.id} className="py-3 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
             <div className="flex items-center justify-between mb-2 gap-2">
               <div className="min-w-0" onClick={() => openAction("history", i)}>
                 <div className="font-semibold text-sm truncate" style={{ color: dark ? C.white : C.black }}>{i.name}</div>
@@ -6817,7 +6818,7 @@ function InventoryView({ dark, inventory, setInventory, products, settings, supp
           invTx={invTx} setInvTx={setInvTx} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} inventoryOps={inventoryOps} />
       )}
 
-      {modal === "transfer" && selected && <InventoryTransferModal dark={dark} item={inventory.find((i) => i.id === selected.id) || selected} locations={locations} inventoryOps={inventoryOps} can={can} showToast={showToast} onClose={() => setModal(null)} />}
+      {modal === "transfer" && selected && <InventoryTransferModal dark={dark} item={inventory.find((i) => i.id === selected.id) || selected} locations={locations} inventoryOps={inventoryOps} can={can} currentUser={currentUser} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} onClose={() => setModal(null)} />}
 
       {modal === "history" && selected && (
         <InventoryHistoryModal dark={dark} item={selected} invTx={invTx} suppliers={suppliers} purchaseOrders={purchaseOrders} onClose={() => setModal(null)} can={can} />
@@ -7009,7 +7010,7 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
 }
 
 
-function InventoryTransferModal({ dark, item, locations, inventoryOps, can, showToast, onClose }) {
+function InventoryTransferModal({ dark, item, locations, inventoryOps, can, currentUser, auditLog, setAuditLog, showToast, onClose }) {
   const { translateUI , interpolateUI} = useLanguage();
   const activeLocations = (locations || []).filter((l) => l.active !== false);
   const [fromId, setFromId] = useState(item.locationId || activeLocations[0]?.id || "");
@@ -7031,11 +7032,19 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
     if (item.active === false) { setError("Select an active inventory item."); return; }
     if (amount > available) { setError("Transfer quantity exceeds stock at the source location."); return; }
     setSubmitting(true);
+    let transferred = false;
     try {
-      await inventoryOps.transfer(item, fromId, toId, roundStockQty(amount), notes);
-      showToast("Stock transferred"); onClose();
+      let refreshWarning = "";
+      try { await inventoryOps.transfer(item, fromId, toId, roundStockQty(amount), notes); }
+      catch (e) { if (e?.rpcSucceeded) { refreshWarning = e.message; } else { throw e; } }
+      transferred = true;
+      const fromName = activeLocations.find((l) => l.id === fromId).name;
+      const toName = activeLocations.find((l) => l.id === toId).name;
+      const auditConfirmed = await logAudit(auditLog, setAuditLog, currentUser, "Stock Transferred", `${item.name} ${amount} ${item.unit} · ${fromName} → ${toName}${notes ? " · " + notes : ""}`);
+      if (!auditConfirmed) { showToast("Stock transferred, but its audit entry could not be confirmed. Check history before another transfer.", "good"); onClose(); return; }
+      showToast(refreshWarning || "Stock transferred"); onClose();
     } catch (e) {
-      if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
+      if (transferred) { showToast("Stock transferred, but its audit entry could not be confirmed. Check history before another transfer.", "good"); onClose(); }
       else { setUncertain(!!e?.commitUncertain); setError(e.message || "Unable to transfer stock."); }
     } finally { setSubmitting(false); }
   };
