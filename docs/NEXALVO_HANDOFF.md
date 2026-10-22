@@ -3,12 +3,13 @@
 ## Atualização vigente — executor C1 preparado, execução real bloqueada (22/10/2026)
 
 [Pacote C1, limites, Windows e recuperação somente leitura](./QA_C1_STOCK_20261022.md).
-Código validável: **c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac**. CI: [CI #208](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39797637348) **em fila, sem aprovação do SHA final**.
+Código validado: **9ec21c609a196a4a30e9028e02faf4a581b29962**. [CI #209](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617): **760/760 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**. [Evidência](./evidence/stock-c1-ci-209-20261022.json).
 
 - Proprietário informou patch de precisão instalado, fixture exclusiva pronta e preflight Windows real **5/5 PASS**. Evidência informada, sem observação direta nesta sessão; não reaplicar migração.
 - Entregues quatro passos delimitados (ajuste +0,125; transferência0,500; inversa0,500; ajuste final), checkpoint privado, mutex, guard por sessão e recuperação sem escrita. C2/perdas fora da autorização.
 - Auditoria de transferências e confirmação de falha sem repetir estoque corrigidas; transporte rejeita replay, concorrência, sessão errada e leituras truncadas.
-- Local: **86/86 regressões +5/5 browser HTTP simulado PASS**, build PASS. Não são homologação C1.
+- Local: **506/506 regressões +24/24 browser HTTP simulado PASS**, build e análise das duas Edge Functions PASS. Windows C1: 10/10 PS 5.1 e 10/10 PS 7 com arquivos sintéticos. Não são homologação C1.
+- Gate npm corrigido: erro/incompletude bloqueiam sem falso zero. Oito regressões PASS. Auditorias completas: runtime zero; sete alertas conhecidos de desenvolvimento/build permanecem (cinco altos, dois moderados), sem atualização de dependências.
 - **C1 real BLOCKED:** faltam credenciais QA seguras, acesso Windows/SQL nesta sessão, catálogo com c1_audit_contract e atestado da janela exclusiva. A autorização C1 foi recebida; não solicitar autorização genérica novamente.
 - Executar o SQL de catálogo atualizado somente leitura; depois launcher local/preflight. Escrita Windows apenas com CI aprovada, sessões reais, fixture íntegra e janela confirmada externamente.
 - Não há modo de retomada com escrita/compensação automática. Resultado desconhecido exige reconciliação somente leitura e preservação de checkpoint/histórico.
@@ -16,7 +17,7 @@ Código validável: **c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac**. CI: [CI #208](
 **A/B preservadas; macro 16/60 (26,67%), 15 pendentes e29 bloqueados.** C1 não promovida.
 Quatro jobs persistentes da CI continuam OFF. Não alterar main, produção, usuários/claims ou Administração Comercial; não repetir #1253. Site comercial, Stripe e licenciamento automático seguem congelados.
 
-## Atualização vigente — C preparada, precisão corrigida localmente (22/10/2026)
+## Histórico — preparação C anterior ao executor C1 (22/10/2026)
 
 [Pacote C, evidências, procedimento Windows e sequência de autorizações](./QA_C_STOCK_20261022.md).
 Código **16813e0022600344b4f08b5acee6c9c0569cb201**. [CI #204](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39723549123):

@@ -39,5 +39,7 @@
   "evidence_method": "PUBLIC_GITHUB_HTML_READ_ONLY",
   "persistent_workflows_enabled": false,
   "real_c1_executed": false,
-  "note": "No aggregate count or final approval inferred from partial jobs. Earlier intermediate code runs are not used to approve the final SHA."
+  "note": "No aggregate count or final approval inferred from partial jobs. Earlier intermediate code runs are not used to approve the final SHA.",
+  "snapshot_role": "HISTORICAL_PARTIAL_OBSERVATION_SUPERSEDED_BY_FINAL_RUN_209",
+  "superseded_by": "docs/evidence/stock-c1-ci-209-20261022.json"
 }

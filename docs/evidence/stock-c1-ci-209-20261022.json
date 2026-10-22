@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-22",
+  "scope": "C1_CODE_CI_NOT_REAL_C1_HOMOLOGATION",
+  "run_number": 209,
+  "run_id": 39800164617,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617",
+  "head_sha": "9ec21c609a196a4a30e9028e02faf4a581b29962",
+  "branch": "automation/nexalvo-qa-actions",
+  "workflow_conclusion": "SUCCESS",
+  "counts_source": "GitHub QA summary annotation, not calculated from earlier runs",
+  "tests": {
+    "passed": 760,
+    "total": 760,
+    "failed": 0,
+    "skipped": 0
+  },
+  "jobs": [
+    {
+      "name": "build-and-security",
+      "status": "PASS",
+      "job_id": 119902175417,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119902175417"
+    },
+    {
+      "name": "windows-sale-launcher",
+      "status": "PASS",
+      "job_id": 119902175889,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119902175889"
+    },
+    {
+      "name": "test-api-smoke",
+      "status": "PASS",
+      "job_id": 119902608449,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119902608449"
+    },
+    {
+      "name": "authenticated-preflight",
+      "status": "PASS",
+      "job_id": 119902854635,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119902854635"
+    },
+    {
+      "name": "authenticated-concurrency",
+      "status": "BLOCKED_GATED",
+      "job_id": 119903097845,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119903097845"
+    },
+    {
+      "name": "access-regression",
+      "status": "PASS",
+      "job_id": 119903045385,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119903045385"
+    },
+    {
+      "name": "auth-lifecycle",
+      "status": "PASS",
+      "job_id": 119903045453,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119903045453"
+    },
+    {
+      "name": "replay-financial",
+      "status": "BLOCKED_GATED",
+      "job_id": 119903092175,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119903092175"
+    },
+    {
+      "name": "network-after-commit",
+      "status": "BLOCKED_GATED",
+      "job_id": 119906490019,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119906490019"
+    },
+    {
+      "name": "browser-smoke",
+      "status": "PASS",
+      "job_id": 119903045225,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119903045225"
+    },
+    {
+      "name": "performance-read",
+      "status": "PASS",
+      "job_id": 119903045462,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119903045462"
+    },
+    {
+      "name": "two-tenant-concurrency",
+      "status": "BLOCKED_GATED",
+      "job_id": 119904346123,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119904346123"
+    },
+    {
+      "name": "qa-summary",
+      "status": "PASS",
+      "job_id": 119904603182,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617/job/119904603182"
+    }
+  ],
+  "jobs_passed": 9,
+  "jobs_failed": 0,
+  "jobs_skipped_blocked": 4,
+  "persistent_jobs_approved": false,
+  "c1_native_windows": {
+    "powershell_5_1": {
+      "passed": 10,
+      "failed": 0,
+      "step": "Native Windows PowerShell 5.1 C1 stock launcher",
+      "step_conclusion": "success"
+    },
+    "powershell_7": {
+      "passed": 10,
+      "failed": 0,
+      "step": "Native PowerShell 7 C1 stock launcher",
+      "step_conclusion": "success"
+    },
+    "case_count_source": "10 Test-Case entries in the versioned script, both native CI steps completed successfully",
+    "synthetic_files_only": true,
+    "real_qa_checkpoint_accessed": false
+  },
+  "evidence_method": "PUBLIC_GITHUB_HTML_READ_ONLY",
+  "github_cli_read_access": "HTTP_FORBIDDEN",
+  "html_source_sha256": {
+    "run": "225dc011e7c43aede124527b96a890881edf07d19ce3f496e04582b2c467be32",
+    "summary": "ac69a0f63255832a1e763b4d232cddfd00d139979df4465b988ac037394ce602",
+    "native": "e0ec0bdda5027b9ae6d71be1292868a5e552e1df91b097d445b08796778a6a76",
+    "browser": "09ceee10dbec5f02847d12fffd18c44d71bd2a3b8b7396ad2f72430743081373"
+  },
+  "raw_html_versioned": false,
+  "persistent_workflows_enabled": false,
+  "c1_real_executed": false,
+  "c1_real_result": "BLOCKED",
+  "a_b_checkpoint_accessed": false,
+  "notes": [
+    "Four intentionally disabled persistent jobs are BLOCKED, not PASS.",
+    "Authenticated CI preflight is not the C1 fixture preflight on the Windows notebook.",
+    "Documentation-only descendants of the validated SHA are accepted by the launcher; executable descendants require new CI validation."
+  ]
+}

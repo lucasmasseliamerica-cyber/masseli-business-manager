@@ -7,7 +7,8 @@
     "99b1dc80f84fe04e72a2c72267db2894bb92913e",
     "98162f4c87e91dbb99e5f776c58be57431e2f104",
     "05b78085ae0a48f648d071840a368ed4a043f4d6",
-    "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac"
+    "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac",
+    "9ec21c609a196a4a30e9028e02faf4a581b29962"
   ],
   "user_reported_real_prerequisites": {
     "kind": "USER_REPORTED_REAL_TEST_STATE",
@@ -39,18 +40,19 @@
     "failed": 0,
     "skipped": 0,
     "postgres_disposable_only": true,
-    "tap_sha256": "55b7fe73ea700322d3c4a40b00ad3d142a1265bfff3bdc384a81c3ce745ea5a5"
+    "tap_sha256": "55b7fe73ea700322d3c4a40b00ad3d142a1265bfff3bdc384a81c3ce745ea5a5",
+    "subset_of_full_regressions": true
   },
   "local_browser_http_simulated": {
-    "passed": 5,
+    "passed": 24,
     "failed": 0,
     "skipped": 0,
     "not_supabase_homologation": true,
-    "tap_sha256": "ba44f254312351155922ae9083d43126f43fd6932e581fbe1a55d4046bc75c6c"
+    "tap_sha256": "18c52c5ae330e6a91f901cadae20d72592a3e8359ff7f522d1927413d51e4593"
   },
   "build": "PASS",
   "powershell_parser": "PASS",
-  "ci_status": "QUEUED_NOT_APPROVED",
+  "ci_status": "SUCCESS_EXECUTED_TESTS_FOUR_PERSISTENT_GROUPS_BLOCKED",
   "current_c1_attempt": {
     "scope": "C1_REAL_TEST_STOCK",
     "status": "BLOCKED",
@@ -128,13 +130,40 @@
     "new_macro_checks_approved": 0
   },
   "additional_transport_finding": "Incomplete successful deny-read responses must fail closed even when the body is empty",
-  "validated_code_sha": "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac",
+  "validated_code_sha": "9ec21c609a196a4a30e9028e02faf4a581b29962",
   "operational_window_begins_before_credential_prompts": true,
   "ci": {
-    "run": 208,
-    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39797637348",
-    "head_sha": "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac",
-    "status": "QUEUED_NOT_APPROVED",
-    "evidence": "docs/evidence/stock-c1-ci-208-20261022.json"
+    "run": 209,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617",
+    "head_sha": "9ec21c609a196a4a30e9028e02faf4a581b29962",
+    "status": "SUCCESS_EXECUTED_TESTS_FOUR_PERSISTENT_GROUPS_BLOCKED",
+    "tests_passed": 760,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "jobs_passed": 9,
+    "jobs_skipped_blocked": 4,
+    "evidence": "docs/evidence/stock-c1-ci-209-20261022.json"
+  },
+  "local_full_regressions": {
+    "passed": 506,
+    "failed": 0,
+    "skipped": 0,
+    "modules": 45,
+    "network": "NONE",
+    "tap_sha256": "5ecce1002442431bc13d080691cb1a9f6aee74fd28522e52915b51229e6e1135"
+  },
+  "build_evidence_sha256": "0888e6d724ee90b6bc2fd4dba1b55047350e09ced96de26c8c41bd030f043d7b",
+  "prepared_edge_function_parse": {
+    "passed": 2,
+    "deployments": 0
+  },
+  "dependency_audit": {
+    "runtime_findings": 0,
+    "known_build_findings": 7,
+    "high": 5,
+    "moderate": 2,
+    "gate_regressions_passed": 8,
+    "dependencies_changed": false,
+    "evidence": "docs/evidence/dependency-audit-c1-20261022.json"
   }
 }

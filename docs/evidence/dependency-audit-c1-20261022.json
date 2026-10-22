@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-22",
+  "scope": "DEPENDENCY_REVIEW_NO_UPDATES_APPLIED",
+  "runtime": {
+    "status": "PASS_VALID_COMPLETE_AUDIT",
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "source_sha256": "79d94c187ce846bff398821842d965dae95d60052f74e4a3de6713bd7b66da19"
+  },
+  "full": {
+    "status": "KNOWN_BUILD_FINDINGS_REMAIN",
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 2,
+      "high": 5,
+      "critical": 0,
+      "total": 7
+    },
+    "source_sha256": "5a3ae0682af660faa6b00cbf6457b6c9df0d09bfd2ab8e08b0ed84cb3c27f79a",
+    "packages": [
+      {
+        "package": "braces",
+        "severity": "high",
+        "affected_range": "",
+        "fix_available": true,
+        "advisory_sources": [
+          1240992
+        ]
+      },
+      {
+        "package": "chokidar",
+        "severity": "high",
+        "affected_range": "",
+        "fix_available": true,
+        "advisory_sources": []
+      },
+      {
+        "package": "fast-glob",
+        "severity": "high",
+        "affected_range": "",
+        "fix_available": true,
+        "advisory_sources": []
+      },
+      {
+        "package": "micromatch",
+        "severity": "high",
+        "affected_range": "",
+        "fix_available": true,
+        "advisory_sources": []
+      },
+      {
+        "package": "postcss-nested",
+        "severity": "moderate",
+        "affected_range": "",
+        "fix_available": true,
+        "advisory_sources": []
+      },
+      {
+        "package": "postcss-selector-parser",
+        "severity": "moderate",
+        "affected_range": "",
+        "fix_available": false,
+        "advisory_sources": [
+          1241232
+        ]
+      },
+      {
+        "package": "tailwindcss",
+        "severity": "high",
+        "affected_range": "",
+        "fix_available": false,
+        "advisory_sources": []
+      }
+    ]
+  },
+  "audit_policy_regression": {
+    "old_incomplete_report_was_incorrectly_approved": true,
+    "fixed_in_code": true,
+    "tests_passed": 8,
+    "invalid_report_status": "BLOCKED",
+    "does_not_mean_known_vulnerabilities_fixed": true
+  },
+  "force_fix_used": false,
+  "dependencies_changed": false,
+  "raw_reports_versioned": false
+}

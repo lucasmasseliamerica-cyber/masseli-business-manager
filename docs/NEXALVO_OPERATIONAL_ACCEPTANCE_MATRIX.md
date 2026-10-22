@@ -1,6 +1,6 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
-**Atualização C1 (22/10/2026):** patch instalado, fixture exclusiva e preflight real 5/5 foram informados pelo proprietário; a autorização C1 específica foi recebida. [Executor e evidências](./QA_C1_STOCK_20261022.md). C1 real ainda bloqueada nesta sessão por credenciais, acesso Windows e janela exclusiva; o contrato de auditoria atual exige novo catálogo somente leitura. O critério combinado de Estoque abaixo também inclui C2/perdas, que continua sem autorização. Nenhuma contagem macro foi promovida.
+**Atualização C1 (22/10/2026):** patch instalado, fixture exclusiva e preflight real 5/5 foram informados pelo proprietário; a autorização C1 específica foi recebida. [Executor e evidências](./QA_C1_STOCK_20261022.md). C1 real ainda bloqueada nesta sessão por credenciais, acesso Windows e janela exclusiva; o contrato de auditoria atual exige novo catálogo somente leitura. O critério combinado de Estoque abaixo também inclui C2/perdas, que continua sem autorização. Nenhuma contagem macro foi promovida. Código C1 `9ec21c609a196a4a30e9028e02faf4a581b29962`: [CI #209](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617), 760/760 PASS nos testes executados, 9 jobs PASS e 4 persistentes BLOCKED pelo gate. CI e browser simulado não comprovam C1 real.
 
 
 Cobertura comprovada: **16/60 critérios (26.67%)**; 15 PENDENTES e 29 BLOQUEADOS.
