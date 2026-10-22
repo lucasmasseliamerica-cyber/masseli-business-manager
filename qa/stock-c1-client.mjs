@@ -14,12 +14,12 @@ export async function openC1Client(config, env, fetchImpl = fetch) {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(20000) }); }
     catch { throw new StockSignal(method === 'GET' ? 'C1_READ_UNAVAILABLE' : 'C1_RESULT_UNKNOWN_READONLY_RECOVERY_REQUIRED'); }
     try { data = response.status === 204 ? null : await response.json(); } catch { throw new StockSignal('C1_RESPONSE_UNCONFIRMED'); }
-    if (denied) return { ok: response.ok, status: response.status, data };
-    requireStock(response.ok, 'C1_AUTH_OR_READ_REJECTED');
-    if (Array.isArray(data)) {
+    if (response.ok && Array.isArray(data)) {
       const count = Number((response.headers.get('content-range') || '').match(/\/(\d+)$/)?.[1] ?? NaN);
       requireStock(data.length < 1000 && Number.isFinite(count) && count === data.length, 'C1_INCOMPLETE_READ');
     }
+    if (denied) return { ok: response.ok, status: response.status, data };
+    requireStock(response.ok, 'C1_AUTH_OR_READ_REJECTED');
     return data;
   };
   const read = (path, actor = 'A', denied = false) => { validateStockReadPath(path); return request(path, actor, 'GET', undefined, denied); };

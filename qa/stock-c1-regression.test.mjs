@@ -157,6 +157,23 @@ test('C1 authenticated client exposes no generic mutation and cleans temporary s
   assert.ok(requests.some(r => r.path === '/auth/v1/logout'));
   assert.ok(requests.every(r => r.method === 'GET' || ['/auth/v1/token', '/auth/v1/logout'].includes(r.path)));
 });
+test('C1 isolation cannot approve an empty truncated response with a nonzero total count', async () => {
+  const config = { origin: 'https://msinksoilkluooxenecy.supabase.co', key: 'sb_publishable_SYNTHETIC' };
+  const env = { QA_TWO_TENANT_A_EMAIL: 'a@example.invalid', QA_TWO_TENANT_A_PASSWORD: 'SYNTHETIC_A', QA_TWO_TENANT_B_EMAIL: 'b@example.invalid', QA_TWO_TENANT_B_PASSWORD: 'SYNTHETIC_B' };
+  const fetcher = async (url, options) => {
+    const actor = options.headers.Authorization?.endsWith('_B') ? 'B' : 'A';
+    const json = data => new Response(JSON.stringify(data), { headers: { 'content-range': `*/${Array.isArray(data) ? data.length : 0}` } });
+    if (url.pathname === '/auth/v1/token') return json({ access_token: 'SYNTHETIC_' + (JSON.parse(options.body).email.startsWith('a') ? 'A' : 'B') });
+    if (url.pathname === '/auth/v1/logout') return json({});
+    if (url.pathname === '/auth/v1/user') return json({ id: STOCK_ACTORS[actor].owner });
+    if (url.pathname === '/rest/v1/users') return json([{ id: STOCK_ACTORS[actor].owner, business_id: STOCK_ACTORS[actor].business, active: true, role: 'OWNER' }]);
+    if (url.pathname.endsWith('current_business_id')) return json(STOCK_ACTORS[actor].business);
+    if (url.pathname.endsWith('user_can')) return json(true);
+    return new Response('[]', { headers: { 'content-range': '*/2' } });
+  };
+  const client = await openC1Client(config, env, fetcher);
+  try { await assert.rejects(client.isolation(), /C1_INCOMPLETE_READ/); } finally { await client.close(); }
+});
 
 const stockOrigin = 'https://msinksoilkluooxenecy.supabase.co';
 function fakeRoute(rpc, payload, fetcher, { token = 'SYNTHETIC_A', origin = stockOrigin, method = 'POST' } = {}) {
