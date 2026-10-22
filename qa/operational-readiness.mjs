@@ -41,8 +41,8 @@ export const operationalModules = [
   ] },
   { id: 'inventory', name: 'Estoque', criteria: [
     done('RPC: ajuste/perda/transferência e saldos sob ROLLBACK', 'REAL_SQL_ROLLBACK', sql, 'P0.04 executado no TEST com contexto SQL JWT simulado; não prova login ou UI'),
-    blocked('UI: cadastro/edição, ajuste/perda/transferência e histórico', 'Autorização para movimentações isoladas e restauração dos saldos/custos'),
-    pending('Contenção concorrente e estoque insuficiente em sessões reais', 'Prova de múltiplos operadores sobre as mesmas posições'),
+    blocked('UI: cadastro/edição, ajuste/perda/transferência e histórico', 'C preparada: catálogo TEST atual, fixtures C exclusivas sem histórico, credenciais OWNER A/B seguras e autorização própria; patch de precisão e retenção de perda exigem revisão separada'),
+    pending('Contenção concorrente e estoque insuficiente em sessões reais', 'Locks de transferências opostas comprovados em PostgreSQL descartável; falta prova autenticada de múltiplos operadores no TEST'),
     bDone('Reconciliação de quantidade e custo médio após ciclo completo', 'Ciclo B #1253: SALE -0,25 e REVERSAL +0,25, saldo1/custo0,10 restaurados, histórico preservado e checkpoint inalterado, confirmados pelo usuário com SQL e recuperação autenticada. Não homologa ajustes/perdas/transferências pela UI'),
   ] },
   { id: 'purchases', name: 'Compras e fornecedores', criteria: [

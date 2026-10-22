@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -40,6 +40,12 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     tables.inventory_items[0] = { ...tables.inventory_items[0], min_qty: 5, max_qty: 10, supplier_id: supplier };
     tables.inventory_items.unshift({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', business_id: business, name: 'Inactive ingredient', active: false, unit: 'Units' });
     state.stock = 1;
+  }
+  if (inventoryScenario) {
+    tables.locations.push({ id: '77777777-7777-4777-8777-777777777777', business_id: business, name: 'Secondary QA location', active: true });
+    tables.inventory_items.push({ id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', business_id: business, name: 'Inactive ingredient', active: false, unit: 'Units' });
+    state.stockSlots = tables.locations.map((l, index) => ({ id: randomUUID(), inventory_item_id: item, location_id: l.id, qty: index ? 2.125 : 1.125, avg_cost_per_unit: 0.1234 }));
+    state.inventoryWrites = [];
   }
   if (saleFault === 'missing-ingredient') tables.inventory_items = [];
   if (saleFault === 'inactive-ingredient') tables.inventory_items[0].active = false;
@@ -113,7 +119,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
         : name === 'purchase_orders' ? state.purchaseOrders : name === 'rpc/fn_read_purchase_order_items_secure' ? state.purchaseLines
         : name === 'cash_flow' ? state.cashMovements : name === 'rpc/fn_read_inventory_transactions_secure' ? state.inventoryMovements
         : name === 'rpc/fn_read_sale_items_secure' ? state.saleItems
-        : name === 'rpc/fn_read_inventory_stock_secure' ? [{ id: '66666666-6666-4666-8666-666666666666', inventory_item_id: item, location_id: location, qty: state.stock, avg_cost_per_unit: 2 }]
+        : name === 'rpc/fn_read_inventory_stock_secure' ? (state.stockSlots || [{ id: '66666666-6666-4666-8666-666666666666', inventory_item_id: item, location_id: location, qty: state.stock, avg_cost_per_unit: 2 }])
         : tables[name] || [];
       for (const [key, value] of url.searchParams) {
         if (value.startsWith('eq.')) rows = rows.filter(row => String(row[key]) === value.slice(3));
@@ -132,6 +138,30 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
       state.purchaseOrders.push(po);
       state.purchaseLines.push(...body.p_items.map(line => ({ ...line, id: randomUUID(), purchase_order_id: po.id, qty_ordered: line.qty, received_qty: 0 })));
       return reply(po);
+    }
+    if (inventoryScenario && ['rpc/fn_adjust_inventory_count','rpc/fn_record_waste','rpc/fn_transfer_inventory'].includes(name)) {
+      assert.equal(body.p_business_id, business); assert.equal(body.p_inventory_item_id, item);
+      state.inventoryWrites.push({ name, body });
+      const stock = state.stockSlots.find(row => row.location_id === (body.p_location_id || body.p_from_location_id));
+      assert.ok(stock);
+      const delta = name.endsWith('fn_adjust_inventory_count') ? body.p_new_qty - stock.qty : -body.p_qty;
+      stock.qty = Math.round((stock.qty + delta) * 1000) / 1000;
+      const tx = { id: randomUUID(), business_id: business, inventory_item_id: item, location_id: stock.location_id,
+        type: name.endsWith('fn_record_waste') ? 'WASTE' : name.endsWith('fn_transfer_inventory') ? 'TRANSFER_OUT' : 'ADJUSTMENT', qty_change: delta, created_at: now };
+      state.inventoryMovements.push(tx);
+      if (name.endsWith('fn_transfer_inventory')) {
+        const target = state.stockSlots.find(row => row.location_id === body.p_to_location_id); assert.ok(target);
+        target.qty = Math.round((target.qty + body.p_qty) * 1000) / 1000;
+        state.inventoryMovements.push({ ...tx, id: randomUUID(), location_id: target.location_id, type: 'TRANSFER_IN', qty_change: body.p_qty, related_transaction_id: tx.id });
+      }
+      return reply(tx);
+    }
+    if (inventoryScenario && name === 'rpc/fn_add_initial_stock') {
+      assert.equal(body.p_business_id, business); state.initialStockWrites.push(body);
+      const row = { id: randomUUID(), business_id: business, name: body.p_name, category: body.p_category, unit: body.p_unit, active: true, created_at: now };
+      tables.inventory_items.push(row);
+      state.stockSlots.push({ id: randomUUID(), inventory_item_id: row.id, location_id: body.p_location_id, qty: body.p_starting_qty, avg_cost_per_unit: body.p_starting_cost });
+      return reply(row);
     }
     if (name === 'rpc/fn_add_initial_stock' && request.method() === 'POST' && initialStockUnknown) {
       assert.equal(body.p_business_id, business);
@@ -537,3 +567,63 @@ test(`SIMULATED HTTP: ${photoProductActive ? 'active' : 'inactive'} product phot
   } finally { await context.close(); }
 });
 }
+
+
+test('SIMULATED HTTP C: count preserves three decimals at the selected location through reload and rejects excess precision', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ inventoryScenario: true });
+  try {
+    await page.getByText('Inventory', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Adjust', exact: true }).first().click();
+    let dialog = page.getByRole('dialog');
+    const itemSelect = dialog.getByText('Item', { exact: true }).locator('..').locator('select');
+    assert.equal(await itemSelect.locator('option').filter({ hasText: 'Inactive ingredient' }).count(), 0);
+    await dialog.getByText('Location', { exact: true }).locator('..').locator('select').selectOption('77777777-7777-4777-8777-777777777777');
+    let counted = dialog.locator('input[type=number]');
+    await counted.fill('2.1261'); await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await dialog.getByText('Stock quantities support up to 3 decimal places.', { exact: true }).waitFor();
+    assert.equal(state.inventoryWrites.length, 0);
+    await counted.fill('2.126'); await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await dialog.waitFor({ state: 'hidden' });
+    assert.equal(state.inventoryWrites.length, 1); assert.equal(state.inventoryWrites[0].body.p_new_qty, 2.126);
+    assert.equal(state.inventoryWrites[0].body.p_location_id, '77777777-7777-4777-8777-777777777777');
+    assert.equal(state.stockSlots[0].qty, 1.125); assert.equal(state.stockSlots[1].qty, 2.126);
+    await page.reload({ waitUntil: 'domcontentloaded' }); await page.getByText('Inventory', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Adjust', exact: true }).first().click(); dialog = page.getByRole('dialog');
+    await dialog.getByText('Location', { exact: true }).locator('..').locator('select').selectOption('77777777-7777-4777-8777-777777777777');
+    assert.equal(await dialog.locator('input[type=number]').inputValue(), '2.126');
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP C: new item preserves starting quantity and four-place average cost', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ inventoryScenario: true });
+  try {
+    await page.getByText('Inventory', { exact: true }).first().click(); await page.getByRole('button', { name: 'New Item', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.locator('input').first().fill('Fractional QA ingredient');
+    await dialog.getByText('Starting Quantity', { exact: true }).locator('..').locator('input').fill('0.125');
+    const cost = dialog.getByText('Cost per Unit ($)', { exact: true }).locator('..').locator('input');
+    await cost.fill('0.12345'); await dialog.getByRole('button', { name: 'Save Item', exact: true }).click();
+    await dialog.getByText('Stock costs support up to 4 decimal places.', { exact: true }).waitFor(); assert.equal(state.initialStockWrites.length, 0);
+    await cost.fill('0.1234'); await dialog.getByRole('button', { name: 'Save Item', exact: true }).click(); await dialog.waitFor({ state: 'hidden' });
+    assert.equal(state.initialStockWrites.length, 1); assert.equal(state.initialStockWrites[0].p_starting_qty, 0.125); assert.equal(state.initialStockWrites[0].p_starting_cost, 0.1234);
+    await page.reload({ waitUntil: 'domcontentloaded' }); await page.getByText('Inventory', { exact: true }).first().click();
+    await page.getByText('Fractional QA ingredient', { exact: true }).waitFor();
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP C: fractional transfer rejects excess precision and preserves source destination and cost', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ inventoryScenario: true });
+  try {
+    await page.getByText('Inventory', { exact: true }).first().click(); await page.getByRole('button', { name: 'Transfer', exact: true }).first().click();
+    const dialog = page.getByRole('dialog'); await dialog.locator('input[type=number]').fill('0.1251');
+    await dialog.getByRole('button', { name: 'Transfer Stock', exact: true }).click();
+    await dialog.getByText('Stock quantities support up to 3 decimal places.', { exact: true }).waitFor(); assert.equal(state.inventoryWrites.length, 0);
+    await dialog.locator('input[type=number]').fill('0.125'); await dialog.getByRole('button', { name: 'Transfer Stock', exact: true }).click(); await dialog.waitFor({ state: 'hidden' });
+    assert.equal(state.inventoryWrites.length, 1); assert.equal(state.inventoryWrites[0].body.p_qty, 0.125);
+    assert.equal(state.stockSlots[0].qty, 1); assert.equal(state.stockSlots[1].qty, 2.25);
+    assert.ok(state.stockSlots.every(row => row.avg_cost_per_unit === 0.1234));
+    assert.deepEqual(errors, []); assert.deepEqual(state.blocked, []);
+  } finally { await context.close(); }
+});

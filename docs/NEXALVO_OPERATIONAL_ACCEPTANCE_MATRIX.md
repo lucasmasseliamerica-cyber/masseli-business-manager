@@ -88,8 +88,8 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
 | RPC: ajuste/perda/transferência e saldos sob ROLLBACK | CONCLUÍDO | [REAL_SQL_ROLLBACK](../docs/P0_04_05_SQL_LIFECYCLE_20261013.md): P0.04 executado no TEST com contexto SQL JWT simulado; não prova login ou UI |
-| UI: cadastro/edição, ajuste/perda/transferência e histórico | BLOQUEADO | Autorização para movimentações isoladas e restauração dos saldos/custos |
-| Contenção concorrente e estoque insuficiente em sessões reais | PENDENTE | Prova de múltiplos operadores sobre as mesmas posições |
+| UI: cadastro/edição, ajuste/perda/transferência e histórico | BLOQUEADO | C preparada: catálogo TEST atual, fixtures C exclusivas sem histórico, credenciais OWNER A/B seguras e autorização própria; patch de precisão e retenção de perda exigem revisão separada |
+| Contenção concorrente e estoque insuficiente em sessões reais | PENDENTE | Locks de transferências opostas comprovados em PostgreSQL descartável; falta prova autenticada de múltiplos operadores no TEST |
 | Reconciliação de quantidade e custo médio após ciclo completo | CONCLUÍDO | [USER_CONFIRMED_JOURNEY](../docs/evidence/sale-b-1253-reported-real-evidence-20261021.json): Ciclo B #1253: SALE -0,25 e REVERSAL +0,25, saldo1/custo0,10 restaurados, histórico preservado e checkpoint inalterado, confirmados pelo usuário com SQL e recuperação autenticada. Não homologa ajustes/perdas/transferências pela UI |
 
 ### Compras e fornecedores

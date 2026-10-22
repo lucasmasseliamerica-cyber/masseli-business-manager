@@ -59,7 +59,7 @@ jobs:
         run: node --check qa/sale-journey.TEST.mjs
       - name: Run disposable SQL integration and static security checks
         shell: bash
-        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/sale-journey-guards.test.mjs qa/sale-journey-acceptance.test.mjs qa/sale-journey-postgres.test.mjs qa/photo-journey-guards.test.mjs qa/stripe-terminal-online.test.mjs qa/operational-p0-regression.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/purchase-idempotency-postgres.test.mjs qa/preflight-guards.test.mjs qa/role-preflight-guards.test.mjs qa/real-role-account-plan.test.mjs qa/reports-financial-permission.test.mjs qa/report-accuracy-regression.test.mjs qa/pos-usability-regression.test.mjs qa/product-catalog-regression.test.mjs qa/product-image-storage.test.mjs qa/app-error-boundary.test.mjs qa/inventory-usability-regression.test.mjs qa/inventory-catalog-regression.test.mjs qa/purchase-supplier-usability-regression.test.mjs qa/customer-usability-regression.test.mjs qa/employee-workflow-regression.test.mjs qa/ui-responsive-regression.test.mjs qa/sales-receipt-regression.test.mjs qa/cash-register-validation-regression.test.mjs qa/platform-admin-foundation.test.mjs qa/platform-admin-backend.test.mjs qa/platform-admin-postgres.test.mjs qa/manage-staff-user.test.mjs qa/settings-usability-regression.test.mjs qa/browser-smoke-isolation-regression.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs qa/final-homologation-package.test.mjs qa/catalog-security-hardening.test.mjs qa/private-security-catalog.test.mjs qa/npm-audit-policy.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
+        run: set -o pipefail; node --test --test-reporter=tap qa/security.test.mjs qa/sale-journey-guards.test.mjs qa/sale-journey-acceptance.test.mjs qa/sale-journey-postgres.test.mjs qa/stock-journey-guards.test.mjs qa/stock-journey-postgres.test.mjs qa/photo-journey-guards.test.mjs qa/stripe-terminal-online.test.mjs qa/operational-p0-regression.test.mjs qa/auth-core-regression.test.mjs qa/password-recovery-regression.test.mjs qa/purchase-compensation-regression.test.mjs qa/purchase-idempotency-postgres.test.mjs qa/preflight-guards.test.mjs qa/role-preflight-guards.test.mjs qa/real-role-account-plan.test.mjs qa/reports-financial-permission.test.mjs qa/report-accuracy-regression.test.mjs qa/pos-usability-regression.test.mjs qa/product-catalog-regression.test.mjs qa/product-image-storage.test.mjs qa/app-error-boundary.test.mjs qa/inventory-usability-regression.test.mjs qa/inventory-catalog-regression.test.mjs qa/purchase-supplier-usability-regression.test.mjs qa/customer-usability-regression.test.mjs qa/employee-workflow-regression.test.mjs qa/ui-responsive-regression.test.mjs qa/sales-receipt-regression.test.mjs qa/cash-register-validation-regression.test.mjs qa/platform-admin-foundation.test.mjs qa/platform-admin-backend.test.mjs qa/platform-admin-postgres.test.mjs qa/manage-staff-user.test.mjs qa/settings-usability-regression.test.mjs qa/browser-smoke-isolation-regression.test.mjs qa/expense-cash-sql-regression.test.mjs qa/expense-idempotency-regression.test.mjs qa/employee-b-fixture-plan.test.mjs qa/security-catalog-export.test.mjs qa/final-homologation-package.test.mjs qa/catalog-security-hardening.test.mjs qa/private-security-catalog.test.mjs qa/npm-audit-policy.test.mjs | tee qa-static-results.tap; ! grep -Eq '^# skipped [1-9][0-9]*' qa-static-results.tap
       - name: Upload build and static QA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -448,6 +448,21 @@ jobs:
         if: always()
         shell: pwsh
         run: .\qa\Test-QaSaleRecoveryLauncher.ps1 -TapFile "$env:RUNNER_TEMP\sale-launcher-ps7.tap"
+      - name: Native Windows PowerShell 5.1 C preflight launcher
+        if: always()
+        shell: powershell
+        run: .\qa\Test-QaStockPreflightLauncher.ps1 -TapFile "$env:RUNNER_TEMP\stock-preflight-ps51.tap"
+      - name: Native PowerShell 7 C preflight launcher
+        if: always()
+        shell: pwsh
+        run: .\qa\Test-QaStockPreflightLauncher.ps1 -TapFile "$env:RUNNER_TEMP\stock-preflight-ps7.tap"
+      - name: Archive C synthetic Windows-only preflight reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nexalvo-windows-stock-preflight
+          path: ${{ runner.temp }}/stock-preflight-*.tap
+          retention-days: 14
       - name: Archive synthetic Windows-only launcher reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -485,10 +500,10 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t tap_files < <(find qa-artifacts -type f -name '*.tap' -print | sort)
-          expected_reports=8
+          expected_reports=10
           blocked_groups=4
           if [[ "$PERSISTENT_SCOPE_AUTHORIZED" == 'true' ]]; then
-            expected_reports=12
+            expected_reports=14
             blocked_groups=0
           fi
           echo "Persistent TEST groups: $blocked_groups BLOCKED; explicit manual authorization required" >> "$GITHUB_STEP_SUMMARY"

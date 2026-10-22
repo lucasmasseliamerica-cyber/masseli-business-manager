@@ -237,6 +237,13 @@ function validateProductDraft(product, { products = [], inventory = null } = {})
   return { ok: true, value: { ...product, name, sku, category, description, price: round2(price), image, recipe: safeRecipe } };
 }
 
+// The deployed inventory ledger rounds quantity to 3 places and average cost to 4.
+// Keep stock precision separate from monetary totals; reject extra precision before any RPC.
+const roundStockQty = (n) => Math.round((Number(n) + Number.EPSILON) * 1000) / 1000;
+const hasStockPrecision = (n, places = 3) => Number.isFinite(n)
+  && Number.isSafeInteger(Math.round(n * 10 ** places))
+  && Math.abs(n * 10 ** places - Math.round(n * 10 ** places)) < 1e-8;
+
 function validateInventoryCatalogDraft(item, { inventory = [], products = [] } = {}) {
   const name = String(item?.name || "").trim();
   const sku = String(item?.sku || "").trim();
@@ -6913,12 +6920,14 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
     if (!locationId) { setError("Select a storage location."); return; }
     if (!(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active storage location."); return; }
     if (supplierId && !suppliers.some((supplier) => supplier.id === supplierId && supplier.active !== false)) { setError("Select an active supplier."); return; }
+    if (inventoryOps?.remote && !hasStockPrecision(Number(qty))) { setError("Stock quantities support up to 3 decimal places."); return; }
+    if (inventoryOps?.remote && !hasStockPrecision(Number(costPerUnit), 4)) { setError("Stock costs support up to 4 decimal places."); return; }
     const catalogValidation = validateInventoryCatalogDraft({ id: "new", name, sku, category, unit, minQty, maxQty, supplierId, expiresAt, notes, active: true }, { inventory });
     if (!catalogValidation.ok) { setError(catalogValidation.error); return; }
     setSubmitting(true);
     try {
-      const startQty = clamp0(round2(Number(qty)));
-      const startCost = clamp0(round2(Number(costPerUnit)));
+      const startQty = inventoryOps?.remote ? roundStockQty(qty) : clamp0(round2(Number(qty)));
+      const startCost = inventoryOps?.remote ? Number(costPerUnit) : clamp0(round2(Number(costPerUnit)));
       const locName = (locations || []).find((l) => l.id === locationId)?.name || "";
       const item = {
         ...catalogValidation.value, id: newDbId(), qty: startQty, costPerUnit: startCost,
@@ -6974,10 +6983,10 @@ function NewInventoryItemModal({ dark, onClose, inventory, setInventory, setting
         <Field dark={dark} label={translateUI("Unit")}>
           <Select dark={dark} value={unit} onChange={(e) => setUnit(e.target.value)}>{settings.units.map((u) => <option key={u} value={u}>{translateUI(u)}</option>)}</Select>
         </Field>
-        <Field dark={dark} label={translateUI("Starting Quantity")}><Input dark={dark} type="number" min="0" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Starting Quantity")}><Input dark={dark} type="number" min="0" step={inventoryOps?.remote ? "0.001" : "0.01"} value={qty} onChange={(e) => setQty(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Minimum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={minQty} onChange={(e) => setMinQty(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Maximum Stock")}><Input dark={dark} type="number" min="0" step="0.01" value={maxQty} onChange={(e) => setMaxQty(e.target.value)} /></Field>
-        <Field dark={dark} label={translateUI("Cost per Unit ($)")}><Input dark={dark} type="number" min="0" step="0.01" value={costPerUnit} onChange={(e) => setCostPerUnit(e.target.value)} /></Field>
+        <Field dark={dark} label={translateUI("Cost per Unit ($)")}><Input dark={dark} type="number" min="0" step={inventoryOps?.remote ? "0.0001" : "0.01"} value={costPerUnit} onChange={(e) => setCostPerUnit(e.target.value)} /></Field>
         <Field dark={dark} label={translateUI("Preferred Supplier")}>
           <Select dark={dark} value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
             <option value="">—</option>
@@ -7018,10 +7027,12 @@ function InventoryTransferModal({ dark, item, locations, inventoryOps, can, show
     if (!activeLocations.some((location) => location.id === fromId) || !activeLocations.some((location) => location.id === toId) || fromId === toId) { setError("Select different active source and destination locations."); return; }
     const amount = Number(qty);
     if (!Number.isFinite(amount) || amount <= 0) { setError("Enter a quantity greater than zero."); return; }
+    if (!hasStockPrecision(amount)) { setError("Stock quantities support up to 3 decimal places."); return; }
+    if (item.active === false) { setError("Select an active inventory item."); return; }
     if (amount > available) { setError("Transfer quantity exceeds stock at the source location."); return; }
     setSubmitting(true);
     try {
-      await inventoryOps.transfer(item, fromId, toId, amount, notes);
+      await inventoryOps.transfer(item, fromId, toId, roundStockQty(amount), notes);
       showToast("Stock transferred"); onClose();
     } catch (e) {
       if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); }
@@ -7054,7 +7065,7 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
   const currentBase = inventory.find((i) => i.id === itemId) || item;
   const selectedStock = currentBase.stocks?.find((s) => s.locationId === locationId);
   const current = inventoryOps?.remote ? { ...currentBase, locationId, location: locations.find((l) => l.id === locationId)?.name || "", qty: selectedStock?.qty ?? 0, costPerUnit: selectedStock?.costPerUnit ?? currentBase.costPerUnit } : currentBase;
-  const diff = round2(Number(newQty) - current.qty);
+  const diff = inventoryOps?.remote ? roundStockQty(Number(newQty) - current.qty) : round2(Number(newQty) - current.qty);
 
   // Operation identity is now a PURE function of what the user is asking for (mode + item + the
   // relevant values) — no uid()/useRef involved. This is what makes it survive a real browser
@@ -7080,12 +7091,14 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
     setSubmitting(true);
     try {
       if (inventoryOps?.remote) {
+        if (currentBase.active === false) { setError("Select an active inventory item."); return; }
         if (!activeLocations.some((l) => l.id === locationId)) { setError("Select an active location."); return; }
         if (mode === "receive") {
           const addQty = Number(qty);
           if (!Number.isFinite(addQty) || addQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+          if (!hasStockPrecision(addQty)) { setError("Stock quantities support up to 3 decimal places."); return; }
           try {
-            await inventoryOps.receive(current, addQty, notes);
+            await inventoryOps.receive(current, roundStockQty(addQty), notes);
             await logAudit(auditLog, setAuditLog, currentUser, "Stock Received (manual)", `${current.name} +${addQty} ${current.unit}`);
             showToast(`Received ${addQty} ${current.unit} of ${current.name}`);
           } catch (e) {
@@ -7105,7 +7118,8 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
           const parsedQty = Number(newQty);
           if (newQty === "" || !Number.isFinite(parsedQty)) { setError("Enter a valid counted quantity."); return; }
           if (parsedQty < 0) { setError("Counted quantity cannot be negative."); return; }
-          const nq = round2(parsedQty);
+          if (!hasStockPrecision(parsedQty)) { setError("Stock quantities support up to 3 decimal places."); return; }
+          const nq = roundStockQty(parsedQty);
           if (nq === current.qty) { showToast("No change to save"); onClose(); return; }
           try {
             await inventoryOps.adjust(current, nq, reason, notes);
@@ -7121,9 +7135,10 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
         } else if (mode === "waste") {
           const wasteQty = Number(qty);
           if (!Number.isFinite(wasteQty) || wasteQty <= 0) { setError("Enter a quantity greater than zero."); return; }
+          if (!hasStockPrecision(wasteQty)) { setError("Stock quantities support up to 3 decimal places."); return; }
           if (wasteQty > current.qty) { setError(`Only ${current.qty} ${current.unit} in stock — can't waste more than that.`); return; }
           try {
-            await inventoryOps.waste(current, wasteQty, reason, notes);
+            await inventoryOps.waste(current, roundStockQty(wasteQty), reason, notes);
             await logAudit(auditLog, setAuditLog, currentUser, "Waste Recorded", `${current.name} -${wasteQty} ${current.unit} · ${reason}`);
             showToast(`Waste logged: ${wasteQty} ${current.unit}`, "danger");
           } catch (e) {
@@ -7219,18 +7234,18 @@ function StockActionModal({ mode, item, inventory, setInventory, locations = [],
     <Modal title={titleMap[mode]} onClose={onClose} dark={dark}>
       <Field dark={dark} label={translateUI("Item")}>
         <Select dark={dark} value={itemId} onChange={(e) => { setItemId(e.target.value); const it = inventory.find((i) => i.id === e.target.value); setNewQty(inventoryOps?.remote ? it.stocks?.find((s) => s.locationId === locationId)?.qty ?? 0 : it.qty); }}>
-          {inventory.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+          {inventory.filter((i) => i.active !== false).map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
         </Select>
       </Field>
       {inventoryOps?.remote && <Field dark={dark} label={translateUI("Location")}><Select dark={dark} value={locationId} onChange={(e) => { setLocationId(e.target.value); setNewQty(currentBase.stocks?.find((s) => s.locationId === e.target.value)?.qty ?? 0); }}>{activeLocations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</Select><div className="text-xs mt-1">{translateUI("Available:")}{" "}{current.qty} {translateUI(current.unit)}</div></Field>}
       {mode !== "adjust" ? (
         <Field dark={dark} label={interpolateUI("Quantity ({0})",[current.unit])}>
-          <Input dark={dark} type="number" min="0.01" step="0.01" value={qty} onChange={(e) => setQty(e.target.value)} />
+          <Input dark={dark} type="number" min={inventoryOps?.remote ? "0.001" : "0.01"} step={inventoryOps?.remote ? "0.001" : "0.01"} value={qty} onChange={(e) => setQty(e.target.value)} />
         </Field>
       ) : (
         <>
           <Field dark={dark} label={interpolateUI("New counted quantity ({0}) — system says {1}",[current.unit,current.qty])}>
-            <Input dark={dark} type="number" min="0" step="0.01" value={newQty} onChange={(e) => setNewQty(e.target.value)} />
+            <Input dark={dark} type="number" min="0" step={inventoryOps?.remote ? "0.001" : "0.01"} value={newQty} onChange={(e) => setNewQty(e.target.value)} />
           </Field>
           {diff !== 0 && (
             <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: diff > 0 ? "#1E3A0F" : "#3A0F1E", color: diff > 0 ? C.lime : "#FF6B85" }}>{translateUI("Difference:")}{diff > 0 ? "+" : ""}{diff} {translateUI(current.unit)}
