@@ -20,6 +20,7 @@ const patch=readFileSync(new URL('../migrations/20261022_inventory_quantity_prec
 const rollback=readFileSync(new URL('../migrations/20261022_inventory_quantity_precision_rollback_TEST.sql',import.meta.url),'utf8');
 const platform=readFileSync(new URL('../migrations/20261016_platform_admin_TEST.sql',import.meta.url),'utf8');
 const hardening=readFileSync(new URL('../migrations/20261017_catalog_security_hardening_TEST.sql',import.meta.url),'utf8');
+const auditDefinition=source=>source.match(/CREATE OR REPLACE FUNCTION public\.fn_write_audit\([\s\S]*?\$function\$\s*;/)[0];
 const id={a:STOCK_ACTORS.A.business,b:STOCK_ACTORS.B.business,
   owner:'11111111-aaaa-4111-8111-111111111111',other:'22222222-bbbb-4222-8222-222222222222',manager:'33333333-cccc-4333-8333-333333333333',
   item:'44444444-dddd-4444-8444-444444444444',src:'55555555-eeee-4555-8555-555555555555',dst:'66666666-ffff-4666-8666-666666666666'};
@@ -44,7 +45,7 @@ before(async()=>{
   sql(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
     CREATE SCHEMA auth; CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$SELECT NULLIF(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
     CREATE TABLE public.businesses(id uuid PRIMARY KEY,platform_status text DEFAULT 'ACTIVE');
-    CREATE TABLE public.users(id uuid PRIMARY KEY,business_id uuid,role text,active boolean,permission_overrides jsonb DEFAULT '{}');
+    CREATE TABLE public.users(id uuid PRIMARY KEY,business_id uuid,role text,active boolean,permission_overrides jsonb DEFAULT '{}',name text DEFAULT 'SYNTHETIC QA USER');
     CREATE TABLE public.role_default_permissions(role text,permission_key text,granted boolean);
     CREATE TABLE public.inventory_items(id uuid PRIMARY KEY,business_id uuid,name text,unit text,active boolean DEFAULT true,supplier_id uuid);
     CREATE TABLE public.locations(id uuid PRIMARY KEY,business_id uuid,name text,active boolean DEFAULT true);
@@ -60,7 +61,8 @@ before(async()=>{
     CREATE TABLE public.purchase_order_items(id uuid PRIMARY KEY,purchase_order_id uuid,inventory_item_id uuid,qty_ordered numeric,unit text,unit_cost numeric,received_qty numeric);
     CREATE TABLE public.product_recipes(id uuid PRIMARY KEY,inventory_item_id uuid);
     CREATE TABLE public.cash_flow(id uuid PRIMARY KEY);
-    CREATE TABLE public.audit_logs(id uuid PRIMARY KEY);
+    CREATE TABLE public.audit_logs(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),business_id uuid,user_id uuid,
+      user_name_snapshot text,role_snapshot text,action text,details text,created_at timestamptz DEFAULT now());
     INSERT INTO public.businesses(id) VALUES('${id.a}'),('${id.b}');
     INSERT INTO public.users(id,business_id,role,active) VALUES('${id.owner}','${id.a}','OWNER',true),('${id.other}','${id.b}','OWNER',true),('${id.manager}','${id.a}','MANAGER',true);
     INSERT INTO public.inventory_items(id,business_id,name,unit,active) VALUES('${id.item}','${id.a}','SYNTHETIC C ITEM','kg',true);
@@ -69,7 +71,7 @@ before(async()=>{
     const match=platform.match(new RegExp(`CREATE OR REPLACE FUNCTION public\\.${helper}\\([\\s\\S]*?\\$function\\$\\s*;`));assert.ok(match);sql(match[0]);
   }
   for(const f of captured.functions)sql(f.definition+';');
-  sql(hardening.match(/CREATE OR REPLACE FUNCTION public\.fn_write_audit\([\s\S]*?\$function\$\s*;/)[0]);
+  sql(auditDefinition(platform));
   sql(`REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC,anon,authenticated;
     GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
     ${Object.keys(STOCK_FINGERPRINTS).filter(n=>n!=='fn_record_inventory_movement').map(n=>`GRANT EXECUTE ON FUNCTION public.${n} TO authenticated;`).join('\n')}
@@ -92,6 +94,107 @@ test('C exact historical definitions and tenant helpers reproduce all nine finge
   assert.equal(readonly(catalog).status,'BLOCKED_CATALOG_DRIFT');
   sql('REVOKE SELECT(id) ON public.inventory_items FROM anon;');
   assert.equal(readonly(precision).status,'READY_FOR_REVIEW_NOT_AUTHORIZED');assert.deepEqual(counts(),before);
+});
+test('C1 audit catalog distinguishes historical hardening from the exact post-cutover tenant-active body',()=>{
+  const observed=readonly(catalog);
+  assert.equal(observed.c1_audit_contract.body_fingerprint,'ab9a6025c3457cb489b7ac24de19feb5');
+  assert.equal(observed.c1_audit_contract.body_sha256,'7fecdf24cfd6cf01a27a9c846ffe16cb03950f9b84e4ba54737539d56b8e68f8');
+  assert.doesNotThrow(()=>c1AuditContract(observed));
+  try {
+    sql(auditDefinition(hardening));
+    const historical=readonly(catalog);
+    assert.equal(historical.c1_audit_contract.body_fingerprint,'75c32789a68a73e29a8a82d33e3aad27');
+    assert.throws(()=>c1AuditContract(historical),'historical body would lose the active-business guard');
+  } finally { sql(auditDefinition(platform)); }
+});
+test('C1 audit derives each tenant and actor from auth.uid without direct table privileges or privileged tenant roles',()=>{
+  const count=()=>Number(sql('SELECT count(*) FROM public.audit_logs;'));
+  const initial=count();
+  const invoke=(actor,action,details)=>JSON.parse(sql(context(actor)+`SELECT to_jsonb(public.fn_write_audit('${action}','${details}'));`));
+  const a=invoke(id.owner,'  Stock Adjusted  ','SYNTHETIC C1 A');
+  const b=invoke(id.other,'Stock Transferred','SYNTHETIC C1 B');
+  const manager=invoke(id.manager,'Stock Adjusted','SYNTHETIC C1 MANAGER');
+  const employeeId='77777777-7777-4777-8777-777777777777';
+  sql(`INSERT INTO public.users(id,business_id,role,active) VALUES('${employeeId}','${id.a}','EMPLOYEE',true);`);
+  const employee=invoke(employeeId,'Stock Adjusted','SYNTHETIC C1 EMPLOYEE');
+  assert.deepEqual([a,b,manager,employee].map(r=>[r.business_id,r.user_id,r.role_snapshot,r.action]),[
+    [id.a,id.owner,'OWNER','Client: Stock Adjusted'],[id.b,id.other,'OWNER','Client: Stock Transferred'],
+    [id.a,id.manager,'MANAGER','Client: Stock Adjusted'],
+    [id.a,employeeId,'EMPLOYEE','Client: Stock Adjusted'],
+  ]);
+  assert.ok([a,b,manager,employee].every(r=>r.user_name_snapshot==='SYNTHETIC QA USER'));
+  assert.equal(new Set([a.id,b.id,manager.id,employee.id]).size,4);assert.equal(count(),initial+4);
+  assert.throws(()=>sql(context(id.owner)+'INSERT INTO public.audit_logs(id) VALUES(gen_random_uuid());'));
+  assert.throws(()=>sql(context(id.owner)+'SELECT * FROM public.audit_logs;'));
+  assert.throws(()=>sql(context(id.owner)+`SELECT public.fn_write_audit('Stock Adjusted','SYNTHETIC','${id.b}');`));
+  assert.equal(count(),initial+4,'no arbitrary tenant argument or direct write may add an audit');
+});
+test('C1 current audit rejects missing/inactive identities and suspended/missing businesses before INSERT',()=>{
+  const count=()=>Number(sql('SELECT count(*) FROM public.audit_logs;'));
+  const initial=count();
+  const write="SELECT public.fn_write_audit('Stock Adjusted','SYNTHETIC REJECTION');";
+  for(const actor of ['', '99999999-9999-4999-8999-999999999999'])assert.throws(()=>sql(context(actor)+write));
+  sql(`UPDATE public.users SET active=false WHERE id='${id.owner}';`);
+  try { assert.throws(()=>sql(context(id.owner)+write)); } finally { sql(`UPDATE public.users SET active=true WHERE id='${id.owner}';`); }
+  sql(`UPDATE public.businesses SET platform_status='SUSPENDED' WHERE id='${id.a}';`);
+  try { assert.throws(()=>sql(context(id.owner)+write)); } finally { sql(`UPDATE public.businesses SET platform_status='ACTIVE' WHERE id='${id.a}';`); }
+  sql(`UPDATE public.users SET business_id='99999999-9999-4999-8999-999999999999' WHERE id='${id.owner}';`);
+  try { assert.throws(()=>sql(context(id.owner)+write)); } finally { sql(`UPDATE public.users SET business_id='${id.a}' WHERE id='${id.owner}';`); }
+  assert.throws(()=>sql("SET ROLE anon;"+write));
+  assert.equal(count(),initial,'all identity/tenant/anon denials preserve audit rows');
+});
+test('C1 audit semantic drift is meaningful: legacy accepts a suspended tenant while the post-cutover writer denies it',()=>{
+  const count=()=>Number(sql('SELECT count(*) FROM public.audit_logs;'));
+  const initial=count();
+  sql(`UPDATE public.businesses SET platform_status='SUSPENDED' WHERE id='${id.a}';`);
+  try {
+    sql(auditDefinition(hardening));
+    sql(context(id.owner)+"SELECT public.fn_write_audit('SYNTHETIC LEGACY PROBE','Disposable PostgreSQL only');");
+    assert.equal(count(),initial+1,'historical body has no active-business validation');
+    sql(auditDefinition(platform));
+    assert.throws(()=>sql(context(id.owner)+"SELECT public.fn_write_audit('SYNTHETIC CURRENT PROBE','Disposable PostgreSQL only');"));
+    assert.equal(count(),initial+1,'current body rejects before inserting');
+  } finally {
+    sql(auditDefinition(platform));
+    sql(`UPDATE public.businesses SET platform_status='ACTIVE' WHERE id='${id.a}';`);
+  }
+});
+test('C1 audit validates NULL blank oversized and control-character actions without accepting unprefixed server authority',()=>{
+  const count=()=>Number(sql('SELECT count(*) FROM public.audit_logs;'));
+  const initial=count();
+  for(const [action,details] of [['NULL',"'SYNTHETIC'"],["''","'SYNTHETIC'"],["'   '","'SYNTHETIC'"],["repeat('x',121)","'SYNTHETIC'"],["'Stock Adjusted'","repeat('x',2001)"]]) {
+    assert.throws(()=>sql(context()+`SELECT public.fn_write_audit(${action},${details});`));
+    assert.equal(count(),initial);
+  }
+  const row=JSON.parse(sql(context()+"SELECT to_jsonb(public.fn_write_audit('Stock'||chr(10)||'Adjusted',NULL));"));
+  assert.equal(row.action,'Client: Stock Adjusted');assert.equal(row.details,'');
+  assert.equal(row.user_id,id.owner);assert.equal(row.business_id,id.a);assert.equal(count(),initial+1);
+});
+test('C1 catalog fails closed on effective anon access owner search_path callable overload and function attribute drift',()=>{
+  const ensureBlocked=statement=>{
+    sql(statement);
+    assert.throws(()=>c1AuditContract(readonly(catalog)));
+  };
+  try {
+    ensureBlocked('GRANT EXECUTE ON FUNCTION public.fn_write_audit(text,text) TO anon;');
+    sql('REVOKE EXECUTE ON FUNCTION public.fn_write_audit(text,text) FROM anon;');
+    ensureBlocked("ALTER FUNCTION public.fn_write_audit(text,text) SET search_path TO 'public';");
+    sql("ALTER FUNCTION public.fn_write_audit(text,text) SET search_path TO '';");
+    ensureBlocked('ALTER FUNCTION public.fn_write_audit(text,text) OWNER TO authenticated;');
+    sql('ALTER FUNCTION public.fn_write_audit(text,text) OWNER TO postgres;');
+    ensureBlocked("CREATE FUNCTION public.fn_write_audit(text) RETURNS text LANGUAGE sql AS $$SELECT $1$$;");
+    sql('DROP FUNCTION public.fn_write_audit(text);');
+    ensureBlocked('ALTER FUNCTION public.fn_write_audit(text,text) STRICT;');
+    sql('ALTER FUNCTION public.fn_write_audit(text,text) CALLED ON NULL INPUT;');
+    ensureBlocked('ALTER FUNCTION public.fn_write_audit(text,text) STABLE;');
+    sql('ALTER FUNCTION public.fn_write_audit(text,text) VOLATILE;');
+  } finally {
+    sql('DROP FUNCTION IF EXISTS public.fn_write_audit(text);');
+    sql('ALTER FUNCTION public.fn_write_audit(text,text) OWNER TO postgres;');
+    sql(auditDefinition(platform));
+    sql('REVOKE ALL ON FUNCTION public.fn_write_audit(text,text) FROM PUBLIC,anon; GRANT EXECUTE ON FUNCTION public.fn_write_audit(text,text) TO authenticated;');
+  }
+  assert.doesNotThrow(()=>c1AuditContract(readonly(catalog)));
 });
 test('C fixture discovery SQL accepts only new C rows without recipe purchase waste or movement history',()=>{
   reset();assert.equal(readonly(fixtureQuery).eligible_count,0);

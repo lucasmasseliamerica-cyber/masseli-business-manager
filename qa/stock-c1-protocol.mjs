@@ -1,6 +1,7 @@
 // C1 authorization is fixture-specific. No I/O, sessions or database access in this module.
 import { randomUUID } from 'node:crypto';
 import { STOCK_ACTORS, STOCK_PRECISION_TARGET_FINGERPRINT, requireStock, stockHash, validateStockFixture } from './stock-journey-core.mjs';
+import { C1_AUDIT_CONTRACT } from './stock-c1-audit-contract.mjs';
 
 export const C1_FIXTURE = Object.freeze({
   item: '6ebfef52-f6c2-4561-b2ac-b3d4bfca1c5f', source: 'f06c0bdd-8c55-4dc2-93b3-5ffcc085206f',
@@ -35,11 +36,11 @@ export function c1Precision(catalog) {
   requireStock(catalog.functions.find(f => f.name === 'fn_record_inventory_movement')?.fingerprint === STOCK_PRECISION_TARGET_FINGERPRINT, 'C1_INSTALLED_PRECISION_PATCH_REQUIRED');
 }
 export function c1AuditContract(catalog) {
-  const a = catalog.c1_audit_contract;
-  // prosrc body hash from versioned hardening; excludes pretty-print/search_path variations.
-  requireStock(a?.body_fingerprint === '75c32789a68a73e29a8a82d33e3aad27' && a.security_definer === true
-    && a.owner === 'postgres' && a.empty_search_path === true && a.anon_execute === false
-    && a.authenticated_execute === true && a.overloads === 1, 'C1_CURRENT_AUDIT_CONTRACT_REQUIRED');
+  const a = catalog?.c1_audit_contract;
+  // Pin the reviewed post-cutover body AND catalog attributes. Hashes alone do
+  // not prove owner, effective ACLs, return type or execution semantics.
+  requireStock(a != null && Object.entries(C1_AUDIT_CONTRACT.expected)
+    .every(([key, value]) => a[key] === value), 'C1_CURRENT_AUDIT_CONTRACT_REQUIRED');
 }
 export function c1Fixture(fixture) {
   validateStockFixture(fixture);

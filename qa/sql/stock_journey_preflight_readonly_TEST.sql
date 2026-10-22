@@ -44,12 +44,19 @@ SELECT jsonb_build_object(
  'precision_target_fingerprint','27bb16e1ab20acc78ef5bb2f25eb9c04',
  'public_schema',(SELECT to_jsonb(s) FROM schema_security s),
  'c1_audit_contract',(SELECT jsonb_build_object(
-   'body_fingerprint',pg_catalog.md5(p.prosrc),'security_definer',p.prosecdef,
+   'body_fingerprint',pg_catalog.md5(p.prosrc),
+   'body_sha256',pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(p.prosrc,'UTF8')),'hex'),
+   'identity_arguments',pg_catalog.pg_get_function_identity_arguments(p.oid),
+   'returns_audit_logs',p.prorettype=pg_catalog.to_regtype('public.audit_logs'),
+   'language',l.lanname,'volatility',p.provolatile,'is_strict',p.proisstrict,
+   'returns_set',p.proretset,'argument_defaults',p.pronargdefaults,
+   'security_definer',p.prosecdef,
    'owner',pg_catalog.pg_get_userbyid(p.proowner),'empty_search_path',coalesce('search_path=""'=ANY(p.proconfig),false),
    'anon_execute',pg_catalog.has_function_privilege('anon',p.oid,'EXECUTE'),
    'authenticated_execute',pg_catalog.has_function_privilege('authenticated',p.oid,'EXECUTE'),
    'overloads',(SELECT count(*) FROM pg_catalog.pg_proc q WHERE q.pronamespace=p.pronamespace AND q.proname=p.proname))
-   FROM pg_catalog.pg_proc p WHERE p.oid=pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')),
+   FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_language l ON l.oid=p.prolang
+   WHERE p.oid=pg_catalog.to_regprocedure('public.fn_write_audit(text,text)')),
  'next_phases',jsonb_build_object(
    'purchase_idempotency_present',EXISTS(SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='fn_create_purchase_order_idempotent'),
    'expense_idempotency_present',EXISTS(SELECT 1 FROM pg_catalog.pg_proc p JOIN pg_catalog.pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname='fn_create_expense_idempotent')),

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, chmodSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +10,7 @@ import { C1_FIXTURE as f, C1_CHECKS, c1Mode, c1Scope, c1Window, c1Precision, c1A
 import { stockJourney, reconcileC1Readonly, privateC1Path } from './stock-journey.TEST.mjs';
 import { openC1Client } from './stock-c1-client.mjs';
 import { createC1BrowserGuard } from './stock-c1-browser-guard.mjs';
+import { C1_AUDIT_CONTRACT } from './stock-c1-audit-contract.mjs';
 
 export function syntheticC1Fixture() {
   return { item: { id: f.item, business_id: STOCK_ACTORS.A.business, name: f.name, unit: 'unit', active: true, supplier_id: null, notes: 'SYNTHETIC ONLY' },
@@ -50,13 +51,55 @@ test('C1 entrypoints block before files/auth/network if credentials, window or e
   }
   assert.equal(calls, 0);
 });
-test('C1 audit contract requires the exact reviewed body owner search_path and effective grants', () => {
-  const a = { body_fingerprint: '75c32789a68a73e29a8a82d33e3aad27', security_definer: true, owner: 'postgres', empty_search_path: true,
-    anon_execute: false, authenticated_execute: true, overloads: 1 };
+test('C1 audit contract requires the reviewed post-cutover body signature execution attributes and effective grants', () => {
+  const a = { ...C1_AUDIT_CONTRACT.expected };
   assert.doesNotThrow(() => c1AuditContract({ c1_audit_contract: a }));
-  for (const change of [{ body_fingerprint: 'a'.repeat(32) }, { owner: 'authenticated' }, { anon_execute: true }, { empty_search_path: false }, { overloads: 2 }])
+  for (const change of [{ body_fingerprint: '75c32789a68a73e29a8a82d33e3aad27' }, { body_fingerprint: 'a'.repeat(32) },
+    { body_sha256: 'a'.repeat(64) }, { identity_arguments: 'p_tenant uuid, p_details text' }, { returns_audit_logs: false },
+    { language: 'sql' }, { volatility: 's' }, { is_strict: true }, { returns_set: true }, { argument_defaults: 1 },
+    { security_definer: false }, { owner: 'authenticated' }, { anon_execute: true }, { authenticated_execute: false },
+    { empty_search_path: false }, { overloads: 2 }])
     assert.throws(() => c1AuditContract({ c1_audit_contract: { ...a, ...change } }));
+  for (const key of Object.keys(a)) {
+    const missing = { ...a }; delete missing[key];
+    assert.throws(() => c1AuditContract({ c1_audit_contract: missing }));
+    assert.throws(() => c1AuditContract({ c1_audit_contract: { ...a, [key]: null } }));
+  }
   assert.throws(() => c1AuditContract({}));
+  assert.throws(() => c1AuditContract(null));
+});
+test('C1 audit fingerprints are reproduced from the two reviewed versioned definitions, not copied from an observed drift', () => {
+  const body = file => {
+    const migration = readFileSync(new URL('../migrations/' + file, import.meta.url), 'utf8');
+    const match = migration.match(/CREATE OR REPLACE FUNCTION public\.fn_write_audit\([\s\S]*?AS \$function\$([\s\S]*?)\$function\$;/);
+    assert.ok(match); return match[1];
+  };
+  const historical = body('20261017_catalog_security_hardening_TEST.sql');
+  const current = body('20261016_platform_admin_TEST.sql');
+  const hash = (algorithm, text) => createHash(algorithm).update(text).digest('hex');
+  assert.equal(hash('md5', historical), '75c32789a68a73e29a8a82d33e3aad27');
+  assert.equal(hash('md5', current), C1_AUDIT_CONTRACT.expected.body_fingerprint);
+  assert.equal(hash('sha256', current), C1_AUDIT_CONTRACT.expected.body_sha256);
+  // The sole semantic change is the additional active-business gate. Identity,
+  // tenant attribution, Client provenance and validation bounds are unchanged.
+  const oldActor = '  SELECT * INTO v_user FROM public.users WHERE id = auth.uid() AND active = true;';
+  const newActor = "  SELECT u.* INTO v_user\n  FROM public.users AS u\n  JOIN public.businesses AS b ON b.id = u.business_id\n  WHERE u.id = auth.uid() AND u.active = true AND b.platform_status = 'ACTIVE';";
+  assert.ok(historical.includes(oldActor));
+  assert.equal(historical.replace(oldActor, newActor), current);
+  const withoutTenantGate = current.replace(" AND b.platform_status = 'ACTIVE'", '');
+  assert.notEqual(hash('md5', withoutTenantGate), C1_AUDIT_CONTRACT.expected.body_fingerprint);
+  assert.notEqual(hash('sha256', withoutTenantGate), C1_AUDIT_CONTRACT.expected.body_sha256);
+});
+test('C1 refuses the previously sufficient catalog and keeps the restored C1 fixture scope unchanged', () => {
+  const old = { body_fingerprint: '75c32789a68a73e29a8a82d33e3aad27', security_definer: true, owner: 'postgres',
+    empty_search_path: true, anon_execute: false, authenticated_execute: true, overloads: 1 };
+  assert.throws(() => c1AuditContract({ c1_audit_contract: old }), /C1_CURRENT_AUDIT_CONTRACT_REQUIRED/);
+  // Even the reported current MD5 without fresh type/SHA-256 metadata cannot pass.
+  assert.throws(() => c1AuditContract({ c1_audit_contract: { ...old,
+    body_fingerprint: C1_AUDIT_CONTRACT.expected.body_fingerprint } }), /C1_CURRENT_AUDIT_CONTRACT_REQUIRED/);
+  const s = stateFor();
+  assert.deepEqual(c1Plan(s).map(op => op.name), ['COUNT', 'TRANSFER', 'RETURN', 'RESTORE']);
+  assert.equal(s.confirmed, 0); assert.equal(s.operations.length, 0);
 });
 test('C1 exact four-operation budget cannot target another item, add fields, exceed limits or replay dispatched work', () => {
   const s = stateFor(), plan = c1Plan(s);
