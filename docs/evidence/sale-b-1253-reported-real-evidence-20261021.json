@@ -1,0 +1,83 @@
+{
+  "evidence_kind": "USER_CONFIRMED_JOURNEY",
+  "project_ref": "msinksoilkluooxenecy",
+  "branch": "automation/nexalvo-qa-actions",
+  "reported_date_client": "2026-10-21",
+  "original": {
+    "evidence_kind": "USER_REPORTED_REAL_WINDOWS_EXECUTION",
+    "order_number": 1253,
+    "reported_code": "SALE_AUDIT_NOT_CONFIRMED",
+    "checks": {
+      "catalog": "PASS",
+      "owner_a_b": "PASS",
+      "permissions": "PASS",
+      "read_isolation": "PASS",
+      "exclusive_fixture": "PASS",
+      "snapshot": "PASS",
+      "ui_totals": "PASS",
+      "ui_translation": "PASS",
+      "same_id_replay": "PASS",
+      "persist_reload": "PASS",
+      "write_isolation": "PASS",
+      "stock_deduction": "PASS",
+      "single_income": "PASS",
+      "ui_reversal": "PASS",
+      "history_preserved": "BLOCKED",
+      "stock_and_cost_restored": "BLOCKED",
+      "financial_net_zero": "BLOCKED"
+    }
+  },
+  "recovery": {
+    "evidence_kind": "USER_REPORTED_REAL_AUTHENTICATED_READONLY",
+    "order_number": 1253,
+    "code": "READONLY_CANCELLED_SALE_CONFIRMED_NOT_FULL_HOMOLOGATION",
+    "recovery_status": "PASS",
+    "restored": true,
+    "recovery_checkpoint_unchanged": true,
+    "checks": {
+      "history_preserved": "PASS",
+      "stock_and_cost_restored": "PASS",
+      "financial_net_zero": "PASS"
+    },
+    "audit_entries_observed": 3,
+    "financial_summary": {
+      "income_rows": 1,
+      "refund_rows": 1,
+      "net_cents": 0
+    },
+    "sale_ids_forwarded": 0,
+    "reversal_requests_forwarded": 0
+  },
+  "previous_independent_sql": {
+    "source": "docs/evidence/sale-b-audit-recovery-fix-20261021.json",
+    "evidence_kind": "USER_REPORTED_REAL_SQL",
+    "order_number": 1253,
+    "sale_status": "cancelled",
+    "income_usd": 0.49,
+    "compensation_usd": 0.49,
+    "sale_movement_qty": -0.25,
+    "reversal_movement_qty": 0.25,
+    "stock_qty_before": 1,
+    "stock_qty_after": 1,
+    "average_cost_before": 0.1,
+    "average_cost_after": 0.1
+  },
+  "provenance": {
+    "original_checks_received": true,
+    "recovery_summary_received": true,
+    "full_original_report_received": false,
+    "full_recovery_report_received": false,
+    "original_execution_sha_reported": null,
+    "recovery_execution_sha_reported": null,
+    "last_validated_executor_reference_sha": "032fa87fcbb79863da4c043a4008e45ac90d15b6",
+    "reference_sha_is_not_an_attestation_of_actual_execution_sha": true,
+    "observed_directly_by_this_session": false,
+    "source": "User supplied the original 17-check map and the real Windows authenticated read-only recovery summary in this conversation. Independent SQL measurements were previously reported by the same user. No raw checkpoint, credentials, tokens, personal data or signed URLs were requested or stored."
+  },
+  "operations_executed_for_this_reconciliation": {
+    "new_sales": 0,
+    "reversals_or_compensations": 0,
+    "test_database_mutations": 0,
+    "original_checkpoint_accessed": false
+  }
+}

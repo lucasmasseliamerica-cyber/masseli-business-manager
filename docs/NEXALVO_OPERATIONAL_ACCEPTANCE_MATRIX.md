@@ -1,6 +1,6 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
-Cobertura comprovada: **14/60 critérios (23.33%)**; 15 PENDENTES e 31 BLOQUEADOS.
+Cobertura comprovada: **16/60 critérios (26.67%)**; 15 PENDENTES e 29 BLOQUEADOS.
 Este percentual mede os critérios explícitos abaixo, não linhas de código, quantidade de testes ou probabilidade de o aplicativo estar pronto.
 Critérios API/SQL concluídos não homologam a jornada UI correspondente. SQL com JWT simulado está identificado. CI #180 é baseline histórica; nenhuma escrita foi repetida nesta auditoria.
 Escopo ampliado pelo requisito P0 Terminal online-only: oito novos critérios. A v1 tinha 13/52 (25%); a mudança de denominador não é regressão. Nenhum teste simulado promove estes novos critérios a concluído.
@@ -8,10 +8,10 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 
 | Módulo | Estado | Critérios comprovados | Cobertura |
 | --- | --- | --- | --- |
-| Vendas/PDV | BLOQUEADO | 1/4 | 25% |
+| Vendas/PDV | PENDENTE | 2/4 | 50% |
 | P0 Stripe Terminal exclusivamente online | BLOQUEADO | 0/8 | 0% |
 | Produtos e fotos | BLOQUEADO | 1/4 | 25% |
-| Estoque | BLOQUEADO | 1/4 | 25% |
+| Estoque | BLOQUEADO | 2/4 | 50% |
 | Compras e fornecedores | BLOQUEADO | 2/4 | 50% |
 | Financeiro/caixa/despesas | BLOQUEADO | 1/4 | 25% |
 | Clientes | BLOQUEADO | 1/4 | 25% |
@@ -23,6 +23,33 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | Estabilidade/rede | PENDENTE | 3/4 | 75% |
 | Impressão/backup/recuperação | BLOQUEADO | 0/4 | 0% |
 
+## B-Jornada #1253 — conciliação de evidências reais
+
+Resultado: **PASS, 17/17 (100%)**, 0 FAIL e 0 BLOCKED.
+[Fonte sanitizada informada pelo usuário](../docs/evidence/sale-b-1253-reported-real-evidence-20261021.json): 14 checks da execução original + 3 da recuperação autenticada somente leitura.
+Os relatórios originais não foram reescritos. A recuperação isolada continua sem homologar UI/replay/probes; esses checks vieram explicitamente da execução original. Nenhuma operação ou checkpoint foi reexecutado/alterado para a conciliação.
+O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não representa 100% do aplicativo. Os 17 microchecks detalham os critérios macro existentes e não aumentam o denominador de 60.
+
+| Check B | Estado | Evidência |
+| --- | --- | --- |
+| catalog: Catálogo e contratos de segurança | PASS | Execução original real, campo checks informado pelo usuário |
+| owner_a_b: Identidade OWNER A/B e empresas | PASS | Execução original real, campo checks informado pelo usuário |
+| permissions: Permissões exigidas | PASS | Execução original real, campo checks informado pelo usuário |
+| read_isolation: Isolamento de leitura | PASS | Execução original real, campo checks informado pelo usuário |
+| exclusive_fixture: Fixture exclusiva e elegibilidade | PASS | Execução original real, campo checks informado pelo usuário |
+| snapshot: Snapshot original | PASS | Execução original real, campo checks informado pelo usuário |
+| ui_totals: Totais, desconto e imposto exibidos no PDV | PASS | Execução original real, campo checks informado pelo usuário |
+| ui_translation: Estados de cancelamento PT/EN | PASS | Execução original real, campo checks informado pelo usuário |
+| same_id_replay: Replay do mesmo ID após perda da resposta | PASS | Execução original real, campo checks informado pelo usuário |
+| persist_reload: Persistência e reconsulta após reload | PASS | Execução original real, campo checks informado pelo usuário |
+| write_isolation: Negação das probes de escrita B/anônimo | PASS | Execução original real, campo checks informado pelo usuário |
+| stock_deduction: Baixa de estoque após a venda | PASS | Execução original real, campo checks informado pelo usuário |
+| single_income: Receita única da venda | PASS | Execução original real, campo checks informado pelo usuário |
+| ui_reversal: Cancelamento pela interface e reconsulta | PASS | Execução original real, campo checks informado pelo usuário |
+| history_preserved: Histórico e auditorias preservados | PASS | Recuperação real autenticada somente leitura |
+| stock_and_cost_restored: Quantidade e custo médio restaurados | PASS | Recuperação real autenticada somente leitura |
+| financial_net_zero: Receita e compensação únicas, líquido zero | PASS | Recuperação real autenticada somente leitura |
+
 ## Critérios e evidências
 
 ### Vendas/PDV
@@ -30,7 +57,7 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
 | RPC: venda, replay por ID e estorno com financeiro líquido zero | CONCLUÍDO | [REAL_API_CI](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096): replay-financial; registros históricos isolados da CI #180 |
-| UI: venda, desconto/imposto, reconsulta após reload e cancelamento | BLOQUEADO | B-Jornada autorizada: uma venda QA em USD até 1 e estorno do mesmo ID; faltam sessões seguras, catálogo atual e fixture/unidade aprovados no preflight |
+| UI: venda, desconto/imposto, reconsulta após reload e cancelamento | CONCLUÍDO | [USER_CONFIRMED_JOURNEY](../docs/evidence/sale-b-1253-reported-real-evidence-20261021.json): B #1253: 14 checks originais PASS, incluindo totais, PT/EN, reload, replay e cancelamento pela UI; três invariantes finais confirmados por recuperação real somente leitura. Escopo: um item QA, Other, USD0,49 e configuração tributária vigente; não homologa todos os pagamentos |
 | Todos os pagamentos operacionais e recibos conferidos | PENDENTE | Cartão externo implementado; validar recebimento real sem cobrança pela aplicação |
 | Pagamento misto e regras de devolução homologados | PENDENTE | Decisão/implementação de split e aceite operacional das devoluções |
 
@@ -63,7 +90,7 @@ Site comercial, checkout Stripe e ativação automática de licença estão cong
 | RPC: ajuste/perda/transferência e saldos sob ROLLBACK | CONCLUÍDO | [REAL_SQL_ROLLBACK](../docs/P0_04_05_SQL_LIFECYCLE_20261013.md): P0.04 executado no TEST com contexto SQL JWT simulado; não prova login ou UI |
 | UI: cadastro/edição, ajuste/perda/transferência e histórico | BLOQUEADO | Autorização para movimentações isoladas e restauração dos saldos/custos |
 | Contenção concorrente e estoque insuficiente em sessões reais | PENDENTE | Prova de múltiplos operadores sobre as mesmas posições |
-| Reconciliação de quantidade e custo médio após ciclo completo | BLOQUEADO | Jornada real autorizada e captura dos saldos antes/depois |
+| Reconciliação de quantidade e custo médio após ciclo completo | CONCLUÍDO | [USER_CONFIRMED_JOURNEY](../docs/evidence/sale-b-1253-reported-real-evidence-20261021.json): Ciclo B #1253: SALE -0,25 e REVERSAL +0,25, saldo1/custo0,10 restaurados, histórico preservado e checkpoint inalterado, confirmados pelo usuário com SQL e recuperação autenticada. Não homologa ajustes/perdas/transferências pela UI |
 
 ### Compras e fornecedores
 

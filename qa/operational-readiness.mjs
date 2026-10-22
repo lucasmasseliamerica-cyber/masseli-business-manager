@@ -1,5 +1,6 @@
 import { existsSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { SALE_EVIDENCE_PATH, loadReportedSaleEvidence, reconcileSaleAcceptance } from './sale-journey-acceptance.mjs';
 
 const ci = 'https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096';
 const sql = 'docs/P0_04_05_SQL_LIFECYCLE_20261013.md';
@@ -7,6 +8,10 @@ const hardening = 'docs/NEXALVO_100_PERCENT_CHECKLIST.md';
 const done = (title, kind, source, detail) => ({ title, status: 'CONCLUÍDO', evidence: { kind, source, detail } });
 const blocked = (title, blocker) => ({ title, status: 'BLOQUEADO', blocker });
 const pending = (title, remaining) => ({ title, status: 'PENDENTE', remaining });
+const bAcceptance = reconcileSaleAcceptance(loadReportedSaleEvidence());
+const bDone = (title, detail) => bAcceptance.status === 'PASS'
+  ? done(title, 'USER_CONFIRMED_JOURNEY', SALE_EVIDENCE_PATH, detail)
+  : blocked(title, 'Conciliação dos relatórios reais original/recuperação B incompleta; não repetir venda ou estorno');
 
 // Acceptance inventory v2: eight mandatory online-only Terminal criteria added at user request.
 // Commercial site, Stripe checkout and automatic licensing are
@@ -14,7 +19,7 @@ const pending = (title, remaining) => ({ title, status: 'PENDENTE', remaining })
 export const operationalModules = [
   { id: 'sales', name: 'Vendas/PDV', criteria: [
     done('RPC: venda, replay por ID e estorno com financeiro líquido zero', 'REAL_API_CI', ci, 'replay-financial; registros históricos isolados da CI #180'),
-    blocked('UI: venda, desconto/imposto, reconsulta após reload e cancelamento', 'B-Jornada autorizada: uma venda QA em USD até 1 e estorno do mesmo ID; faltam sessões seguras, catálogo atual e fixture/unidade aprovados no preflight'),
+    bDone('UI: venda, desconto/imposto, reconsulta após reload e cancelamento', 'B #1253: 14 checks originais PASS, incluindo totais, PT/EN, reload, replay e cancelamento pela UI; três invariantes finais confirmados por recuperação real somente leitura. Escopo: um item QA, Other, USD0,49 e configuração tributária vigente; não homologa todos os pagamentos'),
     pending('Todos os pagamentos operacionais e recibos conferidos', 'Cartão externo implementado; validar recebimento real sem cobrança pela aplicação'),
     pending('Pagamento misto e regras de devolução homologados', 'Decisão/implementação de split e aceite operacional das devoluções'),
   ] },
@@ -38,7 +43,7 @@ export const operationalModules = [
     done('RPC: ajuste/perda/transferência e saldos sob ROLLBACK', 'REAL_SQL_ROLLBACK', sql, 'P0.04 executado no TEST com contexto SQL JWT simulado; não prova login ou UI'),
     blocked('UI: cadastro/edição, ajuste/perda/transferência e histórico', 'Autorização para movimentações isoladas e restauração dos saldos/custos'),
     pending('Contenção concorrente e estoque insuficiente em sessões reais', 'Prova de múltiplos operadores sobre as mesmas posições'),
-    blocked('Reconciliação de quantidade e custo médio após ciclo completo', 'Jornada real autorizada e captura dos saldos antes/depois'),
+    bDone('Reconciliação de quantidade e custo médio após ciclo completo', 'Ciclo B #1253: SALE -0,25 e REVERSAL +0,25, saldo1/custo0,10 restaurados, histórico preservado e checkpoint inalterado, confirmados pelo usuário com SQL e recuperação autenticada. Não homologa ajustes/perdas/transferências pela UI'),
   ] },
   { id: 'purchases', name: 'Compras e fornecedores', criteria: [
     done('RPC: receber parcial/total, pagar/reverter e cancelar rascunho', 'REAL_SQL_ROLLBACK', sql, 'P0.05 TEST sob ROLLBACK com JWT SQL simulado; não é browser persistente'),
@@ -137,6 +142,13 @@ export function operationalMarkdown(report = evaluateOperationalReadiness()) {
     'Site comercial, checkout Stripe e ativação automática de licença estão congelados e fora deste denominador. Administração Comercial aprovada permanece preservada.', '',
     '| Módulo | Estado | Critérios comprovados | Cobertura |', '| --- | --- | --- | --- |',
     ...report.modules.map(m => `| ${m.name} | ${m.status} | ${m.completed}/${m.total} | ${m.percent}% |`), '',
+    '## B-Jornada #1253 — conciliação de evidências reais', '',
+    `Resultado: **${bAcceptance.status}, ${bAcceptance.passed}/${bAcceptance.total} (${bAcceptance.percent}%)**, ${bAcceptance.failed} FAIL e ${bAcceptance.blocked} BLOCKED.`,
+    `[Fonte sanitizada informada pelo usuário](../${SALE_EVIDENCE_PATH}): ${bAcceptance.original_passed} checks da execução original + ${bAcceptance.recovery_passed} da recuperação autenticada somente leitura.`,
+    'Os relatórios originais não foram reescritos. A recuperação isolada continua sem homologar UI/replay/probes; esses checks vieram explicitamente da execução original. Nenhuma operação ou checkpoint foi reexecutado/alterado para a conciliação.',
+    'O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não representa 100% do aplicativo. Os 17 microchecks detalham os critérios macro existentes e não aumentam o denominador de 60.', '',
+    '| Check B | Estado | Evidência |', '| --- | --- | --- |',
+    ...bAcceptance.checks.map(c => `| ${c.id}: ${c.title} | ${c.status} | ${c.source === 'ORIGINAL_EXECUTION' ? 'Execução original real, campo checks informado pelo usuário' : c.source === 'READONLY_RECOVERY' ? 'Recuperação real autenticada somente leitura' : 'Evidência insuficiente'} |`), '',
     '## Critérios e evidências', ''];
   for (const module of report.modules) {
     lines.push(`### ${module.name}`, '', '| Critério | Estado | Evidência ou bloqueio |', '| --- | --- | --- |');
