@@ -1,0 +1,124 @@
+{
+  "date": "2026-10-22",
+  "scope": "C1_AUDIT_CONTRACT_RECONCILIATION_NOT_REAL_HOMOLOGATION",
+  "project_ref_expected": "msinksoilkluooxenecy",
+  "branch": "automation/nexalvo-qa-actions",
+  "code_sha": "a60c0980ceb6005a90f99f8072af9b4b6639af02",
+  "classification": "STALE_QA_PHASE_BASELINE_KNOWN_VERSIONED_SEMANTIC_CHANGE",
+  "user_reported_catalog": {
+    "observed_directly_by_session": false,
+    "general_status": "PASS_MATCHED_HISTORICAL_CONTRACTS",
+    "precision_fingerprint": "27bb16e1ab20acc78ef5bb2f25eb9c04",
+    "audit_body_md5": "ab9a6025c3457cb489b7ac24de19feb5",
+    "owner": "postgres",
+    "security_definer": true,
+    "empty_search_path": true,
+    "anon_execute": false,
+    "authenticated_execute": true,
+    "overloads": 1,
+    "raw_current_definition_received": false
+  },
+  "historical_body": {
+    "source": "migrations/20261017_catalog_security_hardening_TEST.sql",
+    "md5": "75c32789a68a73e29a8a82d33e3aad27",
+    "accepted_by_current_c1": false
+  },
+  "reviewed_current_body": {
+    "source": "migrations/20261016_platform_admin_TEST.sql",
+    "md5": "ab9a6025c3457cb489b7ac24de19feb5",
+    "sha256": "7fecdf24cfd6cf01a27a9c846ffe16cb03950f9b84e4ba54737539d56b8e68f8",
+    "fingerprints_reproduced_from_versioned_source": true,
+    "fingerprints_reproduced_in_disposable_postgres": true,
+    "requires_fresh_catalog_sha256_and_attributes": true
+  },
+  "semantic_difference": {
+    "only_changed_statement": "Actor SELECT joins public.businesses and requires platform_status ACTIVE",
+    "identity_source": "auth.uid() + active public.users profile",
+    "tenant_source": "authenticated profile business_id",
+    "caller_supplied_identity_or_tenant_parameters": false,
+    "superadmin_tenant_exception": false,
+    "same_client_prefix": true,
+    "same_action_limit": 120,
+    "same_details_limit": 2000,
+    "empty_search_path_and_qualified_names": true,
+    "audit_is_not_transactional_mutation_proof": true
+  },
+  "local_regressions": {
+    "passed": 514,
+    "failed": 0,
+    "skipped": 0,
+    "modules": 45,
+    "tap_sha256": "0510723c8c9d4c148aba135618c8d55752f7470ab700f48faa6bb95e5c83ba29",
+    "disposable_postgres_tests_included": 14,
+    "c1_protocol_tests_included": 24,
+    "real_test_writes": 0
+  },
+  "local_browser": {
+    "passed": 24,
+    "failed": 0,
+    "skipped": 0,
+    "scope": "HTTP_SIMULATED",
+    "tap_sha256": "6050f15ab4d19ffb13b827cb51f45776cd9a53aff48df26b604abfb75f10006e"
+  },
+  "initial_browser_attempt": {
+    "result": "HOOK_FAILED_BEFORE_BROWSER_LAUNCH",
+    "cause": "Default Playwright executable absent",
+    "resolution": "Use existing /usr/bin/chromium through supported executable-path option",
+    "code_changes_required": false,
+    "all_24_tests_passed_after_environment_correction": true
+  },
+  "build": {
+    "status": "PASS",
+    "log_sha256": "bd1737fbb55a18aacce3439b54d0e651b291b5e03fcebf3a8f3735eb3f3b7060"
+  },
+  "edge_parse": {
+    "status": "PASS",
+    "functions": 2,
+    "deployments": 0
+  },
+  "powershell_parser": "PASS",
+  "security_review": "APPROVED_FOR_QA_CI_NOT_REAL_HOMOLOGATION",
+  "ci": {
+    "run": 212,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39807483674",
+    "head_sha": "a60c0980ceb6005a90f99f8072af9b4b6639af02",
+    "status": "SUCCESS",
+    "tests": {
+      "passed": 768,
+      "total": 768,
+      "failed": 0,
+      "skipped": 0
+    },
+    "jobs_passed": 9,
+    "jobs_skipped_blocked": 4,
+    "evidence": "docs/evidence/stock-c1-audit-ci-212-20261022.json"
+  },
+  "invariants": {
+    "test_mutations": 0,
+    "stock_movements": 0,
+    "audit_rpc_calls": 0,
+    "migrations_applied": 0,
+    "historical_migrations_modified": false,
+    "historical_rollbacks_modified": false,
+    "a_b_checkpoints_accessed": false,
+    "fixtures_modified": false,
+    "persistent_ci_enabled": false,
+    "local_supabase_requests": 0,
+    "ci_auth_and_read_checks_run": true,
+    "ci_c1_stock_and_audit_writes": false
+  },
+  "real_c1_result": "BLOCKED",
+  "remaining_gates": [
+    "FRESH_READONLY_CATALOG_WITH_CURRENT_AUDIT_ATTRIBUTES",
+    "AUTHENTICATED_WINDOWS_PREFLIGHT",
+    "EXCLUSIVE_OPERATIONAL_WINDOW_BEFORE_WRITES"
+  ],
+  "macro_acceptance": {
+    "passed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67,
+    "new_criteria_promoted": 0
+  }
+}

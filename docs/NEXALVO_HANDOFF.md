@@ -1,6 +1,18 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
-## Atualização vigente — executor C1 preparado, execução real bloqueada (22/10/2026)
+## Atualização vigente — contrato de auditoria C1 reconciliado (22/10/2026)
+
+[Análise semântica, evidências e preflight somente leitura](./QA_C1_AUDIT_CONTRACT_20261022.md).
+Código publicado: **a60c0980ceb6005a90f99f8072af9b4b6639af02**. [CI #212](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39807483674): **768/768 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**.
+
+- O fingerprint real informado `ab9a6025c3457cb489b7ac24de19feb5` foi reproduzido exatamente da migração pós-cutover. Ela acrescenta validação de empresa ACTIVE ao corpo antigo; identidade/empresa continuam derivadas da sessão. Não é mera formatação nem vulnerabilidade comprovada.
+- Contrato C1 exige somente a versão pós-cutover, MD5/SHA-256 e atributos completos. Baseline antiga, atributos ausentes/NULL, ACL/owner/path/assinatura/retorno divergentes bloqueiam.
+- **514/514 regressões locais +24/24 browser HTTP simulado PASS**, zero falhas/skips; build, parser PowerShell e análise das duas Edge Functions PASS. PostgreSQL descartável comprovou a diferença semântica e negações antes do INSERT.
+- Nenhuma função implantada, migração/rollback histórico, fixture, checkpoint, estoque ou auditoria TEST foi alterada. Nenhuma consulta SQL ou chamada C1 local; a CI executou seus checks habituais de autenticação/leitura.
+- **C1 real BLOCKED:** executar catálogo atualizado e preflight autenticado no notebook; janela exclusiva continua obrigatória antes de qualquer movimentação. Não solicitar credenciais pelo chat nem usar service_role como usuário.
+- A/B e macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados, preservados. CI/mocks não promovem homologação real.
+
+## Histórico — executor C1 antes da reconciliação do contrato (22/10/2026)
 
 [Pacote C1, limites, Windows e recuperação somente leitura](./QA_C1_STOCK_20261022.md).
 Código validado: **9ec21c609a196a4a30e9028e02faf4a581b29962**. [CI #209](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617): **760/760 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**. [Evidência](./evidence/stock-c1-ci-209-20261022.json).
