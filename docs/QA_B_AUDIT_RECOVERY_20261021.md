@@ -1,5 +1,7 @@
 # B-Jornada #1253 — auditoria e recuperação somente leitura
 
+**Estado vigente:** B #1253 concluída por conciliação de 14 checks originais e três da recuperação real: **17/17 PASS**. Ver [fechamento B](./QA_B_CLOSURE_20261021.md) e [matriz atual](./NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md): **16/60 (26,67%)**. Não repetir venda/estorno/compensação/recuperação; instruções de execução abaixo são históricas. C/D/E seguem sem autorização persistente.
+
 O inicializador Windows foi revisado depois desta correção. Usar o
 [procedimento vigente com diagnóstico seguro](./QA_B_WINDOWS_LAUNCHER_20261021.md), código
 `032fa87fcbb79863da4c043a4008e45ac90d15b6`. A CI #196 abaixo documenta a correção das auditorias;

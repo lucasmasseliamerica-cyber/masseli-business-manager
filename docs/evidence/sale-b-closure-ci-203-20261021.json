@@ -1,0 +1,87 @@
+{
+  "evidence_kind": "REAL_GITHUB_ACTIONS_PUBLIC_SUMMARY",
+  "branch": "automation/nexalvo-qa-actions",
+  "run": 203,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496",
+  "validated_reconciler_code_sha": "62c90fa51ad37c86151d80fc59fd5f1c578e41fe",
+  "status": "PASS_EXECUTED_SCOPE",
+  "tests": {
+    "passed": 685,
+    "total": 685,
+    "failed": 0,
+    "skipped": 0
+  },
+  "jobs": [
+    {
+      "name": "build-and-security",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119628970859"
+    },
+    {
+      "name": "windows-sale-launcher",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119628970643"
+    },
+    {
+      "name": "test-api-smoke",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629151705"
+    },
+    {
+      "name": "authenticated-preflight",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629204154"
+    },
+    {
+      "name": "authenticated-concurrency",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629271888"
+    },
+    {
+      "name": "access-regression",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629270711"
+    },
+    {
+      "name": "auth-lifecycle",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629270698"
+    },
+    {
+      "name": "replay-financial",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629272008"
+    },
+    {
+      "name": "network-after-commit",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629272666"
+    },
+    {
+      "name": "browser-smoke",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629270678"
+    },
+    {
+      "name": "performance-read",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629270755"
+    },
+    {
+      "name": "two-tenant-concurrency",
+      "status": "BLOCKED",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629271957"
+    },
+    {
+      "name": "qa-summary",
+      "status": "PASS",
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496/job/119629663824"
+    }
+  ],
+  "persistent_groups_blocked": 4,
+  "b_persistent_flow_executed_by_this_run": false,
+  "b_acceptance_origin": "User-reported real original checks and authenticated read-only recovery; not this CI",
+  "original_checkpoint_accessed_by_this_session": false,
+  "new_sales_reversals_or_compensations_executed_by_this_session": 0,
+  "note": "The offline reconciliation and matrix regression pass. Four persistent-flow jobs were skipped/BLOCKED, not approved or enabled. This CI did not repeat B or mutate its checkpoint."
+}

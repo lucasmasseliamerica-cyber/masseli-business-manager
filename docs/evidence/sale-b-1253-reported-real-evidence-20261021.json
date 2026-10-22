@@ -48,20 +48,6 @@
     "sale_ids_forwarded": 0,
     "reversal_requests_forwarded": 0
   },
-  "previous_independent_sql": {
-    "source": "docs/evidence/sale-b-audit-recovery-fix-20261021.json",
-    "evidence_kind": "USER_REPORTED_REAL_SQL",
-    "order_number": 1253,
-    "sale_status": "cancelled",
-    "income_usd": 0.49,
-    "compensation_usd": 0.49,
-    "sale_movement_qty": -0.25,
-    "reversal_movement_qty": 0.25,
-    "stock_qty_before": 1,
-    "stock_qty_after": 1,
-    "average_cost_before": 0.1,
-    "average_cost_after": 0.1
-  },
   "provenance": {
     "original_checks_received": true,
     "recovery_summary_received": true,
@@ -79,5 +65,21 @@
     "reversals_or_compensations": 0,
     "test_database_mutations": 0,
     "original_checkpoint_accessed": false
+  },
+  "previous_fixture_and_independent_sql": {
+    "source": "docs/evidence/sale-b-audit-recovery-fix-20261021.json",
+    "evidence_kind": "USER_REPORTED_REAL_FIXTURE_AND_SQL",
+    "order_number": 1253,
+    "sale_status": "cancelled",
+    "income_usd": 0.49,
+    "compensation_usd": 0.49,
+    "sale_movement_qty": -0.25,
+    "reversal_movement_qty": 0.25,
+    "stock_qty_before": 1,
+    "stock_qty_after": 1,
+    "average_cost_before": 0.1,
+    "average_cost_after": 0.1,
+    "initial_state_source": "User confirmation of the exclusive B fixture before the original execution",
+    "final_state_source": "Independent read-only SQL result previously reported by the user"
   }
 }

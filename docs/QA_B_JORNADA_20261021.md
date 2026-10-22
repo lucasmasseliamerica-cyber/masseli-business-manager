@@ -1,5 +1,7 @@
 # B-Jornada — venda TEST única, replay e estorno
 
+**Estado vigente:** B #1253 concluída por conciliação de 14 checks originais e três da recuperação real: **17/17 PASS**. Ver [fechamento B](./QA_B_CLOSURE_20261021.md) e [matriz atual](./NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md): **16/60 (26,67%)**. Não repetir venda/estorno/compensação/recuperação; instruções de execução abaixo são históricas. C/D/E seguem sem autorização persistente.
+
 ## Atualização vigente — recuperar #1253 somente por leitura (21/10/2026)
 
 [Auditorias corrigidas e comando de recuperação](./QA_B_AUDIT_RECOVERY_20261021.md).

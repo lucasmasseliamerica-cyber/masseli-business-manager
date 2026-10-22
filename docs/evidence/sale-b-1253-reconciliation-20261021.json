@@ -1,0 +1,159 @@
+{
+  "evidence_kind": "OFFLINE_RECONCILIATION_OF_USER_CONFIRMED_REAL_REPORTS",
+  "source_file": "docs/evidence/sale-b-1253-reported-real-evidence-20261021.json",
+  "source_sha256": "ceb501558582935608c41940ac06327620fc94193f1c1dca780ed35d795a0c47",
+  "source_hash_is_for_sanitized_evidence_not_windows_checkpoint": true,
+  "reconciler_code_sha": "62c90fa51ad37c86151d80fc59fd5f1c578e41fe",
+  "assessment": {
+    "scope": "B_JOURNEY_OFFLINE_EVIDENCE_RECONCILIATION",
+    "status": "PASS",
+    "code": "ORIGINAL_AND_READONLY_RECOVERY_RECONCILED",
+    "total": 17,
+    "passed": 17,
+    "failed": 0,
+    "blocked": 0,
+    "percent": 100,
+    "original_passed": 14,
+    "recovery_passed": 3,
+    "operations_executed": 0,
+    "provenance": "USER_REPORTED_REAL_REPORTS_NOT_DIRECT_SESSION_OBSERVATION",
+    "checks": [
+      {
+        "id": "catalog",
+        "title": "Catálogo e contratos de segurança",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "owner_a_b",
+        "title": "Identidade OWNER A/B e empresas",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "permissions",
+        "title": "Permissões exigidas",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "read_isolation",
+        "title": "Isolamento de leitura",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "exclusive_fixture",
+        "title": "Fixture exclusiva e elegibilidade",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "snapshot",
+        "title": "Snapshot original",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "ui_totals",
+        "title": "Totais, desconto e imposto exibidos no PDV",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "ui_translation",
+        "title": "Estados de cancelamento PT/EN",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "same_id_replay",
+        "title": "Replay do mesmo ID após perda da resposta",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "persist_reload",
+        "title": "Persistência e reconsulta após reload",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "write_isolation",
+        "title": "Negação das probes de escrita B/anônimo",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "stock_deduction",
+        "title": "Baixa de estoque após a venda",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "single_income",
+        "title": "Receita única da venda",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "ui_reversal",
+        "title": "Cancelamento pela interface e reconsulta",
+        "status": "PASS",
+        "source": "ORIGINAL_EXECUTION"
+      },
+      {
+        "id": "history_preserved",
+        "title": "Histórico e auditorias preservados",
+        "status": "PASS",
+        "source": "READONLY_RECOVERY"
+      },
+      {
+        "id": "stock_and_cost_restored",
+        "title": "Quantidade e custo médio restaurados",
+        "status": "PASS",
+        "source": "READONLY_RECOVERY"
+      },
+      {
+        "id": "financial_net_zero",
+        "title": "Receita e compensação únicas, líquido zero",
+        "status": "PASS",
+        "source": "READONLY_RECOVERY"
+      }
+    ]
+  },
+  "macro_acceptance": {
+    "total": 60,
+    "completed": 16,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67,
+    "ready": false
+  },
+  "promoted_macro_criteria": [
+    "UI: venda, desconto/imposto, reconsulta após reload e cancelamento",
+    "Reconciliação de quantidade e custo médio após ciclo completo"
+  ],
+  "local_regressions": {
+    "passed": 46,
+    "failed": 0,
+    "skipped": 0
+  },
+  "build": "PASS",
+  "ci": {
+    "run": 203,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496",
+    "status": "PASS_EXECUTED_SCOPE",
+    "tests_passed": 685,
+    "tests_failed": 0,
+    "tests_skipped": 0,
+    "jobs_passed": 9,
+    "jobs_blocked": 4,
+    "evidence": "docs/evidence/sale-b-closure-ci-203-20261021.json"
+  },
+  "original_report_and_recovery_codes_preserved": true,
+  "checkpoint_modified_by_this_session": false,
+  "new_sales_reversals_or_compensations": 0,
+  "not_a_new_execution_of_the_original_journey": true,
+  "not_application_100_percent": true
+}

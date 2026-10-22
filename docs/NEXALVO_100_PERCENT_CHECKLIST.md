@@ -1,5 +1,35 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Atualização vigente — B #1253 concluída por conciliação (21/10/2026)
+
+[Relatório final B e origem dos 17 checks](./QA_B_CLOSURE_20261021.md).
+**17/17 PASS (100% do escopo B), zero FAIL/BLOCKED**: 14 PASS da execução original, fornecidos
+pelo usuário, mais três invariantes finais PASS da recuperação real autenticada somente leitura.
+UI, replay e isolamento de escrita provêm do campo checks original; não foram deduzidos de mocks
+ou reexecutados. Os relatórios anteriores e seus códigos BLOCKED permanecem preservados.
+Checkpoint inalterado, histórico preservado, estoque/custo restaurados, financeiro1/1/líquido0,
+três auditorias, zero novas vendas/reversões na recuperação informada.
+
+Código: **62c90fa51ad37c86151d80fc59fd5f1c578e41fe**. 46/46 regressões locais e build PASS.
+[CI #203](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39719354496):
+**685/685 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes
+BLOCKED/ignorados pelo gate**. [Evidência da CI](./evidence/sale-b-closure-ci-203-20261021.json).
+A CI executou regressões e seus checks habituais; não repetiu a venda, estorno ou recuperação B.
+
+- [x] Campo checks original recebido: 14 PASS e três BLOCKED históricos preservados.
+- [x] Recuperação real informada: três checks finais PASS, checkpoint inalterado e zero forwards.
+- [x] Conciliação B: 17/17 PASS sem repetir venda, estorno ou compensação.
+- [x] Matriz operacional: **16/60 (26,67%)**, 15 pendentes e 29 bloqueados; somente dois critérios macro promovidos.
+- [ ] Demais pagamentos/recibos/devoluções e demais jornadas operacionais do aplicativo.
+- [ ] C/D/E persistentes: pré-requisitos e autorização específica continuam necessários.
+
+As evidências são reais informadas pelo usuário, sem observação direta do Windows nesta sessão.
+JSON completos/SHAs exatos das execuções não foram recebidos; isso está registrado na proveniência.
+Não confundir o SHA do avaliador com o SHA executado originalmente. **Não repetir a venda #1253,
+estorno, compensação ou recuperação.** Comandos de retomada abaixo são históricos, superados
+pelo fechamento com as evidências originais. Site comercial/checkout/licenciamento automático
+seguem congelados. Não declarar 100% do aplicativo.
+
 ## Atualização vigente — inicializador Windows de #1253 (21/10/2026)
 
 [Diagnóstico seguro e comando exclusivo ReadOnlyRecovery](./QA_B_WINDOWS_LAUNCHER_20261021.md).
