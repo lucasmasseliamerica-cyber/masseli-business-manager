@@ -1,0 +1,494 @@
+{
+  "run_number": 213,
+  "run_id": 39870484891,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39870484891",
+  "expected_head_sha": "9a0c5c025e14e335271195d76a658492857dba53",
+  "head_sha_verified": true,
+  "workflow": {
+    "status": "WORKFLOW_RUN_STATUS_COMPLETED",
+    "conclusion": "WORKFLOW_RUN_CONCLUSION_SUCCESS"
+  },
+  "jobs": [
+    {
+      "name": "build-and-security",
+      "state": "completed successfully",
+      "id": "120143381946",
+      "html_sha256": "1c29c1e51a4f67bff48c9ce274b12a4b987fa8706ea124c2c59ddd4f26d97097",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm ci",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm run build",
+          "conclusion": "success"
+        },
+        {
+          "name": "Parse prepared Edge Functions without deploying them",
+          "conclusion": "success"
+        },
+        {
+          "name": "Require zero runtime dependency vulnerabilities",
+          "conclusion": "success"
+        },
+        {
+          "name": "Track the known Tailwind 3 build-only advisories",
+          "conclusion": "success"
+        },
+        {
+          "name": "Parse opt-in P0.05 persistent browser test without executing any writes",
+          "conclusion": "success"
+        },
+        {
+          "name": "Parse opt-in photo journey without executing it",
+          "conclusion": "success"
+        },
+        {
+          "name": "Parse opt-in B-Jornada without executing it",
+          "conclusion": "success"
+        },
+        {
+          "name": "Parse opt-in C1-Jornada without executing it",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run disposable SQL integration and static security checks",
+          "conclusion": "success"
+        },
+        {
+          "name": "Upload build and static QA report",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "windows-sale-launcher",
+      "state": "completed successfully",
+      "id": "120143382402",
+      "html_sha256": "35e8423a8bb6552a73fdcc2a6d7adaa3bbe111a666465693d3c84ee489af6de4",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Select isolated QA branch for local launcher guards",
+          "conclusion": "success"
+        },
+        {
+          "name": "Native Windows PowerShell 5.1 recovery launcher regression",
+          "conclusion": "success"
+        },
+        {
+          "name": "Native PowerShell 7 recovery launcher regression",
+          "conclusion": "success"
+        },
+        {
+          "name": "Native Windows PowerShell 5.1 C preflight launcher",
+          "conclusion": "success"
+        },
+        {
+          "name": "Native PowerShell 7 C preflight launcher",
+          "conclusion": "success"
+        },
+        {
+          "name": "Archive C synthetic Windows-only preflight reports",
+          "conclusion": "success"
+        },
+        {
+          "name": "Native Windows PowerShell 5.1 C1 stock launcher",
+          "conclusion": "success"
+        },
+        {
+          "name": "Native PowerShell 7 C1 stock launcher",
+          "conclusion": "success"
+        },
+        {
+          "name": "Archive C1 synthetic Windows-only launcher reports",
+          "conclusion": "success"
+        },
+        {
+          "name": "Archive synthetic Windows-only launcher reports",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "test-api-smoke",
+      "state": "completed successfully",
+      "id": "120143719172",
+      "html_sha256": "9f5ca8477fad88b9eb331ac9ecac8894633a627738f7d1814683bb3a8df46b76",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify TEST target and run isolated API checks",
+          "conclusion": "success"
+        },
+        {
+          "name": "Upload API QA report",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "authenticated-preflight",
+      "state": "completed successfully",
+      "id": "120143785886",
+      "html_sha256": "ab4f7ce37f994369a2e15eb5db5d298b9b0deff0d786d5efccf03083289ca025",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run read-only QA A/B identity, grants, tenant and fixture preflight",
+          "conclusion": "success"
+        },
+        {
+          "name": "Archive sanitized authenticated preflight report",
+          "conclusion": "success"
+        },
+        {
+          "name": "Enforce authenticated preflight classification",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "authenticated-concurrency",
+      "state": "skipped",
+      "id": "120143880565",
+      "verified_conclusion": "BLOCKED_GATED"
+    },
+    {
+      "name": "access-regression",
+      "state": "completed successfully",
+      "id": "120143878219",
+      "html_sha256": "bcfc7828b2084ad9aa31d65e1a1f9af0a3c350e351df3b8a78475d8f18653a9c",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Authenticated multi-tenant reads and rejection of invalid writes",
+          "conclusion": "success"
+        },
+        {
+          "name": "Archive tenant/access regression report",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "auth-lifecycle",
+      "state": "completed successfully",
+      "id": "120143878257",
+      "html_sha256": "274fc3dd6e7f0209cbbbfb131b830788aa701c50abfba70b9f0fa848e62babfa",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Verify TEST auth login refresh rotation logout and refresh revocation",
+          "conclusion": "success"
+        },
+        {
+          "name": "Archive TEST session QA",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "replay-financial",
+      "state": "skipped",
+      "id": "120143880400",
+      "verified_conclusion": "BLOCKED_GATED"
+    },
+    {
+      "name": "network-after-commit",
+      "state": "skipped",
+      "id": "120143880131",
+      "verified_conclusion": "BLOCKED_GATED"
+    },
+    {
+      "name": "browser-smoke",
+      "state": "completed successfully",
+      "id": "120143878273",
+      "html_sha256": "e4bf7991caf5455c9835af2cd121e5d02bef2b90b95db2feac03086848f69c34",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run npm ci",
+          "conclusion": "success"
+        },
+        {
+          "name": "Install browser for isolated TEST user-interface smoke",
+          "conclusion": "success"
+        },
+        {
+          "name": "Serve isolated TEST frontend and run desktop/mobile smoke",
+          "conclusion": "success"
+        },
+        {
+          "name": "Save QA browser report and screenshots",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "performance-read",
+      "state": "completed successfully",
+      "id": "120143878295",
+      "html_sha256": "61e62e50f44b0a56f9b53a9aa86220b0d42e97d0c7c3a1a38ba19d4394a55ebd",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Safe bounded TEST read performance baseline",
+          "conclusion": "success"
+        },
+        {
+          "name": "Archive API read latency metrics",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/setup-node@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Post Run actions/checkout@v4",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    },
+    {
+      "name": "two-tenant-concurrency",
+      "state": "skipped",
+      "id": "120143879894",
+      "verified_conclusion": "BLOCKED_GATED"
+    },
+    {
+      "name": "qa-summary",
+      "state": "completed successfully",
+      "id": "120146032091",
+      "html_sha256": "7d69446918cefe44d90001e57fee585e0ad7245f5e2cd59f700e04fb1d8bd4c8",
+      "steps": [
+        {
+          "name": "Set up job",
+          "conclusion": "success"
+        },
+        {
+          "name": "Download this run's QA artifacts",
+          "conclusion": "success"
+        },
+        {
+          "name": "Publish exact root TAP totals",
+          "conclusion": "success"
+        },
+        {
+          "name": "Complete job",
+          "conclusion": "success"
+        }
+      ],
+      "verified_conclusion": "PASS"
+    }
+  ],
+  "checked_at_utc": "2026-10-22T23:22:09Z",
+  "evidence_method": "PUBLIC_GITHUB_HTML_READ_ONLY",
+  "persistent_jobs_enabled": false,
+  "real_c1_executed": false,
+  "aggregate_counts": {
+    "passed": 792,
+    "total": 792,
+    "failed": 0,
+    "skipped": 0
+  },
+  "pass_jobs": 9,
+  "blocked_gated_jobs": 4,
+  "cached_public_pages_bypassed_by_fresh_query": true,
+  "scope": "CODE_CI_NOT_C1_REAL_HOMOLOGATION",
+  "raw_html_versioned": false,
+  "c1_stock_or_audit_mutations": 0,
+  "counts_source": "Actual QA summary annotation job120146032091",
+  "summary_independently_verified_sha256": "5fb10e295ac19ba45c34b6fb82fdf52b4a90eb0a23a5340bb3701dcaf3d1a35b",
+  "notes": [
+    "Four gated persistent jobs are BLOCKED, not PASS.",
+    "Existing authenticated CI API checks include the waste secure facade; they do not prove current C1 fixture or body hash.",
+    "No C1 writes or checkpoint access was enabled.",
+    "Documentation-only descendants do not change the validated executable SHA."
+  ]
+}

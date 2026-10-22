@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-22",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref_expected": "msinksoilkluooxenecy",
+  "code_sha": "9a0c5c025e14e335271195d76a658492857dba53",
+  "scope": "C1_READ_REJECTION_CODE_FIX_NOT_REAL_HOMOLOGATION",
+  "user_reported_real_preflight": {
+    "observed_directly_in_this_session": false,
+    "code": "C1_AUTH_OR_READ_REJECTED",
+    "checks": {
+      "catalog": "PASS",
+      "owner_a_b": "PASS",
+      "permissions": "PASS",
+      "read_isolation": "PASS",
+      "exclusive_fixture": "BLOCKED"
+    },
+    "stock_requests_forwarded": 0,
+    "audit_requests_forwarded": 0,
+    "direct_waste_authenticated_select_reported": false,
+    "exact_failed_resource_in_old_report": "NOT_PROVEN_AGGREGATE_HAS_NO_RESOURCE"
+  },
+  "cause": {
+    "classification": "CONFIRMED_CLIENT_CONTRACT_MISMATCH_REPRODUCED_WITHOUT_TEST_ACCESS",
+    "incompatible_read": "Direct GET waste_transactions",
+    "direct_table_select_remains_denied": true,
+    "exact_original_windows_request_trace_available": false,
+    "new_diagnostics_required_to_confirm_actual_resource": true
+  },
+  "existing_reader": {
+    "name": "fn_read_waste_transactions_secure",
+    "signature": "public.fn_read_waste_transactions_secure()",
+    "new_rpc": false,
+    "source_sha256": "a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f",
+    "source_secret_scan": "PASS",
+    "body_md5": "4dbda260df3b744caf55d2c2ba8c031f",
+    "body_sha256": "7c2a163faa7d766485c6cfd3d8acb84815f2e3faf7260de02830cdc5d81e3b1a",
+    "tenant_predicate": "business_id = current_business_id()",
+    "cost_mask_permission": "manageRecipesAndCosts",
+    "cost_mask_never_removes_rows": true,
+    "full_history_preserved": true,
+    "requires_current_catalog_attestation": true
+  },
+  "diagnostics": {
+    "fields": [
+      "stage",
+      "resource",
+      "actor",
+      "method",
+      "http_status",
+      "reason",
+      "upstream_code"
+    ],
+    "raw_messages_exported": false,
+    "urls_exported": false,
+    "identifiers_exported": false,
+    "known_upstream_codes_only": true,
+    "sanitized_twice": true,
+    "cleanup_cannot_overwrite_original": true
+  },
+  "local_tests": {
+    "passed": 538,
+    "failed": 0,
+    "skipped": 0,
+    "modules": 46,
+    "tap_sha256": "a9d22f9c833ec259b7e4b0ec300cb6a18710407b69fcf1a8f9e54ff90bae7f0f",
+    "diagnostic_tests_included": 20,
+    "disposable_postgres_tests_included": 18,
+    "subsets_not_additive": true
+  },
+  "build": {
+    "status": "PASS",
+    "log_sha256": "05c09a38940f8dc882c6a3164fdd22f4daa92d57512ae0c0fa3f9dff9505dae2"
+  },
+  "edge_parse": {
+    "status": "PASS",
+    "prepared_functions": 2,
+    "deployments": 0
+  },
+  "security_review": "APPROVED_FOR_QA_CI",
+  "ci": {
+    "run": 213,
+    "head_sha": "9a0c5c025e14e335271195d76a658492857dba53",
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39870484891",
+    "status": "SUCCESS",
+    "tests": {
+      "passed": 792,
+      "total": 792,
+      "failed": 0,
+      "skipped": 0
+    },
+    "jobs_passed": 9,
+    "jobs_skipped_blocked": 4,
+    "evidence": "docs/evidence/stock-c1-read-ci-213-20261022.json",
+    "auth_and_read_checks_executed": true,
+    "c1_persistent_execution_enabled": false
+  },
+  "invariants": {
+    "direct_waste_select_granted": false,
+    "rls_changed": false,
+    "migrations_prepared": false,
+    "migrations_applied": 0,
+    "new_read_rpc_created": false,
+    "local_test_requests": 0,
+    "c1_stock_requests_forwarded": 0,
+    "c1_audit_requests_forwarded": 0,
+    "a_b_checkpoints_accessed": false,
+    "fixtures_modified": false,
+    "persistent_ci_enabled": false
+  },
+  "other_safe_p0_work": "Generic stock readonly preflight corrected to use the same secure facade and complete history guard",
+  "real_c1_result": "BLOCKED_PENDING_FRESH_READONLY_PREFLIGHT",
+  "macro_acceptance": {
+    "passed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67,
+    "new_criteria_promoted": 0
+  },
+  "secure_qa_configuration_available_in_local_session": false
+}

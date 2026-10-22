@@ -1,5 +1,7 @@
 # C1 — reconciliação do contrato de auditoria (22/10/2026)
 
+**Histórico:** a correção de auditoria abaixo permanece válida; o executor recebeu depois a correção de leitura. Usar [o procedimento vigente](./QA_C1_READ_REJECTION_20261022.md), com SHA atual e novo catálogo. Não executar os comandos de SHA antigo abaixo sobre código posterior.
+
 Branch única `automation/nexalvo-qa-actions`; projeto único TEST `msinksoilkluooxenecy`.
 Nenhum movimento C1, chamada C1 de auditoria, migração, deploy ou alteração de fixture/checkpoint
 foi executado nesta correção. A CI executou seus checks habituais de autenticação/leitura, com os

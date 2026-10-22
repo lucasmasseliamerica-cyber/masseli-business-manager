@@ -1,6 +1,8 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
-**Reconciliação C1 vigente (22/10/2026):** [contrato de auditoria pós-cutover](./QA_C1_AUDIT_CONTRACT_20261022.md) preparado e testado; nenhum movimento real executado. Novo catálogo/autenticação/janela ainda necessários. Cobertura macro permanece **16/60 (26,67%)**, sem promoção de critérios.
+**C1 vigente (22/10/2026):** [leitor seguro de perdas e diagnóstico sanitizado](./QA_C1_READ_REJECTION_20261022.md) corrigidos no QA. A execução real ainda aguarda novo catálogo/preflight; nenhuma movimentação ou novo critério operacional aprovado. Macro **16/60 (26,67%)** preservada.
+
+**Histórico da reconciliação C1 (22/10/2026):** [contrato de auditoria pós-cutover](./QA_C1_AUDIT_CONTRACT_20261022.md) preparado e testado; nenhum movimento real executado. Novo catálogo/autenticação/janela ainda necessários. Cobertura macro permanece **16/60 (26,67%)**, sem promoção de critérios.
 
 **Histórico C1 anterior à reconciliação (22/10/2026):** patch instalado, fixture exclusiva e preflight real 5/5 foram informados pelo proprietário; a autorização C1 específica foi recebida. [Executor e evidências](./QA_C1_STOCK_20261022.md). C1 real ainda bloqueada nesta sessão por credenciais, acesso Windows e janela exclusiva; o contrato de auditoria atual exige novo catálogo somente leitura. O critério combinado de Estoque abaixo também inclui C2/perdas, que continua sem autorização. Nenhuma contagem macro foi promovida. Código C1 `9ec21c609a196a4a30e9028e02faf4a581b29962`: [CI #209](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617), 760/760 PASS nos testes executados, 9 jobs PASS e 4 persistentes BLOCKED pelo gate. CI e browser simulado não comprovam C1 real.
 

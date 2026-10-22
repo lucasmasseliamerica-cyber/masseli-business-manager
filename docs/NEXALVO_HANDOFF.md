@@ -1,6 +1,18 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
-## Atualização vigente — contrato de auditoria C1 reconciliado (22/10/2026)
+## Atualização vigente — leitura segura e diagnóstico C1 (22/10/2026)
+
+[Correção do bloqueio de leitura e procedimento somente PreflightOnly](./QA_C1_READ_REJECTION_20261022.md).
+Código publicado: **9a0c5c025e14e335271195d76a658492857dba53**. [CI #213](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39870484891): **792/792 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**.
+
+- O SELECT direto de waste_transactions é incompatível com os grants reais informados. O erro foi reproduzido sem rede; o relatório antigo agregado não identifica sozinho a requisição exata do Windows.
+- C1 e preflight genérico agora usam a RPC existente fn_read_waste_transactions_secure, com contrato histórico revisado e pin MD5/SHA-256/atributos. Não criar RPC ou ampliar SELECT/RLS.
+- Diagnóstico sanitizado identifica etapa/recurso/ator/método/status e códigos upstream permitidos; não inclui URL, query, UUID, mensagem, credencial ou dados pessoais. Falhas continuam BLOCKED, sem retry/fallback.
+- **538/538 regressões locais PASS**, incluindo 20 diagnósticos e 18 PostgreSQL descartável; build e análise de duas Edge Functions PASS. Histórico de perdas, inclusive sem ledger associado, continua obrigatório.
+- **C1 real BLOCKED:** atualizar catálogo somente leitura com waste_reader_contract e repetir apenas -PreflightOnly no notebook; não executar movimentações, perdas, compensação ou auditoria.
+- A/B e checkpoints preservados. Macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados, sem promoção por simulação ou CI.
+
+## Histórico — reconciliação do contrato de auditoria C1 (22/10/2026)
 
 [Análise semântica, evidências e preflight somente leitura](./QA_C1_AUDIT_CONTRACT_20261022.md).
 Código publicado: **a60c0980ceb6005a90f99f8072af9b4b6639af02**. [CI #212](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39807483674): **768/768 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**.
