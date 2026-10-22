@@ -1,0 +1,43 @@
+{
+  "scope": "C1_CI_VERIFICATION",
+  "final_run": 208,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39797637348",
+  "head_sha": "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac",
+  "branch": "automation/nexalvo-qa-actions",
+  "status": "QUEUED_NOT_APPROVED",
+  "tests": null,
+  "earlier_run_205": {
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39794373500",
+    "head_sha": "99b1dc80f84fe04e72a2c72267db2894bb92913e",
+    "status": "IN_PROGRESS_LAST_OBSERVATION",
+    "verified_pass_jobs": [
+      {
+        "name": "build-and-security",
+        "job_id": 119877914012
+      },
+      {
+        "name": "windows-sale-launcher",
+        "job_id": 119877914304
+      },
+      {
+        "name": "test-api-smoke",
+        "job_id": 119878278650
+      },
+      {
+        "name": "authenticated-preflight",
+        "job_id": 119883907412
+      }
+    ],
+    "c1_native_cases": {
+      "powershell_5_1": 10,
+      "powershell_7": 10,
+      "failures": 0,
+      "synthetic_only": true
+    }
+  },
+  "api_access": "GITHUB_CLI_HTTP_FORBIDDEN",
+  "evidence_method": "PUBLIC_GITHUB_HTML_READ_ONLY",
+  "persistent_workflows_enabled": false,
+  "real_c1_executed": false,
+  "note": "No aggregate count or final approval inferred from partial jobs. Earlier intermediate code runs are not used to approve the final SHA."
+}

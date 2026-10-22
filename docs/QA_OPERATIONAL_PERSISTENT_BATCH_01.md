@@ -1,5 +1,7 @@
 # Próximo lote P0 — preparação, não autorização de execução
 
+**C1 vigente:** [executor delimitado e autorização específica recebida](./QA_C1_STOCK_20261022.md). A execução real depende de credenciais seguras, catálogo atualizado, CI e janela exclusiva; perda C2 e D/E não autorizadas.
+
 **Atualização C — 22/10/2026:** [preflight e pacote C preparados](./QA_C_STOCK_20261022.md), CI #204: 712/712 PASS no escopo executado; C real continua BLOCKED. Precisão de quantidade/custo corrigida na UI; patch interno de precisão ainda não aplicado. SQLs somente leitura de fixtures/contratos C e D/E disponíveis. Não repetir A/B, não aplicar migrações ou movimentar estoque sem autorização própria. As solicitações antigas A/B e o próximo passo A-Infra abaixo são históricos e estão superados.
 
 **Estado vigente:** B #1253 concluída por conciliação de 14 checks originais e três da recuperação real: **17/17 PASS**. Ver [fechamento B](./QA_B_CLOSURE_20261021.md) e [matriz atual](./NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md): **16/60 (26,67%)**. Não repetir venda/estorno/compensação/recuperação; instruções de execução abaixo são históricas. C/D/E seguem sem autorização persistente.

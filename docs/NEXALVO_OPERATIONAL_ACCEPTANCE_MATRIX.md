@@ -1,5 +1,8 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+**Atualização C1 (22/10/2026):** patch instalado, fixture exclusiva e preflight real 5/5 foram informados pelo proprietário; a autorização C1 específica foi recebida. [Executor e evidências](./QA_C1_STOCK_20261022.md). C1 real ainda bloqueada nesta sessão por credenciais, acesso Windows e janela exclusiva; o contrato de auditoria atual exige novo catálogo somente leitura. O critério combinado de Estoque abaixo também inclui C2/perdas, que continua sem autorização. Nenhuma contagem macro foi promovida.
+
+
 Cobertura comprovada: **16/60 critérios (26.67%)**; 15 PENDENTES e 29 BLOQUEADOS.
 Este percentual mede os critérios explícitos abaixo, não linhas de código, quantidade de testes ou probabilidade de o aplicativo estar pronto.
 Critérios API/SQL concluídos não homologam a jornada UI correspondente. SQL com JWT simulado está identificado. CI #180 é baseline histórica; nenhuma escrita foi repetida nesta auditoria.

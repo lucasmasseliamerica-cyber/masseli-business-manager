@@ -1,5 +1,21 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Atualização vigente — executor C1 preparado, execução real bloqueada (22/10/2026)
+
+[Pacote C1, limites, Windows e recuperação somente leitura](./QA_C1_STOCK_20261022.md).
+Código validável: **c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac**. CI: [CI #208](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39797637348) **em fila, sem aprovação do SHA final**.
+
+- Proprietário informou patch de precisão instalado, fixture exclusiva pronta e preflight Windows real **5/5 PASS**. Evidência informada, sem observação direta nesta sessão; não reaplicar migração.
+- Entregues quatro passos delimitados (ajuste +0,125; transferência0,500; inversa0,500; ajuste final), checkpoint privado, mutex, guard por sessão e recuperação sem escrita. C2/perdas fora da autorização.
+- Auditoria de transferências e confirmação de falha sem repetir estoque corrigidas; transporte rejeita replay, concorrência, sessão errada e leituras truncadas.
+- Local: **86/86 regressões +5/5 browser HTTP simulado PASS**, build PASS. Não são homologação C1.
+- **C1 real BLOCKED:** faltam credenciais QA seguras, acesso Windows/SQL nesta sessão, catálogo com c1_audit_contract e atestado da janela exclusiva. A autorização C1 foi recebida; não solicitar autorização genérica novamente.
+- Executar o SQL de catálogo atualizado somente leitura; depois launcher local/preflight. Escrita Windows apenas com CI aprovada, sessões reais, fixture íntegra e janela confirmada externamente.
+- Não há modo de retomada com escrita/compensação automática. Resultado desconhecido exige reconciliação somente leitura e preservação de checkpoint/histórico.
+
+**A/B preservadas; macro 16/60 (26,67%), 15 pendentes e29 bloqueados.** C1 não promovida.
+Quatro jobs persistentes da CI continuam OFF. Não alterar main, produção, usuários/claims ou Administração Comercial; não repetir #1253. Site comercial, Stripe e licenciamento automático seguem congelados.
+
 ## Atualização vigente — C preparada, precisão corrigida localmente (22/10/2026)
 
 [Pacote C, evidências, procedimento Windows e sequência de autorizações](./QA_C_STOCK_20261022.md).

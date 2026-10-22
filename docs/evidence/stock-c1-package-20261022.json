@@ -1,0 +1,140 @@
+{
+  "date": "2026-10-22",
+  "branch": "automation/nexalvo-qa-actions",
+  "target": "msinksoilkluooxenecy",
+  "scope": "C1_BOUNDED_EXECUTOR_NOT_REAL_HOMOLOGATION",
+  "code_commits": [
+    "99b1dc80f84fe04e72a2c72267db2894bb92913e",
+    "98162f4c87e91dbb99e5f776c58be57431e2f104",
+    "05b78085ae0a48f648d071840a368ed4a043f4d6",
+    "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac"
+  ],
+  "user_reported_real_prerequisites": {
+    "kind": "USER_REPORTED_REAL_TEST_STATE",
+    "observed_directly_by_this_session": false,
+    "source_request_sha256": "a05ce2b7b9764e62e189ecb66d025d0adbd1137f5445db9123fceac5f01c2b1f",
+    "raw_request_versioned": false,
+    "precision_patch_installed": true,
+    "precision_fingerprint": "27bb16e1ab20acc78ef5bb2f25eb9c04",
+    "current_catalog_reported": true,
+    "dedicated_fixture_reported": true,
+    "initial_quantities": [
+      2,
+      2
+    ],
+    "initial_average_costs": [
+      0.1,
+      0.1
+    ],
+    "authenticated_windows_readonly_checks": {
+      "passed": 5,
+      "failed": 0,
+      "code": "C_READONLY_GATES_PASS_PERSISTENCE_NOT_AUTHORIZED"
+    },
+    "c1_scope_authorized": true,
+    "exclusive_operational_window_confirmed": false
+  },
+  "local_related_tests": {
+    "passed": 86,
+    "failed": 0,
+    "skipped": 0,
+    "postgres_disposable_only": true,
+    "tap_sha256": "55b7fe73ea700322d3c4a40b00ad3d142a1265bfff3bdc384a81c3ce745ea5a5"
+  },
+  "local_browser_http_simulated": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "not_supabase_homologation": true,
+    "tap_sha256": "ba44f254312351155922ae9083d43126f43fd6932e581fbe1a55d4046bc75c6c"
+  },
+  "build": "PASS",
+  "powershell_parser": "PASS",
+  "ci_status": "QUEUED_NOT_APPROVED",
+  "current_c1_attempt": {
+    "scope": "C1_REAL_TEST_STOCK",
+    "status": "BLOCKED",
+    "code": "C_SECURE_QA_CREDENTIALS_REQUIRED",
+    "checks": {
+      "catalog": "BLOCKED",
+      "owner_a_b": "BLOCKED",
+      "permissions": "BLOCKED",
+      "read_isolation": "BLOCKED",
+      "exclusive_fixture": "BLOCKED",
+      "exclusive_window": "BLOCKED",
+      "snapshot": "BLOCKED",
+      "write_isolation": "BLOCKED",
+      "ui_adjustment": "BLOCKED",
+      "ui_transfer": "BLOCKED",
+      "ui_reverse_transfer": "BLOCKED",
+      "persist_reload": "BLOCKED",
+      "ui_history": "BLOCKED",
+      "unique_movements": "BLOCKED",
+      "audit_history": "BLOCKED",
+      "stock_restored": "BLOCKED",
+      "cost_restored": "BLOCKED",
+      "checkpoint_integrity": "BLOCKED"
+    },
+    "restored": false,
+    "stock_requests_forwarded": 0,
+    "audit_requests_forwarded": 0,
+    "negative_requests_forwarded": 0,
+    "history_rows_deleted": 0,
+    "fixtures_created": 0,
+    "full_homologation": false,
+    "recovery_checkpoint_retained": false
+  },
+  "this_session_c1": {
+    "stock_requests_forwarded": 0,
+    "negative_write_probes_forwarded": 0,
+    "audit_requests_forwarded": 0,
+    "migrations_applied": 0,
+    "fixtures_created": 0,
+    "admin_used_as_qa_user": false,
+    "a_b_checkpoints_accessed": false,
+    "real_c1_homologation": "BLOCKED"
+  },
+  "blocked_by": [
+    "SECURE_QA_A_B_CREDENTIALS_NOT_AVAILABLE",
+    "NO_DESKTOP_OR_SQL_TOOL_IN_THIS_SESSION",
+    "EXCLUSIVE_WINDOW_NOT_CONFIRMED",
+    "FRESH_C1_AUDIT_CONTRACT_REQUIRED"
+  ],
+  "prepared_budget": {
+    "adjustment_delta": 0.125,
+    "outbound_transfer": 0.5,
+    "return_transfer": 0.5,
+    "restore_adjustment_delta": -0.125,
+    "expected_movement_rows": 6,
+    "expected_new_audit_rows": 4,
+    "final_quantities": [
+      2,
+      2
+    ],
+    "final_average_costs": [
+      0.1,
+      0.1
+    ],
+    "c2_waste_authorized": false,
+    "automatic_retry": false,
+    "automatic_compensation": false
+  },
+  "macro_acceptance": {
+    "completed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67,
+    "new_macro_checks_approved": 0
+  },
+  "additional_transport_finding": "Incomplete successful deny-read responses must fail closed even when the body is empty",
+  "validated_code_sha": "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac",
+  "operational_window_begins_before_credential_prompts": true,
+  "ci": {
+    "run": 208,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39797637348",
+    "head_sha": "c8e283f6a0a6e61dba1cd0b9745d2dce0097d5ac",
+    "status": "QUEUED_NOT_APPROVED",
+    "evidence": "docs/evidence/stock-c1-ci-208-20261022.json"
+  }
+}
