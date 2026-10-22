@@ -7,9 +7,20 @@ export const KNOWN_BUILD_PACKAGES=new Set([
 export const KNOWN_ADVISORY_SOURCES=new Set([1240992,1241232]);
 
 export function evaluateAudit(report){
- const vulnerabilities=report?.vulnerabilities&&typeof report.vulnerabilities==='object'
-  ? report.vulnerabilities:{};
- const metadata=report?.metadata?.vulnerabilities||{};
+ const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+ const severities=['critical','high','moderate','low','info'];
+ const metadata=report?.metadata?.vulnerabilities;
+ // A registry/network error is not a completed scan, even if npm exits with code 1.
+ // Never replace absent data with zero counts or print the service's raw error/URL.
+ if(!object(report)||Object.hasOwn(report,'error')||!object(report.vulnerabilities)||!object(metadata)
+   ||![...severities,'total'].every(key=>Number.isSafeInteger(metadata[key])&&metadata[key]>=0)){
+  return {ok:false,complete:false,reasons:['AUDIT_REPORT_INVALID_OR_UNAVAILABLE'],names:[],advisorySources:[],counts:null};
+ }
+ const vulnerabilities=report.vulnerabilities;
+ if(Object.values(vulnerabilities).some(row=>!object(row)||!Array.isArray(row.via)||row.via.length===0
+   ||row.via.some(via=>typeof via!=='string'&&(!object(via)||!Number.isSafeInteger(via.source)||via.source<=0)))){
+  return {ok:false,complete:false,reasons:['AUDIT_REPORT_ADVISORY_SCHEMA_INVALID'],names:[],advisorySources:[],counts:null};
+ }
  const names=Object.keys(vulnerabilities);
  const unknownPackages=names.filter(name=>!KNOWN_BUILD_PACKAGES.has(name));
  const advisorySources=new Set();
@@ -24,20 +35,29 @@ export function evaluateAudit(report){
   low:Number(metadata.low||0),info:Number(metadata.info||0),total:Number(metadata.total||0),
  };
  const reasons=[];
+ let complete=true;
+ if(counts.total!==severities.reduce((sum,key)=>sum+counts[key],0)||counts.total!==names.length
+   ||Object.values(vulnerabilities).some(row=>!object(row)||!severities.includes(row.severity)||!Array.isArray(row.via))
+   ||severities.some(severity=>Object.values(vulnerabilities).filter(row=>row?.severity===severity).length!==counts[severity])){
+  reasons.push('AUDIT_REPORT_COUNTS_INCONSISTENT');complete=false;
+ }
  if(unknownPackages.length)reasons.push('unknown vulnerable packages: '+unknownPackages.sort().join(', '));
  if(unknownAdvisories.length)reasons.push('unknown advisory sources: '+unknownAdvisories.sort((a,b)=>a-b).join(', '));
  if(counts.critical>0)reasons.push('critical vulnerabilities present');
  if(counts.total>7||counts.high>5||counts.moderate>2||counts.low>0||counts.info>0){
   reasons.push('known build-only vulnerability ceiling exceeded');
  }
- return {ok:reasons.length===0,reasons,names:names.sort(),advisorySources:[...advisorySources].sort((a,b)=>a-b),counts};
+ return {ok:complete&&reasons.length===0,complete,reasons,names:names.sort(),advisorySources:[...advisorySources].sort((a,b)=>a-b),counts};
 }
 
 function main(){
  const path=process.argv[2];
  if(!path)throw new Error('Usage: node qa/npm-audit-policy.mjs <npm-audit.json>');
- const report=JSON.parse(readFileSync(path,'utf8'));
+ let report;
+ try{report=JSON.parse(readFileSync(path,'utf8'));}
+ catch{console.error('npm audit policy: BLOCKED [AUDIT_REPORT_UNAVAILABLE]');process.exitCode=2;return;}
  const result=evaluateAudit(report);
+ if(!result.complete){console.error('npm audit policy: BLOCKED [AUDIT_REPORT_INVALID_OR_INCOMPLETE]');process.exitCode=2;return;}
  console.log(`npm audit policy: total=${result.counts.total} high=${result.counts.high} moderate=${result.counts.moderate} critical=${result.counts.critical}`);
  if(!result.ok){
   for(const reason of result.reasons)console.error('npm audit policy violation: '+reason);

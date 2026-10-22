@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {evaluateAudit,KNOWN_BUILD_PACKAGES} from './npm-audit-policy.mjs';
+import {mkdtempSync,writeFileSync,rmSync} from 'node:fs';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {spawnSync} from 'node:child_process';
 
 const current=()=>({
  vulnerabilities:{
@@ -21,7 +25,7 @@ test('current seven build-only findings remain tracked without claiming they are
 });
 
 test('a fully resolved report passes and lowers the recorded ceiling',()=>{
- const result=evaluateAudit({vulnerabilities:{},metadata:{vulnerabilities:{total:0}}});
+ const result=evaluateAudit({vulnerabilities:{},metadata:{vulnerabilities:{critical:0,high:0,moderate:0,low:0,info:0,total:0}}});
  assert.equal(result.ok,true);assert.equal(result.counts.total,0);
 });
 
@@ -42,4 +46,32 @@ test('critical severity always fails even for a known package',()=>{
  const report=current();report.metadata.vulnerabilities.critical=1;report.metadata.vulnerabilities.total=8;
  const result=evaluateAudit(report);
  assert.equal(result.ok,false);assert.match(result.reasons.join('\n'),/critical vulnerabilities present/);
+});
+
+test('registry errors missing schema and nonnumeric counts cannot become a zero-vulnerability PASS',()=>{
+ for(const report of [null,{},[],{message:'SYNTHETIC_REGISTRY_ERROR',error:{}},{...current(),error:null},
+  {vulnerabilities:{},metadata:{vulnerabilities:{total:0}}},
+  {...current(),vulnerabilities:{braces:{severity:'high',via:{source:1240992}}}},
+  {...current(),vulnerabilities:{braces:{severity:'high',via:[{url:'SYNTHETIC_MISSING_SOURCE'}]}}},
+  {...current(),metadata:{vulnerabilities:{...current().metadata.vulnerabilities,total:'7'}}}]){
+  const result=evaluateAudit(report);assert.equal(result.ok,false);assert.equal(result.complete,false);assert.equal(result.counts,null);
+ }
+});
+test('inconsistent totals or severity rows are incomplete audit evidence even within the known ceiling',()=>{
+ for(const change of [x=>x.metadata.vulnerabilities.total=0,x=>x.metadata.vulnerabilities.high=4,
+  x=>delete x.vulnerabilities.braces,x=>x.vulnerabilities.braces.severity='unknown']){
+  const report=current();change(report);const result=evaluateAudit(report);
+  assert.equal(result.ok,false);assert.equal(result.complete,false);
+ }
+});
+test('audit CLI classifies service and JSON failures as BLOCKED without leaking error text or claiming zero alerts',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'nexalvo-audit-policy-')),file=join(dir,'audit.json');
+ try{
+  for(const content of [JSON.stringify({message:'Bearer SYNTHETIC_PRIVATE_VALUE',error:'private@example.invalid'}),'INVALID_JSON']){
+   writeFileSync(file,content);
+   const r=spawnSync(process.execPath,['qa/npm-audit-policy.mjs',file],{encoding:'utf8'});
+   assert.equal(r.status,2);assert.match(r.stderr,/BLOCKED/);
+   assert.doesNotMatch(r.stdout+r.stderr,/SYNTHETIC_PRIVATE_VALUE|@|Bearer|total=0|SyntaxError/);
+  }
+ }finally{rmSync(dir,{recursive:true,force:true});}
 });
