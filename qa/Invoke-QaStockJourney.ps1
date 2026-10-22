@@ -10,6 +10,7 @@ param(
     [switch]$ValidateLauncherOnly
 )
 $ErrorActionPreference='Stop'
+$exclusiveAt=[DateTime]::UtcNow # Prompts/setup consume the confirmed window; never extend it afterwards.
 $stage='BOOTSTRAP'; $report=$null; $exitCode=2; $pushed=$false; $locked=$false; $mutex=$null; $hash=$null; $checkpoint=$null
 $previous=@{}; $nativePreference=Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue
 $previousNative=if ($null -ne $nativePreference) { $nativePreference.Value } else { $null }
@@ -83,7 +84,7 @@ try {
             QA_STOCK_C1_AUTHORIZED='';QA_STOCK_EXCLUSIVE_WINDOW='';QA_STOCK_EXCLUSIVE_AT='';QA_STOCK_EXCLUSIVE_UNTIL=''}
         if (-not $PreflightOnly -and -not $ReadOnlyRecovery) {
             # The switch is the operator's explicit attestation, never inferred from CI/preflight.
-            $at=[DateTime]::UtcNow
+            $at=$exclusiveAt
             $values.QA_STOCK_C1_AUTHORIZED='TEST_ONLY_EXPLICIT_C1_20261022';$values.QA_STOCK_EXCLUSIVE_WINDOW='TEST_ONLY_C1_EXCLUSIVE_WINDOW'
             $values.QA_STOCK_EXCLUSIVE_AT=$at.ToString('o');$values.QA_STOCK_EXCLUSIVE_UNTIL=$at.AddMinutes($ExclusiveWindowMinutes).ToString('o')
         }
