@@ -9,6 +9,7 @@ import { C1_FIXTURE as f, C1_CHECKS, c1Mode, c1Scope, c1Window, c1Precision, c1A
   c1ExpectedAudit, c1ExpectedMovements, makeC1State, sealC1Checkpoint, unsealC1Checkpoint, verifyC1View } from './stock-c1-protocol.mjs';
 import { stockJourney, reconcileC1Readonly, privateC1Path } from './stock-journey.TEST.mjs';
 import { openC1Client } from './stock-c1-client.mjs';
+import { createC1BrowserGuard } from './stock-c1-browser-guard.mjs';
 
 export function syntheticC1Fixture() {
   return { item: { id: f.item, business_id: STOCK_ACTORS.A.business, name: f.name, unit: 'unit', active: true, supplier_id: null, notes: 'SYNTHETIC ONLY' },
@@ -155,4 +156,80 @@ test('C1 authenticated client exposes no generic mutation and cleans temporary s
   await assert.rejects(openC1Client(config, env, fetcher), /C1_OWNER_PERMISSION_REQUIRED/);
   assert.ok(requests.some(r => r.path === '/auth/v1/logout'));
   assert.ok(requests.every(r => r.method === 'GET' || ['/auth/v1/token', '/auth/v1/logout'].includes(r.path)));
+});
+
+const stockOrigin = 'https://msinksoilkluooxenecy.supabase.co';
+function fakeRoute(rpc, payload, fetcher, { token = 'SYNTHETIC_A', origin = stockOrigin, method = 'POST' } = {}) {
+  const trace = { fetched: 0, fulfilled: 0, aborted: 0, continued: 0 };
+  return { trace, request: () => ({ url: () => origin + '/rest/v1/rpc/' + rpc, method: () => method,
+    headers: () => ({ authorization: 'Bearer ' + token }), postDataJSON: () => payload }),
+    fetch: async options => { trace.fetched++; assert.equal(options.maxRetries, 0); assert.equal(options.maxRedirects, 0); return fetcher(); },
+    fulfill: async () => { trace.fulfilled++; }, abort: async () => { trace.aborted++; }, continue: async () => { trace.continued++; } };
+}
+test('C1 actual browser guard dispatches the four bounded writes and four audits once, after checkpoint and independent reads', async () => {
+  const s = stateFor(), full = observed(s, 4), saved = [], counters = { stock_requests_forwarded: 0, audit_requests_forwarded: 0 }, failures = [];
+  let stage = 0, auditStage = 0;
+  const readView = async () => {
+    const v = structuredClone(full), quantities = [[2, 2], [2.125, 2], [1.625, 2.5], [2.125, 2], [2, 2]][stage];
+    v.stocks.forEach((r, i) => { r.qty = quantities[i]; });
+    v.transactions = v.transactions.slice(0, [0, 1, 3, 5, 6][stage]); v.audit = v.audit.slice(0, auditStage);
+    return v;
+  };
+  const guard = createC1BrowserGuard({ local: 'http://127.0.0.1:4189', state: s, readView, save: phase => saved.push(phase),
+    windowGate: () => {}, counters, authorizedToken: 'SYNTHETIC_A', onFailure: e => failures.push(e.code) });
+  for (const step of c1Plan(s)) {
+    const route = fakeRoute(step.rpc, step.payload, async () => {
+      assert.equal(saved.at(-1), 'MOVEMENT_PENDING'); assert.equal(s.pending, 'MOVEMENT'); stage++;
+      const row = full.transactions[[0, 1, 3, 5][stage - 1]]; return { ok: () => true, json: async () => ({ id: row.id }) };
+    });
+    await guard(route); assert.equal(route.trace.fulfilled, 1);
+    const e = c1ExpectedAudit(s, stage - 1);
+    const audit = fakeRoute('fn_write_audit', { p_action: e.action.replace('Client: ', ''), p_details: e.details }, async () => {
+      assert.equal(saved.at(-1), 'AUDIT_PENDING'); assert.equal(s.pending, 'AUDIT'); auditStage++; return { ok: () => true };
+    });
+    await guard(audit); assert.equal(audit.trace.fulfilled, 1);
+  }
+  assert.deepEqual(failures, []); assert.equal(counters.stock_requests_forwarded, 4); assert.equal(counters.audit_requests_forwarded, 4);
+  assert.equal(verifyC1View(s, await readView(), 4).stock_restored, true);
+  const replay = fakeRoute(c1Plan(s)[3].rpc, c1Plan(s)[3].payload, () => assert.fail('no fifth write'));
+  await guard(replay); assert.equal(replay.trace.fetched, 0); assert.equal(counters.stock_requests_forwarded, 4);
+});
+test('C1 browser timeout retains dispatched intent and blocks every replay without exposing the exception', async () => {
+  const s = stateFor(), counters = { stock_requests_forwarded: 0, audit_requests_forwarded: 0 }, phases = [], failures = [];
+  const guard = createC1BrowserGuard({ local: 'http://127.0.0.1:4189', state: s, readView: async () => observed(s, 0),
+    save: phase => phases.push(phase), windowGate: () => {}, counters, authorizedToken: 'SYNTHETIC_A', onFailure: e => failures.push(e) });
+  const step = c1Plan(s)[0];
+  const route = fakeRoute(step.rpc, step.payload, () => { assert.equal(phases.at(-1), 'MOVEMENT_PENDING'); throw Error('Bearer SYNTHETIC_SECRET a@example.invalid'); });
+  await guard(route); await guard(route);
+  assert.equal(route.trace.fetched, 1); assert.equal(s.pending, 'MOVEMENT'); assert.equal(counters.stock_requests_forwarded, 1);
+  assert.doesNotMatch(JSON.stringify(failures.map(e => e.code)), /SYNTHETIC_SECRET|@|Bearer/);
+});
+test('C1 browser cannot forward if durable checkpoint saving fails', async () => {
+  const s = stateFor(), failures = [], counters = { stock_requests_forwarded: 0, audit_requests_forwarded: 0 }, step = c1Plan(s)[0];
+  const guard = createC1BrowserGuard({ local: 'http://127.0.0.1:4189', state: s, readView: async () => observed(s, 0),
+    save: () => { throw Error('SYNTHETIC_DISK_FAILURE'); }, windowGate: () => {}, counters, authorizedToken: 'SYNTHETIC_A', onFailure: e => failures.push(e.code) });
+  const route = fakeRoute(step.rpc, step.payload, () => assert.fail('checkpoint must precede forward'));
+  await guard(route); assert.equal(route.trace.fetched, 0); assert.equal(counters.stock_requests_forwarded, 0); assert.equal(failures.length, 1);
+});
+test('C1 browser denies foreign user host and RPC before fetch; optional external GET cannot poison the stock cycle', async () => {
+  const step = c1Plan(stateFor())[0];
+  for (const scenario of ['other-user', 'other-supabase', 'other-rpc', 'optional-image']) {
+    const s = stateFor(), failures = [], counters = { stock_requests_forwarded: 0, audit_requests_forwarded: 0 };
+    const guard = createC1BrowserGuard({ local: 'http://127.0.0.1:4189', state: s, readView: async () => observed(s, 0), save: () => {}, windowGate: () => {},
+      counters, authorizedToken: 'SYNTHETIC_A', onFailure: e => failures.push(e.code) });
+    const options = scenario === 'other-user' ? { token: 'SYNTHETIC_B' } : scenario === 'other-supabase' ? { origin: 'https://foreign.supabase.co', method: 'GET' }
+      : scenario === 'optional-image' ? { origin: 'https://images.example.invalid', method: 'GET' } : {};
+    const route = fakeRoute(scenario === 'other-rpc' ? 'fn_record_waste' : step.rpc, step.payload, () => assert.fail('outside scope'), options);
+    await guard(route); assert.equal(route.trace.fetched, 0); assert.equal(counters.stock_requests_forwarded, 0);
+    assert.equal(failures.length, scenario === 'optional-image' ? 0 : 1);
+  }
+});
+test('C1 overlapping browser submissions cannot dispatch after a competing request poisons the gate', async () => {
+  const s = stateFor(), counters = { stock_requests_forwarded: 0, audit_requests_forwarded: 0 }, failures = [], step = c1Plan(s)[0];
+  let resolveRead; const pendingRead = new Promise(resolve => { resolveRead = resolve; });
+  const guard = createC1BrowserGuard({ local: 'http://127.0.0.1:4189', state: s, readView: () => pendingRead,
+    save: () => {}, windowGate: () => {}, counters, authorizedToken: 'SYNTHETIC_A', onFailure: e => failures.push(e.code) });
+  const a = fakeRoute(step.rpc, step.payload, () => assert.fail('overlap')), b = fakeRoute(step.rpc, step.payload, () => assert.fail('overlap'));
+  const first = guard(a); await guard(b); resolveRead(observed(s, 0)); await first;
+  assert.equal(a.trace.fetched + b.trace.fetched, 0); assert.equal(counters.stock_requests_forwarded, 0); assert.equal(failures.length, 2);
 });
