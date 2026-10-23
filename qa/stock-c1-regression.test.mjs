@@ -168,6 +168,100 @@ for (const outcome of ['committed', 'absent', 'read-failure', 'probe-unknown']) 
     assert.ok(readFileSync(file).equals(original)); assert.equal(reads, 1);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+function probesConfirmedState() {
+  const state = stateFor(); state.phase = 'PROBES_CONFIRMED';
+  state.probes = [{ actor: 'B', status: 'DENIED' }, { actor: 'anon', status: 'DENIED' }];
+  for (const name of ['catalog', 'owner_a_b', 'permissions', 'read_isolation', 'exclusive_fixture', 'exclusive_window', 'snapshot', 'write_isolation'])
+    state.checks[name] = 'PASS';
+  return state;
+}
+test('C1 PROBES_CONFIRMED recovery proves an unchanged baseline without claiming a partial restored or homologated cycle', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexalvo-stock-c1-synthetic-'));
+  const file = join(dir, 'stock-recovery.json'), state = probesConfirmedState();
+  state.audit.push({ id: randomUUID(), business_id: STOCK_ACTORS.A.business, user_id: STOCK_ACTORS.A.owner,
+    action: 'Client: Prior synthetic event', details: 'SYNTHETIC HISTORY PRESERVE' });
+  writeFileSync(file, sealC1Checkpoint(state), { mode: 0o600 });
+  const bytes = readFileSync(file), hash = createHash('sha256').update(bytes).digest('hex');
+  let reads = 0, writes = 0;
+  const client = {
+    view: async () => { reads++; const view = observed(state, 0); view.audit = structuredClone(state.audit); return view; },
+    negativeProbe: async () => { writes++; throw Error('MUST_NOT_REPEAT_DENIED_PROBES'); },
+  };
+  try {
+    const report = await reconcileC1Readonly(file, client);
+    assert.equal(report.status, 'PASS');
+    assert.equal(report.code, 'C1_BASELINE_CONFIRMED_NO_STOCK_OPERATIONS_NOT_FULL_HOMOLOGATION');
+    assert.equal(report.restored, false); assert.equal(report.restoration_performed, false);
+    assert.equal(report.baseline_unchanged, true); assert.equal(report.stock_and_cost_unchanged, true);
+    assert.equal(report.original_negative_probes_confirmed, true);
+    assert.deepEqual([report.historical_negative_requests, report.historical_stock_requests, report.historical_audit_requests], [2, 0, 0]);
+    assert.deepEqual([report.negative_requests_forwarded, report.stock_requests_forwarded, report.audit_requests_forwarded], [0, 0, 0]);
+    assert.equal(report.full_homologation, false); assert.equal(report.checks.checkpoint_integrity, 'PASS');
+    for (const name of ['ui_adjustment', 'ui_transfer', 'ui_reverse_transfer', 'persist_reload', 'ui_history',
+      'unique_movements', 'audit_history', 'stock_restored', 'cost_restored']) assert.equal(report.checks[name], 'BLOCKED');
+    assert.equal(report.reconciliation.stage, 0); assert.equal(report.reconciliation.movement_rows, 0);
+    assert.equal(report.reconciliation.audit_rows_added, 0);
+    assert.deepEqual(report.reconciliation.positions.map(row => [row.qty_after, row.average_cost_after]), [[2, 0.1], [2, 0.1]]);
+    assert.equal(report.recovery_checkpoint_unchanged, true); assert.equal(report.recovery_checkpoint_sha256, hash);
+    assert.ok(readFileSync(file).equals(bytes)); assert.equal(createHash('sha256').update(readFileSync(file)).digest('hex'), hash);
+    assert.deepEqual(unsealC1Checkpoint(readFileSync(file)), state);
+    assert.equal(reads, 1); assert.equal(writes, 0);
+    assert.doesNotMatch(JSON.stringify(report), /SYNTHETIC HISTORY|Prior synthetic|user_id|business_id|[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}/i);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+for (const corruption of ['quantity', 'cost', 'movement', 'waste', 'original-audit', 'new-audit']) test(`C1 zero-operation recovery rejects ${corruption} drift and preserves the checkpoint`, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexalvo-stock-c1-synthetic-'));
+  const file = join(dir, 'stock-recovery.json'), state = probesConfirmedState();
+  state.audit = [{ id: randomUUID(), action: 'Client: Original synthetic event' }];
+  writeFileSync(file, sealC1Checkpoint(state), { mode: 0o600 }); const bytes = readFileSync(file);
+  const view = observed(state, 0); view.audit = structuredClone(state.audit);
+  if (corruption === 'quantity') view.stocks[0].qty = 2.125;
+  if (corruption === 'cost') view.stocks[0].avg_cost_per_unit = 0.2;
+  if (corruption === 'movement') view.transactions.push({ id: randomUUID() });
+  if (corruption === 'waste') view.waste.push({ id: randomUUID() });
+  if (corruption === 'original-audit') view.audit[0].action = 'CHANGED';
+  if (corruption === 'new-audit') view.audit.push({ id: randomUUID(), action: 'UNEXPECTED' });
+  try {
+    await assert.rejects(reconcileC1Readonly(file, { view: async () => view }), /C1_UNKNOWN_RESULT_NOT_PROVEN_NO_RETRY/);
+    assert.ok(readFileSync(file).equals(bytes));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('C1 zero-operation recovery neither invents historical probe receipts nor green checks from a baseline', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexalvo-stock-c1-synthetic-'));
+  const file = join(dir, 'stock-recovery.json'), state = stateFor();
+  // A checksum authenticates bytes against their checksum, not nonexistent UI evidence.
+  for (const name of C1_CHECKS) state.checks[name] = 'PASS';
+  writeFileSync(file, sealC1Checkpoint(state), { mode: 0o600 }); const bytes = readFileSync(file);
+  try {
+    const report = await reconcileC1Readonly(file, { view: async () => observed(state, 0) });
+    assert.equal(report.original_negative_probes_confirmed, false); assert.equal(report.historical_negative_requests, 0);
+    assert.equal(report.full_homologation, false); assert.equal(report.restored, false);
+    assert.equal(report.checks.ui_adjustment, 'BLOCKED'); assert.equal(report.checks.unique_movements, 'BLOCKED');
+    assert.equal(report.checks.audit_history, 'BLOCKED'); assert.equal(report.checks.stock_restored, 'BLOCKED');
+    assert.ok(readFileSync(file).equals(bytes));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('C1 zero-operation recovery blocks an unsettled probe even if pending was incorrectly cleared', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexalvo-stock-c1-synthetic-'));
+  const file = join(dir, 'stock-recovery.json'), state = probesConfirmedState();
+  state.probes[1].status = 'DISPATCHED';
+  writeFileSync(file, sealC1Checkpoint(state), { mode: 0o600 }); const bytes = readFileSync(file);
+  try {
+    await assert.rejects(reconcileC1Readonly(file, { view: async () => observed(state, 0) }), /C1_UNSETTLED_PROBE_REQUIRES_REVIEW/);
+    assert.ok(readFileSync(file).equals(bytes));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+test('C1 zero-operation recovery rejects a tampered checkpoint before requesting any current state', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexalvo-stock-c1-synthetic-'));
+  const file = join(dir, 'stock-recovery.json'), envelope = JSON.parse(sealC1Checkpoint(probesConfirmedState()));
+  envelope.state.phase = 'TAMPERED';
+  writeFileSync(file, JSON.stringify(envelope), { mode: 0o600 }); const bytes = readFileSync(file);
+  let reads = 0;
+  try {
+    await assert.rejects(reconcileC1Readonly(file, { view: async () => { reads++; return {}; } }), /C1_CHECKPOINT_CHECKSUM_MISMATCH/);
+    assert.equal(reads, 0); assert.ok(readFileSync(file).equals(bytes));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
 test('C1 recovery rejects checkpoint changes during a read even when observed stock is valid', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'nexalvo-stock-c1-synthetic-')), file = join(dir, 'stock-recovery.json'), s = stateFor();
   writeFileSync(file, sealC1Checkpoint(s));

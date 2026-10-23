@@ -62,7 +62,7 @@ try {
                 if (Test-Path -LiteralPath (Join-Path $dir.FullName 'stock-recovery.json')) { throw [InvalidOperationException]::new('C1_PREVIOUS_CHECKPOINT') }
             }
             $stage='DEPENDENCIES'
-            $r=Invoke-QaSaleNative node @('--input-type=module','-') -InputText "import {existsSync} from 'node:fs'; import {chromium} from 'playwright'; if(!existsSync(process.env.NEXALVO_QA_CHROMIUM_PATH||chromium.executablePath()))process.exit(2);"
+            $r=Invoke-QaSaleNative node @('--input-type=module','-') -InputText "import {chromium} from 'playwright'; import {resolveC1ChromiumExecutable} from './qa/stock-c1-browser-runtime.mjs'; resolveC1ChromiumExecutable(chromium,process.env);"
             if ($r.ExitCode -ne 0) { throw [InvalidOperationException]::new('C1_BROWSER_DEPENDENCIES') }
             $stage='PRIVATE_PATH'; $privateDirectory=Join-Path ([IO.Path]::GetTempPath()) ('nexalvo-stock-c1-'+[Guid]::NewGuid().ToString())
             if (Test-Path -LiteralPath $privateDirectory) { throw [InvalidOperationException]::new('C1_DIRECTORY_EXISTS') }
