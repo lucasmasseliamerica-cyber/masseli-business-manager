@@ -159,3 +159,14 @@ atual bem-sucedido não revela retroativamente a exceção original.
 - Depois das evidências de leitura, revisar decisão/autorização específica antes de qualquer
   novo plano persistente. C2/perdas, compras, financeiro, perfis reais e demais jornadas seguem
   seus próprios gates; comercialização automática/Stripe permanecem congelados.
+
+## Notebook — diagnóstico real somente leitura (23/10/2026, execução posterior)
+
+- Desktop Commander conectou ao notebook Windows `LAPTOP-NLHRV0BA`.
+- Checkout QA no commit `92e4edadc6877e690dfaecaeaa800d47a7fadbb7`, limpo e alinhado com `origin/automation/nexalvo-qa-actions`; o código validado `e28a317e00062da16363a22f1f1cf53e15e6815c` é ancestral do HEAD.
+- Node.js `v24.21.0`. Executado exclusivamente `node qa/stock-c1-runtime-readonly.TEST.mjs`, sem credenciais.
+- Resultado real sanitizado: `scope=C1_LOCAL_RUNTIME_READONLY`, `status=PASS`, `code=C1_LOCAL_RUNTIME_READY_NOT_HOMOLOGATION`, `stock_requests_forwarded=0`, `audit_requests_forwarded=0`, `negative_requests_forwarded=0`, `supabase_requests_forwarded=0`, `checkpoints_modified=0`, `full_homologation=false`.
+- Checkpoint original permanece no TEMP com SHA-256 igual antes/depois; árvore de trabalho continuou limpa. Não foi aberto, enviado, alterado ou substituído.
+- Variáveis de credenciais QA exigidas pelo launcher **não estavam disponíveis no processo remoto**. Por isso `-ReadOnlyRecovery` autenticado **não foi executado**; não houve prompt remoto de senha, acesso a dados de estoque ou nova tentativa C1.
+- O diagnóstico local comprova apenas que Vite/Chromium conseguem iniciar agora. Não identifica retroativamente a exceção histórica e **não desbloqueia** C1, compensações ou homologação completa.
+- Próximo gate: disponibilizar as contas QA existentes exclusivamente via prompt oculto no notebook e executar o procedimento de recuperação autenticada, somente `-ReadOnlyRecovery`, sem repetir operações persistentes.
