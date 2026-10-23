@@ -527,8 +527,8 @@ function applyPurchaseReceipt(inventory, receiveItems, meta = {}) {
     if (!line) return inv;
     const oldQty = inv.qty;
     const oldCost = inv.costPerUnit;
-    const addQty = round2(line.qty);
-    const newQty = round2(oldQty + addQty);
+    const addQty = roundStockQty(line.qty);
+    const newQty = roundStockQty(oldQty + addQty);
     const newAvgCost = newQty > 0 ? round2((oldQty * oldCost + addQty * line.unitCost) / newQty) : oldCost;
     txEntries.push({
       id: uid("itx"), date: meta.date || nowISO(), itemId: inv.id, itemName: inv.name, type: "Purchase",
@@ -569,7 +569,7 @@ function appendIfMissing(array, entry) {
 // inventory audit history (that remains invTx, unchanged). Items without an existing `appliedOps`
 // field are treated as starting from [] — fully backward compatible with existing data.
 // `itemDeltas` is { itemId: signedDelta } — positive to add, negative to subtract.
-function applyInventoryOpIfNeeded(inventory, opId, itemDeltas) {
+function applyInventoryOpIfNeeded(inventory, opId, itemDeltas, roundQuantity = round2) {
   const affectedIds = Object.keys(itemDeltas);
   if (affectedIds.length === 0) return { changed: false, nextInventory: inventory };
   const alreadyApplied = affectedIds.every((id) => {
@@ -580,7 +580,7 @@ function applyInventoryOpIfNeeded(inventory, opId, itemDeltas) {
   const nextInventory = inventory.map((inv) => {
     if (!(inv.id in itemDeltas)) return inv;
     if ((inv.appliedOps || []).includes(opId)) return inv; // this specific item already done
-    return { ...inv, qty: round2(inv.qty + itemDeltas[inv.id]), appliedOps: [...(inv.appliedOps || []), opId] };
+    return { ...inv, qty: roundQuantity(inv.qty + itemDeltas[inv.id]), appliedOps: [...(inv.appliedOps || []), opId] };
   });
   return { changed: true, nextInventory };
 }
@@ -7568,6 +7568,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     if (expectedDate < orderDate) { setError("Expected delivery can't be before the order date."); return; }
     if (lineData.some(l => l.item?.active === false)) { setError("Select active inventory items."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.item || !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
+    if (lineData.some((l) => !hasStockPrecision(Number(l.qty)))) { setError("Stock quantities support up to 3 decimal places."); return; }
     if (lineData.some((l) => String(l.unitCost).trim() === "" || !Number.isFinite(Number(l.unitCost)) || Number(l.unitCost) < 0)) { setError("Unit cost must be a valid number greater than or equal to zero."); return; }
     if (!Number.isFinite(Number(discount)) || !Number.isFinite(Number(tax)) || Number(discount) < 0 || Number(tax) < 0 || !Number.isFinite(grandTotal)) { setError("Discount and tax must be valid nonnegative amounts."); return; }
     if (new Set(lineData.map((l) => l.itemId)).size !== lineData.length) { setError("The same inventory item can't appear more than once on a purchase order."); return; }
@@ -7578,7 +7579,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
         try {
           await purchaseOps.create({ requestId: requestIdRef.current, supplierId, locationId, orderDate, expectedDate, status, paymentMethod, notes,
             discount: discountNumber, tax: taxNumber,
-            items: lineData.map((l) => ({ itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: l.roundedUnitCost })) });
+            items: lineData.map((l) => ({ itemId: l.itemId, qty: roundStockQty(Number(l.qty)), unit: l.item.unit, unitCost: l.roundedUnitCost })) });
           showToast(`Purchase order created · ${fmtMoney(grandTotal)}`);
           onClose();
         } catch (e) {
@@ -7598,7 +7599,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
       const po = {
         id: uid("po"), poNumber, supplierId, orderDate: parseLocalDate(orderDate).toISOString(), expectedDate: parseLocalDate(expectedDate).toISOString(),
         status, paymentMethod, notes: notes.trim(), amountPaid: 0, discount: discountNumber, tax: taxNumber, createdBy: currentUser?.id,
-        items: lineData.map((l) => ({ id: uid("poi"), itemId: l.itemId, qty: Number(l.qty), unit: l.item.unit, unitCost: l.roundedUnitCost, receivedQty: 0 })),
+        items: lineData.map((l) => ({ id: uid("poi"), itemId: l.itemId, qty: roundStockQty(Number(l.qty)), unit: l.item.unit, unitCost: l.roundedUnitCost, receivedQty: 0 })),
       };
       await persistPO([po, ...purchaseOrders]);
       await logAudit(auditLog, setAuditLog, currentUser, "Purchase Order Created", `${poNumber} · ${suppliers.find((s) => s.id === supplierId)?.name || ""} · ${fmtMoney(grandTotal)}`);
@@ -7644,7 +7645,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
                 {inventory.filter(i => i.active !== false).map((i) => <option key={i.id} value={i.id}>{i.name} ({translateUI(i.unit)})</option>)}
               </Select>
             </div>
-            <div className="w-20"><Input dark={dark} type="number" min="0.01" step="0.01" value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} /></div>
+            <div className="w-20"><Input dark={dark} type="number" min="0.001" step="0.001" value={it.qty} onChange={(e) => updateItem(idx, { qty: e.target.value })} /></div>
             <div className="w-24"><Input dark={dark} type="number" min="0" step="0.01" value={it.unitCost} onChange={(e) => updateItem(idx, { unitCost: e.target.value })} /></div>
             <div className="w-16 text-xs text-right font-semibold pb-2" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{invItem && Number.isFinite(lineData[idx]?.lineTotal) ? fmtMoney(lineData[idx].lineTotal) : "—"}</div>
             {items.length > 1 && (
@@ -7743,7 +7744,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
       // this only needs to guard against a retry of the SAME interrupted attempt.
       const itemDeltas = Object.fromEntries(pullBack.map((line) => [line.itemId, -line.qty]));
       const opId = `${po.id}-purchase-reversal`;
-      const { changed, nextInventory } = applyInventoryOpIfNeeded(inventory, opId, itemDeltas);
+      const { changed, nextInventory } = applyInventoryOpIfNeeded(inventory, opId, itemDeltas, roundStockQty);
       if (changed) {
         const clamped = settings.allowNegativeInventory ? nextInventory : nextInventory.map((inv) => ({ ...inv, qty: clamp0(inv.qty) }));
         await setInventory(clamped);
@@ -7839,7 +7840,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
       <Card dark={dark} className="mb-4">
         {po.items.map((l) => {
           const invItem = inventory.find((i) => i.id === l.itemId);
-          const remaining = round2(l.qty - l.receivedQty);
+          const remaining = roundStockQty(l.qty - l.receivedQty);
           return (
             <div key={l.id} className="py-2 border-b last:border-b-0" style={{ borderColor: dark ? C.borderDark : C.borderLight }}>
               <Row dark={dark} label={canFinance ? `${invItem?.name || l.itemId} — ${l.qty} × ${fmtMoney(l.unitCost)}` : `${invItem?.name || l.itemId} — ${l.qty} ${translateUI(l.unit)}`} value={canFinance ? fmtMoney(poLineTotal(l)) : null} />
@@ -7988,7 +7989,7 @@ function PurchaseDetailModal({ dark, po, onClose, inventory, setInventory, suppl
 
 function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purchaseOrders, persistPO, purchaseOps, invTx, setInvTx, suppliers, currentUser, can, auditLog, setAuditLog, showToast }) {
   const { translateUI , interpolateUI } = useLanguage();
-  const [receiveQtys, setReceiveQtys] = useState(Object.fromEntries(po.items.map((l) => [l.id, round2(l.qty - l.receivedQty)])));
+  const [receiveQtys, setReceiveQtys] = useState(Object.fromEntries(po.items.map((l) => [l.id, roundStockQty(l.qty - l.receivedQty)])));
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uncertain, setUncertain] = useState(false);
@@ -8003,8 +8004,9 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
     const latestPO = purchaseOrders.find((p) => p.id === po.id) || po;
     const lines = latestPO.items.map((l) => ({ line: l, receiveQty: Number(receiveQtys[l.id] || 0) }));
     for (const { line, receiveQty } of lines) {
-      const remaining = round2(line.qty - line.receivedQty);
+      const remaining = roundStockQty(line.qty - line.receivedQty);
       if (!Number.isFinite(receiveQty) || !Number.isFinite(remaining)) { setError("Received quantities must be finite numbers."); return; }
+      if (!hasStockPrecision(receiveQty)) { setError("Stock quantities support up to 3 decimal places."); return; }
       if (receiveQty < 0) { setError("Received quantity can't be negative."); return; }
       if (receiveQty > remaining + 0.0001) { setError(`Can't receive more than the remaining ${remaining} for this item.`); return; }
     }
@@ -8015,9 +8017,9 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
     try {
       if (purchaseOps?.remote) {
         try {
-          await purchaseOps.receive(po.id, receivingNow.map((x) => ({ poItemId: x.line.id, qty: x.receiveQty })));
-          const allDoneRemote = receivingNow.every((x) => x.receiveQty >= round2(x.line.qty - x.line.receivedQty)) && latestPO.items.every((line) => {
-            const match = receivingNow.find((x) => x.line.id === line.id); return line.receivedQty + (match?.receiveQty || 0) >= line.qty;
+          await purchaseOps.receive(po.id, receivingNow.map((x) => ({ poItemId: x.line.id, qty: roundStockQty(x.receiveQty) })));
+          const allDoneRemote = receivingNow.every((x) => x.receiveQty >= roundStockQty(x.line.qty - x.line.receivedQty)) && latestPO.items.every((line) => {
+            const match = receivingNow.find((x) => x.line.id === line.id); return roundStockQty(line.receivedQty + (match?.receiveQty || 0)) >= line.qty;
           });
           showToast(allDoneRemote ? `${po.poNumber} fully received` : `Partial receipt recorded for ${po.poNumber}`);
           onClose();
@@ -8090,7 +8092,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
         const match = lines.find((x) => x.line.id === l.id);
         if (!match) return l;
         const baseline = latestPO.items.find((x) => x.id === l.id).receivedQty; // same base used to plan the operation ids above — keeps this consistent whether inventory was updated just now or in an earlier interrupted attempt
-        return { ...l, receivedQty: round2(baseline + match.receiveQty) };
+        return { ...l, receivedQty: roundStockQty(baseline + match.receiveQty) };
       });
       const allDone = updatedItems.every((l) => l.receivedQty >= l.qty);
       const anyDone = updatedItems.some((l) => l.receivedQty > 0);
@@ -8110,7 +8112,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
       <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Enter how much actually arrived. Inventory quantity and average cost update immediately for each line you receive.")}</div>
       {po.items.map((l) => {
         const invItem = inventory.find((i) => i.id === l.itemId);
-        const remaining = round2(l.qty - l.receivedQty);
+        const remaining = roundStockQty(l.qty - l.receivedQty);
         if (remaining <= 0) return (
           <div key={l.id} className="text-xs mb-3 px-3 py-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight, color: C.lime }}>
             {invItem?.name || l.itemId}{translateUI(": fully received (")}{l.receivedQty}/{l.qty})
@@ -8118,7 +8120,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
         );
         return (
           <Field key={l.id} dark={dark} label={interpolateUI("{0} — remaining {1} {2} @ {3}",[invItem?.name || l.itemId,remaining,l.unit,fmtMoney(l.unitCost)])}>
-            <Input dark={dark} type="number" min="0" max={remaining} step="0.01" value={receiveQtys[l.id]}
+            <Input dark={dark} type="number" min="0" max={remaining} step="0.001" value={receiveQtys[l.id]}
               onChange={(e) => setReceiveQtys({ ...receiveQtys, [l.id]: e.target.value })} />
           </Field>
         );

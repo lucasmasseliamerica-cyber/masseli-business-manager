@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 const root = readFileSync(new URL('../App.jsx', import.meta.url), 'utf8');
 const src = readFileSync(new URL('../src/App.jsx', import.meta.url), 'utf8');
@@ -78,4 +79,34 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
 
 test('root and src application copies remain identical after purchase and supplier changes', () => {
   assert.equal(root, src);
+});
+
+test('purchase receipt quantities preserve thousandths without changing monetary rounding or mutating prior inventory', () => {
+  const code=src.slice(src.indexOf('function applyPurchaseReceipt('),src.indexOf('// Appends one immutable audit entry.'));
+  const context=vm.createContext({Math,Number,uid:()=> 'LOCAL_LEDGER_ID',nowISO:()=> '2026-10-23T00:00:00.000Z'});
+  const round2=src.match(/^const round2 = .*;$/m)[0];
+  const roundStock=src.match(/^const roundStockQty = .*;$/m)[0];
+  vm.runInContext(round2+'\n'+roundStock+'\n'+code+';globalThis.receive=applyPurchaseReceipt;',context);
+  for(const quantity of [0.125,0.004]) {
+    const original=[{id:'LOCAL_ITEM',name:'QA ingredient',qty:2,costPerUnit:0.1,unit:'kg'}];
+    const snapshot=JSON.stringify(original);
+    const result=context.receive(original,[{itemId:'LOCAL_ITEM',qty:quantity,unitCost:1.23}]);
+    assert.equal(result.nextInventory[0].qty,2+quantity);
+    assert.equal(result.txEntries[0].qty,quantity);
+    assert.equal(result.txEntries[0].totalCost,Math.round((quantity*1.23+Number.EPSILON)*100)/100);
+    assert.equal(JSON.stringify(original),snapshot);
+  }
+});
+
+test('fractional local purchase reversal preserves other stock thousandths and remains replay-safe', () => {
+  const code=src.slice(src.indexOf('function applyInventoryOpIfNeeded('),src.indexOf('// NORMAL / LOW / CRITICAL',src.indexOf('function applyInventoryOpIfNeeded(')));
+  const context=vm.createContext({Math,Number,Object});
+  vm.runInContext(src.match(/^const round2 = .*;$/m)[0]+'\n'+src.match(/^const roundStockQty = .*;$/m)[0]+'\n'+code+';globalThis.reverse=(inventory)=>applyInventoryOpIfNeeded(inventory,"LOCAL_PURCHASE_REVERSAL",{LOCAL_ITEM:-0.125},roundStockQty);',context);
+  const original=[{id:'LOCAL_ITEM',qty:2.129,costPerUnit:0.1,appliedOps:[]}];
+  const snapshot=JSON.stringify(original);
+  const first=context.reverse(original);
+  assert.equal(first.changed,true);assert.equal(first.nextInventory[0].qty,2.004);
+  assert.equal(first.nextInventory[0].costPerUnit,0.1);assert.equal(JSON.stringify(original),snapshot);
+  const replay=context.reverse(first.nextInventory);
+  assert.equal(replay.changed,false);assert.equal(replay.nextInventory[0].qty,2.004);
 });

@@ -21,7 +21,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   const item = '55555555-5555-4555-8555-555555555555';
   const now = new Date().toISOString();
   const state = { sales: [], saleItems: [], customers: [], stock: 100, saleAttempts: [], blocked: [], remoteRequests: 0,
-    images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [], purchaseWrites: [], purchaseOrders: [], purchaseLines: [], initialStockWrites: [], cashMovements: [], inventoryMovements: [], reversalAttempts: [] };
+    images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [], purchaseWrites: [], purchaseOrders: [], purchaseLines: [], purchaseReceipts: [], initialStockWrites: [], cashMovements: [], inventoryMovements: [], reversalAttempts: [] };
   const tables = {
     users: [{ id: owner, business_id: business, name: 'OWNER LOCAL SIMULADO', role: 'OWNER', active: true, permission_overrides: {} }],
     businesses: [{ id: business, name: 'MASSELI QA HTTP SIMULADO', currency: 'BRL', timezone: 'America/Sao_Paulo', tax_enabled: false, tax_rate: 0, status: 'ACTIVE' }],
@@ -138,6 +138,18 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
         discount: body.p_discount, tax: body.p_tax, notes: body.p_notes };
       state.purchaseOrders.push(po);
       state.purchaseLines.push(...body.p_items.map(line => ({ ...line, id: randomUUID(), purchase_order_id: po.id, qty_ordered: line.qty, received_qty: 0 })));
+      return reply(po);
+    }
+    if (purchaseScenario && name === 'rpc/fn_receive_purchase_order' && request.method() === 'POST') {
+      const po=state.purchaseOrders.find(row=>row.id===body.p_purchase_order_id);assert.ok(po);
+      state.purchaseReceipts.push(body);
+      for(const receipt of body.p_receive_lines) {
+        const line=state.purchaseLines.find(row=>row.id===receipt.po_item_id&&row.purchase_order_id===po.id);assert.ok(line);
+        assert.ok(receipt.qty>0&&receipt.qty<=line.qty_ordered-line.received_qty+0.0001);
+        line.received_qty=Math.round((line.received_qty+receipt.qty)*1000)/1000;
+        state.stock=Math.round((state.stock+receipt.qty)*1000)/1000;
+      }
+      po.status=state.purchaseLines.filter(line=>line.purchase_order_id===po.id).every(line=>line.received_qty>=line.qty_ordered)?'Received':'Partially Received';
       return reply(po);
     }
     if (inventoryScenario && ['rpc/fn_adjust_inventory_count','rpc/fn_record_waste','rpc/fn_transfer_inventory'].includes(name)) {
@@ -680,4 +692,48 @@ test('SIMULATED HTTP C1: lost audit response after a confirmed transfer never re
     assert.deepEqual(state.stockSlots.map(s => s.qty), [1, 2.25]);
     assert.equal(await page.getByText('Unable to transfer stock.', { exact: true }).count(), 0);
   } finally { await context.close(); }
+});
+
+for (const quantity of [0.125,0.004]) test(`SIMULATED HTTP: purchase quantity ${quantity} survives order receipt and reload without premature completion`, { timeout: 30000 }, async () => {
+  const { context,page,state,errors }=await isolated({purchaseScenario:true});
+  try {
+    await page.getByText('Purchases',{exact:true}).first().click();
+    await page.getByRole('button',{name:'New Purchase',exact:true}).click();
+    let dialog=page.getByRole('dialog');
+    await dialog.locator('select').nth(1).selectOption('33333333-3333-4333-8333-333333333333');
+    const orderQuantity=dialog.locator('input[type=number]').nth(0);
+    assert.equal(await orderQuantity.getAttribute('step'),'0.001');
+    await orderQuantity.fill('0.1251');
+    await dialog.getByRole('button',{name:'Submit Order',exact:true}).click();
+    await dialog.getByText('Stock quantities support up to 3 decimal places.',{exact:true}).waitFor();
+    assert.equal(state.purchaseWrites.length,0);
+    await orderQuantity.fill(String(quantity));
+    await dialog.getByRole('button',{name:'Submit Order',exact:true}).click();
+    await dialog.waitFor({state:'hidden'});
+    assert.equal(state.purchaseWrites.length,1);assert.equal(state.purchaseWrites[0].p_items[0].qty,quantity);
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.getByText('Purchases',{exact:true}).first().click();
+    await page.getByText(/^PO-30001 ·/).click();
+    await page.getByRole('button',{name:'Receive Items',exact:true}).click();
+    dialog=page.getByRole('dialog',{name:'Receive — PO-30001',exact:true});
+    const received=dialog.locator('input[type=number]');
+    assert.equal(await received.count(),1);assert.equal(await received.inputValue(),String(quantity));
+    assert.equal(await received.getAttribute('step'),'0.001');
+    await received.fill('0.0001');
+    await dialog.getByRole('button',{name:'Confirm Receipt',exact:true}).click();
+    await dialog.getByText('Stock quantities support up to 3 decimal places.',{exact:true}).waitFor();
+    assert.equal(state.purchaseReceipts.length,0);
+    await received.fill(String(quantity));
+    await dialog.getByRole('button',{name:'Confirm Receipt',exact:true}).click();
+    await dialog.waitFor({state:'hidden'});
+    assert.equal(state.purchaseReceipts.length,1);assert.equal(state.purchaseReceipts[0].p_receive_lines[0].qty,quantity);
+    assert.equal(state.purchaseLines[0].received_qty,quantity);assert.equal(state.stock,1+quantity);
+    assert.equal(state.purchaseOrders[0].status,'Received');
+    await page.reload({waitUntil:'domcontentloaded'});
+    await page.getByText('Purchases',{exact:true}).first().click();
+    await page.getByRole('button',{name:'All',exact:true}).click();
+    await page.getByText(/^PO-30001 ·/).click();
+    assert.equal(await page.getByRole('button',{name:'Receive Items',exact:true}).count(),0);
+    assert.deepEqual(errors,[]);assert.deepEqual(state.blocked,[]);
+  } finally {await context.close();}
 });
