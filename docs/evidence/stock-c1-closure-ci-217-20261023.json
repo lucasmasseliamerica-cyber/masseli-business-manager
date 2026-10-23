@@ -1,0 +1,137 @@
+{
+  "run_number": 217,
+  "run_id": 39964380706,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706",
+  "expected_head_sha": "c26878a625d004025b3cd579dc891ae5af588af0",
+  "head_sha_verified": true,
+  "workflow": {
+    "status": "WORKFLOW_RUN_STATUS_COMPLETED",
+    "conclusion": "WORKFLOW_RUN_CONCLUSION_SUCCESS"
+  },
+  "aggregate_counts": {
+    "passed": 855,
+    "total": 855,
+    "failed": 0,
+    "skipped": 0
+  },
+  "pass_jobs": 9,
+  "blocked_gated_jobs": 4,
+  "checked_at_utc": "2026-10-23T13:57:31Z",
+  "evidence_method": "PUBLIC_GITHUB_HTML_READ_ONLY",
+  "scope": "CODE_CI_NOT_C1_PERSISTENT_HOMOLOGATION",
+  "intermediate_run": false,
+  "jobs": [
+    {
+      "name": "build-and-security",
+      "job_id": "120452519919",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "a0da4932be29820d279ddfd303967f53c622446e47f6bccfae4605257b7ca0c0"
+    },
+    {
+      "name": "windows-sale-launcher",
+      "job_id": "120452520901",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "0a5ebf611a73139d670cf97cd51f8fc8f39131dcd2ee9cd9cf40dd42d3147665"
+    },
+    {
+      "name": "test-api-smoke",
+      "job_id": "120452988732",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "127ce2c3f5d15e4501c3342cece2460c06cea19c4b7f0d1492c7dd98d0f96065"
+    },
+    {
+      "name": "authenticated-preflight",
+      "job_id": "120453079254",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "4eab2f208eb86f3da9b7e83b2ec0a6864984d519166e563a952446e7251ab512"
+    },
+    {
+      "name": "authenticated-concurrency",
+      "job_id": "120453204350",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "access-regression",
+      "job_id": "120453201254",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "ed9d231a457577250ab45b04994fc401d27aafaf458a78ad1af8c4417e5c6103"
+    },
+    {
+      "name": "auth-lifecycle",
+      "job_id": "120453201441",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "6a6a7670ef36e33086a794cdbf5dd188b485d30f01067bbd9aea5852fc3318ac"
+    },
+    {
+      "name": "replay-financial",
+      "job_id": "120453203945",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "network-after-commit",
+      "job_id": "120453203892",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "browser-smoke",
+      "job_id": "120453201334",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "035bc2978cb0dc808d6fbd32ad8cc7587564c667597c490342c38ece57a3873b"
+    },
+    {
+      "name": "performance-read",
+      "job_id": "120453201277",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "ec2b0144716aa5d3607450a11285e85601dcccb795c87da6fb91624bf27de8b6"
+    },
+    {
+      "name": "two-tenant-concurrency",
+      "job_id": "120453204511",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "qa-summary",
+      "job_id": "120454005768",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "98b123b9d1ce46b9fc6056a505a0f74cce7d1ed7a2fdc7edf1e308d0d9abd58d"
+    }
+  ],
+  "counts_source": "Actual qa-summary annotation job120454005768",
+  "raw_html_versioned": false,
+  "original_checkpoint_accessed": false,
+  "c1_stock_or_audit_mutations": 0,
+  "independent_verification": {
+    "summary": {
+      "job_id": "120454005768",
+      "sha256": "f94ed8afbbce6a705e36b4ae2c95c31856a3ccd3fb2bed201888de50d935ec98",
+      "counts": [
+        855,
+        855,
+        0,
+        0
+      ]
+    },
+    "authenticated": {
+      "job_id": "120453079254",
+      "sha256": "29ae2c4ec94ac4dd931f42acf63c3c297c3cc2eaff9a47540d0bc0edebf44733",
+      "pass_ok_notice": true
+    }
+  }
+}

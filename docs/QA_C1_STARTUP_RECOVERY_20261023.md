@@ -1,5 +1,10 @@
 # C1 — inicialização e recuperação somente leitura (23/10/2026)
 
+> **Atualização posterior de23/10/2026:** recuperação autenticada e diagnóstico local já
+> concluídos e confirmados pelo usuário. Não repetir procedimentos históricos abaixo.
+> Preservar checkpoint original; C1 persistente continua bloqueada. Ver [fechamento e plano
+> com gates/autorizações](./QA_C1_RECOVERY_CLOSURE_AND_CONTINUATION_20261023.md).
+
 Branch exclusiva `automation/nexalvo-qa-actions`; TEST `msinksoilkluooxenecy`.
 **Não executar C1, sondagens, ajustes, transferências, perdas, auditorias ou compensações.**
 O checkpoint original permanece obrigatório e nunca pode ser removido, regravado ou substituído.

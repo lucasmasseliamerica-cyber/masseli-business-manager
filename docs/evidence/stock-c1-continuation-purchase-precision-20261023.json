@@ -1,0 +1,163 @@
+{
+  "scope": "C1_PLAN_ONLY_AND_PURCHASE_QUANTITY_FIX",
+  "date": "2026-10-23",
+  "project_ref": "msinksoilkluooxenecy",
+  "branch": "automation/nexalvo-qa-actions",
+  "code_sha": "c26878a625d004025b3cd579dc891ae5af588af0",
+  "previous_code_commit": "7f4b28ffed6bbb52b6bb1c568046d9b2bbbaf329",
+  "remote_documentation_preserved": "1a47f7536335518955ec9e910681fbf0f093b93d",
+  "real_recovery_closure_evidence": "stock-c1-readonly-closure-reported-20261023.json",
+  "continuation_plan": {
+    "implementation": "PURE_FUNCTION_NO_IO_NO_EXECUTION_ENTRYPOINT",
+    "real_original_checkpoint_assessed": false,
+    "maximum_status": "READY_FOR_REVIEW",
+    "persistent_authorized": false,
+    "execution_enabled": false,
+    "full_homologation": false,
+    "same_fixture": "CONDITIONAL_CANDIDATE_AFTER_FRESH_FULL_BASELINE",
+    "new_fixture_required_from_reported_interruption": false,
+    "parent_checkpoint_must_remain_immutable": true,
+    "child_executor_implemented": false,
+    "new_explicit_authorization_required": true,
+    "normal_execute_checkpoint_guard": "PRESERVED",
+    "continue_resume_modes": "REJECTED",
+    "future_stock_operations": 4,
+    "future_movement_rows": 6,
+    "future_audit_entries": 4,
+    "replayed_negative_probes": 0
+  },
+  "purchase_fix": {
+    "bug_proven_locally": true,
+    "legacy_cases": [
+      {
+        "requested_qty": 0.125,
+        "legacy_receipt_qty": 0.13,
+        "legacy_stock": 2.13,
+        "expected_qty": 0.125,
+        "expected_stock": 2.125
+      },
+      {
+        "requested_qty": 0.004,
+        "legacy_receipt_qty": 0,
+        "legacy_stock": 2,
+        "expected_qty": 0.004,
+        "expected_stock": 2.004
+      }
+    ],
+    "stock_quantity_decimals": 3,
+    "monetary_and_cost_rounding": "UNCHANGED",
+    "tiny_positive_quantities_rounded_to_zero": "REJECTED_BEFORE_CREATE_OR_RECEIVE_RPC",
+    "invalid_precision_inputs_tested": [
+      "0.1251",
+      "0.0001",
+      "0.000000000001"
+    ],
+    "new_order_receipt_reload_cases": [
+      0.125,
+      0.004
+    ],
+    "local_reversal_same_id_replay": "NO_DUPLICATE_EFFECT",
+    "other_shared_helper_callers": "DEFAULT_ROUNDING_PRESERVED",
+    "backend_evidence": {
+      "kind": "REVIEWED_HISTORICAL_PUBLIC_CATALOG",
+      "raw_catalog_sha256": "a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f",
+      "column_live_typmod_scale_verified": false,
+      "live_purchase_homologation": "BLOCKED",
+      "raw_catalog_versioned": false
+    }
+  },
+  "local_validation": {
+    "complete_static_and_disposable_sql": {
+      "modules": 49,
+      "passed": 598,
+      "failed": 0,
+      "skipped": 0,
+      "artifact": {
+        "file": "nexalvo-c1-closure-final-static.tap",
+        "sha256": "672c0510369d6c18007ef1b565cd231ad680b713c481aeee1c2e83267983adee"
+      }
+    },
+    "complete_local_browser": {
+      "modules": 3,
+      "passed": 31,
+      "failed": 0,
+      "skipped": 0,
+      "transport": "INTERCEPTED_HTTP_PLUS_LOCAL_VITE_CHROMIUM",
+      "artifact": {
+        "file": "nexalvo-c1-closure-final-browser.tap",
+        "sha256": "4180396321f0fa86318506c035cdb84c3ba19ecb2c24e6949a7fc0635bcad777"
+      }
+    },
+    "build": {
+      "status": "PASS",
+      "artifact": {
+        "file": "nexalvo-c1-closure-final-build.log",
+        "sha256": "96d77f2fe222138a76d7df2b9142ec92773b864a58bbcac43b5990de5050becd"
+      }
+    },
+    "edge_functions_parse": {
+      "passed": 2,
+      "deployed": false
+    },
+    "planner_unit_tests": {
+      "passed": 24,
+      "subset_of_complete_suite": true
+    },
+    "purchase_related_unit_tests": {
+      "passed": 20,
+      "subset_of_complete_suite": true
+    },
+    "new_purchase_browser_cases": {
+      "passed": 2,
+      "subset_of_complete_browser_suite": true
+    }
+  },
+  "operations_executed_here": {
+    "test_stock": 0,
+    "test_audit": 0,
+    "negative_probes": 0,
+    "persistent_purchases": 0,
+    "financial_operations": 0,
+    "original_checkpoint_accessed": false,
+    "original_checkpoint_modified": false,
+    "a_b_journeys_repeated": false,
+    "migrations_or_deploys": 0
+  },
+  "ci_final": {
+    "run_number": 217,
+    "run_id": 39964380706,
+    "expected_code_sha": "c26878a625d004025b3cd579dc891ae5af588af0",
+    "head_sha_verified": true,
+    "status": "PASS",
+    "passed": 855,
+    "failed": 0,
+    "skipped_tests": 0,
+    "pass_jobs": 9,
+    "blocked_persistent_jobs": 4,
+    "preflight_authenticated": "PASS_OK",
+    "c1_fixture_continuation_preflight": "NOT_EXECUTED",
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706"
+  },
+  "operational_coverage": {
+    "completed": 16,
+    "total": 60,
+    "percent": 26.67,
+    "pending": 15,
+    "blocked": 29,
+    "new_macro_criteria_promoted": 0
+  },
+  "dependencies": {
+    "audit_complete": true,
+    "runtime": {
+      "total": 0
+    },
+    "development_and_build": {
+      "total": 7,
+      "high": 5,
+      "moderate": 2,
+      "critical": 0
+    },
+    "policy": "PASS_KNOWN_BUILD_ONLY_CEILING_NOT_VULNERABILITY_RESOLUTION",
+    "dependency_versions_changed": false
+  }
+}

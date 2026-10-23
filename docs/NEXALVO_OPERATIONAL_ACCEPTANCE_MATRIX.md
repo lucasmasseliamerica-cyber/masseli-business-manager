@@ -1,6 +1,15 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
-**C1 vigente (23/10/2026):** [interrupção após sondagens e recuperação somente leitura](./QA_C1_STARTUP_RECOVERY_20261023.md).
+**C1 vigente (23/10/2026):** [recuperação formalmente encerrada e plano de continuação](./QA_C1_RECOVERY_CLOSURE_AND_CONTINUATION_20261023.md).
+Recuperação autenticada e diagnóstico Windows PASS informados pelo usuário: baseline e hash
+originais preservados, stage0, zero movimentos/auditorias novas, saldos2/2 e custos0,1/0,1.
+Não repetir recuperação/probes ou remover checkpoint. **C1 persistente continua BLOCKED**;
+avaliador apenas prepara revisão; executor filho, gates atuais e nova autorização pendentes.
+Compras: precisão do frontend corrigida/testada; não homologa banco nem compras persistentes.
+Código **c26878a625d004025b3cd579dc891ae5af588af0**. [CI #217](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706): **855/855 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED pelo gate**.
+Macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados; nenhum critério novo promovido.
+
+**Histórico C1 (23/10/2026):** [interrupção após sondagens e recuperação somente leitura](./QA_C1_STARTUP_RECOVERY_20261023.md).
 Código original C1_EXECUTION_UNCONFIRMED, PROBES_CONFIRMED, zero estoque/auditoria; baseline2/2/custos0,1 informado pelo usuário.
 Runtime/diagnóstico e recuperação sem promoção de ciclo corrigidos no QA; [CI #215](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39958446001): **827/827 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED**.
 **C1 permanece BLOCKED:** recuperação autenticada original e jornadas UI não comprovadas nesta sessão; nenhum novo ciclo/probe autorizado.

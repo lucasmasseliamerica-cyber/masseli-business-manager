@@ -1,0 +1,75 @@
+{
+  "scope": "C1_READONLY_RECOVERY_AND_LOCAL_RUNTIME_CLOSURE",
+  "evidence_kind": "USER_CONFIRMED_REAL_WINDOWS_RESULTS",
+  "project_ref": "msinksoilkluooxenecy",
+  "branch": "automation/nexalvo-qa-actions",
+  "reported_date_client": "2026-10-23",
+  "recovery": {
+    "evidence_kind": "USER_REPORTED_REAL_AUTHENTICATED_READONLY",
+    "baseline_unchanged": true,
+    "recovery_checkpoint_unchanged": true,
+    "stage": 0,
+    "movement_rows": 0,
+    "audit_rows_added": 0,
+    "positions": [
+      {
+        "position": "SOURCE",
+        "qty": 2,
+        "avg_cost": 0.1
+      },
+      {
+        "position": "TARGET",
+        "qty": 2,
+        "avg_cost": 0.1
+      }
+    ],
+    "original_checkpoint_sha256_preserved": true,
+    "sha256_value_shared": false,
+    "raw_checkpoint_received": false
+  },
+  "local_runtime": {
+    "scope": "C1_LOCAL_RUNTIME_READONLY",
+    "status": "PASS",
+    "code": "C1_LOCAL_RUNTIME_READY_NOT_HOMOLOGATION",
+    "stock_requests_forwarded": 0,
+    "audit_requests_forwarded": 0,
+    "checkpoints_modified": 0,
+    "full_homologation": false
+  },
+  "closure": {
+    "status": "PASS",
+    "code": "REPORTED_READONLY_RECOVERY_CLOSED_BASELINE_PRESERVED",
+    "restoration_performed": false,
+    "persistent_c1_homologation": "BLOCKED",
+    "new_c1_writes_authorized": false,
+    "automatic_replay_allowed": false,
+    "original_checkpoint_must_be_preserved": true
+  },
+  "provenance": {
+    "observed_directly_by_this_session": false,
+    "full_recovery_report_received": false,
+    "full_local_runtime_report_received": false,
+    "execution_sha_reported_for_authenticated_recovery": null,
+    "validated_executor_reference_sha": "e28a317e00062da16363a22f1f1cf53e15e6815c",
+    "reference_sha_is_not_attestation_of_actual_execution_sha": true,
+    "previous_remote_runtime_record_commit": "1a47f7536335518955ec9e910681fbf0f093b93d",
+    "source": "User supplied the aggregated authenticated recovery results and local runtime result in this conversation. No raw checkpoint, credential, hash value, email, token or private path was requested. Prior remote runtime-only record was preserved by fast-forward."
+  },
+  "operations_for_this_reconciliation": {
+    "stock": 0,
+    "audit": 0,
+    "negative_probes": 0,
+    "fixture_creation": 0,
+    "test_database_mutations": 0,
+    "original_checkpoint_accessed": false,
+    "original_checkpoint_modified": false
+  },
+  "operational_matrix": {
+    "completed": 16,
+    "total": 60,
+    "percent": 26.67,
+    "pending": 15,
+    "blocked": 29,
+    "new_macro_criteria_promoted": 0
+  }
+}

@@ -1,5 +1,10 @@
 # Próximo lote P0 — preparação, não autorização de execução
 
+> **Atualização posterior de23/10/2026:** recuperação autenticada e diagnóstico local já
+> concluídos e confirmados pelo usuário. Não repetir procedimentos históricos abaixo.
+> Preservar checkpoint original; C1 persistente continua bloqueada. Ver [fechamento e plano
+> com gates/autorizações](./QA_C1_RECOVERY_CLOSURE_AND_CONTINUATION_20261023.md).
+
 > **C1 vigente (23/10/2026):** preservar a execução interrompida em PROBES_CONFIRMED e o
 > checkpoint original. Somente [recuperação autenticada de leitura](./QA_C1_STARTUP_RECOVERY_20261023.md)
 > está prevista; não repetir sondagens, estoque ou compensação. Os planos persistentes deste

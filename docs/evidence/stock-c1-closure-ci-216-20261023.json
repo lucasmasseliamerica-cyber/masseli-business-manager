@@ -1,0 +1,120 @@
+{
+  "run_number": 216,
+  "run_id": 39963706707,
+  "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39963706707",
+  "expected_head_sha": "7f4b28ffed6bbb52b6bb1c568046d9b2bbbaf329",
+  "head_sha_verified": true,
+  "workflow": {
+    "status": "WORKFLOW_RUN_STATUS_COMPLETED",
+    "conclusion": "WORKFLOW_RUN_CONCLUSION_SUCCESS"
+  },
+  "aggregate_counts": {
+    "passed": 855,
+    "total": 855,
+    "failed": 0,
+    "skipped": 0
+  },
+  "pass_jobs": 9,
+  "blocked_gated_jobs": 4,
+  "checked_at_utc": "2026-10-23T13:54:34Z",
+  "evidence_method": "PUBLIC_GITHUB_HTML_READ_ONLY",
+  "scope": "CODE_CI_NOT_C1_PERSISTENT_HOMOLOGATION",
+  "intermediate_run": true,
+  "jobs": [
+    {
+      "name": "build-and-security",
+      "job_id": "120447958890",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "4d3560834bc604665a7c809a84394661545551edc3eba921c7aa8e13378d61c2"
+    },
+    {
+      "name": "windows-sale-launcher",
+      "job_id": "120447958327",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "c805ec8cc54e6e3bec0f125a4f4aff2efc35f7126b9def99416dda13cdb33db6"
+    },
+    {
+      "name": "test-api-smoke",
+      "job_id": "120448423894",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "94bf1ec25da8476079eb4df1f5d8f4be98b0f959980f1f2de3f69b97c0e2c431"
+    },
+    {
+      "name": "authenticated-preflight",
+      "job_id": "120448541496",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "04e53cc6b27bdfa5eb350eab1d340f949612cd7f4434cacbcd89bfd29462cf1f"
+    },
+    {
+      "name": "authenticated-concurrency",
+      "job_id": "120448673736",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "access-regression",
+      "job_id": "120448671796",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "19004c0e61433da7b8020f23d6ed3171b656030340af7e50585911570dfebc4f"
+    },
+    {
+      "name": "auth-lifecycle",
+      "job_id": "120448671913",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "3fd1deccb2a5a34e288d4fc3682b261a5e6bb9d43740520259c193ed3e8486f4"
+    },
+    {
+      "name": "replay-financial",
+      "job_id": "120448674382",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "network-after-commit",
+      "job_id": "120448674748",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "browser-smoke",
+      "job_id": "120448671946",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "b908551c9e93188720cd908fdffedacce3971629fc55f07a8967d8fc59becdda"
+    },
+    {
+      "name": "performance-read",
+      "job_id": "120448672027",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "d3cbb389f01718deecbf1a5718f56de0ec35fd5bd6f1753d7c9c1e66c428135d"
+    },
+    {
+      "name": "two-tenant-concurrency",
+      "job_id": "120448674593",
+      "result": "BLOCKED_GATED",
+      "complete_job_success": false,
+      "public_page_sha256": null
+    },
+    {
+      "name": "qa-summary",
+      "job_id": "120452464774",
+      "result": "PASS",
+      "complete_job_success": true,
+      "public_page_sha256": "1195fb5ffa303ea1486c0feec7a05852c8c225a6672a3189daf10f522f07f8eb"
+    }
+  ],
+  "counts_source": "Actual qa-summary annotation job120452464774",
+  "raw_html_versioned": false,
+  "original_checkpoint_accessed": false,
+  "c1_stock_or_audit_mutations": 0
+}

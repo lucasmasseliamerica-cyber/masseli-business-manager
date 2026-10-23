@@ -1,6 +1,33 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
-## Atualização vigente — C1 interrompida, recuperação somente leitura (23/10/2026)
+## Atualização vigente — recuperação C1 concluída, continuação ainda bloqueada (23/10/2026)
+
+[Fechamento real, plano e gates](./QA_C1_RECOVERY_CLOSURE_AND_CONTINUATION_20261023.md).
+[Evidência sanitizada](./evidence/stock-c1-readonly-closure-reported-20261023.json).
+
+- [x] Recuperação autenticada Windows confirmada pelo usuário: baseline inalterado, stage0,
+  movimentos0/auditorias novas0, quantidades2/2, custos0,1/0,1, hash original preservado.
+- [x] Diagnóstico local Windows PASS: Vite/Chromium disponíveis, estoque0/auditoria0/checkpoint0,
+  full_homologation=false. Não identifica retroativamente a exceção original.
+- [x] Recuperação formalmente encerrada sem compensação; não repetir comandos já comprovados.
+- [x] Avaliador puro de continuação preparado: exige pai íntegro em PROBES_CONFIRMED, zero
+  operações/pending, sondagens B/anon negadas, contratos e baseline atuais. READY_FOR_REVIEW
+  não habilita escrita e não é preflight autenticado. Nenhum checkpoint real foi recebido.
+- [x] Correção P0 independente: compras preservam quantidades com três casas (0,125/0,004),
+  rejeitam precisão excedente e mantêm arredondamento monetário e proteção de replay local.
+- [ ] Executor filho específico: ainda não implementado. Manter modo normal e --continue/--resume
+  bloqueados; preservar pai, garantir um único filho e nunca repetir sondagens ou resultado desconhecido.
+- [ ] C1 persistente: nova autorização específica, CI do executor, Auth/ACL/RLS/contratos atuais,
+  comparação integral com o pai e janela exclusiva real. Nenhuma gravação liberada neste lote.
+- [ ] Compras reais: conferir escala das colunas e contratos implantados por leitura; D permanece
+  desativada, sem criar/receber/pagar/reverter pedidos no TEST.
+
+Código publicado: **c26878a625d004025b3cd579dc891ae5af588af0**. [CI #217](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706): **855/855 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED pelo gate**.
+Local: **598/598 regressões +31/31 browser**, zero FAIL/SKIP; build PASS.
+Macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados; recuperação de segurança não promove
+critérios macro de jornada UI. A/B preservadas; B17/17. Main e produção intocadas.
+
+## Histórico — C1 interrompida, recuperação somente leitura (23/10/2026)
 
 [Diagnóstico, integridade e procedimento seguro](./QA_C1_STARTUP_RECOVERY_20261023.md).
 Código publicado: **e28a317e00062da16363a22f1f1cf53e15e6815c**; [CI #215](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39958446001): **827/827 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED**. Windows PS5.1/7 e preflight autenticado PASS.
