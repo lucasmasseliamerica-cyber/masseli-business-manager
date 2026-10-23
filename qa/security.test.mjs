@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 const workflowPath='.github/workflows/nexalvo-test.yml';
 const workflow=readFileSync(workflowPath,'utf8');
 const qaFiles=readdirSync('qa').filter(x=>/\.mjs$/.test(x) && x!=='security.test.mjs');
@@ -85,4 +86,14 @@ test('purchase idempotency rollout remains opt-in until isolated TEST migration 
  assert.match(migration,/idempotency key reused with different payload/);
  assert.match(migration,/ENABLE ROW LEVEL SECURITY/);
  assert.match(migration,/REVOKE ALL ON public\.purchase_order_request_keys FROM PUBLIC,anon,authenticated/);
+});
+
+test('tracked repository paths remain distinct on case-insensitive Windows filesystems', () => {
+ const paths=execFileSync('git',['ls-files','-z'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).split('\0').filter(Boolean);
+ const folded=new Map();
+ for(const path of paths){
+  const key=path.toLowerCase();
+  assert.equal(folded.has(key),false,`Case-insensitive checkout collision: ${folded.get(key)} / ${path}`);
+  folded.set(key,path);
+ }
 });

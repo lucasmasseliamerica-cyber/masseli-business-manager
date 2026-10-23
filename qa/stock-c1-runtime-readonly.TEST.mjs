@@ -1,4 +1,5 @@
 // Local Vite/Chromium diagnosis only: no Auth, session, fixture or checkpoint.
+// Keep the regression basename distinct for Windows: stock-c1-runtime-readonly-regression.test.mjs.
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { prepareC1Runtime } from './stock-c1-browser-runtime.mjs';
