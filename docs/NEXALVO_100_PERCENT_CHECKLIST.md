@@ -1,6 +1,29 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
-## Atualização vigente — leitura segura e diagnóstico C1 (22/10/2026)
+## Atualização vigente — C1 interrompida, recuperação somente leitura (23/10/2026)
+
+[Diagnóstico, integridade e procedimento seguro](./QA_C1_STARTUP_RECOVERY_20261023.md).
+Código publicado: **e28a317e00062da16363a22f1f1cf53e15e6815c**; [CI #215](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39958446001): **827/827 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED**. Windows PS5.1/7 e preflight autenticado PASS.
+
+- Código original confirmado pelo usuário: C1_EXECUTION_UNCONFIRMED; PROBES_CONFIRMED,
+  pending=null, confirmed=0, duas sondagens negadas, zero operações de estoque/auditoria.
+  SQL independente informado: saldos2/2, custos0,1/0,1 e nenhum movimento/perda.
+- A causa específica Windows não é identificável pelo código genérico. Corrigidos mismatch
+  do executável Chromium, falta de timeout/identificação do Vite e diagnóstico por etapa.
+  O polling histórico já tratava ECONNREFUSED; não atribuir a falha a essa hipótese descartada.
+- Recuperação stage0 confirma baseline sem alegar restauração/ciclo/UI; checksum original
+  obrigatório e zero reenvios/probes. Runtime local separado não autentica ou abre checkpoint.
+- CI #214 falhou: colisão de nomes TEST/test no Windows, 798/826 PASS e28 FAIL; corrigida sem
+  relaxar árvore limpa. Nova regressão global reproduziu a falha e impede reincidência.
+- **572/572 regressões locais +29/29 browser local PASS**, zero FAIL/SKIP. Build, parser
+  PowerShell e parse Edge PASS. npm: zero runtime; sete alertas build/dev continuam pendentes.
+- **Somente -ReadOnlyRecovery do checkpoint original está previsto agora.** Não executar
+  outro preflight/janela/ciclo/sondagem/compensação ou remover checkpoint. A sessão não tem
+  Desktop Commander ou sessões QA; isso não implica indisponibilidade global do notebook.
+- C1 real continua BLOCKED. A/B preservadas; macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados.
+  Nenhum critério operacional foi promovido por mocks/CI. Main/produção/TEST sem mutações C1.
+
+## Histórico — leitura segura e diagnóstico C1 (22/10/2026)
 
 [Correção do bloqueio de leitura e procedimento somente PreflightOnly](./QA_C1_READ_REJECTION_20261022.md).
 Código publicado: **9a0c5c025e14e335271195d76a658492857dba53**. [CI #213](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39870484891): **792/792 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**.

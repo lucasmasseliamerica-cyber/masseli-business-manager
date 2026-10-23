@@ -1,5 +1,10 @@
 # Próximo lote P0 — preparação, não autorização de execução
 
+> **C1 vigente (23/10/2026):** preservar a execução interrompida em PROBES_CONFIRMED e o
+> checkpoint original. Somente [recuperação autenticada de leitura](./QA_C1_STARTUP_RECOVERY_20261023.md)
+> está prevista; não repetir sondagens, estoque ou compensação. Os planos persistentes deste
+> documento não autorizam novas operações. D/E continuam dependendo de gates e autorização próprios.
+
 **C1 vigente:** [executor delimitado e autorização específica recebida](./QA_C1_STOCK_20261022.md). A execução real depende de credenciais seguras, catálogo atualizado, CI e janela exclusiva; perda C2 e D/E não autorizadas.
 
 **Atualização C — 22/10/2026:** [preflight e pacote C preparados](./QA_C_STOCK_20261022.md), CI #204: 712/712 PASS no escopo executado; C real continua BLOCKED. Precisão de quantidade/custo corrigida na UI; patch interno de precisão ainda não aplicado. SQLs somente leitura de fixtures/contratos C e D/E disponíveis. Não repetir A/B, não aplicar migrações ou movimentar estoque sem autorização própria. As solicitações antigas A/B e o próximo passo A-Infra abaixo são históricos e estão superados.

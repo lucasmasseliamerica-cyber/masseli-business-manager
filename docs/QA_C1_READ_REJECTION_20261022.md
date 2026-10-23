@@ -1,5 +1,8 @@
 # C1 — leitura segura de perdas e diagnóstico sanitizado (22/10/2026)
 
+> **Histórico superado pela interrupção C1.** Não repetir -PreflightOnly ou probes agora.
+> Preservar checkpoint original e usar apenas [recuperação somente leitura vigente](./QA_C1_STARTUP_RECOVERY_20261023.md).
+
 Branch exclusiva `automation/nexalvo-qa-actions`; TEST `msinksoilkluooxenecy`.
 Main, produção, fixtures e checkpoints A/B preservados. Nenhum movimento C1, perda, auditoria,
 compensação, alteração de RLS/grants, migração ou deploy foi executado no TEST.

@@ -1,6 +1,12 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
-**C1 vigente (22/10/2026):** [leitor seguro de perdas e diagnóstico sanitizado](./QA_C1_READ_REJECTION_20261022.md) corrigidos no QA. A execução real ainda aguarda novo catálogo/preflight; nenhuma movimentação ou novo critério operacional aprovado. Macro **16/60 (26,67%)** preservada.
+**C1 vigente (23/10/2026):** [interrupção após sondagens e recuperação somente leitura](./QA_C1_STARTUP_RECOVERY_20261023.md).
+Código original C1_EXECUTION_UNCONFIRMED, PROBES_CONFIRMED, zero estoque/auditoria; baseline2/2/custos0,1 informado pelo usuário.
+Runtime/diagnóstico e recuperação sem promoção de ciclo corrigidos no QA; [CI #215](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39958446001): **827/827 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED**.
+**C1 permanece BLOCKED:** recuperação autenticada original e jornadas UI não comprovadas nesta sessão; nenhum novo ciclo/probe autorizado.
+A/B preservadas. Macro **16/60 (26,67%)**, 15 pendentes e29 bloqueados, sem novos checks verdes.
+
+**Histórico C1 (22/10/2026):** [leitor seguro de perdas e diagnóstico sanitizado](./QA_C1_READ_REJECTION_20261022.md) corrigidos no QA. A execução real ainda aguarda novo catálogo/preflight; nenhuma movimentação ou novo critério operacional aprovado. Macro **16/60 (26,67%)** preservada.
 
 **Histórico da reconciliação C1 (22/10/2026):** [contrato de auditoria pós-cutover](./QA_C1_AUDIT_CONTRACT_20261022.md) preparado e testado; nenhum movimento real executado. Novo catálogo/autenticação/janela ainda necessários. Cobertura macro permanece **16/60 (26,67%)**, sem promoção de critérios.
 

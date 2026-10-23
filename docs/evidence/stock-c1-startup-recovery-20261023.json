@@ -1,0 +1,150 @@
+{
+  "scope": "C1_STARTUP_AND_READONLY_RECOVERY_CODE_VALIDATION",
+  "date": "2026-10-23",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref": "msinksoilkluooxenecy",
+  "runtime_commit": "93432df1e745e8db88cb17145d05e87e62ed3f90",
+  "validated_code_sha": "e28a317e00062da16363a22f1f1cf53e15e6815c",
+  "original_windows_execution": {
+    "provenance": "USER_REPORTED_AGGREGATE_AND_INDEPENDENT_TEST_SQL",
+    "directly_observed_in_this_session": false,
+    "scope": "C1_REAL_TEST_STOCK",
+    "status": "BLOCKED",
+    "code": "C1_EXECUTION_UNCONFIRMED",
+    "underlying_exception_identified": false,
+    "checkpoint": {
+      "phase": "PROBES_CONFIRMED",
+      "pending": null,
+      "confirmed": 0,
+      "operations": 0,
+      "probes": [
+        "B",
+        "anon"
+      ],
+      "retained": true,
+      "raw_checkpoint_received": false
+    },
+    "read_isolation": "PASS",
+    "exclusive_fixture": "PASS",
+    "exclusive_window": "PASS",
+    "snapshot": "PASS",
+    "write_isolation": "PASS",
+    "negative_requests_forwarded": 2,
+    "stock_requests_forwarded": 0,
+    "audit_requests_forwarded": 0,
+    "independent_sql_report": {
+      "source_qty": 2,
+      "target_qty": 2,
+      "source_avg_cost": 0.1,
+      "target_avg_cost": 0.1,
+      "movement_rows": 0,
+      "waste_rows": 0
+    }
+  },
+  "confirmed_code_findings": [
+    "VALIDATED_CHROMIUM_BINARY_COULD_DIFFER_FROM_IMPLICIT_HEADLESS_LAUNCH",
+    "VITE_READINESS_WITHOUT_PER_REQUEST_DEADLINE_OR_OWNED_SERVER_IDENTITY",
+    "INSUFFICIENT_STAGE_DIAGNOSTICS",
+    "STAGE_ZERO_BASELINE_COULD_BE_MISLABELED_PARTIAL_CYCLE",
+    "WINDOWS_CASE_INSENSITIVE_FILENAME_COLLISION_IN_CI214"
+  ],
+  "discarded_hypothesis": "Original readiness loop already caught ECONNREFUSED; no evidence of first-refusal escape.",
+  "local_verification": {
+    "static_disposable_sql": {
+      "modules": 48,
+      "passed": 572,
+      "failed": 0,
+      "skipped": 0,
+      "artifact": {
+        "file": "nexalvo-c1-startup-final-static.tap",
+        "sha256": "7be0c72636603c75eedf2748b26bb2e4e0ce654afacf97ce7ca3f56e19ea9b6a"
+      }
+    },
+    "local_browser_intercepted_http": {
+      "modules": 3,
+      "passed": 29,
+      "failed": 0,
+      "skipped": 0,
+      "no_supabase_requests_forwarded": true,
+      "artifact": {
+        "file": "nexalvo-c1-startup-final-browser.tap",
+        "sha256": "54bd986f6fca41f5555f7adb0ac5b27b56157ef0ed6edd717098b3c07208212c"
+      },
+      "app_and_runtime_unchanged_by_final_filename_fix": true
+    },
+    "windows_case_collision_regression": {
+      "before_fix": "FAIL_REPRODUCED",
+      "after_fix": "PASS",
+      "artifact_before": {
+        "file": "nexalvo-c1-startup-windows-collision-before.tap",
+        "sha256": "558d5ef5fc66c096cfb393d929360952cdbdb1f9db89f074fa4eeac9277a32a7"
+      },
+      "artifact_after": {
+        "file": "nexalvo-c1-startup-windows-collision-after.tap",
+        "sha256": "7106eef3dbe436e70c0a315a6b24b95ae1dc23cef083bcebd1c13e1f32f5e35c"
+      }
+    },
+    "build": "PASS",
+    "powershell_parser": "PASS",
+    "edge_functions_parse": {
+      "passed": 2,
+      "deployed": false
+    },
+    "independent_review": "APPROVED_FOR_REGRESSION_AND_CI"
+  },
+  "dependencies": {
+    "runtime_alerts": 0,
+    "full_alerts": 7,
+    "high": 5,
+    "moderate": 2,
+    "critical": 0,
+    "complete_scan": true,
+    "policy": "PASS_KNOWN_BUILD_ONLY_CEILING_NOT_VULNERABILITY_RESOLUTION",
+    "dependency_updates": 0
+  },
+  "current_session": {
+    "c1_stock_requests": 0,
+    "c1_audit_requests": 0,
+    "c1_negative_probes": 0,
+    "original_checkpoint_accessed": false,
+    "original_checkpoint_modified": false,
+    "authenticated_original_recovery": "BLOCKED_NOT_EXECUTED",
+    "mutations_or_deploys": 0
+  },
+  "expected_readonly_stage_zero_result": {
+    "code": "C1_BASELINE_CONFIRMED_NO_STOCK_OPERATIONS_NOT_FULL_HOMOLOGATION",
+    "baseline_unchanged": true,
+    "restored": false,
+    "restoration_performed": false,
+    "full_homologation": false,
+    "cycle_checks_remain_blocked": true,
+    "runtime_required": false,
+    "negative_requests_forwarded": 0
+  },
+  "operational_matrix": {
+    "completed": 16,
+    "total": 60,
+    "percent": 26.67,
+    "pending": 15,
+    "blocked": 29,
+    "new_criteria_promoted": 0
+  },
+  "next_allowed_operation": "READ_ONLY_RECOVERY_OF_ORIGINAL_CHECKPOINT_ONLY",
+  "persistent_retry_authorized": false,
+  "ci215": {
+    "run_number": 215,
+    "run_id": 39958446001,
+    "code_sha": "e28a317e00062da16363a22f1f1cf53e15e6815c",
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39958446001",
+    "status": "PASS",
+    "passed": 827,
+    "total": 827,
+    "failed": 0,
+    "skipped_tests": 0,
+    "passed_jobs": 9,
+    "blocked_persistent_jobs": 4,
+    "authenticated_preflight": "PASS_OK",
+    "windows_ps51_ps7_synthetic_launchers": "PASS",
+    "counts_source": "Actual QA summary annotation job120431370584"
+  }
+}
