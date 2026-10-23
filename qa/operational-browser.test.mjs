@@ -703,10 +703,12 @@ for (const quantity of [0.125,0.004]) test(`SIMULATED HTTP: purchase quantity ${
     await dialog.locator('select').nth(1).selectOption('33333333-3333-4333-8333-333333333333');
     const orderQuantity=dialog.locator('input[type=number]').nth(0);
     assert.equal(await orderQuantity.getAttribute('step'),'0.001');
-    await orderQuantity.fill('0.1251');
-    await dialog.getByRole('button',{name:'Submit Order',exact:true}).click();
-    await dialog.getByText('Stock quantities support up to 3 decimal places.',{exact:true}).waitFor();
-    assert.equal(state.purchaseWrites.length,0);
+    for(const invalid of ['0.1251','0.000000000001']) {
+      await orderQuantity.fill(invalid);
+      await dialog.getByRole('button',{name:'Submit Order',exact:true}).click();
+      await dialog.getByText('Stock quantities support up to 3 decimal places.',{exact:true}).waitFor();
+      assert.equal(state.purchaseWrites.length,0);
+    }
     await orderQuantity.fill(String(quantity));
     await dialog.getByRole('button',{name:'Submit Order',exact:true}).click();
     await dialog.waitFor({state:'hidden'});
@@ -719,10 +721,12 @@ for (const quantity of [0.125,0.004]) test(`SIMULATED HTTP: purchase quantity ${
     const received=dialog.locator('input[type=number]');
     assert.equal(await received.count(),1);assert.equal(await received.inputValue(),String(quantity));
     assert.equal(await received.getAttribute('step'),'0.001');
-    await received.fill('0.0001');
-    await dialog.getByRole('button',{name:'Confirm Receipt',exact:true}).click();
-    await dialog.getByText('Stock quantities support up to 3 decimal places.',{exact:true}).waitFor();
-    assert.equal(state.purchaseReceipts.length,0);
+    for(const invalid of ['0.0001','0.000000000001']) {
+      await received.fill(invalid);
+      await dialog.getByRole('button',{name:'Confirm Receipt',exact:true}).click();
+      await dialog.getByText('Stock quantities support up to 3 decimal places.',{exact:true}).waitFor();
+      assert.equal(state.purchaseReceipts.length,0);
+    }
     await received.fill(String(quantity));
     await dialog.getByRole('button',{name:'Confirm Receipt',exact:true}).click();
     await dialog.waitFor({state:'hidden'});

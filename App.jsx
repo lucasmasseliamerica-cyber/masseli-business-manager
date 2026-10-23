@@ -7568,7 +7568,7 @@ function NewPurchaseModal({ dark, onClose, inventory, suppliers, purchaseOrders,
     if (expectedDate < orderDate) { setError("Expected delivery can't be before the order date."); return; }
     if (lineData.some(l => l.item?.active === false)) { setError("Select active inventory items."); return; }
     if (lineData.length === 0 || lineData.some((l) => !l.item || !Number.isFinite(Number(l.qty)) || Number(l.qty) <= 0)) { setError("Add at least one item with a quantity greater than zero."); return; }
-    if (lineData.some((l) => !hasStockPrecision(Number(l.qty)))) { setError("Stock quantities support up to 3 decimal places."); return; }
+    if (lineData.some((l) => !hasStockPrecision(Number(l.qty)) || roundStockQty(Number(l.qty)) <= 0)) { setError("Stock quantities support up to 3 decimal places."); return; }
     if (lineData.some((l) => String(l.unitCost).trim() === "" || !Number.isFinite(Number(l.unitCost)) || Number(l.unitCost) < 0)) { setError("Unit cost must be a valid number greater than or equal to zero."); return; }
     if (!Number.isFinite(Number(discount)) || !Number.isFinite(Number(tax)) || Number(discount) < 0 || Number(tax) < 0 || !Number.isFinite(grandTotal)) { setError("Discount and tax must be valid nonnegative amounts."); return; }
     if (new Set(lineData.map((l) => l.itemId)).size !== lineData.length) { setError("The same inventory item can't appear more than once on a purchase order."); return; }
@@ -8006,7 +8006,7 @@ function ReceivePurchaseModal({ dark, po, onClose, inventory, setInventory, purc
     for (const { line, receiveQty } of lines) {
       const remaining = roundStockQty(line.qty - line.receivedQty);
       if (!Number.isFinite(receiveQty) || !Number.isFinite(remaining)) { setError("Received quantities must be finite numbers."); return; }
-      if (!hasStockPrecision(receiveQty)) { setError("Stock quantities support up to 3 decimal places."); return; }
+      if (!hasStockPrecision(receiveQty) || (receiveQty > 0 && roundStockQty(receiveQty) <= 0)) { setError("Stock quantities support up to 3 decimal places."); return; }
       if (receiveQty < 0) { setError("Received quantity can't be negative."); return; }
       if (receiveQty > remaining + 0.0001) { setError(`Can't receive more than the remaining ${remaining} for this item.`); return; }
     }
