@@ -21,6 +21,9 @@ const phases = new Set(['SNAPSHOT', 'CHILD_RESERVED', 'MOVEMENT_PENDING', 'MOVEM
 const secret = /Bearer\s|eyJ[A-Za-z0-9_-]{16,}\.|sb_secret_|@|-----BEGIN|[?&](?:token|access_token)=/i;
 const freeze = value => { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
 function fixed(code, body) { try { return body(); } catch (error) { if (error instanceof StockSignal && typeof error.code === 'string' && /^C1_[A-Z0-9_]{1,90}$/.test(error.code)) throw error; requireStock(false, code); } }
+// Windows' native API resolves 8.3 aliases; legacy realpath can retain them and
+// falsely classify two spellings of the same TEMP as different directories.
+const canonicalPath = path => process.platform === 'win32' ? realpathSync.native(path) : realpathSync(path);
 function noLinks(path, stop) {
   let current = resolve(path);
   while (true) {
@@ -28,7 +31,7 @@ function noLinks(path, stop) {
     // Windows TEMP can use an 8.3 spelling while realpath returns the long form.
     // Check each raw ancestor for reparse/link traversal BEFORE canonicalizing it;
     // canonicalizing the full input first would hide a forbidden junction.
-    const boundary = process.platform === 'win32' ? realpathSync(current).toLowerCase() : current;
+    const boundary = process.platform === 'win32' ? canonicalPath(current).toLowerCase() : current;
     if (boundary === (process.platform === 'win32' ? stop.toLowerCase() : stop)) return;
     const next = dirname(current); requireStock(next !== current, 'C1_CHILD_PRIVATE_TEMP_REQUIRED'); current = next;
   }
@@ -126,9 +129,9 @@ export function openC1ChildStore(input = {}) {
     let parentSha256 = suppliedHash;
     requireStock(typeof parentFile === 'string' && hex(parentSha256), 'C1_CHILD_ORIGINAL_HASH_REQUIRED');
     parentSha256 = parentSha256.toLowerCase();
-    const file = resolve(parentFile), directory = dirname(file), root = realpathSync(tmpdir());
+    const file = resolve(parentFile), directory = dirname(file), root = canonicalPath(tmpdir());
     requireStock(basename(file) === 'stock-recovery.json' && basename(directory).startsWith('nexalvo-stock-c1-'), 'C1_CHILD_ORIGINAL_PATH_REQUIRED');
-    const rel = relative(root, realpathSync(directory));
+    const rel = relative(root, canonicalPath(directory));
     requireStock(rel && !rel.startsWith('..') && !isAbsolute(rel), 'C1_CHILD_PRIVATE_TEMP_REQUIRED');
     noLinks(file, root); const directoryOpened = lstatSync(directory); owned(directoryOpened, true);
     if (process.platform === 'win32') requireStock(env.QA_STOCK_PRIVATE_DIRECTORY_ACL === 'CURRENT_USER_ONLY', 'C1_CHILD_PARENT_ACL_REQUIRED');
@@ -217,7 +220,15 @@ export function openC1ChildStore(input = {}) {
         boundState.phase = phase; lastChildHash = sha256(bytes); return lastChildHash;
       })); },
       load(requestedFile = childFile) { return guard(() => fixed('C1_CHILD_RECOVERY_REJECTED', () => {
-        requireStock(typeof requestedFile === 'string' && resolve(requestedFile) === childFile, 'C1_CHILD_RECOVERY_PATH_REQUIRED');
+        requireStock(typeof requestedFile === 'string', 'C1_CHILD_RECOVERY_PATH_REQUIRED');
+        if (process.platform === 'win32') {
+          // PowerShell and Node may use long/8.3 spellings of this same file.
+          // Inspect the supplied ancestors before native canonicalization so an
+          // alias cannot disguise a junction or broaden the private boundary.
+          noLinks(requestedFile, root);
+          requireStock(canonicalPath(requestedFile).toLowerCase() === canonicalPath(childFile).toLowerCase(),
+            'C1_CHILD_RECOVERY_PATH_REQUIRED');
+        } else requireStock(resolve(requestedFile) === childFile, 'C1_CHILD_RECOVERY_PATH_REQUIRED');
         const loaded = readEnvelope(); return { state: freeze(copy(loaded.state)), lineage: freeze(copy(loaded.lineage)), childSha256: loaded.childSha256 };
       })); },
       close() { return assertParentUnchanged(); },

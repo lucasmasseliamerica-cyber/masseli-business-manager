@@ -373,17 +373,26 @@ function withSyntheticWindowsAlias(fixture, linkedAncestor, body) {
     ? canonicalRoot + path.slice(aliasRoot.length) : path;
   try {
     Object.defineProperty(process, 'platform', { ...platform, value: 'win32' });
-    fs.realpathSync = (path, ...rest) => original.realpathSync(remap(path), ...rest);
+    // Windows' legacy realpath can preserve 8.3 spelling. Its native API expands
+    // it. Model that distinction rather than making both APIs canonicalize alike.
+    const legacy = (path, ...rest) => {
+      const resolved = original.realpathSync(remap(path), ...rest);
+      return remap(path) !== path ? aliasRoot + resolved.slice(canonicalRoot.length) : resolved;
+    };
+    legacy.native = (path, ...rest) => original.realpathSync(remap(path), ...rest);
+    fs.realpathSync = legacy;
     fs.openSync = (path, ...rest) => original.openSync(remap(path), ...rest);
     fs.lstatSync = (path, ...rest) => {
       const stat = original.lstatSync(remap(path), ...rest);
-      const prohibited = linkedAncestor === 'root' ? aliasRoot : linkedAncestor === 'parent' ? dirname(aliasFile) : null;
+      const prohibited = linkedAncestor === 'root' ? aliasRoot : linkedAncestor === 'parent' ? dirname(aliasFile)
+        : linkedAncestor === 'registry' ? aliasRoot + c1ChildRegistryPath().slice(canonicalRoot.length) : null;
       if (path !== prohibited) return stat;
       const linked = Object.create(stat); linked.isSymbolicLink = () => true; return linked;
     };
     syncBuiltinESMExports();
     body({ ...fixture.options, parentFile: aliasFile, env: { ...fixture.options.env,
-      QA_STOCK_PRIVATE_DIRECTORY_ACL: 'CURRENT_USER_ONLY', QA_C1_CHILD_REGISTRY_ACL: 'CURRENT_USER_ONLY' } });
+      QA_STOCK_PRIVATE_DIRECTORY_ACL: 'CURRENT_USER_ONLY', QA_C1_CHILD_REGISTRY_ACL: 'CURRENT_USER_ONLY' } },
+    path => aliasRoot + path.slice(canonicalRoot.length));
   } finally {
     Object.assign(fs, original); Object.defineProperty(process, 'platform', platform); syncBuiltinESMExports();
   }
@@ -398,6 +407,25 @@ test('SYNTHETIC Windows short TEMP spelling reaches its canonical root without c
       assert.equal(store.assertUnreserved(), true); store.close();
     });
     assert.deepEqual(f.registryFiles(), before); assert.ok(readFileSync(f.parentFile).equals(f.parentBytes));
+  } finally { f.cleanup(); }
+});
+
+test('SYNTHETIC Windows recovery accepts only native aliases of the reserved child and rejects linked ancestors', () => {
+  const f = setup();
+  try {
+    if (!existsSync(c1ChildRegistryPath())) mkdirSync(c1ChildRegistryPath(), { mode: 0o700 });
+    withSyntheticWindowsAlias(f, null, (options, alias) => {
+      const store = openC1ChildStore(options); store.reserve(f.child(), securityHash);
+      const before = readFileSync(store.childFile);
+      assert.equal(store.load(alias(store.childFile)).childSha256, hash(before));
+      assert.throws(() => store.load(alias(f.parentFile)), codeIs('C1_CHILD_RECOVERY_PATH_REQUIRED'));
+      assert.ok(readFileSync(store.childFile).equals(before)); store.assertParentUnchanged();
+    });
+    withSyntheticWindowsAlias(f, 'registry', (options, alias) => {
+      const store = openC1ChildStore(options);
+      assert.throws(() => store.load(alias(store.childFile)), codeIs('C1_CHILD_LINK_FORBIDDEN'));
+    });
+    assert.ok(readFileSync(f.parentFile).equals(f.parentBytes));
   } finally { f.cleanup(); }
 });
 

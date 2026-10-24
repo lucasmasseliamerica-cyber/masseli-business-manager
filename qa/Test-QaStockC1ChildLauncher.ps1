@@ -201,6 +201,7 @@ try {
         $program=@'
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createHash,randomUUID} from 'node:crypto';
+import {join} from 'node:path';
 import {openC1ChildStore,C1_CHILD_AUTHORIZATION} from './qa/stock-c1-child-store.mjs';
 import {C1_FIXTURE,C1_CHECKS,makeC1State,sealC1Checkpoint} from './qa/stock-c1-protocol.mjs';
 import {STOCK_ACTORS} from './qa/stock-journey-core.mjs';
@@ -230,7 +231,8 @@ try {
   const before=readFileSync(store.childFile);
   const readEnv={QA_STOCK_PRIVATE_DIRECTORY_ACL:'CURRENT_USER_ONLY',QA_C1_CHILD_REGISTRY_ACL:'CURRENT_USER_ONLY'};
   localStage='LOAD';const readonly=openC1ChildStore({...options,env:readEnv});
-  const loaded=readonly.load(store.childFile);
+  // Use PowerShell's spelling too, not just the Node-generated path.
+  const loaded=readonly.load(join(process.argv[3],parentHash+'.child.json'));
   if(loaded.state.phase!=='CHILD_RESERVED'||loaded.state.confirmed!==0||loaded.state.pending!==null||loaded.state.probes.length!==0||
     loaded.lineage.parent_hash!==parentHash||loaded.state.runId===parent.runId||!readFileSync(store.childFile).equals(before))throw Error('LOCAL_STATE');
   localStage='SECOND_CHILD';let denied=false;
@@ -250,7 +252,7 @@ try {
 }
 '@
         try {
-            $r=Invoke-QaSaleNative node @('--input-type=module','-',$nodeParent) -InputText $program
+            $r=Invoke-QaSaleNative node @('--input-type=module','-',$nodeParent,$registry) -InputText $program
             $marker=$r.Output -join ''
             $safeMarkers=@('C1_CHILD_SYNTHETIC_NODE_STORE_PASS','C1_CHILD_ORIGINAL_HASH_REQUIRED','C1_CHILD_ORIGINAL_PATH_REQUIRED',
                 'C1_CHILD_PRIVATE_TEMP_REQUIRED','C1_CHILD_LINK_FORBIDDEN','C1_CHILD_PRIVATE_TYPE_REQUIRED',
