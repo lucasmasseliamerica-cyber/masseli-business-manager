@@ -44,7 +44,10 @@ export function evaluateAudit(report){
  if(unknownPackages.length)reasons.push('unknown vulnerable packages: '+unknownPackages.sort().join(', '));
  if(unknownAdvisories.length)reasons.push('unknown advisory sources: '+unknownAdvisories.sort((a,b)=>a-b).join(', '));
  if(counts.critical>0)reasons.push('critical vulnerabilities present');
- if(counts.total>7||counts.high>5||counts.moderate>2||counts.low>0||counts.info>0){
+ // Advisory IDs and package names remain strictly allowlisted. npm registry reclassified the
+ // known Tailwind 3 build-only chain from 5 high + 2 moderate to 3 moderate
+ // on 2026-10-23. This cap is not an exception for new advisories or runtime risk.
+ if(counts.total>7||counts.high>5||counts.moderate>3||counts.low>0||counts.info>0){
   reasons.push('known build-only vulnerability ceiling exceeded');
  }
  return {ok:complete&&reasons.length===0,complete,reasons,names:names.sort(),advisorySources:[...advisorySources].sort((a,b)=>a-b),counts};
