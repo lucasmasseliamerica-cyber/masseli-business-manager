@@ -24,6 +24,27 @@ test('current seven build-only findings remain tracked without claiming they are
  assert.deepEqual(result.advisorySources,[1240992,1241232]);
 });
 
+test('registry reclassification to three known build-only moderate findings passes without broadening advisory allowlist',()=>{
+ const report=current();
+ for(const name of ['braces','chokidar','fast-glob','micromatch'])delete report.vulnerabilities[name];
+ report.vulnerabilities.tailwindcss.severity='moderate';
+ report.metadata.vulnerabilities={info:0,low:0,moderate:3,high:0,critical:0,total:3};
+ const result=evaluateAudit(report);
+ assert.equal(result.ok,true);
+ assert.equal(result.counts.total,3);
+ assert.deepEqual(result.advisorySources,[1241232]);
+});
+
+test('four known moderate build findings exceed the bounded baseline',()=>{
+ const report=current();
+ for(const name of ['chokidar','fast-glob','micromatch'])delete report.vulnerabilities[name];
+ for(const row of Object.values(report.vulnerabilities))row.severity='moderate';
+ report.metadata.vulnerabilities={info:0,low:0,moderate:4,high:0,critical:0,total:4};
+ const result=evaluateAudit(report);
+ assert.equal(result.ok,false);
+ assert.match(result.reasons.join('\\n'),/ceiling exceeded/);
+});
+
 test('a fully resolved report passes and lowers the recorded ceiling',()=>{
  const result=evaluateAudit({vulnerabilities:{},metadata:{vulnerabilities:{critical:0,high:0,moderate:0,low:0,info:0,total:0}}});
  assert.equal(result.ok,true);assert.equal(result.counts.total,0);

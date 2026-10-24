@@ -51,7 +51,9 @@ export function evaluateAudit(report){
  if(unknownPackages.length)reasons.push('unknown vulnerable packages: '+unknownPackages.sort().join(', '));
  if(unknownAdvisories.length)reasons.push('unknown advisory sources: '+unknownAdvisories.sort((a,b)=>a-b).join(', '));
  if(counts.critical>0)reasons.push('critical vulnerabilities present');
- if(counts.total>7||counts.high>5||counts.high+counts.moderate>7||counts.low>0||counts.info>0){
+ // Preserve the remote QA baseline: exactly the reviewed package/advisory sets,
+ // at most three moderate build findings, and no increase in per-package severity.
+ if(counts.total>7||counts.high>5||counts.moderate>3||counts.low>0||counts.info>0){
   reasons.push('known build-only vulnerability ceiling exceeded');
  }
  if(names.some(name=>BUILD_SEVERITY_CEILINGS[name]
