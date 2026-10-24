@@ -1,0 +1,193 @@
+{
+  "scope": "C1_CHILD_PACKAGE_NOT_REAL_C1_HOMOLOGATION",
+  "date": "2026-10-24",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref_expected": "msinksoilkluooxenecy",
+  "code_sha": "4f8e908d987fced2a2dc3ddc5914b408d5a5881e",
+  "implementation_sha": "b6a66b2030815b3e5a92d0adcdeca2e8e7e2ec20",
+  "remote_preserved_sha": "8329294ef29e7e2227d2598d0ab02ba5fe23a323",
+  "merge_sha": "6cd920f4f04a7947fe42fc607297ba4fd4b83e4b",
+  "diagnostic_sha": "8fb2c0c45a495039deac25016cb3f86da5126197",
+  "ci": {
+    "number": 225,
+    "run_id": "40143125326",
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/40143125326",
+    "conclusion": "SUCCESS",
+    "jobs_passed": 9,
+    "persistent_jobs_blocked": 4,
+    "passed": 1001,
+    "total": 1001,
+    "failed": 0,
+    "skipped_tests": 0,
+    "expected_tap_reports": 14,
+    "counts_source": "Actual qa-summary annotation",
+    "workflow_index_sha256": "7c2723764e9bf48209900ea0a033ed70f64b7b499a015f6206536e553ee39bf0",
+    "summary_page_sha256": "9a7d3a129701e8e529e34a60bdda8671280cb6ed9b9eb01c19b9831fbc31f755",
+    "jobs": [
+      {
+        "name": "build-and-security",
+        "job_id": "121018826317",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "ff97de0e9857bb3f0bb256ec08563ff5df5736bd8b8e3ed90bb338a632fa42ed"
+      },
+      {
+        "name": "windows-sale-launcher",
+        "job_id": "121018826547",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "9a6aeea53c7edfe02c10c9ccda3ad7d95e3d10fd9e554ba22197bfa616baa955",
+        "child_native_engines": {
+          "Windows PowerShell 5.1": "PASS",
+          "PowerShell 7": "PASS"
+        }
+      },
+      {
+        "name": "test-api-smoke",
+        "job_id": "121018984211",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "a44217b89fb1905eb8fe0b9bc42eedd1cef7b39253d8d39e17dbdc6797a783ce"
+      },
+      {
+        "name": "authenticated-preflight",
+        "job_id": "121019026439",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "9acb26da254322433ed2ccd946197ebeab511e85cfd2b2dd4a2e3e6da9e439cc",
+        "actual_annotation": "PASS [OK]"
+      },
+      {
+        "name": "authenticated-concurrency",
+        "job_id": "121019081122",
+        "result": "BLOCKED_GATED"
+      },
+      {
+        "name": "access-regression",
+        "job_id": "121019079979",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "093a873f24a109c655ecc93a2ef202e70e2c5be64b40d1937bcc6430c6064da2"
+      },
+      {
+        "name": "auth-lifecycle",
+        "job_id": "121019079968",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "dc784e4ef59383bd1676fd6ada02ba8591b0925ffc7bf60aff0f5ed0d4e5a14c"
+      },
+      {
+        "name": "replay-financial",
+        "job_id": "121019081113",
+        "result": "BLOCKED_GATED"
+      },
+      {
+        "name": "network-after-commit",
+        "job_id": "121019081258",
+        "result": "BLOCKED_GATED"
+      },
+      {
+        "name": "browser-smoke",
+        "job_id": "121019080181",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "41389ed95bb93133fae70cddaf309479d9c91ceaab524c169e98ac00cf797274"
+      },
+      {
+        "name": "performance-read",
+        "job_id": "121019080079",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "e2286ad4d099cb9e2823e520fdd66966c4decdb0349f36572cd86e9c9859652e"
+      },
+      {
+        "name": "two-tenant-concurrency",
+        "job_id": "121019081314",
+        "result": "BLOCKED_GATED"
+      },
+      {
+        "name": "qa-summary",
+        "job_id": "121019463139",
+        "result": "PASS",
+        "complete_job_success": true,
+        "public_page_sha256": "909d0be4ec90df849a1dea9de20d5e85c368180d883a3a8ba9e3e92af628c7b7",
+        "actual_annotation_counts": {
+          "passed": 1001,
+          "total": 1001,
+          "failed": 0,
+          "skipped_tests": 0
+        }
+      }
+    ]
+  },
+  "local": {
+    "regressions": {
+      "total": 691,
+      "passed": 691,
+      "failed": 0,
+      "skipped": 0,
+      "sha256": "bd29d39d8d908e776519e04006e5049e6193156efb5770cc27e23ff7c4fd5b66"
+    },
+    "browser": {
+      "total": 34,
+      "passed": 34,
+      "failed": 0,
+      "skipped": 0,
+      "sha256": "9da40751dd7ad7528dd2a6fa38a4c92fc198755e32e2d025e4f06d267e2ffc2f"
+    },
+    "build": {
+      "result": "PASS",
+      "sha256": "ac1ae51373e20fd3961dc83cb0d76f520c3545a0e0f0d5b46d543a24539bec7c"
+    }
+  },
+  "edge_functions_parse": "PASS_TWO_FUNCTIONS_NO_DEPLOY",
+  "npm_audit": {
+    "runtime_alerts": 0,
+    "build_dev_alerts": 3,
+    "high": 0,
+    "moderate": 3,
+    "advisory_sources": [
+      1241232
+    ],
+    "affected": [
+      "postcss-selector-parser",
+      "postcss-nested",
+      "tailwindcss"
+    ],
+    "dependency_fix_claimed": false
+  },
+  "previous_ci_failures": [
+    {
+      "number": 223,
+      "run_id": "40142544351",
+      "passed": 998,
+      "total": 1000,
+      "failed": 2,
+      "skipped_tests": 0,
+      "scope": "Same synthetic Windows Node store admission case, PS5.1/7"
+    },
+    {
+      "number": 224,
+      "run_id": "40142782328",
+      "passed": 998,
+      "total": 1000,
+      "failed": 2,
+      "skipped_tests": 0,
+      "sanitized_code": "C1_CHILD_PRIVATE_TEMP_REQUIRED"
+    }
+  ],
+  "original_checkpoints_accessed": false,
+  "c1_stock_or_audit_mutations": 0,
+  "persistent_authorized": false,
+  "full_homologation": false,
+  "live_c1_gates": "BLOCKED_PENDING_REVIEWED_CATALOG_AND_AUTHENTICATED_CHILD_PREFLIGHT_AND_SPECIFIC_AUTHORIZATION",
+  "macro": {
+    "completed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67
+  },
+  "raw_exports_versioned": false,
+  "private_identifiers_or_credentials_in_report": false
+}

@@ -38,7 +38,8 @@ proteção contra esse ator. Checkpoints e catálogo não são assinaturas de se
 A reserva `<hash-pai>.reservation.json` precede `<hash-pai>.child.json`. Escrita intermediária
 `.next`, reserva parcial, colisão, perda de resposta ou divergência interrompem o ciclo.
 Nenhum desses arquivos é apagado pelo executor. Sem recibo conhecido não há reenvio.
-As RPCs atuais não fornecem idempotência de servidor para este ciclo.
+As RPCs atuais não fornecem idempotência de servidor para este ciclo. Uma interrupção pode
+deixar a fixture em saldo intermediário; o orçamento não autoriza correção adicional.
 
 A recuperação do filho só consulta e compara. Preserva inclusive a intenção pendente;
 não salva estado, libera reserva ou habilita retomada. Um movimento confirmado por leitura
@@ -47,7 +48,10 @@ rollback de um pedido incerto. Eventual correção de saldo exige análise e aut
 
 ## Orçamento persistente proposto — ainda não autorizado
 
-Usar somente a fixture C1 existente, definida em `qa/stock-c1-protocol.mjs` e vinculada ao pai.
+Usar somente a fixture C1 existente, definida em `qa/stock-c1-protocol.mjs` e vinculada ao pai:
+item `6ebfef52-f6c2-4561-b2ac-b3d4bfca1c5f`, SOURCE
+`f06c0bdd-8c55-4dc2-93b3-5ffcc085206f`, TARGET `d524ae32-48b8-497c-a2ab-9b4777c44f6d`.
+Nome `ZZ_QA_STOCK_C_20261022_EXCLUSIVE`. Esses IDs de fixtures não são credenciais.
 
 | Passo | Operação única | SOURCE / TARGET esperados |
 | --- | --- | --- |
@@ -84,6 +88,14 @@ Riscos condicionais: grants TRUNCATE/TRIGGER e memberships de API são capturado
 de contexto, sem classificá-los automaticamente como exploração via REST. Funções/trigger bodies
 divergentes precisam de export e revisão antes de aceitar novo digest. Não ampliar ACL/RLS.
 
+As CIs #223/#224 encontraram duas falhas reais do mesmo teste sintético (PS5.1/7):
+998/1000 PASS, 2 FAIL, zero skips TAP. Diagnóstico fixo `C1_CHILD_PRIVATE_TEMP_REQUIRED`.
+A resolução legada de caminhos não expandia consistentemente aliases Windows; o teste local
+que diferencia a API legada da nativa falhou antes da correção. A versão corrigida usa
+`realpathSync.native` para contenção e recuperação, após verificar links em cada ancestral.
+Também verifica recuperação pelo caminho produzido pelo PowerShell, não só pelo Node.
+Não houve alteração no checkpoint real para reproduzir/corrigir essas falhas.
+
 ## Procedimento Windows seguro
 
 Primeiro sincronizar a QA limpa com `git pull --ff-only origin automation/nexalvo-qa-actions`.
@@ -118,6 +130,21 @@ Não executar launcher normal, recuperação antiga já encerrada ou novas sonda
 O launcher solicita credenciais QA existentes em campos ocultos, em memória, sem arquivos/Git.
 Não usar transcript, debug ou imprimir o ambiente; não enviar credenciais ao chat.
 Sem PASS de leitura, reserva disponível, revisão atual e nova autorização, não prosseguir.
+
+Para calcular somente o digest, depois da revisão do arquivo indicado em `$security`, sem
+imprimir metadados, paths ou erros brutos:
+
+```powershell
+@'
+import {readFileSync} from 'node:fs';
+import {canonicalSecurityDigest} from './qa/stock-c1-child-security.mjs';
+try { console.log(canonicalSecurityDigest(JSON.parse(readFileSync(process.argv[2],'utf8')))); }
+catch { console.error('C1_SECURITY_DIGEST_BLOCKED'); process.exitCode=2; }
+'@ | node --input-type=module - $security
+```
+
+Esse comando não atribui `$reviewedSecurityHash`, não representa aprovação e não executa
+preflight/SQL/Auth. Registrar separadamente o digest revisado antes de utilizá-lo no launcher.
 
 **Somente depois de autorização específica vinculada ao código/pai/orçamento/janela:**
 
@@ -167,12 +194,32 @@ Workflow de perfis reais MANAGER/EMPLOYEE existente preservado; bloqueado por se
 seguras e prontas, sem novas contas/convites. Nenhuma tradução/formulário foi alterado sem defeito
 concreto neste lote; regressões existentes verificam os formulários e traduções já corrigidos.
 
-Auditoria npm de 24/10: runtime zero; três alertas moderados build/dev, fonte1241232 conhecida,
+Auditoria npm de 24/10: runtime zero; três alertas moderados build/dev, fonte 1241232 conhecida,
 postcss-selector-parser/postcss-nested/tailwindcss. A mudança da classificação no registry não
 é correção de dependências. A política agora limita severidade **por pacote**, mantendo as listas
-de pacotes/fontes, teto total7 e high5; aceita downgrade e rejeita escalada de moderado para alto.
+de pacotes/fontes, teto total 7, high 5 e moderate 3 preservado da QA remota; aceita downgrade e rejeita escalada de moderado para alto.
 Tailwind4 segue separado, sem npm audit fix --force ou atualização incompatível.
 
-Testes locais e CI finais são registrados na evidência/handoff após conclusão verificável.
+## Resultado verificável do pacote
+
+Código **4f8e908d987fced2a2dc3ddc5914b408d5a5881e**.
+[CI #225](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/40143125326):
+**1.001/1.001 TAP PASS**, zero FAIL/SKIP nos testes executados; 9 jobs PASS e 4 persistentes BLOCKED.
+Os 25 casos nativos por engine passaram em Windows PowerShell 5.1 e PowerShell 7; build, browser,
+preflight geral QA A/B e agregador PASS. Os 14 relatórios TAP foram exigidos pelo agregador.
+[Evidência com fingerprints das páginas/jobs e fonte da contagem](./evidence/stock-c1-child-executor-ci225-20261024.json).
+
+Local: **691/691 regressões em 54 módulos, 34/34 browser**, zero FAIL/SKIP; build e parse de duas
+Edge Functions PASS. Os testes PostgreSQL usam container descartável sem rede; os testes
+Chromium do ciclo filho interceptam todo backend. Nada disso é prova persistente C1.
+Varredura de segredos e diff-check PASS; nenhum `.env`/export bruto/checkpoint real versionado.
+
+Commits: implementação `b6a66b2030815b3e5a92d0adcdeca2e8e7e2ec20`, merge preservando QA remota
+`6cd920f4f04a7947fe42fc607297ba4fd4b83e4b`, diagnóstico Windows
+`8fb2c0c45a495039deac25016cb3f86da5126197`, correção validada de aliases `4f8e908d987fced2a2dc3ddc5914b408d5a5881e`.
+O remoto `8329294ef29e7e2227d2598d0ab02ba5fe23a323` foi preservado; sem force push.
+Commits posteriores somente docs podem descender do SHA validado; não substituir por código
+novo sem nova evidência CI. Usar este SHA literal em `$codeSha` no comando Windows acima.
+
 Macro permanece **16/60 (26,67%)**, 15 pendentes/29 bloqueados. C1 real e jornadas comerciais
 nunca recebem PASS por este pacote simulado. Produção/main e checkpoints reais intocados.

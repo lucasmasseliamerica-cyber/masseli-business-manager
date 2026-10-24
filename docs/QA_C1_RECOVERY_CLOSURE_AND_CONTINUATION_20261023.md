@@ -1,5 +1,10 @@
 # C1 — recuperação encerrada e plano de continuação (23/10/2026)
 
+**Atualização de código em 24/10:** o [executor filho dedicado foi implementado e revisado](./QA_C1_CHILD_EXECUTOR_20261024.md),
+com CI #225:1.001/1.001 PASS,9 jobs PASS / 4 persistentes BLOCKED. Este documento preserva o plano e
+fechamento históricos de 23/10. As referências abaixo a executor ainda não implementado descrevem
+esse estado histórico. Persistência continua sem autorização; pai original e A/B intocados.
+
 Branch exclusiva `automation/nexalvo-qa-actions`; Supabase TEST `msinksoilkluooxenecy`.
 **Não executar ajustes, transferências, compensações, sondagens, migrações ou operações financeiras.**
 Checkpoint original e jornadas A/B preservados. Não repetir a recuperação já comprovada.
@@ -155,7 +160,7 @@ compras persistentes. Nenhum pedido, recebimento, pagamento ou reversão foi env
 ## Regressões, CI e cobertura
 
 Código publicado: **c26878a625d004025b3cd579dc891ae5af588af0**, após `7f4b28ffed6bbb52b6bb1c568046d9b2bbbaf329`.
-[CI #217](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706): **855/855 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED pelo gate**.
+[CI #217](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706): **855/855 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e 4 persistentes BLOCKED pelo gate**.
 Windows PS5.1/7, browser, build, preflight autenticado geral e agregador aprovados.
 A contagem foi conferida na anotação real do job120454005768; não foi inferida dos resultados locais.
 [Evidência final CI217](./evidence/stock-c1-closure-ci-217-20261023.json).

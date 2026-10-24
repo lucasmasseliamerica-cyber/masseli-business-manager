@@ -16,6 +16,6 @@ Scope: isolated `automation/nexalvo-qa-actions` branch; **no Supabase writes, pr
 
 ## Pending gates
 - Four persistent CI groups need specific authorization and evidence, not automatic activation.
-- C1 child executor not implemented; parent checkpoint and original recovery preserved, no C1 persistent writes authorized.
+- C1 child executor subsequently implemented and validated in [CI #225/package](./QA_C1_CHILD_EXECUTOR_20261024.md); parent checkpoint and recovery preserved, no C1 persistent writes authorized.
 - Independent MANAGER/EMPLOYEE E2E sessions, real invitation/recovery, purchase idempotency and full stock/purchase/sale journeys remain pending.
 - Review the exact `npm audit` dependency chain and remove known build-only advisories by dependency upgrades in a separate tested change when compatible.

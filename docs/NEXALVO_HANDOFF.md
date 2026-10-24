@@ -1,6 +1,37 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
-## Atualização vigente — recuperação C1 concluída, continuação ainda bloqueada (23/10/2026)
+## Atualização vigente — executor filho C1 preparado, ciclo real bloqueado (24/10/2026)
+
+[Pacote, revisão de segurança, gates e comandos Windows](./QA_C1_CHILD_EXECUTOR_20261024.md).
+[Evidência verificável](./evidence/stock-c1-child-executor-ci225-20261024.json).
+
+- [x] Executor filho dedicado e launcher separado implementados; pai imutável, reserva única
+  local, oito gates, quatro operações delimitadas, intenção durável, reconciliação independente.
+- [x] Recuperação somente leitura sem replay, segundo filho, compensação automática ou remoção
+  de checkpoint; perdas de resposta, concorrência, expiração e falhas de persistência testadas.
+- [x] Código **4f8e908d987fced2a2dc3ddc5914b408d5a5881e** publicado só na QA. [CI #225](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/40143125326):
+  **1.001/1.001 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e 4 persistentes BLOCKED**.
+  PowerShell PowerShell 5.1/7, PostgreSQL descartável, Chromium e preflight geral autenticado PASS.
+- [x] Local: **691/691 regressões +34/34 browser**, zero FAIL/SKIP; build/parse Edge PASS.
+  CI #223/#224: 998/1000, 2 FAIL do mesmo teste Windows; alias TEMP corrigido e comprovado na CI #225.
+- [x] SELECT complementar de segurança e SELECT de precisão/contratos de compras preparados;
+  executados em PostgreSQL descartável. Não representam captura atual do Supabase TEST.
+- [x] npm audit: runtime 0; três alertas moderados build/dev conhecidos. Tetos agregados da QA
+  remota preservados e limite por pacote acrescentado; nenhuma dependência declarada corrigida.
+- [ ] Captura TEST vigente, revisão independente de funções/ACL/RLS/triggers e digest aprovado.
+- [ ] Preflight autenticado **do filho com o pai original**, baseline atual e janela exclusiva.
+  O PASS do preflight geral da CI não substitui esse gate. Sessão sem Desktop Commander/SQL;
+  isso não significa que o notebook esteja indisponível globalmente. Não pedir segredos no chat.
+- [ ] Nova autorização específica para 4 RPCs estoque +4 auditoria / 6 movimentos / 0 sondagens,
+  vinculada ao código/pai/fixture/janela. Nenhuma movimentação C1 ou auditoria foi enviada aqui.
+- [ ] C1 real 18/18; escala atual de compras, idempotência instalada e jornadas de compra/financeiro;
+  perfis MANAGER/EMPLOYEE reais continuam pendentes, sem novas contas ou alterações persistentes.
+
+Macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados, sem promoção por mocks ou CI.
+Recuperação do pai já encerrada PASS; A/B preservadas, B 17/17. Não repetir sondagens,
+recuperação antiga ou ciclo normal. Main/produção e checkpoints reais não acessados/alterados.
+
+## Histórico — recuperação C1 concluída, baseline CI217 (23/10/2026)
 
 [Fechamento real, plano e gates](./QA_C1_RECOVERY_CLOSURE_AND_CONTINUATION_20261023.md).
 [Evidência sanitizada](./evidence/stock-c1-readonly-closure-reported-20261023.json).
@@ -22,7 +53,7 @@
 - [ ] Compras reais: conferir escala das colunas e contratos implantados por leitura; D permanece
   desativada, sem criar/receber/pagar/reverter pedidos no TEST.
 
-Código publicado: **c26878a625d004025b3cd579dc891ae5af588af0**. [CI #217](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706): **855/855 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED pelo gate**.
+Código publicado: **c26878a625d004025b3cd579dc891ae5af588af0**. [CI #217](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39964380706): **855/855 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e 4 persistentes BLOCKED pelo gate**.
 Local: **598/598 regressões +31/31 browser**, zero FAIL/SKIP; build PASS.
 Macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados; recuperação de segurança não promove
 critérios macro de jornada UI. A/B preservadas; B17/17. Main e produção intocadas.
@@ -30,7 +61,7 @@ critérios macro de jornada UI. A/B preservadas; B17/17. Main e produção intoc
 ## Histórico — C1 interrompida, recuperação somente leitura (23/10/2026)
 
 [Diagnóstico, integridade e procedimento seguro](./QA_C1_STARTUP_RECOVERY_20261023.md).
-Código publicado: **e28a317e00062da16363a22f1f1cf53e15e6815c**; [CI #215](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39958446001): **827/827 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e4 persistentes BLOCKED**. Windows PS5.1/7 e preflight autenticado PASS.
+Código publicado: **e28a317e00062da16363a22f1f1cf53e15e6815c**; [CI #215](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39958446001): **827/827 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e 4 persistentes BLOCKED**. Windows PS5.1/7 e preflight autenticado PASS.
 
 - Código original confirmado pelo usuário: C1_EXECUTION_UNCONFIRMED; PROBES_CONFIRMED,
   pending=null, confirmed=0, duas sondagens negadas, zero operações de estoque/auditoria.
