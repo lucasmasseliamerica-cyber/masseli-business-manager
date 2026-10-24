@@ -5,6 +5,13 @@ export const KNOWN_BUILD_PACKAGES=new Set([
  'braces','chokidar','fast-glob','micromatch','postcss-nested','postcss-selector-parser','tailwindcss',
 ]);
 export const KNOWN_ADVISORY_SOURCES=new Set([1240992,1241232]);
+// An upstream severity downgrade must not look like a new vulnerability simply
+// because it moves a package from the high bucket into the moderate bucket.
+// Retain the reviewed ceiling per package, as well as the package/advisory sets.
+const BUILD_SEVERITY_CEILINGS=Object.freeze({
+ braces:'high',chokidar:'high','fast-glob':'high',micromatch:'high',tailwindcss:'high',
+ 'postcss-nested':'moderate','postcss-selector-parser':'moderate',
+});
 
 export function evaluateAudit(report){
  const object=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
@@ -44,8 +51,12 @@ export function evaluateAudit(report){
  if(unknownPackages.length)reasons.push('unknown vulnerable packages: '+unknownPackages.sort().join(', '));
  if(unknownAdvisories.length)reasons.push('unknown advisory sources: '+unknownAdvisories.sort((a,b)=>a-b).join(', '));
  if(counts.critical>0)reasons.push('critical vulnerabilities present');
- if(counts.total>7||counts.high>5||counts.moderate>2||counts.low>0||counts.info>0){
+ if(counts.total>7||counts.high>5||counts.high+counts.moderate>7||counts.low>0||counts.info>0){
   reasons.push('known build-only vulnerability ceiling exceeded');
+ }
+ if(names.some(name=>BUILD_SEVERITY_CEILINGS[name]
+   &&severities.indexOf(vulnerabilities[name].severity)<severities.indexOf(BUILD_SEVERITY_CEILINGS[name]))){
+  reasons.push('reviewed package severity ceiling exceeded');
  }
  return {ok:complete&&reasons.length===0,complete,reasons,names:names.sort(),advisorySources:[...advisorySources].sort((a,b)=>a-b),counts};
 }

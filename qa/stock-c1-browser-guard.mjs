@@ -1,5 +1,5 @@
 // Same guard used by the real browser executor and offline transport regressions.
-import { STOCK_HOST, StockSignal, requireStock } from './stock-journey-core.mjs';
+import { STOCK_HOST, STOCK_ACTORS, StockSignal, requireStock } from './stock-journey-core.mjs';
 import { c1Payload, c1AuditPayload, c1ExpectedAudit, verifyC1View } from './stock-c1-protocol.mjs';
 export function createC1BrowserGuard({ local: LOCAL, state, readView, save, windowGate, counters, authorizedToken, onFailure }) {
   let mutationInFlight = false, failed = false;
@@ -43,7 +43,13 @@ export function createC1BrowserGuard({ local: LOCAL, state, readView, save, wind
           requireStock(response.ok(), 'C1_AUDIT_UNKNOWN_READONLY_RECOVERY_REQUIRED');
           const view = await readView(); verifyC1View(state, view, state.confirmed);
           const expected = c1ExpectedAudit(state, state.confirmed - 1);
-          op.auditRow = view.audit.find(r => r.action === expected.action && r.details === expected.details);
+          // Adjustment text has no run ID and can match an immutable historical entry.
+          // Reconciliation proved a new, tenant-owned row; retain that receipt, never the parent snapshot.
+          const receipt = view.audit.find(r => !state.audit.some(old => old.id === r.id)
+            && r.action === expected.action && r.details === expected.details
+            && r.business_id === STOCK_ACTORS.A.business && r.user_id === STOCK_ACTORS.A.owner);
+          requireStock(receipt, 'C1_NEW_AUDIT_RECEIPT_REQUIRED');
+          op.auditRow = receipt;
           state.pending = null; save('AUDIT_CONFIRMED'); return route.fulfill({ response });
         }
         throw new StockSignal('C1_BROWSER_WRITE_OUTSIDE_AUTHORIZATION');

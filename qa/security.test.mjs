@@ -97,3 +97,18 @@ test('tracked repository paths remain distinct on case-insensitive Windows files
   folded.set(key,path);
  }
 });
+
+test('C1 child CI only parses the dedicated executor and never authorizes live child writes', () => {
+ assert.match(workflow,/node --check qa\/stock-c1-child\.TEST\.mjs/);
+ assert.doesNotMatch(workflow,/node\s+qa\/stock-c1-child\.TEST\.mjs\s+--execute/);
+ assert.doesNotMatch(workflow,/QA_C1_CHILD_EXECUTION_AUTHORIZED\s*:/);
+ assert.match(workflow,/--test-concurrency=1[^\n]*qa\/browser-smoke\.test\.mjs/);
+});
+test('Windows TAP artifact globs assign every synthetic report exactly once, including the new child', () => {
+ const globs=[...workflow.matchAll(/path: \$\{\{ runner\.temp \}\}\/([^\s]+\.tap)/g)].map(match=>match[1]);
+ const reports=['sale-launcher','stock-preflight','stock-c1','stock-c1-child'].flatMap(prefix=>['ps51','ps7'].map(engine=>`${prefix}-${engine}.tap`));
+ for(const file of reports){
+  const matches=globs.filter(glob=>new RegExp('^'+glob.replaceAll('.','\\.').replaceAll('*','.*')+'$').test(file));
+  assert.equal(matches.length,1,`Report ${file} must not be omitted or counted twice`);
+ }
+});

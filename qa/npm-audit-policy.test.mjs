@@ -29,6 +29,25 @@ test('a fully resolved report passes and lowers the recorded ceiling',()=>{
  assert.equal(result.ok,true);assert.equal(result.counts.total,0);
 });
 
+test('upstream downgrade to three known moderate build findings is allowed without accepting new packages or advisories',()=>{
+ const report=current();
+ for(const name of ['braces','chokidar','fast-glob','micromatch'])delete report.vulnerabilities[name];
+ report.vulnerabilities.tailwindcss={severity:'moderate',via:['postcss-nested','postcss-selector-parser']};
+ report.metadata.vulnerabilities={info:0,low:0,moderate:3,high:0,critical:0,total:3};
+ const result=evaluateAudit(report);
+ assert.equal(result.ok,true);assert.deepEqual(result.advisorySources,[1241232]);
+ assert.deepEqual(result.names,['postcss-nested','postcss-selector-parser','tailwindcss']);
+ assert.equal(result.counts.total,3);
+});
+
+test('a formerly moderate package cannot increase severity behind lower aggregate totals',()=>{
+ const report=current();
+ report.vulnerabilities={'postcss-selector-parser':{severity:'high',via:[{source:1241232}]}};
+ report.metadata.vulnerabilities={info:0,low:0,moderate:0,high:1,critical:0,total:1};
+ const result=evaluateAudit(report);
+ assert.equal(result.ok,false);assert.match(result.reasons.join('\n'),/package severity ceiling exceeded/);
+});
+
 test('a newly vulnerable package fails the build policy',()=>{
  const report=current();report.vulnerabilities['new-package']={severity:'high',via:[{source:999001}]};
  report.metadata.vulnerabilities.high=6;report.metadata.vulnerabilities.total=8;
