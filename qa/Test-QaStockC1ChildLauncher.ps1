@@ -239,12 +239,24 @@ try {
   localStage='INTEGRITY';if(!denied||!readFileSync(process.argv[2]).equals(parentBytes))throw Error('LOCAL_INTEGRITY');
   readonly.close();store.close();
   console.log('C1_CHILD_SYNTHETIC_NODE_STORE_PASS');
-}catch{console.log('C1_CHILD_SYNTHETIC_NODE_STORE_'+localStage+'_BLOCKED');process.exitCode=2}
+}catch(error){
+  // Fixed diagnostic codes only. Never disclose exception messages, paths or contents.
+  const safe=new Set(['C1_CHILD_ORIGINAL_HASH_REQUIRED','C1_CHILD_ORIGINAL_PATH_REQUIRED',
+    'C1_CHILD_PRIVATE_TEMP_REQUIRED','C1_CHILD_LINK_FORBIDDEN','C1_CHILD_PRIVATE_TYPE_REQUIRED',
+    'C1_CHILD_HARDLINK_FORBIDDEN','C1_CHILD_PARENT_ACL_REQUIRED','C1_CHILD_ORIGINAL_HASH_MISMATCH',
+    'C1_CHILD_SECRET_FORBIDDEN','C1_CHILD_PARENT_TIME_REQUIRED','C1_CHILD_ZERO_OPERATION_PARENT_REQUIRED',
+    'C1_CHILD_PARENT_GATES_REQUIRED','C1_CHILD_REGISTRY_PATH_REQUIRED','C1_CHILD_STORE_OPEN_REJECTED']);
+  console.log(safe.has(error.code)?error.code:'C1_CHILD_SYNTHETIC_NODE_STORE_'+localStage+'_BLOCKED');process.exitCode=2
+}
 '@
         try {
             $r=Invoke-QaSaleNative node @('--input-type=module','-',$nodeParent) -InputText $program
             $marker=$r.Output -join ''
-            $safeMarkers=@('C1_CHILD_SYNTHETIC_NODE_STORE_PASS')+@('SETUP','PARENT_WRITE','STORE_OPEN','RESERVE','SAVE','LOAD','SECOND_CHILD','INTEGRITY' | ForEach-Object { 'C1_CHILD_SYNTHETIC_NODE_STORE_'+$_+'_BLOCKED' })
+            $safeMarkers=@('C1_CHILD_SYNTHETIC_NODE_STORE_PASS','C1_CHILD_ORIGINAL_HASH_REQUIRED','C1_CHILD_ORIGINAL_PATH_REQUIRED',
+                'C1_CHILD_PRIVATE_TEMP_REQUIRED','C1_CHILD_LINK_FORBIDDEN','C1_CHILD_PRIVATE_TYPE_REQUIRED',
+                'C1_CHILD_HARDLINK_FORBIDDEN','C1_CHILD_PARENT_ACL_REQUIRED','C1_CHILD_ORIGINAL_HASH_MISMATCH',
+                'C1_CHILD_SECRET_FORBIDDEN','C1_CHILD_PARENT_TIME_REQUIRED','C1_CHILD_ZERO_OPERATION_PARENT_REQUIRED',
+                'C1_CHILD_PARENT_GATES_REQUIRED','C1_CHILD_REGISTRY_PATH_REQUIRED','C1_CHILD_STORE_OPEN_REJECTED')+@('SETUP','PARENT_WRITE','STORE_OPEN','RESERVE','SAVE','LOAD','SECOND_CHILD','INTEGRITY' | ForEach-Object { 'C1_CHILD_SYNTHETIC_NODE_STORE_'+$_+'_BLOCKED' })
             $script:lastCode=if($marker -cin $safeMarkers){$marker}else{'C1_CHILD_SYNTHETIC_NODE_STORE_BLOCKED'}
             Assert-Child ($r.ExitCode -eq 0 -and $script:lastCode -ceq 'C1_CHILD_SYNTHETIC_NODE_STORE_PASS')
             Assert-Child ((Get-Acl -LiteralPath $nodeParentDirectory).Sddl -eq $nodeDirectoryAcl)
