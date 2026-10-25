@@ -1,6 +1,37 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
-## Atualização vigente — executor filho C1 preparado, ciclo real bloqueado (24/10/2026)
+## Autorização condicional C1 CHILD recebida — execução não iniciada
+
+O proprietário autorizou expressamente **uma única execução futura**, exclusivamente no TEST
+`msinksoilkluooxenecy`, branch QA e SHA de código
+`4f8e908d987fced2a2dc3ddc5914b408d5a5881e`, fixture
+`ZZ_QA_STOCK_C_20261022_EXCLUSIVE`. [Registro sanitizado](./evidence/stock-c1-child-conditional-authorization.json).
+A autorização não precisa ser solicitada novamente dentro desse escopo. Ela não substitui os gates.
+
+- [x] Autorização condicional recebida: ajuste +0,125; transferência 0,500 SOURCE→TARGET;
+  transferência inversa 0,500; ajuste final −0,125. Limites: 4 RPCs estoque + 4 auditoria,
+  seis movimentos, zero sondagens repetidas; preservar pai/histórico, sem replay/compensação automática.
+- [x] QA local/remota sincronizadas; SHA autorizado ancestral, somente docs posteriores.
+  CI #225 preservada: 1.001/1.001 PASS, 9 jobs PASS / 4 persistentes BLOCKED. Não repetir baseline sem mudança de código.
+- [ ] Pai original/hash/ACL íntegros, baseline atual e ausência de filho/reserva: não observados nesta sessão.
+- [ ] Catálogos TEST atuais e revisão independente/digest: faltam exports; sessão sem integração SQL.
+- [ ] Preflight autenticado do filho: não executado; faltam acesso ao notebook e configuração segura QA.
+- [ ] Nova janela exclusiva: ainda não confirmada; confirmar somente quando os pré-requisitos estiverem prontos.
+
+**BLOCKED antes de qualquer gravação.** Zero envios estoque/auditoria/sondagens nesta sessão.
+Nenhum pai acessado/alterado ou filho reservado. Não presumir ausência global de reserva; verificar
+no notebook antes de iniciar. A limitação da sessão não significa indisponibilidade global do notebook.
+Não modificar o código autorizado, produção/main ou permissões para contornar os bloqueios.
+Macro 16/60 (26,67%) preservada; C1 real ainda não homologada.
+
+Próxima ação necessária: obter os resultados atuais, pela conexão comprovadamente TEST, de
+`qa/sql/stock_journey_preflight_readonly_TEST.sql` e
+`qa/sql/stock_c1_child_security_readonly_TEST.sql`. Revisar metadados e definições divergentes
+antes de aprovar o digest. Não enviar checkpoint, credenciais, tokens ou paths privados.
+Depois executar somente o preflight do [launcher dedicado](./QA_C1_CHILD_EXECUTOR_20261024.md).
+A autorização já recebida só poderá ser usada após todos os gates passarem e na nova janela confirmada.
+
+## Histórico — pacote do executor filho e CI #225 (24/10/2026)
 
 [Pacote, revisão de segurança, gates e comandos Windows](./QA_C1_CHILD_EXECUTOR_20261024.md).
 [Evidência verificável](./evidence/stock-c1-child-executor-ci225-20261024.json).
@@ -11,7 +42,7 @@
   de checkpoint; perdas de resposta, concorrência, expiração e falhas de persistência testadas.
 - [x] Código **4f8e908d987fced2a2dc3ddc5914b408d5a5881e** publicado só na QA. [CI #225](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/40143125326):
   **1.001/1.001 PASS**, zero FAIL/SKIP nos testes executados; **9 jobs PASS e 4 persistentes BLOCKED**.
-  PowerShell PowerShell 5.1/7, PostgreSQL descartável, Chromium e preflight geral autenticado PASS.
+  PowerShell 5.1/7, PostgreSQL descartável, Chromium e preflight geral autenticado PASS.
 - [x] Local: **691/691 regressões +34/34 browser**, zero FAIL/SKIP; build/parse Edge PASS.
   CI #223/#224: 998/1000, 2 FAIL do mesmo teste Windows; alias TEMP corrigido e comprovado na CI #225.
 - [x] SELECT complementar de segurança e SELECT de precisão/contratos de compras preparados;
@@ -22,8 +53,8 @@
 - [ ] Preflight autenticado **do filho com o pai original**, baseline atual e janela exclusiva.
   O PASS do preflight geral da CI não substitui esse gate. Sessão sem Desktop Commander/SQL;
   isso não significa que o notebook esteja indisponível globalmente. Não pedir segredos no chat.
-- [ ] Nova autorização específica para 4 RPCs estoque +4 auditoria / 6 movimentos / 0 sondagens,
-  vinculada ao código/pai/fixture/janela. Nenhuma movimentação C1 ou auditoria foi enviada aqui.
+- [x] Autorização condicional posteriormente recebida para 4 RPCs estoque + 4 auditoria / 6 movimentos / 0 sondagens;
+  ver registro vigente acima. Nenhuma movimentação C1 ou auditoria foi enviada; demais gates permanecem pendentes.
 - [ ] C1 real 18/18; escala atual de compras, idempotência instalada e jornadas de compra/financeiro;
   perfis MANAGER/EMPLOYEE reais continuam pendentes, sem novas contas ou alterações persistentes.
 
@@ -111,7 +142,7 @@ Código publicado: **a60c0980ceb6005a90f99f8072af9b4b6639af02**. [CI #212](https
 Código validado: **9ec21c609a196a4a30e9028e02faf4a581b29962**. [CI #209](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39800164617): **760/760 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 grupos persistentes BLOCKED/ignorados pelo gate**. [Evidência](./evidence/stock-c1-ci-209-20261022.json).
 
 - Proprietário informou patch de precisão instalado, fixture exclusiva pronta e preflight Windows real **5/5 PASS**. Evidência informada, sem observação direta nesta sessão; não reaplicar migração.
-- Entregues quatro passos delimitados (ajuste +0,125; transferência0,500; inversa0,500; ajuste final), checkpoint privado, mutex, guard por sessão e recuperação sem escrita. C2/perdas fora da autorização.
+- Entregues quatro passos delimitados (ajuste +0,125; transferência 0,500; inversa 0,500; ajuste final), checkpoint privado, mutex, guard por sessão e recuperação sem escrita. C2/perdas fora da autorização.
 - Auditoria de transferências e confirmação de falha sem repetir estoque corrigidas; transporte rejeita replay, concorrência, sessão errada e leituras truncadas.
 - Local: **506/506 regressões +24/24 browser HTTP simulado PASS**, build e análise das duas Edge Functions PASS. Windows C1: 10/10 PS 5.1 e 10/10 PS 7 com arquivos sintéticos. Não são homologação C1.
 - Gate npm corrigido: erro/incompletude bloqueiam sem falso zero. Oito regressões PASS. Auditorias completas: runtime zero; sete alertas conhecidos de desenvolvimento/build permanecem (cinco altos, dois moderados), sem atualização de dependências.

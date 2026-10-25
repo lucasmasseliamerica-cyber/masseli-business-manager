@@ -1,0 +1,126 @@
+{
+  "scope": "C1_CHILD_CONDITIONAL_AUTHORIZATION_NOT_EXECUTION",
+  "recorded_at": "2026-10-24T21:42:59.544526-04:00",
+  "source": "Explicit conditional authorization supplied by owner in this conversation",
+  "branch": "automation/nexalvo-qa-actions",
+  "project_ref_expected": "msinksoilkluooxenecy",
+  "authorized_code_sha": "4f8e908d987fced2a2dc3ddc5914b408d5a5881e",
+  "fixture": "ZZ_QA_STOCK_C_20261022_EXCLUSIVE",
+  "conditional_authorization_received": true,
+  "parent_binding": "Original parent and trusted SHA-256 must be verified locally; not supplied or versioned",
+  "operation_plan": [
+    {
+      "step": 1,
+      "operation": "SOURCE_COUNT_ADJUSTMENT",
+      "delta": 0.125,
+      "expected_source": 2.125,
+      "expected_target": 2
+    },
+    {
+      "step": 2,
+      "operation": "SOURCE_TO_TARGET",
+      "quantity": 0.5,
+      "expected_source": 1.625,
+      "expected_target": 2.5
+    },
+    {
+      "step": 3,
+      "operation": "TARGET_TO_SOURCE",
+      "quantity": 0.5,
+      "expected_source": 2.125,
+      "expected_target": 2
+    },
+    {
+      "step": 4,
+      "operation": "SOURCE_COUNT_ADJUSTMENT",
+      "delta": -0.125,
+      "expected_source": 2,
+      "expected_target": 2
+    }
+  ],
+  "mutation_budget": {
+    "stock_rpc": 4,
+    "audit_rpc": 4,
+    "movement_rows": 6,
+    "repeated_negative_probes": 0
+  },
+  "expected_baseline": {
+    "source_quantity": 2,
+    "target_quantity": 2,
+    "source_average_cost": 0.1,
+    "target_average_cost": 0.1
+  },
+  "conditions": {
+    "original_parent_integrity_required": true,
+    "fresh_test_catalog_review_required": true,
+    "authenticated_child_preflight_pass_required": true,
+    "current_baseline_required": true,
+    "no_existing_child_or_reservation_required": true,
+    "new_exclusive_window_required": true,
+    "one_child_bound_to_original_parent_required": true,
+    "durable_intent_before_each_send_required": true,
+    "unknown_result_forbids_replay": true,
+    "automatic_compensation_forbidden": true,
+    "history_and_checkpoints_preserved": true,
+    "execution_count_limit": 1
+  },
+  "excluded": [
+    "production",
+    "main",
+    "new_fixtures",
+    "waste",
+    "sales",
+    "purchases",
+    "expenses",
+    "migrations",
+    "permission_changes",
+    "other_module_mutations"
+  ],
+  "session_verification": {
+    "branch": "PASS",
+    "local_worktree_initially_clean": true,
+    "local_remote_head_before_record": "9d9e8e5f7c8b3a65575888ff3c476d6fc3435089",
+    "authorized_sha_in_history": "PASS",
+    "changes_after_authorized_sha": "DOCUMENTATION_ONLY",
+    "sql_read_integration_available": false,
+    "desktop_commander_available": false,
+    "windows_workspace_mounted": false,
+    "qa_owner_sessions_configuration_available": false,
+    "parent_binding_configuration_available": false,
+    "current_catalog_configuration_available": false,
+    "independent_review_digest_available": false,
+    "new_exclusive_window_confirmed": false
+  },
+  "execution_status": "BLOCKED_BEFORE_WRITES",
+  "current_parent_integrity": "BLOCKED_NOT_OBSERVED",
+  "current_security_review": "BLOCKED_FRESH_EXPORTS_UNAVAILABLE",
+  "authenticated_child_preflight": "BLOCKED_NOT_EXECUTED",
+  "current_fixture_and_costs": "BLOCKED_NOT_OBSERVED",
+  "absence_of_previous_child_or_reservation": "BLOCKED_NOT_OBSERVED",
+  "new_exclusive_window": "BLOCKED_NOT_CONFIRMED",
+  "stock_requests_forwarded_this_session": 0,
+  "audit_requests_forwarded_this_session": 0,
+  "negative_requests_forwarded_this_session": 0,
+  "original_checkpoint_accessed_this_session": false,
+  "child_reserved_this_session": false,
+  "global_authorization_consumption_verified": false,
+  "full_homologation": false,
+  "baseline_ci": {
+    "number": 225,
+    "run_id": "40143125326",
+    "total": 1001,
+    "passed": 1001,
+    "failed": 0,
+    "skipped_tests": 0,
+    "jobs_passed": 9,
+    "persistent_jobs_blocked": 4,
+    "rerun_this_session": false
+  },
+  "macro": {
+    "completed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67
+  }
+}

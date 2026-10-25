@@ -1,9 +1,11 @@
 # C1 — executor filho dedicado (24/10/2026)
 
 Branch exclusiva `automation/nexalvo-qa-actions`; projeto TEST `msinksoilkluooxenecy`.
-Este pacote não autoriza execução persistente. Recuperação do pai encerrada como PASS;
+O proprietário posteriormente concedeu [autorização condicional](./evidence/stock-c1-child-conditional-authorization.json)
+para uma única execução deste código; os gates atuais continuam pendentes. Recuperação do pai encerrada como PASS;
 jornadas A/B preservadas. O ciclo C1 real permanece BLOCKED até todos os gates atuais
-e uma autorização específica. CI, Chromium interceptado e PostgreSQL descartável não
+e a nova janela confirmada. A autorização recebida não precisa ser solicitada novamente
+dentro do escopo, nem substitui qualquer gate. CI, Chromium interceptado e PostgreSQL descartável não
 homologam movimentações reais.
 
 ## Implementação e oito gates
@@ -46,7 +48,7 @@ não salva estado, libera reserva ou habilita retomada. Um movimento confirmado 
 após timeout pode ser identificado sem autorizar o seguinte. Ausência de efeito não prova
 rollback de um pedido incerto. Eventual correção de saldo exige análise e autorização próprias.
 
-## Orçamento persistente proposto — ainda não autorizado
+## Orçamento persistente autorizado condicionalmente — execução bloqueada
 
 Usar somente a fixture C1 existente, definida em `qa/stock-c1-protocol.mjs` e vinculada ao pai:
 item `6ebfef52-f6c2-4561-b2ac-b3d4bfca1c5f`, SOURCE
@@ -149,7 +151,7 @@ preflight/SQL/Auth. Registrar separadamente o digest revisado antes de utilizá-
 **Somente depois de autorização específica vinculada ao código/pai/orçamento/janela:**
 
 ```powershell
-# Bloco futuro, NÃO autorizado pela preparação do pacote ou pela CI.
+# Bloco futuro: autorização do proprietário recebida; NÃO executar antes de todos os gates e nova janela.
 $env:QA_C1_CHILD_EXECUTION_AUTHORIZED='TEST_ONLY_EXPLICIT_C1_CHILD_20261023'
 $env:QA_C1_CHILD_AUTHORIZED_CODE_SHA=$codeSha
 $env:QA_C1_CHILD_AUTHORIZED_PARENT_SHA256=$parentHash.ToLowerInvariant()

@@ -1,5 +1,11 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+**Autorização C1 CHILD recebida:** [escopo condicional e gates pendentes](./evidence/stock-c1-child-conditional-authorization.json).
+Válida para uma execução futura do código 4f8e908, 4 RPCs estoque + 4 auditoria, 6 movimentos e 0 sondagens
+repetidas, na fixture C1 existente. **Execução continua BLOCKED**: pai/reserva/baseline atuais,
+exports revisados, preflight do filho e nova janela ainda não observados/confirmados nesta sessão.
+Nenhuma gravação/filho iniciado; autorização não equivale à homologação. Macro 16/60 preservada.
+
 **C1 vigente (24/10/2026):** [executor filho e procedimento dedicado](./QA_C1_CHILD_EXECUTOR_20261024.md).
 Código **4f8e908d987fced2a2dc3ddc5914b408d5a5881e**, [CI #225](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/40143125326):
 **1.001/1.001 PASS**, zero falhas/skips nos testes executados; **9 jobs PASS e 4 persistentes BLOCKED**.
