@@ -1,0 +1,316 @@
+{
+  "scope": "INDEPENDENT_METADATA_AND_SOURCE_REVIEW_FOR_C1_CHILD_READONLY_PREFLIGHT",
+  "review_status": "PASS_FOR_C1_READONLY_PREFLIGHT_ONLY",
+  "review_completed_at": "2026-10-25T13:51:43.574584+00:00",
+  "code_sha": "4f8e908d987fced2a2dc3ddc5914b408d5a5881e",
+  "inputs": {
+    "catalog": {
+      "basename": "nexalvo-c1-catalog.json",
+      "bytes": 6744,
+      "sha256": "0b07096a8ebcdc479632c289c94eae7850cd87f61052917bd3c9f06b7d578e2a"
+    },
+    "security": {
+      "basename": "nexalvo-c1-child-security.json",
+      "bytes": 105044,
+      "sha256": "fcfc2e5c0bea21c98d9bf351a9c0b8fe780c4662d5166b5981c5f90f3e3398cd"
+    }
+  },
+  "capture_timestamps": {
+    "catalog": "2026-10-25T02:11:43.633561+00:00",
+    "security": "2026-10-25T02:22:01.782958+00:00"
+  },
+  "expires_at": "2026-10-26T02:11:43.633561+00:00",
+  "expires_at_new_york": "2026-10-25T22:11:43.633561-04:00",
+  "counts": {
+    "tables": 13,
+    "columns": 141,
+    "policies": 22,
+    "triggers": 4,
+    "functions": 12
+  },
+  "secret_scan": "PASS_NO_FINDINGS",
+  "format": "PASS_STRICT_JSON_UNIQUE_KEYS_FINITE_VALUES",
+  "source_and_fingerprint_comparison": {
+    "scope": "DISPOSABLE_POSTGRES_SOURCE_RENDERING_ONLY",
+    "result": "PASS",
+    "postgres_image": "postgres:17-alpine",
+    "network": "none",
+    "functions_rendered": 16,
+    "business_function_invocations": 0,
+    "business_rows_created": 0,
+    "test_database_contacted": false,
+    "results": [
+      {
+        "name": "current_business_id",
+        "exact_body_sha256": "b1564eb836fae053d73d3e968686269e000245c5b425674f9e75088b8b952cd6",
+        "function_fingerprint": "8326e5f1bc2ecf720cb0aa3be9a0d0d6",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_adjust_inventory_count",
+        "exact_body_sha256": "61ce6f96da3c89ea5fa8b67497376a133ffc3d72dad1bfa68f362184c8913198",
+        "function_fingerprint": "ce5f2ab5348165439c90212c1f5f90ce",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_read_inventory_stock_secure",
+        "exact_body_sha256": "e1ee0e3e57e9fc85ccd717c786350903f190669ce3d90b05cd7cec3c1740ebaa",
+        "function_fingerprint": "57116f28b9ae161d5240058a34b8afa9",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_read_inventory_transactions_secure",
+        "exact_body_sha256": "49b184bd08d5e4fbe8f1aa751f9a28d8d24e0adc99d881fa492f7f46f6e1dc5d",
+        "function_fingerprint": "7c7e3ab8797be57daa71574e59d0f553",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_read_purchase_order_items_secure",
+        "exact_body_sha256": "278619fb0fd944f20a9e32e45a86997155b35ac76e4008b833971d3de9da1ac6",
+        "function_fingerprint": "de4aa1b81b87e33433ef3bbf1b072076",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_read_waste_transactions_secure",
+        "exact_body_sha256": "7c2a163faa7d766485c6cfd3d8acb84815f2e3faf7260de02830cdc5d81e3b1a",
+        "function_fingerprint": "27054c6cd813e97f4416d3445fdfa5d2",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_record_inventory_movement",
+        "exact_body_sha256": "812d949cf0ba934c64341a007eb648c8a009f0d86bd49ae93d277b9a677b05ed",
+        "function_fingerprint": "27bb16e1ab20acc78ef5bb2f25eb9c04",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_record_waste",
+        "exact_body_sha256": "a32529ea46e5467b16cc15ca6ecad85ea6bd26b1d86dcdcd1e2d09fff08ae8d2",
+        "function_fingerprint": "185a854265f9f345b44c96ce31aa3485",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_session_access_status",
+        "exact_body_sha256": "113028f7873eed5445cf1e13274ac4a484256b7a65484d93e990625cb432b784",
+        "function_fingerprint": "3f60c3102ff1722c5d7100212c4bbb16",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_transfer_inventory",
+        "exact_body_sha256": "b16afdeb04e38708da0f723d9c3f600c9a503f808b08c786fe88c915f20afd57",
+        "function_fingerprint": "220be0af82a92406b8f141ab3cb279d7",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "fn_write_audit",
+        "exact_body_sha256": "7fecdf24cfd6cf01a27a9c846ffe16cb03950f9b84e4ba54737539d56b8e68f8",
+        "function_fingerprint": "ae296834d6afe1b9cfafb6da668d5c0e",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "user_can",
+        "exact_body_sha256": "fdf625774681198fa3b7a4a047e5a03442c15b77dc7ea091fa99b97cc87494eb",
+        "function_fingerprint": "78e7ac15c93a208fdec8baf37e2b9c02",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING"
+      },
+      {
+        "name": "trg_validate_inventory_item_tenant_references",
+        "exact_body_sha256": "54e5387b6e6ef5c3e5f6397495b2adfcca82ba6272651a4f4a8297815c513708",
+        "function_fingerprint": "b08c6f8bdb740824d8850e593a482fe0",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING",
+        "settings": [
+          "search_path=\"\""
+        ]
+      },
+      {
+        "name": "trg_validate_recipe_tenant_references",
+        "exact_body_sha256": "9e9c9d25af1780c9823395e409ab033233ecd4e5cc24abaa8b1266ed007cb27e",
+        "function_fingerprint": "bc71e18c5969965100281266b5d12bf4",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING",
+        "settings": [
+          "search_path=\"\""
+        ]
+      },
+      {
+        "name": "trg_prevent_self_privilege_escalation",
+        "exact_body_sha256": "726c99c2947fe5085d4cad086dd6adc53b7fba2a63f7c115e16102981552d6d9",
+        "function_fingerprint": "fffa8e8473147183978e5d49080e91b0",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING",
+        "settings": [
+          "search_path=public"
+        ]
+      },
+      {
+        "name": "trg_validate_user_permission_overrides",
+        "exact_body_sha256": "5d98b7540a10d0daac6317d6082f413509e9bf38258cfb5ede97d3298c04cac4",
+        "function_fingerprint": "9fe2814f30f7087988d7da5d27048834",
+        "result": "PASS_EXACT_SOURCE_AND_POSTGRES_RENDERING",
+        "settings": [
+          "search_path=public"
+        ]
+      }
+    ]
+  },
+  "cross_export_comparison": "PASS_NINE_OVERLAPPING_FUNCTIONS_AND_TEN_TABLES",
+  "function_review": "PASS_ACTIVE_AUTH_IDENTITY_TENANT_PERMISSION_GUARDS_BEFORE_MUTATIONS_EXACT_REVIEWED_SOURCES",
+  "policy_review": "PASS_ALL_22_TENANT_PREDICATES_AND_EXPLICIT_ROLES_EXCEPT_INTENDED_READONLY_SHARED_PERMISSION_DEFAULTS",
+  "column_review": "PASS_COST_COLUMNS_PROTECTED_AND_BUSINESS_LICENSE_AND_USER_PRIVILEGE_UPDATES_DENIED",
+  "trigger_review": "PASS_ALL_FOUR_ENABLED_EXACT_DEFINITIONS_AND_FUNCTION_SOURCES",
+  "conditional_risks": [
+    {
+      "code": "AUTHENTICATED_TRIGGER_AND_REFERENCES_GRANTS",
+      "tables": 13,
+      "decision": "ACCEPTED_FOR_BOUNDED_HTTP_PREFLIGHT_NOT_A_GENERAL_SQL_SECURITY_APPROVAL",
+      "reason": "No schema CREATE or role membership/bypass; reviewed HTTP path exposes no DDL. Future least-privilege cleanup needs separate authorization."
+    },
+    {
+      "code": "SEARCH_PATH_PUBLIC",
+      "public_functions": 4,
+      "invoker_triggers": 2,
+      "decision": "CONDITIONAL_RISK_NOT_CONFIRMED_EXPLOIT",
+      "reason": "Exact source hashes match; no API schema CREATE; no dynamic SQL in scoped paths. Recommend explicit qualification in a separate reviewed change."
+    },
+    {
+      "code": "SHARED_ROLE_DEFAULTS_SELECT_TRUE",
+      "decision": "EXPECTED_READONLY_SHARED_CONFIGURATION",
+      "reason": "Three global permission-definition columns, SELECT-only RLS, no write policy despite table grants."
+    }
+  ],
+  "purchases_observation": {
+    "qty_ordered": "numeric(12,3)",
+    "received_qty": "numeric(12,3)",
+    "scope": "CAPTURED_METADATA_ONLY_NOT_PURCHASE_LIFECYCLE_OR_RPC_ATTESTATION"
+  },
+  "provenance": "Owner-reported direct TEST capture validated on Windows; exports are not signed server attestations and connection_identity must remain externally verified",
+  "canonical_digest_calculated_before_review": false,
+  "authenticated_child_preflight": "BLOCKED_NOT_EXECUTED_HERE_WINDOWS_AND_QA_SESSIONS_UNAVAILABLE",
+  "parent_baseline_and_reservation": "NOT_OBSERVED_THIS_REVIEW",
+  "persistent_operations": 0,
+  "negative_probes": 0,
+  "parent_accessed": false,
+  "authorization": "CONDITIONAL_GRANT_COMMIT_045bc93_PRESERVED_ALL_REMAINING_GATES_REQUIRED",
+  "full_homologation": false,
+  "canonical_security_sha256": "0806aea4e9234e2eedb25e684a838773b0da9001249152cabfbfbc5f06cdf825",
+  "canonical_digest_calculated_after_review": true,
+  "approved_code_validators": {
+    "stock_catalog": "PASS",
+    "precision": "PASS",
+    "audit": "PASS",
+    "child_security": "PASS"
+  },
+  "validator_conditional_findings": [
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "audit_logs"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "businesses"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "cash_flow"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "inventory_items"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "inventory_stock"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "inventory_transactions"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "locations"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "product_recipes"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "purchase_order_items"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "purchase_orders"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "role_default_permissions"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "users"
+    },
+    {
+      "code": "AUTHENTICATED_TRIGGER_GRANT_REQUIRES_CONTEXT_REVIEW",
+      "table": "waste_transactions"
+    },
+    {
+      "code": "TRIGGER_DEFINITION_REQUIRES_CONTEXT_REVIEW",
+      "table": "inventory_items"
+    },
+    {
+      "code": "TRIGGER_DEFINITION_REQUIRES_CONTEXT_REVIEW",
+      "table": "product_recipes"
+    },
+    {
+      "code": "TRIGGER_DEFINITION_REQUIRES_CONTEXT_REVIEW",
+      "table": "users"
+    },
+    {
+      "code": "TRIGGER_DEFINITION_REQUIRES_CONTEXT_REVIEW",
+      "table": "users"
+    }
+  ],
+  "source_provenance": {
+    "historical_public_export_sha256": "a9e17a9bd5284616fc2356555beb407fb823994e4d34b8ebcdc10784b7e2856f",
+    "current_sources": [
+      "qa/fixtures/stock-c-baseline.json",
+      "migrations/20261016_platform_admin_TEST.sql",
+      "migrations/20261017_catalog_security_hardening_TEST.sql",
+      "migrations/20261022_inventory_quantity_precision_TEST.sql"
+    ],
+    "authorized_code_unchanged": true,
+    "raw_exports_versioned": false
+  },
+  "local_validation": {
+    "security_validator_tests": {
+      "passed": 22,
+      "total": 22,
+      "failed": 0,
+      "skipped": 0,
+      "tap_sha256": "b604b704625903f31cde6c79c76c510cc4670336d640e50cde9a345f1e10d11d"
+    },
+    "source_rendering": {
+      "functions": 12,
+      "trigger_functions": 4,
+      "exact_body_and_full_definition_matches": 16,
+      "business_function_invocations": 0,
+      "local_database_disposable": true,
+      "network": "none"
+    },
+    "ci_baseline": 225,
+    "ci_rerun": false,
+    "reason": "Approved code is unchanged; only document/evidence updates are prepared."
+  },
+  "limitations": [
+    "Review covers the 12 functions/13 tables/141 columns/22 policies/4 triggers exported for C1, not all application objects.",
+    "Capture provenance is owner-reported; no live Supabase connection was used by this session.",
+    "The exports contain metadata, not current fixture balances, OWNER sessions, parent checkpoint bytes or the reservation registry.",
+    "Direct EXECUTE ACLs of trigger functions are not included; trigger return types cannot be invoked as ordinary RPCs. No claim of a full trigger ACL audit is made.",
+    "C1 write operations do not mutate the tables carrying these four triggers; broader application write paths require their own acceptance."
+  ],
+  "canonical_digest_approval_scope": "THIS_REVIEWED_SECURITY_PAYLOAD_FOR_READONLY_CHILD_PREFLIGHT_WITHIN_CAPTURE_TTL_ONLY",
+  "macro": {
+    "completed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29,
+    "percent": 26.67
+  }
+}

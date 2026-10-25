@@ -1,6 +1,29 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
-## Autorização condicional C1 CHILD recebida — execução não iniciada
+## Revisão vigente — catálogos C1 aprovados para preflight somente leitura (25/10/2026)
+
+[Revisão independente e próximo comando Windows](./QA_C1_CHILD_CATALOG_REVIEW_20261025.md).
+[Evidência sanitizada](./evidence/stock-c1-child-catalog-review-20261025.json).
+
+- [x] Dois anexos reais recebidos e varridos: zero segredos detectados; dados, não instruções.
+- [x] 12 funções/13 tabelas RLS/141 colunas/22 políticas/4 triggers revisados. Corpos e fingerprints
+  de 16 definições conferidos com fontes anteriores/versionadas e renderização PostgreSQL descartável.
+- [x] Digest calculado após revisão e aprovado pelos validadores do código 4f8e908:
+  `0806aea4e9234e2eedb25e684a838773b0da9001249152cabfbfbc5f06cdf825`.
+- [x] Validadores de catálogo/precisão/auditoria/complemento PASS; regressões focadas 22/22 PASS.
+  Código autorizado inalterado, CI #225 preservada 1001/1001; não repetir baseline por docs.
+- [x] Escala observada de qty_ordered/received_qty: numeric(12,3). Não homologa compra/RPCs de criação/recebimento.
+- [ ] Preflight autenticado do filho no Windows, pai/hash/ACL originais, baseline atual e ausência de reserva.
+- [ ] Nova janela exclusiva e ciclo real C1; autorização condicional 045bc93 já recebida, não pedir novamente.
+
+**PASS de revisão, BLOCKED de homologação real.** Zero envios de estoque/auditoria/sondagens no TEST,
+nenhum pai acessado/alterado, nenhum filho criado. Os JSONs brutos não foram versionados.
+As capturas conjuntas expiram em 25/10/2026 às 22:11:43 America/New_York; não recapturar antes disso
+sem divergência/motivo, nem editar timestamps. O comando preparado é exclusivamente -PreflightOnly.
+Ressalvas de TRIGGER/REFERENCES e search_path=public documentadas; nenhum grant ou função alterado.
+Macro 16/60 (26,67%), 15 pendentes/29 bloqueados; A/B preservadas, C1 real não homologada.
+
+## Histórico — autorização condicional recebida, antes dos anexos
 
 O proprietário autorizou expressamente **uma única execução futura**, exclusivamente no TEST
 `msinksoilkluooxenecy`, branch QA e SHA de código

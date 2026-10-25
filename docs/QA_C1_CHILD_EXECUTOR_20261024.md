@@ -1,5 +1,10 @@
 # C1 — executor filho dedicado (24/10/2026)
 
+**Revisão vigente 25/10:** os [dois anexos foram aprovados para o preflight somente leitura](./QA_C1_CHILD_CATALOG_REVIEW_20261025.md).
+Usar o digest aprovado e o comando desse relatório, dentro do prazo das capturas. Nenhum código
+foi alterado; SHA autorizado 4f8e908 permanece válido. Não executar o bloco persistente abaixo
+nesta etapa. Autorização condicional já recebida; ainda faltam preflight real e nova janela.
+
 Branch exclusiva `automation/nexalvo-qa-actions`; projeto TEST `msinksoilkluooxenecy`.
 O proprietário posteriormente concedeu [autorização condicional](./evidence/stock-c1-child-conditional-authorization.json)
 para uma única execução deste código; os gates atuais continuam pendentes. Recuperação do pai encerrada como PASS;

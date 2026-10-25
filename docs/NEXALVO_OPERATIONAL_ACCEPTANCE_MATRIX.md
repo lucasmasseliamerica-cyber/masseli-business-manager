@@ -1,5 +1,13 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+**C1 vigente 25/10:** [revisão dos dois catálogos PASS para preflight](./QA_C1_CHILD_CATALOG_REVIEW_20261025.md).
+12 funções, 13 tabelas RLS, 141 colunas, 22 políticas e 4 triggers conferidos; 16 definições com hashes exatos.
+Digest aprovado `0806aea4e9234e2eedb25e684a838773b0da9001249152cabfbfbc5f06cdf825`.
+**C1 real/preflight autenticado continuam BLOCKED** até leituras no Windows do pai/baseline/reserva
+com sessões atuais; nova janela necessária somente depois. Autorização condicional 045bc93 preservada.
+Escala de compras numeric(12,3) confirmada por metadados; lifecycle/RPCs ainda pendentes.
+Nenhuma mutação TEST ou critério macro promovido; macro 16/60=26,67% preservada.
+
 **Autorização C1 CHILD recebida:** [escopo condicional e gates pendentes](./evidence/stock-c1-child-conditional-authorization.json).
 Válida para uma execução futura do código 4f8e908, 4 RPCs estoque + 4 auditoria, 6 movimentos e 0 sondagens
 repetidas, na fixture C1 existente. **Execução continua BLOCKED**: pai/reserva/baseline atuais,
