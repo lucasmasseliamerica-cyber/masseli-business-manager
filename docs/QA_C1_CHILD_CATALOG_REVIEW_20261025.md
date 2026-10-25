@@ -136,6 +136,15 @@ Compartilhar somente o JSON agregado sanitizado resultante. O PASS geral da CI n
 esse preflight do filho. Após PASS ainda será necessária a nova janela exclusiva confirmada,
 respeitando a autorização condicional já recebida. Não repetir sondagens de escrita antigas.
 
+Resultado esperado do modo somente leitura: `scope=C1_CHILD_READONLY_PREFLIGHT`, `status=PASS`,
+`code=C1_CHILD_READONLY_GATES_PASS_EXECUTION_NOT_AUTHORIZED`, pai inalterado, reserva disponível
+e contadores estoque/auditoria/sondagens iguais a zero. Os gates de integridade, identidades,
+segurança e baseline devem passar. Janela, reserva do filho, intenções e flag de execução
+permanecem BLOCKED nesse modo por definição: o preflight não deve criá-las. O nome do código
+não revoga a autorização condicional humana já registrada, nem exige outra autorização;
+indica que este comando continua exclusivamente de leitura. Não transformar esse PASS em
+homologação C1 ou executar outro modo automaticamente.
+
 ## Evidências locais e pendências
 
 22/22 testes focados do validador aprovados, zero falhas/skips; os quatro validadores executados
