@@ -1,5 +1,33 @@
 # C1 — recaptura TEST e bloqueio de sessão antiga (02/11/2026)
 
+## Estado vigente — C1 real encerrada PASS (02/11/2026)
+
+[Fechamento por critério e limites](./QA_C1_CHILD_REAL_CLOSURE_20261102.md) ·
+[Evidência real sanitizada](./evidence/stock-c1-child-real-pass-20261102.json).
+
+**C1: 18/18 checks e 8/8 gates PASS**, saída 0, `C1_CHILD_REAL_UI_CYCLE_RESTORED`.
+Relatório lido diretamente no notebook, salvo em 02/11 às 20:09:52 UTC (15:09:52 America/New_York).
+Quatro RPCs estoque + quatro auditoria, seis movimentos e quatro auditorias reconciliados;
+zero sondagens repetidas, histórico apagado ou fixtures criadas.
+As duas posições retornaram a 2,000, custo médio 0,1000; pai original preservado.
+Hash do filho conferido após execução; registro contém reserva e filho. **Reserva consumida:
+sem replay, segundo filho ou nova execução.** Não apagar checkpoints/registro.
+
+- [x] C1 real: ajuste, transferência de ida/retorno, reload, histórico e restauração de quantidade/custo.
+- [ ] C2/perdas, CRUD completo de estoque e concorrência autenticada com operadores reais.
+
+A cobertura macro continua **16/60 (26,67%)**, 15 pendentes/29 bloqueados, estoque 2/4.
+O critério amplo de UI exige também cadastro/edição e perdas; a reconciliação já estava aprovada
+pelo ciclo B e recebe corroboração, sem crédito duplicado.
+`full_homologation=true` no relatório refere-se ao escopo C1, não ao aplicativo inteiro.
+Autorização/janela C1 não se estendem a C2, compras, financeiro ou migrações.
+Código validado `4f8e908d987fced2a2dc3ddc5914b408d5a5881e`, CI #225, A/B, main e produção preservados.
+
+As seções abaixo são histórico anterior ao fechamento; bloqueios de C1 nelas foram superados
+somente no escopo e pela evidência real vinculada acima. Não repetir testes aprovados.
+
+
+
 ## Resultado vigente — preflight autenticado real PASS (02/11/2026, 15:05 America/New_York)
 
 O relatório sanitizado salvo no notebook foi lido diretamente após o término do launcher:
