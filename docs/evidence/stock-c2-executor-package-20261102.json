@@ -5,11 +5,11 @@
   "project": "msinksoilkluooxenecy",
   "validation": {
     "c2_offline": {
-      "tests": 29,
-      "pass": 29,
+      "tests": 30,
+      "pass": 30,
       "fail": 0,
       "skipped": 0,
-      "report_sha256": "5bf300bff88035f9d6f521f0efd443a66a5eebd2c6d27f683cbd805cc7bee953",
+      "report_sha256": "715150a81bf5921ed7443a9e6b7966ebcd29c732febd6ff76d8485eb02afc263",
       "node": "24.21.0",
       "playwright": "1.64.0",
       "real_chromium_react": true,
@@ -34,11 +34,17 @@
     },
     "build": "PASS",
     "powershell_parser": "PASS",
-    "ci": "PENDING_PUBLICATION",
+    "ci": "PENDING_REVISED_CODE_CI",
     "staged_secret_scan": "PASS_NO_DETECTED_SECRETS_IN_23_FILES",
     "new_js_parse": "PASS",
     "app_mirrors": "UNCHANGED_AND_IDENTICAL",
-    "native_store_after_timeout_bound": "PASS"
+    "native_store_after_timeout_bound": "PASS",
+    "first_ci": {
+      "run_id": 41521375287,
+      "code_sha": "12f1b814f777c7c5fce08cc3f308da66bc75fbd8",
+      "linux": "28/29 PASS, test-created torn-tail file had default 0644; private-mode guard correctly rejected it. Test now creates its synthetic file with 0600; guard unchanged.",
+      "windows": "CANCELLED by matrix fail-fast after Linux test-file permission failure; no PASS claimed"
+    }
   },
   "readonly_test_observations": {
     "id_collision_capture_utc": "2026-11-02T20:22:29.018533Z",

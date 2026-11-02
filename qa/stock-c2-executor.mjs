@@ -57,6 +57,9 @@ export async function stockC2(env=process.env,args=process.argv.slice(2),depende
   }finally{
     try{await runtime?.close();}catch{report.status='BLOCKED';report.full_homologation=false;report.code='C2_RUNTIME_CLEANUP_UNCONFIRMED';}
     try{await client?.close();}catch{/* never expose session errors */}
+    if(mode==='execute'&&state&&report.status==='PASS'){
+      try{store.assertCurrent();}catch{report.status='BLOCKED';report.full_homologation=false;report.code='C2_FINAL_JOURNAL_CHANGED';report.execution_result_unconfirmed=true;}
+    }
     if(mode==='recover-readonly'&&recoveryHash){try{need(store.load(true).checksum===recoveryHash,'RECOVERY_CHANGED_JOURNAL');}catch{report.status='BLOCKED';report.code='C2_RECOVERY_JOURNAL_CHANGED';}}
     process.off('SIGINT',stop);process.off('SIGTERM',stop);
   }
