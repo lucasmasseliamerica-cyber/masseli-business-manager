@@ -1,0 +1,97 @@
+{
+  "provenance": {
+    "type": "DIRECT_READ_OF_WINDOWS_SAVED_SANITIZED_REPORT",
+    "observed_date": "2026-11-02",
+    "saved_report_sha256": "509128797db5c3b4b9980787a8232b8ba32ec0923dde7875a29149091d127ce2",
+    "saved_report_written_at_utc": "2026-11-02T20:09:52.3884897Z",
+    "exit_code": 0,
+    "post_execution_original_parent_hash_matches": 1,
+    "post_execution_registry_entries": 2,
+    "child_hash_rechecked_matches_report": true
+  },
+  "report": {
+    "scope": "C1_CHILD_REAL_TEST_STOCK",
+    "status": "PASS",
+    "code": "C1_CHILD_REAL_UI_CYCLE_RESTORED",
+    "checks": {
+      "catalog": "PASS",
+      "owner_a_b": "PASS",
+      "permissions": "PASS",
+      "read_isolation": "PASS",
+      "exclusive_fixture": "PASS",
+      "exclusive_window": "PASS",
+      "snapshot": "PASS",
+      "write_isolation": "PASS",
+      "ui_adjustment": "PASS",
+      "ui_transfer": "PASS",
+      "ui_reverse_transfer": "PASS",
+      "persist_reload": "PASS",
+      "ui_history": "PASS",
+      "unique_movements": "PASS",
+      "audit_history": "PASS",
+      "stock_restored": "PASS",
+      "cost_restored": "PASS",
+      "checkpoint_integrity": "PASS"
+    },
+    "gates": {
+      "parent_integrity": "PASS",
+      "identity_permissions": "PASS",
+      "current_security": "PASS",
+      "unchanged_baseline": "PASS",
+      "exclusive_window": "PASS",
+      "single_child_reservation": "PASS",
+      "durable_intents": "PASS",
+      "specific_authorization": "PASS"
+    },
+    "stock_requests_forwarded": 4,
+    "audit_requests_forwarded": 4,
+    "negative_requests_forwarded": 0,
+    "history_rows_deleted": 0,
+    "fixtures_created": 0,
+    "parent_checkpoint_unchanged": true,
+    "restored": true,
+    "full_homologation": true,
+    "resume_allowed": false,
+    "source_sha": "c87125e09616f5166a33dbdf4de81221ef3e3716",
+    "validated_code_sha": "4f8e908d987fced2a2dc3ddc5914b408d5a5881e",
+    "security_sha256": "0806aea4e9234e2eedb25e684a838773b0da9001249152cabfbfbc5f06cdf825",
+    "reservation_available": true,
+    "historical_negative_probes_confirmed": 2,
+    "write_isolation_basis": "PARENT_DENIED_RECEIPTS_AND_CURRENT_SECURITY_REVIEW_NO_REPLAY",
+    "child_checkpoint_sha256": "e9cb9e3f4b46b6b996a98d4cdd02be15de06d57a1e4ff20c330d3151c2ce5b88",
+    "reconciliation": {
+      "stage": 4,
+      "stock_restored": true,
+      "cost_restored": true,
+      "movement_rows": 6,
+      "audit_rows_added": 4,
+      "positions": [
+        {
+          "position": 1,
+          "qty_before": 2,
+          "qty_after": 2,
+          "average_cost_before": 0.1,
+          "average_cost_after": 0.1
+        },
+        {
+          "position": 2,
+          "qty_before": 2,
+          "qty_after": 2,
+          "average_cost_before": 0.1,
+          "average_cost_after": 0.1
+        }
+      ]
+    }
+  },
+  "acceptance_scope": {
+    "c1": "PASS_18_OF_18",
+    "global_criteria_passed": 16,
+    "global_criteria_total": 60,
+    "c2_waste": "NOT_EXECUTED",
+    "inventory_crud": "NOT_HOMOLOGATED_BY_THIS_CYCLE",
+    "real_multi_operator_concurrency": "NOT_EXECUTED",
+    "reservation_consumed": true,
+    "replay_allowed": false,
+    "second_child_allowed": false
+  }
+}
