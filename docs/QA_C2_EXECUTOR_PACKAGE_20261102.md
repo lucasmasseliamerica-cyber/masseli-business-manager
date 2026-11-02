@@ -151,3 +151,17 @@ os gates de persistência anteriores e não foi habilitado para novas gravaçõe
 
 [Evidência sanitizada de validação](./evidence/stock-c2-executor-package-20261102.json).
 Nenhum export bruto, chave, e-mail/senha, sessão ou journal real é publicado.
+
+## Fechamento da validação isolada
+
+Código validado: ed3fb9433e80a24811b261a6dc5cb58c7c597c13.
+[CI C2 isolada #2 PASS](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41521704525):
+30/30 Linux e 30/30 Windows, zero falhas/skips; builds PASS nas duas plataformas.
+Local Windows: 30/30 C2; validadores compartilhados 31/31 em bytes Git LF.
+Checkout CRLF: 30/31 compartilhados por hash sensível a EOL, sem alterar fonte/hash esperado.
+A primeira CI teve 28/29 no Linux porque o teste de cauda truncada criou arquivo 0644;
+o guard de privacidade o rejeitou corretamente. O teste passou a criar 0600, sem relaxar o guard.
+Windows da primeira CI foi cancelado pelo fail-fast, sem PASS atribuído.
+A revisão final também verifica integridade do journal após cleanup; alteração rebaixa PASS a BLOCKED.
+As evidências finais descendem do SHA validado apenas por documentação.
+Nenhuma dessas aprovações autoriza provisionamento ou execução real.

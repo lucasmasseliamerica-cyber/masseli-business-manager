@@ -34,7 +34,30 @@
     },
     "build": "PASS",
     "powershell_parser": "PASS",
-    "ci": "PENDING_REVISED_CODE_CI",
+    "ci": {
+      "run_id": 41521704525,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41521704525",
+      "code_sha": "ed3fb9433e80a24811b261a6dc5cb58c7c597c13",
+      "conclusion": "success",
+      "ubuntu": {
+        "job_id": 125539097053,
+        "status": "SUCCESS",
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "skipped": 0,
+        "build": "PASS"
+      },
+      "windows": {
+        "job_id": 125539096682,
+        "status": "SUCCESS",
+        "tests": 30,
+        "pass": 30,
+        "fail": 0,
+        "skipped": 0,
+        "build": "PASS"
+      }
+    },
     "staged_secret_scan": "PASS_NO_DETECTED_SECRETS_IN_23_FILES",
     "new_js_parse": "PASS",
     "app_mirrors": "UNCHANGED_AND_IDENTICAL",
@@ -102,5 +125,6 @@
     "total": 60,
     "pending": 15,
     "blocked": 29
-  }
+  },
+  "validated_code_sha": "ed3fb9433e80a24811b261a6dc5cb58c7c597c13"
 }
