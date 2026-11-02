@@ -1,5 +1,16 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Revisão C2 e SQL de seed — sem autorização (02/11/2026)
+
+[Achados, SQL exato e procedimento de reconciliação](./QA_C2_INDEPENDENT_REVIEW_AND_PROVISION_SQL_20261102.md).
+Revisão encontrou bloqueio aberto no GET/HEAD da guarda C2; perda não liberada.
+Seed separado proposto: 1 transação/3 INSERTs, sem movimento inicial, sem auditoria/cleanup;
+triggers/constraints/índices conferidos por leitura. Nenhum envio de provisionamento ou perda.
+Autorização do seed deverá aceitar expressamente saldo importado sem movimento; autorização
+da perda será outra, após fixture confirmada, revisão atual e preflight autenticado PASS.
+Cobertura 16/60 (26,67%) e C1/B preservadas.
+
+
 ## Pacote C2 preparado — execução não autorizada (02/11/2026)
 
 [Executor separado, fixture proposta, orçamento e revisão](./QA_C2_EXECUTOR_PACKAGE_20261102.md).

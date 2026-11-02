@@ -1,0 +1,4 @@
+# Pin only the new C2 SQL artifacts. Do not change historical C1/B source bytes.
+qa/stock-c2-provision-review.sql text eol=lf
+qa/stock-c2-provision-reconcile-readonly.sql text eol=lf
+qa/stock-c2-provision-test-schema.sql text eol=lf

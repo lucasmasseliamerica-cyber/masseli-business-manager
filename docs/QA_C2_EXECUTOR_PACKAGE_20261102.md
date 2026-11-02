@@ -1,5 +1,16 @@
 # C2 — pacote para revisão, sem provisionamento/execução (02/11/2026)
 
+## Revisão C2 e SQL de seed — sem autorização (02/11/2026)
+
+[Achados, SQL exato e procedimento de reconciliação](./QA_C2_INDEPENDENT_REVIEW_AND_PROVISION_SQL_20261102.md).
+Revisão encontrou bloqueio aberto no GET/HEAD da guarda C2; perda não liberada.
+Seed separado proposto: 1 transação/3 INSERTs, sem movimento inicial, sem auditoria/cleanup;
+triggers/constraints/índices conferidos por leitura. Nenhum envio de provisionamento ou perda.
+Autorização do seed deverá aceitar expressamente saldo importado sem movimento; autorização
+da perda será outra, após fixture confirmada, revisão atual e preflight autenticado PASS.
+Cobertura 16/60 (26,67%) e C1/B preservadas.
+
+
 **Código preparado e testado em ambiente isolado; C2 real NÃO executada.**
 Branch exclusiva automation/nexalvo-qa-actions; base c67d2383fd8cbf73761772b58df1b00196383e7c.
 O diff documental anterior foi preservado e incorporado. C1 real 18/18 e 8/8 gates,

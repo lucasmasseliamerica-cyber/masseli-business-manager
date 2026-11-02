@@ -1,0 +1,115 @@
+{
+  "scope": "C2_INDEPENDENT_REVIEW_AND_SEED_SQL_NOT_AUTHORIZATION",
+  "base_head": "5b15de5cac88750ae0e51f5ee3a11c204327a4e7",
+  "reviewed_executor_sha": "ed3fb9433e80a24811b261a6dc5cb58c7c597c13",
+  "executor_sources_changed": false,
+  "method": "Separate adversarial review tests and source inspection in this session; not an external auditor or second human signature",
+  "test_project": "msinksoilkluooxenecy",
+  "live_reads": {
+    "catalog_capture": "2026-11-02T20:55:02.346556Z",
+    "digest_capture": "2026-11-02T20:57:02.700753Z",
+    "trigger_crosscheck": "2026-11-02T21:05:41.133531Z",
+    "server_version": "17.6",
+    "sql_role": "postgres",
+    "target_tables": 3,
+    "columns": 30,
+    "constraints": 22,
+    "indexes": 9,
+    "rewrite_rules": 0,
+    "inheritance": 0,
+    "planned_collisions": 0,
+    "provision_contract_md5": "135e8025db9f8097377432b0ff26fe8c",
+    "user_trigger_function_md5": "b08c6f8bdb740824d8850e593a482fe0"
+  },
+  "findings": [
+    {
+      "id": "F01",
+      "severity": "P1",
+      "status": "OPEN_EXECUTION_BLOCKER",
+      "finding": "Browser GET/HEAD not limited to reviewed paths; synthetic unreviewed Edge GET admitted"
+    },
+    {
+      "id": "F02",
+      "severity": "P2",
+      "status": "OPEN_BEFORE_LOSS",
+      "finding": "Fixed 20s HTTP timeout not bounded to remaining exclusive window; HTTP abort does not prove server rollback"
+    },
+    {
+      "id": "F03",
+      "severity": "P2",
+      "status": "DOCUMENTED_LIMITATION",
+      "finding": "Journal SHA is parsed-content checksum, not raw-byte hash or signature"
+    },
+    {
+      "id": "F04",
+      "status": "DOCUMENTED_LIMITATION",
+      "finding": "Forward counters consume attempted dispatch budget, not proof of server receipt"
+    },
+    {
+      "id": "F05",
+      "severity": "P2",
+      "status": "OPEN_BEFORE_LOSS",
+      "finding": "Catalog age validated at admission, not before each RPC"
+    }
+  ],
+  "sql_files": {
+    "provision": {
+      "path": "qa/stock-c2-provision-review.sql",
+      "sha256": "6ec2dc2fada7d69f1561b2848c29a11d647aa79c6ada6068ad26f0aa71b90635"
+    },
+    "reconciliation": {
+      "path": "qa/stock-c2-provision-reconcile-readonly.sql",
+      "sha256": "304361cbf214905fdd0511af9f33764606187008ea42f45524149e4878ab1fb6"
+    }
+  },
+  "budget": {
+    "transactions": 1,
+    "direct_inserts": 3,
+    "new_business_rows": 3,
+    "user_trigger_invocations": 1,
+    "internal_insert_fk_invocations": 5,
+    "fk_nonnull_checks": 4,
+    "expected_index_entries": 9,
+    "indirect_business_dml": 0,
+    "ledger_initial_movements": 0,
+    "business_audits": 0,
+    "stock_rpcs": 0,
+    "cleanup": 0
+  },
+  "validation": {
+    "new_review_tests": 4,
+    "new_sql_tests": 11,
+    "local_new_total": 15,
+    "local_new_pass": 15,
+    "local_new_fail": 0,
+    "local_new_skip": 0,
+    "sql_engine": "PGlite 0.3.15 / PostgreSQL 17.5 WASM",
+    "sql_adaptation": "Only database-name guard adapted in memory postgres→template1; published SQL, expected digests and INSERTs unchanged. Original SQL separately rejects local context.",
+    "scope_limit": "Target tables reconstructed from catalog; parents/history synthetic; no multi-session locks, real connector, WAL, power loss or server cancellation acceptance.",
+    "prior_pg18_attempt": "PGlite 0.5.14/PostgreSQL18 correctly rejected as catalog drift; not counted as PASS",
+    "prior_local_numeric_assertion": "9/10 SQL tests at first run: numeric JSON expected string in one test; corrected test type, no SQL/hash edits",
+    "report_sha256": "8300bbd8372f229b0ec0ae471c621b25adbd4075ebf16f9434abb065c21a41dd",
+    "ci": "PENDING_PUBLICATION"
+  },
+  "authorization": {
+    "provisioning": false,
+    "seed_without_initial_movement_explicit_acceptance_required": true,
+    "c2_loss": false,
+    "loss_authorization_separate_after_fixture_security_preflight": true
+  },
+  "actual": {
+    "test_database_mutations": 0,
+    "provisioning_submissions": 0,
+    "c2_loss_rpcs": 0,
+    "audit_rpcs": 0,
+    "migrations": 0,
+    "main_or_production_changes": 0,
+    "c1_b_operations": 0
+  },
+  "coverage": {
+    "passed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29
+  }
+}
