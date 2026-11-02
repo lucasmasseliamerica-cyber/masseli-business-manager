@@ -1,5 +1,30 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Estado vigente — recaptura C1 e mutex antigo (02/11/2026)
+
+[Relatório, evidências sanitizadas e limites](./QA_C1_RECAPTURE_AND_MUTEX_20261102.md).
+
+- Recapturas reais TEST por SELECT: catálogo/segurança sem diferença de conteúdo para os artefatos
+  revisados em 25/10, exceto captured_at; hashes originais antigos primeiro conferidos.
+- Quatro validadores PASS; digest aprovado inalterado. Validade conjunta até
+  **03/11/2026 às 11:31:31 America/New_York**. Exports novos privados, fora do Git.
+- Regressão em bytes Git LF: **22/22 PASS**. Checkout Windows CRLF: **21/22, 1 falha**
+  por hash sensível a EOL; causa demonstrada e fonte original preservada. Ver relatório.
+- Preflight autenticado histórico: **PASS informado pelo proprietário na transferência**;
+  não confundir os bloqueios documentais antigos abaixo com o estado histórico posterior.
+- Preflight atual e C1 real: **BLOCKED**. Mutex pertence a uma sessão antiga do PowerShell
+  parada em autenticação com ExecuteAuthorized/janela expirada; não fornecer credenciais nela.
+  Cancelamento/encerramento e nova reconciliação ainda necessários.
+- Pai com SHA-256 original preservado, registro do filho vazio nas leituras desta retomada.
+  Nenhum novo launcher iniciado, RPC de negócio ou operação persistente nesta etapa.
+- Macro **16/60 (26,67%)**, 15 pendentes/29 bloqueados. CI #225 e código autorizado
+  `4f8e908d987fced2a2dc3ddc5914b408d5a5881e` preservados; somente documentação publicada.
+
+As seções anteriores abaixo são histórico; a janela antiga e as capturas de 25/10 estão expiradas.
+Nova execução exige gates atuais e janela exclusiva própria; nenhum replay, recuperação histórica
+ou sondagem repetida está liberado por esta atualização.
+
+
 **C1 vigente 25/10:** [revisão dos dois catálogos PASS para preflight](./QA_C1_CHILD_CATALOG_REVIEW_20261025.md).
 12 funções, 13 tabelas RLS, 141 colunas, 22 políticas e 4 triggers conferidos; 16 definições com hashes exatos.
 Digest aprovado `0806aea4e9234e2eedb25e684a838773b0da9001249152cabfbfbc5f06cdf825`.
