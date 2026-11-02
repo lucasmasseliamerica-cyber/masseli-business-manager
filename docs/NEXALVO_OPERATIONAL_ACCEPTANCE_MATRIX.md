@@ -1,5 +1,42 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Resultado vigente — preflight autenticado real PASS (02/11/2026, 15:05 America/New_York)
+
+O relatório sanitizado salvo no notebook foi lido diretamente após o término do launcher:
+`scope=C1_CHILD_READONLY_PREFLIGHT`, `status=PASS`,
+`code=C1_CHILD_READONLY_GATES_PASS_EXECUTION_NOT_AUTHORIZED`, saída **0**.
+SHA-256 dos bytes do relatório: `9fbbb6057fcd70053d40a77a4421530c5298e9e317aea18eba423c01830c3374`.
+Gravação do relatório: 2026-11-02T20:05:07.0864538Z.
+Fonte executada: `1bb8c61d3ffacd28e95700fa32ba5dffcd8f8a07`;
+código validado: `4f8e908d987fced2a2dc3ddc5914b408d5a5881e`.
+
+- Checks PASS: catalog, owner_a_b, permissions, read_isolation, exclusive_fixture.
+- Gates PASS: parent_integrity, identity_permissions, current_security, unchanged_baseline.
+- Estoque/auditoria/sondagens encaminhados: **0/0/0**; histórico apagado/fixtures criadas: **0/0**.
+- parent_checkpoint_unchanged=true; reservation_available=true; registro do filho com zero entradas.
+- full_homologation=false; resume_allowed=false; persistent_authorized=false; restored=false.
+- Os gates de janela, reserva, intenções e autorização de execução estão BLOCKED por definição
+  de PreflightOnly. Os checks de interface, movimentos, auditorias e reconciliação final do ciclo
+  não foram executados. O resultado não constitui homologação C1 nem restauração.
+- Duas sondagens históricas preservadas como recibos negados; nenhuma repetida.
+- Digest revisado preservado:
+  `0806aea4e9234e2eedb25e684a838773b0da9001249152cabfbfbc5f06cdf825`.
+- Catálogos novos válidos até **03/11/2026, 11:31:31 America/New_York**.
+- Macro permanece **16/60 (26,67%)**, 15 pendentes/29 bloqueados; nenhum novo critério promovido.
+
+O proprietário encerrou o console antigo PID 20680; leituras posteriores confirmaram processo e
+mutex ausentes, pai íntegro e registro vazio. Um preflight somente leitura posterior foi interrompido
+pelo fechamento da interface sem relatório; seu wrapper e marcador foram preservados.
+A nova tentativa de leitura após reconciliação produziu o PASS acima, sem execução persistente.
+Não repetir esse preflight para reproduzir evidência. Os bloqueios de mutex descritos abaixo são históricos.
+
+**Próximo gate: nova confirmação operacional de janela exclusiva de 20 minutos e gates imediatamente
+anteriores à execução.** A autorização condicional C1 já registrada não é solicitada novamente.
+Não usar a janela de 25/10 nem iniciar persistência sem confirmação atual. Sem replay, segundo filho,
+sondagens repetidas, compensação automática, migração ou alteração de produção.
+
+
+
 ## Estado vigente — recaptura C1 e mutex antigo (02/11/2026)
 
 [Relatório, evidências sanitizadas e limites](./QA_C1_RECAPTURE_AND_MUTEX_20261102.md).
