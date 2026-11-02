@@ -1,5 +1,24 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Pacote C2 preparado — execução não autorizada (02/11/2026)
+
+[Executor separado, fixture proposta, orçamento e revisão](./QA_C2_EXECUTOR_PACKAGE_20261102.md).
+Intenção durável/reserva própria, UI com budget 1 perda +1 auditoria, bloqueio de replay e recuperação só leitura.
+Seed proposto separado: três linhas (local/item/posição), 2,000 a 0,1000, ainda não criadas.
+Testes isolados não homologam C2 real. C1/B preservadas; cobertura 16/60 (26,67%) inalterada.
+
+
+## Preparação C2/perdas — somente leitura (02/11/2026)
+
+[Plano, orçamento e critérios](./QA_C2_WASTE_READONLY_PREPARATION_20261102.md) ·
+[Evidência sanitizada](./evidence/stock-c2-readonly-preparation-20261102.json).
+Triagem real TEST: cinco itens QA no tenant A, nenhuma fixture C2 elegível selecionada.
+C1/B preservadas; C1 tem histórico e reserva consumida. Contratos atuais de perda/movimento/leitor/auditoria revisados.
+Proposta futura: uma perda 0,125, no máximo 1 RPC perda +1 auditoria, sem reposição;
+resíduo permanente de perda/movimento/auditoria exige aceite específico. **C2 não executada**;
+faltam fixture, executor/preflight próprios, autorização e nova janela. Cobertura **16/60 (26,67%)** inalterada.
+
+
 ## Estado vigente — C1 real encerrada PASS (02/11/2026)
 
 [Fechamento por critério e limites](./QA_C1_CHILD_REAL_CLOSURE_20261102.md) ·

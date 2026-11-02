@@ -12,6 +12,10 @@ on:
     paths:
       - '.github/workflows/nexalvo-test.yml'
       - 'qa/**'
+      # C2-only preparation has a separate offline workflow: do not repeat historical
+      # authenticated probes or C1/B flows on a C2 package push.
+      - '!qa/stock-c2*'
+      - '!qa/Invoke-QaStockC2.ps1'
       - 'src/**'
       - 'migrations/**'
       - 'supabase/functions/**'
@@ -25,6 +29,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build-and-security:
+    # The C2 preparation commit is validated by nexalvo-c2-offline.yml only.
+    if: ${{ !contains(github.event.head_commit.message, '[c2-offline]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -430,6 +436,7 @@ jobs:
           retention-days: 14
 
   windows-sale-launcher:
+    if: ${{ !contains(github.event.head_commit.message, '[c2-offline]') }}
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
@@ -521,7 +528,7 @@ jobs:
       - performance-read
       - two-tenant-concurrency
       - windows-sale-launcher
-    if: always() && github.ref == 'refs/heads/automation/nexalvo-qa-actions'
+    if: always() && github.ref == 'refs/heads/automation/nexalvo-qa-actions' && !contains(github.event.head_commit.message, '[c2-offline]')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -1,0 +1,197 @@
+{
+  "scope": "C2_READONLY_PREPARATION",
+  "status": "PREPARATION_COMPLETE_EXECUTION_BLOCKED",
+  "project_id": "msinksoilkluooxenecy",
+  "branch": "automation/nexalvo-qa-actions",
+  "initial_local_remote_head": "c67d2383fd8cbf73761772b58df1b00196383e7c",
+  "provenance": {
+    "type": "DIRECT_TEST_MCP_SELECTS_AND_LOCAL_SOURCE_REVIEW",
+    "sql_role": "postgres",
+    "qa_user_session_proven": false,
+    "capture_start_utc": "2026-11-02T20:14:33.604861Z",
+    "capture_end_utc": "2026-11-02T20:15:38.813751+00:00",
+    "sql_calls": 8,
+    "successful_calls": 7,
+    "syntax_rejected_calls": 1,
+    "mutating_statements": 0,
+    "multiple_select_result_limit": "Only last result returned; totals re-read with single JSON SELECT"
+  },
+  "fixture_triage": {
+    "tenant_inventory_items": 5,
+    "qa_named_items": 5,
+    "c2_named_items": 0,
+    "selected_fixture": null,
+    "eligible_fixture_confirmed": false,
+    "items": [
+      {
+        "id": "f2735e87-c9a5-4cca-aa35-4f9dcdc16395",
+        "name": "QA FIX REGRESSION 20261007",
+        "active": false,
+        "has_supplier": true,
+        "positions": 2,
+        "recipes": 1,
+        "purchase_lines": 0,
+        "movements": 4,
+        "waste": 0
+      },
+      {
+        "id": "30a6d17c-3213-402a-81f7-409d9fb0b507",
+        "name": "QA INITIAL ITEM",
+        "active": false,
+        "has_supplier": false,
+        "positions": 2,
+        "recipes": 0,
+        "purchase_lines": 103,
+        "movements": 26,
+        "waste": 1
+      },
+      {
+        "id": "bb80c25b-5fd0-4716-8460-82202a2d74a9",
+        "name": "QA Polpa de A?a?",
+        "active": true,
+        "has_supplier": false,
+        "positions": 2,
+        "recipes": 2,
+        "purchase_lines": 39,
+        "movements": 298,
+        "waste": 26
+      },
+      {
+        "id": "738687a3-7fe7-45f8-a2e5-0d9ff330ab3a",
+        "name": "ZZ_QA_SALE_B_INGREDIENT_20261021",
+        "active": true,
+        "has_supplier": false,
+        "positions": 1,
+        "recipes": 1,
+        "purchase_lines": 0,
+        "movements": 2,
+        "waste": 0
+      },
+      {
+        "id": "6ebfef52-f6c2-4561-b2ac-b3d4bfca1c5f",
+        "name": "ZZ_QA_STOCK_C_20261022_EXCLUSIVE",
+        "active": true,
+        "has_supplier": false,
+        "positions": 2,
+        "recipes": 0,
+        "purchase_lines": 0,
+        "movements": 6,
+        "waste": 0
+      }
+    ],
+    "c1_reuse_authorized": false
+  },
+  "contracts": [
+    {
+      "signature": "fn_read_waste_transactions_secure()",
+      "definition_md5": "27054c6cd813e97f4416d3445fdfa5d2",
+      "body_sha256": "7c2a163faa7d766485c6cfd3d8acb84815f2e3faf7260de02830cdc5d81e3b1a",
+      "owner": "postgres",
+      "anon_execute": false,
+      "authenticated_execute": true
+    },
+    {
+      "signature": "fn_record_inventory_movement(uuid,uuid,uuid,text,numeric,numeric,uuid,uuid,uuid,text,boolean)",
+      "definition_md5": "27bb16e1ab20acc78ef5bb2f25eb9c04",
+      "body_sha256": "812d949cf0ba934c64341a007eb648c8a009f0d86bd49ae93d277b9a677b05ed",
+      "owner": "postgres",
+      "anon_execute": false,
+      "authenticated_execute": false
+    },
+    {
+      "signature": "fn_record_waste(uuid,uuid,uuid,numeric,text,text)",
+      "definition_md5": "185a854265f9f345b44c96ce31aa3485",
+      "body_sha256": "a32529ea46e5467b16cc15ca6ecad85ea6bd26b1d86dcdcd1e2d09fff08ae8d2",
+      "owner": "postgres",
+      "anon_execute": false,
+      "authenticated_execute": true
+    },
+    {
+      "signature": "fn_write_audit(text,text)",
+      "definition_md5": "ae296834d6afe1b9cfafb6da668d5c0e",
+      "body_sha256": "7fecdf24cfd6cf01a27a9c846ffe16cb03950f9b84e4ba54737539d56b8e68f8",
+      "owner": "postgres",
+      "anon_execute": false,
+      "authenticated_execute": true
+    }
+  ],
+  "security": {
+    "table_security": [
+      {
+        "rls": true,
+        "table": "audit_logs",
+        "anon_select": false,
+        "authenticated_delete": false,
+        "authenticated_insert": false
+      },
+      {
+        "rls": true,
+        "table": "inventory_stock",
+        "anon_select": false,
+        "authenticated_delete": false,
+        "authenticated_insert": false
+      },
+      {
+        "rls": true,
+        "table": "inventory_transactions",
+        "anon_select": false,
+        "authenticated_delete": false,
+        "authenticated_insert": false
+      },
+      {
+        "rls": true,
+        "table": "waste_transactions",
+        "anon_select": false,
+        "authenticated_delete": false,
+        "authenticated_insert": false
+      }
+    ],
+    "user_trigger_count": 0,
+    "scope_limit": "Four tables only; not authenticated API acceptance or complete database audit"
+  },
+  "proposed_only": {
+    "quantity": "0.125",
+    "fixture_id": null,
+    "baseline": "HYPOTHETICAL_2.000_AT_0.1000",
+    "final_quantity": "1.875",
+    "average_cost": "0.1000",
+    "waste_cost": "0.01",
+    "movement_total_cost": "-0.01",
+    "stock_rpcs": 1,
+    "audit_rpcs": 1,
+    "movements": 1,
+    "waste_rows": 1,
+    "audit_rows": 1,
+    "compensation_rpcs": 0,
+    "negative_write_probes": 0,
+    "automatic_retries": 0,
+    "requires_specific_authorization": true,
+    "requires_residual_history_acceptance": true,
+    "requires_new_exclusive_window": true
+  },
+  "actual_this_preparation": {
+    "stock_rpcs": 0,
+    "audit_rpcs": 0,
+    "fixture_writes": 0,
+    "migrations": 0,
+    "production_access": 0,
+    "c1_launches": 0,
+    "checkpoints_modified": 0
+  },
+  "acceptance": {
+    "c1": "PASS_18_OF_18_8_OF_8_PRESERVED",
+    "c2": "NOT_EXECUTED",
+    "global_passed": 16,
+    "global_total": 60,
+    "pending": 15,
+    "blocked": 29
+  },
+  "blockers": [
+    "NO_ELIGIBLE_FIXTURE_SELECTED",
+    "C2_EXECUTOR_NOT_PREPARED_OR_VALIDATED",
+    "CURRENT_AUTHENTICATED_C2_PREFLIGHT_PENDING",
+    "C2_SPECIFIC_AUTHORIZATION_AND_RESIDUAL_ACCEPTANCE_PENDING",
+    "NEW_EXCLUSIVE_WINDOW_PENDING",
+    "CLIENT_SUCCESS_DOES_NOT_PROVE_AUDIT"
+  ]
+}

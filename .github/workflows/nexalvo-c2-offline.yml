@@ -1,0 +1,28 @@
+name: NEXALVO C2 - isolated package
+on:
+  push:
+    branches: [automation/nexalvo-qa-actions]
+    paths: ['qa/stock-c2*', 'qa/Invoke-QaStockC2.ps1', '.github/workflows/nexalvo-c2-offline.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install isolated browser test dependency
+        run: npm install --no-save --package-lock=false playwright@1.64.0
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: C2 offline checks (no TEST environment or secrets)
+        run: node --test --test-concurrency=1 --test-reporter=tap qa/stock-c2.test.mjs qa/stock-c2-client.test.mjs qa/stock-c2-runner-regression.test.mjs qa/stock-c2-browser.test.mjs
+      - run: npm run build

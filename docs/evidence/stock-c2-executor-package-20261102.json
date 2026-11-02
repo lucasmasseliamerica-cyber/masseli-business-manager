@@ -1,0 +1,100 @@
+{
+  "scope": "C2_EXECUTOR_PACKAGE_NOT_REAL_ACCEPTANCE",
+  "base_head": "c67d2383fd8cbf73761772b58df1b00196383e7c",
+  "branch": "automation/nexalvo-qa-actions",
+  "project": "msinksoilkluooxenecy",
+  "validation": {
+    "c2_offline": {
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "skipped": 0,
+      "report_sha256": "5bf300bff88035f9d6f521f0efd443a66a5eebd2c6d27f683cbd805cc7bee953",
+      "node": "24.21.0",
+      "playwright": "1.64.0",
+      "real_chromium_react": true,
+      "remote_requests_intercepted": true
+    },
+    "shared_validators": {
+      "git_lf": {
+        "tests": 31,
+        "pass": 31,
+        "fail": 0,
+        "skipped": 0,
+        "migration_matches_git_object": true,
+        "migration_sha256": "9f71e3e998d2c62e8d31aeb58423fde93d05ba9cd55f4fc42a29bd526292f944"
+      },
+      "windows_crlf": {
+        "tests": 31,
+        "pass": 30,
+        "fail": 1,
+        "cause": "Previously documented CRLF-sensitive session function body hash; original source/hash unchanged"
+      },
+      "first_lf_subset_attempt": "Incomplete scratch archive missing src/App.jsx; corrected complete Git LF source set then 31/31 PASS"
+    },
+    "build": "PASS",
+    "powershell_parser": "PASS",
+    "ci": "PENDING_PUBLICATION",
+    "staged_secret_scan": "PASS_NO_DETECTED_SECRETS_IN_23_FILES",
+    "new_js_parse": "PASS",
+    "app_mirrors": "UNCHANGED_AND_IDENTICAL",
+    "native_store_after_timeout_bound": "PASS"
+  },
+  "readonly_test_observations": {
+    "id_collision_capture_utc": "2026-11-02T20:22:29.018533Z",
+    "planned_ids_or_names_occupied": 0,
+    "contracts_match_prior_review": true,
+    "provision_schema_capture_utc": "2026-11-02T20:33:08.930731Z",
+    "fixture_trigger": "inventory_items_validate_tenant_references",
+    "fixture_trigger_definition_md5": "b08c6f8bdb740824d8850e593a482fe0"
+  },
+  "proposed_fixture": {
+    "location_id": "ee6bd7b2-5e9d-41e6-8963-e1f178f54e09",
+    "item_id": "475ae0c8-5a4b-45a2-ad74-1a450e553cb0",
+    "stock_id": "894e85eb-eb73-42f6-a18c-4d36c0ac0113",
+    "quantity": "2.000",
+    "average_cost": "0.1000",
+    "created": false
+  },
+  "budgets": {
+    "provisioning": {
+      "transactions": 1,
+      "inserts": 3,
+      "new_rows": 3,
+      "stock_rpcs": 0,
+      "audit_rpcs": 0,
+      "movements": 0
+    },
+    "c2": {
+      "loss_rpc_max": 1,
+      "audit_rpc_max": 1,
+      "movements_max": 1,
+      "waste_rows_max": 1,
+      "audit_rows_max": 1,
+      "automatic_replenishment": 0,
+      "replay": 0
+    }
+  },
+  "actual": {
+    "fixtures_created": 0,
+    "loss_rpcs": 0,
+    "audit_rpcs": 0,
+    "migrations": 0,
+    "production_access": 0,
+    "c1_b_operations": 0,
+    "real_c2_registry_created": false
+  },
+  "authorization": {
+    "provisioning": false,
+    "c2_execution": false,
+    "exclusive_window_confirmed": false
+  },
+  "acceptance": {
+    "c1": "PRESERVED_PASS",
+    "c2": "NOT_EXECUTED",
+    "passed": 16,
+    "total": 60,
+    "pending": 15,
+    "blocked": 29
+  }
+}
