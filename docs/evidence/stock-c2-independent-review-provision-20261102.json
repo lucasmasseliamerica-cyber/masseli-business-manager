@@ -67,14 +67,16 @@
     "direct_inserts": 3,
     "new_business_rows": 3,
     "user_trigger_invocations": 1,
-    "internal_insert_fk_invocations": 5,
     "fk_nonnull_checks": 4,
     "expected_index_entries": 9,
     "indirect_business_dml": 0,
     "ledger_initial_movements": 0,
     "business_audits": 0,
     "stock_rpcs": 0,
-    "cleanup": 0
+    "cleanup": 0,
+    "internal_insert_fk_triggers_eligible": 5,
+    "internal_insert_fk_invocations_max": 5,
+    "internal_insert_fk_actual_invocations": "NOT_MEASURED_NO_TEST_SEED_EXECUTED"
   },
   "validation": {
     "new_review_tests": 4,
@@ -89,7 +91,31 @@
     "prior_pg18_attempt": "PGlite 0.5.14/PostgreSQL18 correctly rejected as catalog drift; not counted as PASS",
     "prior_local_numeric_assertion": "9/10 SQL tests at first run: numeric JSON expected string in one test; corrected test type, no SQL/hash edits",
     "report_sha256": "8300bbd8372f229b0ec0ae471c621b25adbd4075ebf16f9434abb065c21a41dd",
-    "ci": "PENDING_PUBLICATION"
+    "ci": {
+      "run_id": 41526146873,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41526146873",
+      "review_package_sha": "06ca3284dd303126f74fd5ad2e51c8bdcfc16f21",
+      "conclusion": "success",
+      "ubuntu": {
+        "job_id": 125554266277,
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0,
+        "build": "PASS"
+      },
+      "windows": {
+        "job_id": 125554265852,
+        "tests": 45,
+        "pass": 45,
+        "fail": 0,
+        "skipped": 0,
+        "build": "PASS"
+      },
+      "finding_diagnostics_are_not_fixes": true,
+      "provisioning_or_loss_authorized": false
+    },
+    "publication_secret_scan": "PASS_NO_DETECTED_SECRETS_IN_13_FILES"
   },
   "authorization": {
     "provisioning": false,

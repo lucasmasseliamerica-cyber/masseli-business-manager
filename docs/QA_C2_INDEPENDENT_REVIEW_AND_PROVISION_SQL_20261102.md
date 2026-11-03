@@ -112,8 +112,9 @@ Três tabelas ordinárias, RLS ativo, sem partições/herança/regras de reescri
   empresa quando aplicável, pode lançar 23514 e retorna NEW. Não contém DML ou chamada mutante.
   No seed supplier_id=null; nenhuma referência de fornecedor é aceita/criada.
 - Cinco triggers internos INSERT RI_FKey_check_ins em pg_catalog, linguagem internal:
-  local→business; item→business e supplier; posição→item e local. Executam verificações e
-  locks de integridade; a chave supplier null é dispensada. Não fazem cascade/INSERT de auditoria.
+  local→business; item→business e supplier; posição→item e local. São elegíveis para verificações e
+  locks de integridade; quatro relações têm chave não nula e a chave supplier null é dispensada.
+  Não foi medido no TEST o número de invocações internas efetivamente realizadas. Não fazem cascade/INSERT de auditoria.
   Triggers internos de UPDATE/DELETE existentes não são disparados pelos três INSERTs.
 - Índices: três por linha inserida (incluindo índices parciais de nome/SKU e índice FK com null),
   total esperado nove entradas de índice; são manutenção física dos três INSERTs, não novas
@@ -125,7 +126,7 @@ Três tabelas ordinárias, RLS ativo, sem partições/herança/regras de reescri
   não foi homologado aqui. Drift do catálogo aborta em vez de ampliar o orçamento silenciosamente.
 
 **Orçamento para futura autorização do seed:** uma transação; três INSERTs diretos; três linhas
-persistentes; 1 trigger de usuário + 5 invocações FK INSERT (uma com chave null); zero DML
+persistentes; 1 trigger de usuário e até 5 triggers FK INSERT elegíveis (supplier null dispensado); zero DML
 indireto de negócio, zero RPC/auditoria/movimento, zero UPDATE/DELETE/DDL/fixtures adicionais.
 Os três recursos permanecem no TEST sem cleanup automático. A exceção de saldo importado
 sem movimento inicial é deliberada e deve ser expressamente aceita.
@@ -176,3 +177,13 @@ em .gitattributes; nenhum EOL/hash esperado das fontes C1/B é alterado.
    janela própria, máximo 1 RPC perda +1 auditoria e resíduos permanentes aceitos.
 
 Uma GUC preenchida, teste isolado PASS ou a autorização antiga C1 não substitui nenhuma dessas etapas.
+
+## Fechamento da publicação e dos testes isolados
+
+Pacote revisado publicado em 06ca3284dd303126f74fd5ad2e51c8bdcfc16f21.
+[CI isolada #3 PASS](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41526146873):
+45/45 Linux e 45/45 Windows, zero falhas/skips, builds PASS. São 30 testes anteriores
+mais 4 diagnósticos de revisão e 11 testes SQL. Os diagnósticos confirmam limitações abertas,
+sem corrigi-las ou autorizar a perda. Local: 15/15 novos testes PASS, com a adaptação de banco
+do harness explicitada acima. Nenhum DML no TEST.
+Esta atualização final contém somente documentação/evidência; os SQLs e fontes revisadas não mudaram.
