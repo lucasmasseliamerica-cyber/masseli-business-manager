@@ -27,7 +27,7 @@ export class NativeLocalSession extends NativeDisposableBoundary {
  }
  #start(){
   const c=this.#cluster,d=this.#dir;check(!this.#child&&!this.#stop,'NATIVE_SINGLE_PROCESS_REQUIRED');
-  if(c.authentication==='scram-sha-256'&&process.platform==='win32')execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-File',fileURLToPath(new URL('./console-mode.ps1',import.meta.url)),'-Action','Save','-Path',join(d,'console-mode-before.json')],{stdio:['inherit','ignore','ignore'],windowsHide:true,timeout:10000});
+  if(c.authentication==='scram-sha-256'&&process.platform==='win32'&&!existsSync(join(d,'console-mode-before.json')))execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-File',fileURLToPath(new URL('./console-mode.ps1',import.meta.url)),'-Action','Save','-Path',join(d,'console-mode-before.json')],{stdio:['inherit','ignore','ignore'],windowsHide:true,timeout:10000});
   const helper=fileURLToPath(new URL('./readiness-helper.mjs',import.meta.url));
   const shellQuote=s=>{check(!/["\r\n%`$!]/.test(s),'NATIVE_LOCAL_PATH_REJECTED');return '"'+s+'"';};
   // psql's \! invokes its system shell; arguments are fixed local executable/file paths.
