@@ -5,8 +5,9 @@
 [Escopo autorizado e gates](./QA_C2_SEED_CONDITIONAL_GATE_20261103.md) ·
 [Registro da autorização](./evidence/stock-c2-seed-conditional-authorization-20261103.json).
 Somente uma transação/3 INSERTs, IDs revisados, saldo 2,000/custo 0,1000, **sem movimento inicial**.
-Não pedir autorização genérica novamente dentro desse escopo. Antes do único envio faltam
-prova de leitura válida no código atual e confirmação separada da janela exclusiva UTC.
+Não pedir autorização genérica novamente dentro desse escopo. Prova nativa renovada PASS
+às 14:59:32 UTC, válida até 15:29:32 UTC na admissão. Falta confirmação separada da janela
+exclusiva UTC; revalidar os gates antes do único envio.
 Seed não enviado; marcador permanente não criado. Perda continua sem autorização. A/B/C1 encerradas.
 
 

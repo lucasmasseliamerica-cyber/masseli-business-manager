@@ -45,3 +45,31 @@ Não há janela definida nem envio autorizado para agora. Em resultado incerto: 
 artefatos/marcador e reconciliar somente por leitura; nunca reenviar por inferência.
 Perda permanece sem autorização, inclusive depois de eventual seed confirmado.
 Cobertura operacional permanece 16/60. Este documento registra autorização, não execução.
+
+## Renovação concluída — falta somente a janela UTC
+
+Prova nativa PASS em 03/11/2026 às **14:59:32 UTC (09:59:32 America/New_York)**,
+saída 0, C2_NATIVE_READONLY_CONNECTION_ELIGIBILITY_PASS_NO_SEED.
+Fonte QA limpa 6052c02d6fc5e8c77f8454206aa7ae52b9c74dc4, descendente documental do HEAD
+823338b revisado acima. Não houve modificação de código/guards/SQL entre revisão e prova.
+
+- TEST msinksoilkluooxenecy, host direto/porta 5432, banco/role postgres.
+- TLS verify-full, TLSv1.3/TLS_AES_256_GCM_SHA384, mesmo backend PID 4142831,
+  backend_start/endereço/porta e identidade antes e depois; READ ONLY confirmado.
+- Autorização/GUC mutante ausente na sessão; marcador permanente não criado.
+- Empresa/OWNER ativos, zero colisões e contrato 135e8025db9f8097377432b0ff26fe8c mantido.
+  Catálogo de estoque/precisão/auditoria/leitor de perdas PASS. Não é preflight da perda.
+- Hashes dos artefatos reconferidos; dados brutos privados e todas as tentativas anteriores
+  preservados. Nenhuma tentativa SeedAuthorized registrada neste ambiente.
+- Leitura suplementar às 14:57:28 UTC encontrou zero linhas e zero resíduos relacionados.
+  ABSENT_UNCONFIRMED_NO_RETRY é observação pontual; não prova rollback nem habilita replay.
+
+Prova válida por até 30min na admissão: **15:29:32 UTC (10:29:32 America/New_York)**.
+O guard de SHA e diferenças somente docs/ permanece intacto. Revalidar hashes, marcador,
+prova e elegibilidade antes do único envio. Se a prova vencer antes da janela, renovar apenas
+o gate operacional necessário; a autorização condicional deste escopo não precisa ser pedida
+genericamente de novo. Nenhuma janela é presumida a partir dos horários desta prova.
+
+Estado: **preparação PASS; envio BLOQUEADO até início/fim UTC confirmados separadamente pelo
+proprietário**. Não foi usado o driver de seed nem definido token mutante neste lote.
+Autorização de seed ainda não consumida. Perda e auditoria de negócio seguem fora do escopo.
