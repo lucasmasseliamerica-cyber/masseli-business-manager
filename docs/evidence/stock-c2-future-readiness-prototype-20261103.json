@@ -41,7 +41,17 @@
     "fail": 0,
     "local_node": "v24.21.0",
     "new_tests_log_sha256": "8ce3ae7e2a069600ffa54fe0ebffb10872026a37683c2a06b51ecaf63a733591",
-    "ci": "PENDING_NEW_MODEL_ONLY"
+    "ci": {
+      "status": "PASS",
+      "validated_code_head": "b7efa3bcbaa531cbb1b0b548eacd751426fc228b",
+      "run_id": 41674924845,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41674924845",
+      "windows": { "job_id": 126052871266, "tests": 17, "pass": 17, "fail": 0, "skipped": 0 },
+      "linux": { "job_id": 126052872118, "tests": 17, "pass": 17, "fail": 0, "skipped": 0 },
+      "old_suites_run": false,
+      "build_repeated": false,
+      "test_connection": false
+    }
   },
   "artifact_hashes": [
     {

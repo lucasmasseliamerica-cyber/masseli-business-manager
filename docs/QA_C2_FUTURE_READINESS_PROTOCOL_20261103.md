@@ -150,6 +150,11 @@ retrocesso de relógio; bloqueio real; margem de admissão e sua conferência ap
 reserva incerta conservadora. Nenhuma suíte aprovada foi refeita e F01–F05 não foram reabertos.
 Uma CI própria executa exclusivamente esse arquivo, sem dependências ou segredos TEST.
 
+Validação concluída: 17/17 local, 17/17 Linux e 17/17 Windows, zero falhas/skips. Código
+b7efa3bcbaa531cbb1b0b548eacd751426fc228b, [CI 41674924845](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41674924845).
+Nenhum build ou suíte anterior repetido. A publicação desses resultados muda somente
+documentação/evidência; os três arquivos do modelo mantêm os bytes do código validado.
+
 Checkpoint: desenho/modelo para revisão, sem adaptação operacional pronta. Autenticação/TLS
 reais, console nativo, publicação do permit e identidade SQL real ainda não são comprovados.
 O próximo passo depende de revisão específica deste desenho e autorização que reconheça
