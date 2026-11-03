@@ -38,6 +38,8 @@ do usuário correspondente, conforme [PostgreSQL 17 — cert](https://www.postgr
 Certificado com CN incorreto e CA não confiável são testes negativos reais, sem respostas
 fabricadas. pg_stat_ssl confirma SSL, versão/cipher e client_dn, e a identidade inclui
 cluster_id, backend_pid/backend_start, database, SQL/session role e endereço/porta locais.
+O psql --version do setup não abre conexão; entre autenticação, prontidão e transação existe
+somente um processo psql conectado, identificado no manifesto e nas evidências.
 
 O parser aceita as representações equivalentes CN=postgres e /CN=postgres produzidas pelas
 pilhas nativas verificadas; não aceita um CN diferente. O formato nativo observado no Windows
@@ -132,6 +134,22 @@ Windows baixa ZIP oficial EDB 17.11-5 com SHA-256
 registrados por execução. As CAs são geradas exclusivamente para cada cluster local;
 não se usa nem altera a CA do Supabase. Resultados finais e hashes constam da evidência.
 
+Validação final no código 644aed09c15c4c0d2b0679680cff6281efeb9414:
+[CI 41681981970](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41681981970)
+PASS em quatro jobs: modelo 17/17 Linux + 17/17 Windows, integração nativa 11/11 Linux +
+11/11 Windows, zero falhas/skips. Os 11 testes novos também passaram localmente e o comando
+demo.mjs concluiu a demonstração nativa. Não foi executado build ou suíte histórica adicional.
+
+Adaptação do harness: a primeira CI Linux falhou no pg_ctl start. Seu log privado de servidor
+não ficou disponível no log público, portanto a causa específica desse início não é afirmada
+como comprovada. A configuração passou a fixar unix_socket_directories='' e usar somente TCP
+loopback; isso elimina a dependência do diretório privilegiado de sockets da distribuição.
+O novo run Linux iniciou e passou 11/11, com PG 17.11-1.pgdg24.04+2 do repositório oficial.
+Diagnóstico sanitizado de setup e tentativa de parada de postmaster próprio, inclusive após
+início parcial, foram acrescentados. Não se alteraram SQLs operacionais, TLS, HBA cert,
+limites de 120s/30s ou testes para contornar gates. A primeira CI e seus resultados ficam
+preservados em [41681413297](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41681413297).
+
 ## Limitações e checkpoint
 
 Autenticação nativa por certificado e TLS são reais; autenticação interativa por senha/SCRAM
@@ -144,6 +162,8 @@ energia/disco ou ataque de administrador local. Hashes são detecção de bytes/
 não assinatura. Terminação por árvore/PID não substitui job objects/supervisão contra todas
 as corridas possíveis de criação/reuso de PID, e nunca prova rollback. O adaptador restringe
 endereço/cluster/arquivos, mas não protege uma máquina cujo administrador altera o código.
+Morte abrupta do controlador ou da máquina não garante execução de finally nem parada do
+postmaster; não há alegação de supervisão por job object ou de recuperação automática.
 
 O papel postgres e a TEMP table pertencem exclusivamente ao cluster descartável. Não foi
 adaptado nem carregado SQL seed operacional, e este pacote não é autorização de novo seed,
