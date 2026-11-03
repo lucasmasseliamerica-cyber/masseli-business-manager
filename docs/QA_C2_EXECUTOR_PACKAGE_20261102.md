@@ -1,5 +1,9 @@
 # C2 — pacote para revisão, sem provisionamento/execução (02/11/2026)
 
+> Pacote histórico. Para o executor e os nomes atuais dos hashes/contadores, consultar
+> [correções C2](./QA_C2_EXECUTOR_HARDENING_20261102.md) e
+> [procedimento de sessão única](./QA_C2_SEED_SAME_SESSION_PROCEDURE_20261102.md).
+
 ## Revisão C2 e SQL de seed — sem autorização (02/11/2026)
 
 [Achados, SQL exato e procedimento de reconciliação](./QA_C2_INDEPENDENT_REVIEW_AND_PROVISION_SQL_20261102.md).

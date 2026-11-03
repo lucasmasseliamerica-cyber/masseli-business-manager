@@ -58,6 +58,11 @@ endereço/porta e TLS e emite o recibo C2_SEED_COMMIT_RECEIPT_SAME_BACKEND_NO_LO
 Em seguida inclui apenas a reconciliação READ ONLY. O NOTICE interno anterior ao COMMIT não
 substitui esse recibo. Falha no pós-check não desfaz um COMMIT possivelmente concluído.
 
+O orçamento de **uma transação de gravação/3 INSERTs** pertence ao seed. O driver acrescenta
+três SELECTs fora dessa transação: admissão, configuração de três GUCs de sessão e pós-check
+do backend. São transações implícitas sem DML de negócio. A reconciliação abre outra transação
+explícita READ ONLY. Nenhum desses controles acrescenta linha de estoque, movimento ou auditoria.
+
 Host/TLS/CA e credenciais verificam a conexão externa; GUC, nome do banco e IDs sozinhos não
 autenticam o projeto. GUCs são interlocks públicos, não assinatura nem permissão humana.
 PID/backend_start são sentinelas operacionais, não prova criptográfica contra administrador.

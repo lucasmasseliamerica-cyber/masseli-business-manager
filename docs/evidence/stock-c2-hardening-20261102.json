@@ -104,10 +104,39 @@
     "affected_final_failed": 0,
     "build": "PASS",
     "windows_powershell_parse": "PASS",
-    "sql_runtime": "PGlite 0.3.15 PostgreSQL 17.5 LOCAL ONLY; database-name guard adapted in memory only"
+    "sql_runtime": "PGlite 0.3.15 PostgreSQL 17.5 LOCAL ONLY; database-name guard adapted in memory only",
+    "distinct_cases_covered_across_full_and_focused_runs": 60,
+    "note": "Full run 59/59 started before final 7s timeout regression; focused final run 28/28 includes that regression. CI runs complete final 60/60 per platform.",
+    "future_procedure_powershell_blocks_parse": "PASS"
   },
   "ci": {
-    "status": "PENDING_PUBLICATION"
+    "status": "PASS",
+    "run_id": 41575301495,
+    "run_number": 4,
+    "head_sha": "da7c9de270a4535245751d2297eeaf6e7c63a270",
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41575301495",
+    "completed_updated_at_utc": "2026-11-03T04:03:11Z",
+    "linux": {
+      "job_id": 125717285815,
+      "tests": 60,
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "build": "PASS",
+      "powershell_parse": "PASS"
+    },
+    "windows": {
+      "job_id": 125717285613,
+      "tests": 60,
+      "passed": 60,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "build": "PASS",
+      "powershell_parse": "PASS"
+    },
+    "test_environment_or_secrets": false
   },
   "review": {
     "method": "Source reread plus corrected boundary regressions; no external auditor or second signature",
@@ -131,7 +160,8 @@
       "auxiliary UI reads are explicitly denied; C2 scope only",
       "native direct psql/TLS/session proof pending future authorized execution",
       "PGlite and synthetic browser do not homologate real C2"
-    ]
+    ],
+    "secret_scan": "PASS_CHANGED_SOURCES_AND_DELIVERABLES_NO_SECRET_VALUES_PRINTED"
   },
   "preserved": [
     "reviewed SQL bytes",
@@ -139,5 +169,7 @@
     "checkpoints and consumed reservation",
     "main",
     "production"
-  ]
+  ],
+  "validated_code_sha": "da7c9de270a4535245751d2297eeaf6e7c63a270",
+  "publication": "Final closure is documentation-only descendant of validated_code_sha; executor rejects non-doc changes after that SHA."
 }

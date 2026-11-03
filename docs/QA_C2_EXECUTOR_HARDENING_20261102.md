@@ -86,4 +86,18 @@ Orçamento da perda: até **1 tentativa de RPC perda + 1 de auditoria**, sem rep
 Provisionamento tem orçamento próprio: 1 transação/3 INSERTs e efeitos físicos/locks descritos
 no procedimento. Não se somam novas fixtures ao orçamento da perda.
 
-Evidência de testes/CI e SHA validado será registrada no fechamento desta publicação.
+## Fechamento validado
+
+Código validado/publicado: **da7c9de270a4535245751d2297eeaf6e7c63a270**.
+[CI isolada #4 PASS](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41575301495):
+**60/60 Linux e 60/60 Windows**, zero falhas, cancelamentos ou skips; builds e parsing
+PowerShell PASS. Logs dos jobs 125717285815 e 125717285613 conferidos diretamente.
+Fechamento da CI às 04:03:11 UTC de 03/11 (23:03:11 America/New_York de 02/11).
+Local: 59/59 no lote completo iniciado antes da última regressão de timeout de 7s; 28/28 no
+lote final afetado, incluindo essa regressão; união de 60 casos. Build, parsing dos launchers
+e dos blocos PowerShell do procedimento futuro PASS.
+
+[Evidência sanitizada](./evidence/stock-c2-hardening-20261102.json). Verificação de segredos,
+escopo do diff e hashes SQL PASS. Esta atualização de fechamento é somente documentação,
+descendente do SHA validado acima; o executor exige que diferenças posteriores sejam docs/.
+Nenhuma gravação, autenticação ou consulta ao TEST neste lote. Seed e perda seguem sem autorização.
