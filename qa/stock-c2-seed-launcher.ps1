@@ -13,7 +13,8 @@ $ErrorActionPreference='Stop'
 try{
  Set-PSDebug -Off
  if($Host.Name -ne 'ConsoleHost' -or [Console]::IsInputRedirected -or $env:OSTYPE -eq 'msys'){throw 'NATIVE_CONSOLE_REQUIRED'}
- $Host.UI.RawUI.WindowTitle=if($Mode -eq 'VerifyReadOnly'){'NEXALVO C2 - CONEXAO SOMENTE LEITURA'}else{'NEXALVO C2 - SEED AUTORIZADO UMA TENTATIVA'}
+ $label=if($Mode -eq 'VerifyReadOnly'){'NEXALVO C2 - SOMENTE LEITURA'}else{'NEXALVO C2 - SEED AUTORIZADO UMA TENTATIVA'}
+ $Host.UI.RawUI.WindowTitle=$label+' - '+$ReviewedHead.Substring(0,7)+' - '+[DateTime]::Now.ToString('HHmmss')
  Write-Host 'Senha apenas no prompt nativo oculto do psql. Nao envie senha ao chat.'
  $argsList=@((Join-Path $PSScriptRoot 'stock-c2-seed-launcher.mjs'),'--mode',$Mode,'--reviewed-head',$ReviewedHead,'--psql',$Psql17Exe,'--psql-sha256',$PsqlSha256,'--ca',$CaPath,'--ca-sha256',$CaSha256,'--artifacts',$ArtifactRoot)
  foreach($pair in @(@('--connection-evidence',$ConnectionEvidenceFile),@('--seed-approval',$SeedApproval),@('--window-at',$WindowAt),@('--window-until',$WindowUntil))){if($pair[1]){$argsList+=@($pair[0],$pair[1])}}
