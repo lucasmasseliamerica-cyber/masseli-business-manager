@@ -73,3 +73,10 @@ genericamente de novo. Nenhuma janela é presumida a partir dos horários desta 
 Estado: **preparação PASS; envio BLOQUEADO até início/fim UTC confirmados separadamente pelo
 proprietário**. Não foi usado o driver de seed nem definido token mutante neste lote.
 Autorização de seed ainda não consumida. Perda e auditoria de negócio seguem fora do escopo.
+
+## Janela confirmada pelo proprietário — somente seed
+
+Início 2026-11-03T15:08:00Z; fim 2026-11-03T15:28:00Z (10:08–10:28 America/New_York).
+Exclusividade confirmada, sem outras operações ou DDL. Perda continua não autorizada.
+Registro anterior de janela pendente fica superado por esta confirmação; a admissão final
+continua obrigatória antes da única tentativa. Este registro não afirma envio/commit.

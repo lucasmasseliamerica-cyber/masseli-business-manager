@@ -33,9 +33,11 @@
     "A/B/C1 replay"
   ],
   "exclusive_window": {
-    "status": "PENDING_SEPARATE_OWNER_CONFIRMATION",
-    "at_utc": null,
-    "until_utc": null
+    "status": "CONFIRMED_BY_OWNER_SEED_ONLY",
+    "at_utc": "2026-11-03T15:08:00Z",
+    "until_utc": "2026-11-03T15:28:00Z",
+    "other_operations_or_ddl": false,
+    "source": "Explicit user confirmation in this conversation"
   },
   "conditions": [
     "current code binding",
@@ -156,7 +158,7 @@
       "meaning": "Point-in-time absence only, not evidence of rollback or permission to replay"
     },
     "active_seed_named_sessions": 0,
-    "gate_summary": "ALL_PREPARATION_GATES_PASS_EXCLUSIVE_WINDOW_PENDING",
+    "gate_summary": "WINDOW_CONFIRMED_FINAL_ADMISSION_REQUIRED_BEFORE_SINGLE_ATTEMPT",
     "authorization_consumed": false,
     "prior_seed_attempts_registered": 0,
     "new_native_attempt_mode": "VerifyReadOnly"
