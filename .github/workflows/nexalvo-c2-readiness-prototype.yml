@@ -1,0 +1,22 @@
+name: NEXALVO C2 readiness - new local model only
+on:
+  push:
+    branches: [automation/nexalvo-qa-actions]
+    paths: ['prototypes/c2-readiness/**', '.github/workflows/nexalvo-c2-readiness-prototype.yml']
+permissions:
+  contents: read
+jobs:
+  new-model-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test only the new readiness state model (no dependencies, secrets or network adapter)
+        run: node --test --test-reporter=tap prototypes/c2-readiness/protocol.test.mjs

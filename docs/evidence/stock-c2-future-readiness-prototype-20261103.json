@@ -1,0 +1,71 @@
+{
+  "scope": "C2_FUTURE_READINESS_LOCAL_MODEL_REVIEW_ONLY",
+  "status": "DRAFT_REVIEW_ONLY_REAL_EXECUTION_BLOCKED",
+  "baseline_head": "aa5196dd022eeeece0090bfa309c245152f03551",
+  "historical_investigation": "CLOSED_WITH_DOCUMENTED_CONCLUSIONS_AND_LIMITATIONS",
+  "history": "SINGLE_ATTEMPT_CONSUMED_UNCONFIRMED_NO_RETRY",
+  "original_private_attempt_or_marker_accessed": false,
+  "published_history_summary_read": true,
+  "historical_tests_or_reconciliation_repeated": false,
+  "existing_approved_suites_run": false,
+  "f01_f05_reaudited": false,
+  "test_connections": 0,
+  "real_forward_attempts": 0,
+  "new_fixture_or_ids": false,
+  "seed_loss_migration_executed": false,
+  "coverage": "16/60",
+  "demo": {
+    "scope": "LOCAL_SIMULATION_ONLY",
+    "status": "SIMULATION_CONFIRMED",
+    "events": [
+      "CREATED",
+      "SIMULATED_READ_PROOF",
+      "OPERATOR_DECLARED_READY",
+      "INTENT_DURABLE",
+      "SAME_SESSION_RECHECKED",
+      "FORWARD_RESERVED",
+      "SIMULATED_CONFIRMATION_OBSERVED",
+      "FINAL"
+    ],
+    "synthetic_forward_reservations": 1,
+    "real_forward_attempts": 0,
+    "test_connections": 0,
+    "tls_or_authentication_proven": false,
+    "real_execution_blocked": true,
+    "original_history_touched": false,
+    "artifacts_retained": true
+  },
+  "validation": {
+    "new_tests": 17,
+    "pass": 17,
+    "fail": 0,
+    "local_node": "v24.21.0",
+    "new_tests_log_sha256": "8ce3ae7e2a069600ffa54fe0ebffb10872026a37683c2a06b51ecaf63a733591",
+    "ci": "PENDING_NEW_MODEL_ONLY"
+  },
+  "artifact_hashes": [
+    {
+      "path": "prototypes/c2-readiness/protocol.mjs",
+      "sha256": "ae302b51a3323d42b48fb0e73cf22ab25de4434fc3d8316dd7b672e1e35203b3"
+    },
+    {
+      "path": "prototypes/c2-readiness/protocol.test.mjs",
+      "sha256": "e9fe32e13bd27dc6fdf1b6aab56ae4931aadc5ed36904f2a28bc3424f7fa50b5"
+    },
+    {
+      "path": "prototypes/c2-readiness/demo.mjs",
+      "sha256": "ff9ed02b6ef01dd9b77c6e8de8fe03192e7fbb9f6174c5a80c7e997955e0f604"
+    },
+    {
+      "path": ".github/workflows/nexalvo-c2-readiness-prototype.yml",
+      "sha256": "24727bd14c075b1b234c01ade6abc92ac504cd943708fef31aa111ed3f7b6f67"
+    }
+  ],
+  "limitations": [
+    "In-memory simulator; no native authentication, TLS or real backend proven",
+    "No real adapter, SQL transport, permit publisher or authorization",
+    "Existing consumed historical attempt and marker still block real continuation",
+    "Durability model uses exclusive files/fsync; no administrator, power-loss or native-console guarantee"
+  ],
+  "next_step": "Specific design review; any continuity requires separate authorization acknowledging the prior consumed attempt"
+}

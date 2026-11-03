@@ -1,7 +1,9 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
-Investigação local do timeout: [fatos, hipóteses, correção futura e opções](./QA_C2_TIMEOUT_FORENSICS_20261103.md).
-Timer de 120s comprovado; causa da espera indeterminada. Nenhum novo envio ou conexão TEST.
+Investigação histórica do timeout **encerrada** com as [conclusões e limitações publicadas](./QA_C2_TIMEOUT_FORENSICS_20261103.md).
+Não repetir testes/reconciliação sem fato novo. Timer de 120s comprovado; espera indeterminada.
+Checkpoint separado: [protocolo futuro e modelo local de prontidão](./QA_C2_FUTURE_READINESS_PROTOCOL_20261103.md).
+Somente testes novos; sem conexão TEST. O protocolo não libera a tentativa histórica consumida.
 
 ## Seed C2 — tentativa consumida, resultado incerto; nenhum novo envio (03/11/2026)
 
