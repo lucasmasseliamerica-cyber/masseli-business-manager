@@ -98,7 +98,11 @@
     ]
   },
   "real_readonly_connection": {
-    "status": "NOT_PASS_FIRST_ATTEMPT_RETAINED_NEXT_ATTEMPT_NOT_YET_STARTED"
+    "status": "NEW_READONLY_REQUEST_PASSWORD_LOCATED",
+    "password_available_confirmed_by_user": true,
+    "password_not_sent_in_chat": true,
+    "previous_attempts_preserved": true,
+    "seed_authorization_requested": false
   },
   "seed_executed": false,
   "loss_executed": false,
@@ -123,7 +127,30 @@
     "cause_of_submission": "UNPROVEN_DO_NOT_INFER_PASSWORD_ENTRY",
     "artifacts_preserved": true,
     "seed_marker_created": false,
-    "sql_executed": false
+    "sql_executed": false,
+    "original_artifact_hashes_verified": true,
+    "artifact_hashes": [
+      {
+        "name": "admission-intent.json",
+        "sha256": "c4a6d7d206ccaed62a8ffd1bbb650f8fb8c7f0ff8a1cf08b9d7cc13f7b10321c"
+      },
+      {
+        "name": "native-intent.json",
+        "sha256": "e17dc4a864a06ee843d25b099eaabbbcad128d6319eac59e2273f10a61e8af46"
+      },
+      {
+        "name": "snapshot-manifest.json",
+        "sha256": "204d477affa87e2239b8fd146cfb3a2f16b0e51db68873ba232c61de4acd804d"
+      },
+      {
+        "name": "stderr.private.log",
+        "sha256": "ab0739966187c7a33b22be700cbc1bae6d6565baa22101bd7ec026d65efa9919"
+      },
+      {
+        "name": "stdout.private.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
   },
   "prompt_transport_fix": {
     "native_supported_stdin_stderr_path": true,
@@ -150,6 +177,17 @@
       "deliberate_local_termination": true,
       "local_server_stopped": true,
       "artifacts_retained": true
+    },
+    "real_prompt_observation": {
+      "observed_at": "2026-11-03T04:53:27.770Z",
+      "native_prompt": "Password:",
+      "native_process_alive_at_observation": true,
+      "sql_stdout_bytes": 0,
+      "result_file_present": false,
+      "password_required_locally": true,
+      "password_available_per_user": false,
+      "seed_marker_created": false,
+      "scope": "READONLY_PROMPT_READINESS_ONLY_NOT_AUTHENTICATION_PASS"
     }
   },
   "supplemental_test_reads": {
@@ -174,6 +212,81 @@
     "superseded_transport": true
   },
   "current_ci": {
-    "status": "PENDING_NEW_PROMPT_TRANSPORT_COMMIT"
+    "status": "PASS",
+    "code_sha": "56baf2dd75c3581f8d554f7b58477405e6a6307b",
+    "run_id": 41580651369,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41580651369",
+    "linux": {
+      "passed": 69,
+      "failed": 0,
+      "skipped": 0,
+      "build": "PASS"
+    },
+    "windows": {
+      "passed": 69,
+      "failed": 0,
+      "skipped": 0,
+      "build": "PASS"
+    }
+  },
+  "operational_code_sha": "56baf2dd75c3581f8d554f7b58477405e6a6307b",
+  "review_file_hashes": [
+    {
+      "path": "qa/stock-c2-seed-launcher.ps1",
+      "sha256": "43374065d700c59d90ca2e0b64db641f827181046f6270bf684e0c6d135608bb"
+    },
+    {
+      "path": "qa/stock-c2-seed-launcher.mjs",
+      "sha256": "81e40a43849e420c1219d3530b86325aa9be9141c4727f3272ae56b7a3d78675"
+    },
+    {
+      "path": "qa/stock-c2-seed-transport.mjs",
+      "sha256": "7165dae590a25cc0154cef5d7533d778b0711ecaec15703747849b9e85cdeb78"
+    },
+    {
+      "path": "qa/stock-c2-seed-private.ps1",
+      "sha256": "02edf3c8169f40b5df34ac78fe935799a822668cc2e63482941b1e03bc89bb19"
+    },
+    {
+      "path": "qa/stock-c2-seed-native-harness.mjs",
+      "sha256": "8447137d1038297e20bb0d56eb2729d367c32896d72b6f59d9aba298d4a0295f"
+    },
+    {
+      "path": "qa/stock-c2-seed-launcher.test.mjs",
+      "sha256": "8c142504423ebc5174bf920fa178126d2ceaa00e10018a3040792b1296fe2092"
+    },
+    {
+      "path": "qa/stock-c2-connection-readonly.psql",
+      "sha256": "dedc768a366f55c35dbc8fe1d62496dba622a7f74d772feb3ab014df03838619"
+    },
+    {
+      "path": "qa/stock-c2-seed-same-session.psql",
+      "sha256": "d2bbdfbce05c065d2d92366d9287e9bb3d7d78c2ca70a56a0575783ba34f4bf2"
+    },
+    {
+      "path": "qa/stock-c2-provision-review.sql",
+      "sha256": "6ec2dc2fada7d69f1561b2848c29a11d647aa79c6ada6068ad26f0aa71b90635"
+    },
+    {
+      "path": "qa/stock-c2-provision-reconcile-readonly.sql",
+      "sha256": "304361cbf214905fdd0511af9f33764606187008ea42f45524149e4878ab1fb6"
+    }
+  ],
+  "reconciled_second_native_attempt": {
+    "source_sha": "56baf2dd75c3581f8d554f7b58477405e6a6307b",
+    "started_at": "2026-11-03T04:53:27.745Z",
+    "completed_at": "2026-11-03T04:58:21.290Z",
+    "exit_code": 2,
+    "result_uncertain": true,
+    "classification": "AUTHENTICATION_REJECTED_BEFORE_SQL",
+    "prompt_observed": true,
+    "timed_out": false,
+    "interrupted": false,
+    "stdout_bytes": 0,
+    "native_process_ended": true,
+    "matching_backend_sessions_at_reconciliation": 0,
+    "artifact_hashes_verified": true,
+    "seed_marker_created": false,
+    "artifacts_preserved": true
   }
 }

@@ -115,7 +115,9 @@ janela expressamente autorizada. **Não executar esse comando agora.** A autorid
 aceitar os [SQLs/hashes, três INSERTs, seed sem movimento inicial, locks e resíduos](./QA_C2_SEED_SAME_SESSION_PROCEDURE_20261102.md).
 Perda continua bloqueada, orçamento separado até 1 RPC perda +1 auditoria, sem reposição.
 
-Conexão nativa TEST e fechamento de testes/CI: pendentes de registro nesta publicação inicial.
+Código operacional atual: 56baf2dd75c3581f8d554f7b58477405e6a6307b. O SHA histórico do código
+de perda validado permanece preservado. A janela recebe SHA/hora no título, distinguindo-a
+de uma janela anterior que já retornou a PS>. Senha somente no Password: nativo da tentativa ativa.
 [Evidência sanitizada de procedência/laboratório](./evidence/stock-c2-operational-preparation-20261102.json).
 
 ## Tentativa original e correção de observabilidade
@@ -142,3 +144,26 @@ Releituras complementares pelo conector TEST: empresa/OWNER ativos, zero colisõ
 MD5 135e8025db9f8097377432b0ff26fe8c mantido. Captura de contratos às 04:37:49 UTC de 03/11:
 9 funções/10 tabelas, precisão/auditoria/leitor de perdas PASS. São leituras suplementares,
 não prova de sessão nativa ou afinidade de pool. Nenhuma autorização de seed foi solicitada.
+
+Nova observação nativa às 04:53:27 UTC de 03/11 (23:53:27 de 02/11 America/New_York):
+Password: emitido pelo psql, PID vivo, stdout de zero bytes e sem resultado final; marcador
+permanente ausente. Isso comprova prontidão naquele instante, **não autenticação ou leitura PASS**.
+Naquela observação, o usuário ainda precisava localizar a senha do banco. Não autorizar seed por prontidão do prompt,
+PASS da CI ou leituras do conector. A tentativa original teve seus hashes de artefatos reconferidos.
+
+## Hashes finais do launcher
+
+| Arquivo | SHA-256 dos bytes |
+| --- | --- |
+| stock-c2-seed-launcher.ps1 | 43374065d700c59d90ca2e0b64db641f827181046f6270bf684e0c6d135608bb |
+| stock-c2-seed-launcher.mjs | 81e40a43849e420c1219d3530b86325aa9be9141c4727f3272ae56b7a3d78675 |
+| stock-c2-seed-transport.mjs | 7165dae590a25cc0154cef5d7533d778b0711ecaec15703747849b9e85cdeb78 |
+| stock-c2-seed-private.ps1 | 02edf3c8169f40b5df34ac78fe935799a822668cc2e63482941b1e03bc89bb19 |
+| stock-c2-seed-native-harness.mjs | 8447137d1038297e20bb0d56eb2729d367c32896d72b6f59d9aba298d4a0295f |
+
+Os SQLs e o driver aprovados permanecem com os hashes originais no procedimento anterior.
+Qualquer mudança exige outra revisão/hashes.
+
+Fechamento: [CI isolada PASS](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41580651369), código 56baf2dd75c3581f8d554f7b58477405e6a6307b: 69/69 Linux e 69/69 Windows, zero falhas/skips, builds PASS.
+A segunda tentativa encerrou às 04:58:21 UTC de 03/11 com autenticação rejeitada antes das consultas; PID local encerrado, nenhuma sessão correspondente observável no TEST e hashes dos artefatos íntegros. Nenhuma repetição ocorreu durante a reconciliação.
+Depois da reconciliação, o usuário confirmou que localizou a senha e solicitou nova tentativa somente leitura, preservando as anteriores. Ela continua separada de qualquer autorização de seed/perda.
