@@ -2,7 +2,7 @@
   "scope": "C2_SEED_ONLY_CONDITIONAL_USER_AUTHORIZATION",
   "recorded_at_utc": "2026-11-03T14:50:57Z",
   "authorization_source": "Explicit user message in this conversation, 2026-11-03",
-  "status": "AUTHORIZED_CONDITIONALLY_NOT_EXECUTED",
+  "status": "SINGLE_ATTEMPT_CONSUMED_UNCONFIRMED_NO_RETRY",
   "project": "msinksoilkluooxenecy",
   "sql_sha256": "6ec2dc2fada7d69f1561b2848c29a11d647aa79c6ada6068ad26f0aa71b90635",
   "budget": {
@@ -141,7 +141,7 @@
       "seed_authority_absent": true,
       "marker_created": false
     },
-    "seed_sent": false,
+    "seed_sent": null,
     "loss_sent": false,
     "supplemental_readonly_observation": {
       "captured_at": "2026-11-03T14:57:28.145178Z",
@@ -158,10 +158,111 @@
       "meaning": "Point-in-time absence only, not evidence of rollback or permission to replay"
     },
     "active_seed_named_sessions": 0,
-    "gate_summary": "WINDOW_CONFIRMED_FINAL_ADMISSION_REQUIRED_BEFORE_SINGLE_ATTEMPT",
-    "authorization_consumed": false,
+    "gate_summary": "STOP_NO_REPLAY_READONLY_RECONCILIATION_COMPLETED",
+    "authorization_consumed": true,
     "prior_seed_attempts_registered": 0,
-    "new_native_attempt_mode": "VerifyReadOnly"
+    "new_native_attempt_mode": "VerifyReadOnly",
+    "seed_delivery_status": "NATIVE_FORWARD_ATTEMPTED_DELIVERY_AND_COMMIT_UNCONFIRMED"
   },
-  "authorization_reuse": "Do not request generic seed authorization again within this exact conditional scope; complete gates and obtain separate window."
+  "authorization_reuse": "Do not request generic seed authorization again within this exact conditional scope; complete gates and obtain separate window.",
+  "execution": {
+    "mode": "SeedAuthorized",
+    "status": "BLOCKED",
+    "code": "C2_SEED_NATIVE_RESULT_UNCONFIRMED_NO_REPLAY",
+    "source_head": "3cebe484596b35d2998daa56eab2361c8c997195",
+    "started_at": "2026-11-03T15:10:16.930Z",
+    "completed_at": "2026-11-03T15:12:16.951Z",
+    "native_result": {
+      "exitCode": null,
+      "spawnError": false,
+      "interrupted": true,
+      "timedOut": true,
+      "promptObserved": true,
+      "attempts": 1
+    },
+    "stdout_bytes": 0,
+    "stderr_bytes": 10,
+    "stderr_contains_only_native_password_prompt": true,
+    "stderr_error_categories": {
+      "authentication": false,
+      "dns": false,
+      "network": false,
+      "tls": false
+    },
+    "commit_receipt_seen": false,
+    "native_pid": 11332,
+    "marker_created": true,
+    "forward_attempts": 1,
+    "result_uncertain": true,
+    "artifact_hashes_verified": true,
+    "artifact_hashes": [
+      {
+        "name": "admission-intent.json",
+        "sha256": "34c4d54d31cfa267d61657b4cb0123b3b61800a37b4940e0b5b8501647f854f7"
+      },
+      {
+        "name": "native-intent.json",
+        "sha256": "9882a39f7054f9fead45c479ca4e616683ea14e4e3814a5d740b3436f86613de"
+      },
+      {
+        "name": "native-password-prompt-ready.json",
+        "sha256": "4e8b826d6184d943b7f57108bf34e50f6243710b6c7d14622c4e36e4309fac02"
+      },
+      {
+        "name": "snapshot-manifest.json",
+        "sha256": "e62363c72e76f34c08ac705d06b843ebb778f59201797d0fafc9c0d8d2c4004b"
+      },
+      {
+        "name": "stderr.private.log",
+        "sha256": "79a7c1f4f967151a775b8468756306770ccd6d3801734f866c64c135ca68e22e"
+      },
+      {
+        "name": "stdout.private.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "raw_logs_not_disclosed": true,
+    "permanent_marker_sha256": "0de51a3f1f0e91450ce820eeff10bc71ccc9b1b7b67a0361273315f58079b34c",
+    "marker_binding_verified": true,
+    "native_process_ended": true,
+    "backend_pid_not_obtained": true,
+    "backend_observation": {
+      "checked_at": "2026-11-03 15:14:01.286838+00",
+      "read_only": "on",
+      "seed_named_sessions": 0,
+      "matching_attempt_sessions": 0,
+      "active_seed_sessions": 0
+    },
+    "readonly_reconciliation": {
+      "scope": "C2_PROVISION_READONLY_RECONCILIATION",
+      "status": "ABSENT_UNCONFIRMED_NO_RETRY",
+      "warning": "Point-in-time observation only; preserve original submission/commit evidence and do not replay",
+      "database": "postgres",
+      "sql_role": "postgres",
+      "captured_at": "2026-11-03T15:14:00.097378+00:00",
+      "observation": {
+        "waste": 0,
+        "audits": 0,
+        "recipes": 0,
+        "position": null,
+        "item_rows": 0,
+        "movements": 0,
+        "stock_rows": 0,
+        "item_labels": 0,
+        "location_rows": 0,
+        "purchase_lines": 0,
+        "location_labels": 0,
+        "related_positions": 0,
+        "exact_seed_observed": false
+      },
+      "retry_allowed": false,
+      "cleanup_allowed": false,
+      "c2_loss_authorized": false
+    },
+    "seed_delivery_proven": false,
+    "commit_proven": false,
+    "retry_allowed": false,
+    "cleanup_allowed": false,
+    "loss_authorized": false
+  }
 }

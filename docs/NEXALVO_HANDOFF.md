@@ -1,5 +1,15 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Seed C2 — tentativa consumida, resultado incerto; nenhum novo envio (03/11/2026)
+
+[Encerramento e reconciliação somente leitura](./QA_C2_SEED_ATTEMPT_CLOSURE_20261103.md).
+Uma invocação SeedAuthorized em 15:10–15:12 UTC terminou por timeout do cliente, sem recibo
+de COMMIT. Marcador permanente e artefatos preservados; orçamento consumido, sem retry.
+Reconciliação às 15:14 UTC: ABSENT_UNCONFIRMED_NO_RETRY; nenhuma sessão correspondente
+observável. Ausência não prova rollback nem habilita reenvio. Perda continua sem autorização.
+As seções anteriores de preparação/janela são histórico e não reabrem a tentativa.
+
+
 ## Seed C2 autorizado condicionalmente — janela UTC ainda pendente (03/11/2026)
 
 [Escopo autorizado e gates](./QA_C2_SEED_CONDITIONAL_GATE_20261103.md) ·

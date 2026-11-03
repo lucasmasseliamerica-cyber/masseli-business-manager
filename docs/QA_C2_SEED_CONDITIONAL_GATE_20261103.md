@@ -1,5 +1,15 @@
 # C2 — seed autorizado condicionalmente; envio bloqueado pela janela/gates
 
+## Seed C2 — tentativa consumida, resultado incerto; nenhum novo envio (03/11/2026)
+
+[Encerramento e reconciliação somente leitura](./QA_C2_SEED_ATTEMPT_CLOSURE_20261103.md).
+Uma invocação SeedAuthorized em 15:10–15:12 UTC terminou por timeout do cliente, sem recibo
+de COMMIT. Marcador permanente e artefatos preservados; orçamento consumido, sem retry.
+Reconciliação às 15:14 UTC: ABSENT_UNCONFIRMED_NO_RETRY; nenhuma sessão correspondente
+observável. Ausência não prova rollback nem habilita reenvio. Perda continua sem autorização.
+As seções anteriores de preparação/janela são histórico e não reabrem a tentativa.
+
+
 Autorização específica recebida do usuário em 03/11/2026. Não solicitar novamente autorização
 genérica para esse mesmo escopo. [Registro sanitizado](./evidence/stock-c2-seed-conditional-authorization-20261103.json).
 
