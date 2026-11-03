@@ -1,0 +1,45 @@
+-- REVIEW ARTIFACT ONLY. Do not run before explicit seed-without-initial-movement approval.
+-- One noninteractive psql process, direct TEST host, verify-full TLS, no pool/reconnect.
+-- Existing reviewed SQL files are included unchanged. No authorization for loss is set.
+\set ON_ERROR_STOP on
+\set AUTOCOMMIT on
+\getenv c2_seed_approval QA_C2_SEED_AUTHORIZED
+\getenv c2_seed_project QA_C2_SEED_VERIFIED_PROJECT_REF
+\getenv c2_seed_at QA_C2_SEED_EXCLUSIVE_AT
+\getenv c2_seed_until QA_C2_SEED_EXCLUSIVE_UNTIL
+
+SELECT pg_backend_pid() AS pid,
+       (SELECT backend_start::text FROM pg_stat_activity WHERE pid=pg_backend_pid()) AS backend_start,
+       inet_server_addr()::text AS address, inet_server_port() AS port,
+       current_user='postgres' AND current_database()='postgres'
+       AND (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid())
+       AND :'c2_seed_project'='msinksoilkluooxenecy'
+       AND :'c2_seed_approval'='TEST_ONLY_THREE_ROW_SEED_WITHOUT_INITIAL_MOVEMENT_20261102'
+       AND :'c2_seed_at'::timestamptz<=clock_timestamp()
+       AND :'c2_seed_until'::timestamptz>clock_timestamp()+interval '30 seconds'
+       AND :'c2_seed_until'::timestamptz-:'c2_seed_at'::timestamptz BETWEEN interval '30 seconds' AND interval '20 minutes' AS verified
+\gset c2_before_
+\if :c2_before_verified
+  SELECT set_config('nexalvo.c2.project_ref',:'c2_seed_project',false) AS project_interlock,
+         set_config('nexalvo.c2.provision_approval',:'c2_seed_approval',false) AS approval_interlock,
+         set_config('statement_timeout','5s',false) AS postcheck_timeout
+  \gset c2_interlocks_
+\else
+  DO $$BEGIN RAISE EXCEPTION 'C2_SEED_SAME_SESSION_ADMISSION_REJECTED'; END$$;
+\endif
+
+\ir stock-c2-provision-review.sql
+
+SELECT pg_backend_pid()=:'c2_before_pid'::integer
+       AND (SELECT backend_start::text FROM pg_stat_activity WHERE pid=pg_backend_pid())=:'c2_before_backend_start'
+       AND inet_server_addr()::text=:'c2_before_address' AND inet_server_port()=:'c2_before_port'::integer
+       AND current_user='postgres' AND current_database()='postgres'
+       AND (SELECT ssl FROM pg_stat_ssl WHERE pid=pg_backend_pid()) AS same_backend
+\gset c2_after_
+\if :c2_after_same_backend
+  \echo C2_SEED_COMMIT_RECEIPT_SAME_BACKEND_NO_LOSS_AUTHORIZATION
+\else
+  DO $$BEGIN RAISE EXCEPTION 'C2_SEED_POSTCOMMIT_SESSION_UNCONFIRMED_NO_REPLAY'; END$$;
+\endif
+
+\ir stock-c2-provision-reconcile-readonly.sql

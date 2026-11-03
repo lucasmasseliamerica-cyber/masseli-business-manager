@@ -20,6 +20,14 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - name: Parse C2 PowerShell without invoking launchers
+        shell: pwsh
+        run: |
+          foreach ($path in @('qa/Invoke-QaStockC2.ps1','qa/stock-c2-private.ps1')) {
+            $tokens=$null; $parseErrors=$null
+            $null=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $path),[ref]$tokens,[ref]$parseErrors)
+            if ($parseErrors.Count -ne 0) { throw "C2 PowerShell syntax rejected: $path" }
+          }
       - run: npm ci
       - name: Install isolated browser test dependency
         run: npm install --no-save --package-lock=false playwright@1.64.0 @electric-sql/pglite@0.3.15

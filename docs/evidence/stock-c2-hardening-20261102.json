@@ -1,0 +1,143 @@
+{
+  "scope": "C2_EXECUTOR_HARDENING_AND_SAME_SESSION_SEED_REVIEW_ONLY",
+  "base_head": "94604e6fd8d4ccefdf219f226d1861ad8aaadaf7",
+  "branch": "automation/nexalvo-qa-actions",
+  "test_project": "msinksoilkluooxenecy",
+  "real_test_connections": 0,
+  "real_test_authentications": 0,
+  "real_test_queries": 0,
+  "real_test_writes": 0,
+  "seed_executed": false,
+  "loss_executed": false,
+  "migrations_applied": 0,
+  "coverage": {
+    "passed": 16,
+    "total": 60,
+    "percent": 26.67
+  },
+  "findings": {
+    "F01": "RESOLVED_EXPLICIT_READ_CONTRACT_ALLOWLIST_AND_SCHEMA_PROFILE",
+    "F02": "RESOLVED_DYNAMIC_TIMEOUT_MINIMUM_DISPATCH_AND_SETTLEMENT_MARGIN",
+    "F05": "RESOLVED_PINNED_CATALOG_SECURITY_REVALIDATED_BEFORE_RPC_AFTER_FSYNC",
+    "F03": "SEMANTIC_CHECKSUM_SEPARATE_FROM_RAW_BYTE_HASHES_NOT_SIGNATURE",
+    "F04": "ATTEMPTED_FORWARDING_NOT_PROOF_OF_RECEIPT_UNKNOWN_CONSUMES_NO_REPLAY"
+  },
+  "timeouts": {
+    "http_cap_ms": 20000,
+    "min_remaining_before_dispatch_ms": 10000,
+    "settlement_margin_ms": 5000,
+    "deadline": "MIN_EXCLUSIVE_WINDOW_AND_CATALOG_SECURITY_EXPIRY",
+    "server_rollback_guaranteed": false
+  },
+  "journal": {
+    "semantic_checksum": true,
+    "per_file_raw_byte_hashes": true,
+    "byte_manifest_sha256": true,
+    "signature": false,
+    "local_administrator_resistance": false,
+    "recover_requires_two_external_hashes": true,
+    "final_check_after_cleanup": true
+  },
+  "budgets": {
+    "loss_rpc_forward_attempts_max": 1,
+    "audit_rpc_forward_attempts_max": 1,
+    "unknown_consumes_attempt": true,
+    "replay": false,
+    "automatic_replenishment": false,
+    "seed_separate": {
+      "transactions": 1,
+      "direct_inserts": 3,
+      "new_business_rows": 3,
+      "eligible_user_trigger": 1,
+      "eligible_fk_insert_triggers": 5,
+      "nonnull_fk_checks": 4,
+      "expected_index_entries": 9,
+      "indirect_business_dml": 0,
+      "initial_movements": 0,
+      "audits": 0
+    }
+  },
+  "sql_files": {
+    "seed": {
+      "path": "qa/stock-c2-provision-review.sql",
+      "sha256": "6ec2dc2fada7d69f1561b2848c29a11d647aa79c6ada6068ad26f0aa71b90635",
+      "unchanged": true
+    },
+    "reconciliation": {
+      "path": "qa/stock-c2-provision-reconcile-readonly.sql",
+      "sha256": "304361cbf214905fdd0511af9f33764606187008ea42f45524149e4878ab1fb6",
+      "unchanged": true
+    },
+    "same_session_driver": {
+      "path": "qa/stock-c2-seed-same-session.psql",
+      "sha256": "d2bbdfbce05c065d2d92366d9287e9bb3d7d78c2ca70a56a0575783ba34f4bf2",
+      "native_execution_tested": false,
+      "static_regression_pass": true
+    }
+  },
+  "seed_transport": {
+    "mechanism": "ONE_NONINTERACTIVE_PSQL17_PROCESS_DIRECT_TEST_TCP_TLS_VERIFY_FULL",
+    "host": "db.msinksoilkluooxenecy.supabase.co",
+    "port": 5432,
+    "pool": false,
+    "session_sentinels": [
+      "pg_backend_pid",
+      "backend_start",
+      "inet_server_addr",
+      "inet_server_port",
+      "current_user",
+      "current_database",
+      "pg_stat_ssl.ssl"
+    ],
+    "permanent_local_marker_before_psql": true,
+    "automatic_retry": false,
+    "connect_replay": false,
+    "initial_movement": false,
+    "explicit_future_seed_without_initial_movement_approval_required": true,
+    "separate_future_loss_approval_required": true
+  },
+  "local_tests": {
+    "suite_passed": 59,
+    "suite_failed": 0,
+    "suite_skipped": 0,
+    "affected_final_passed": 28,
+    "affected_final_failed": 0,
+    "build": "PASS",
+    "windows_powershell_parse": "PASS",
+    "sql_runtime": "PGlite 0.3.15 PostgreSQL 17.5 LOCAL ONLY; database-name guard adapted in memory only"
+  },
+  "ci": {
+    "status": "PENDING_PUBLICATION"
+  },
+  "review": {
+    "method": "Source reread plus corrected boundary regressions; no external auditor or second signature",
+    "failure_paths": [
+      "no margin before intent",
+      "expiry after durable LOSS_INTENT and AUDIT_INTENT",
+      "loss committed then response lost",
+      "audit committed then response lost",
+      "overlap",
+      "fsync failure",
+      "receipt mismatch or invalid response",
+      "raw-byte journal reformat",
+      "final journal changed after cleanup"
+    ],
+    "limitations": [
+      "HTTP cancel is not server rollback",
+      "local operational exclusivity not distributed lock",
+      "no local administrator tamper resistance",
+      "Windows directory fsync and power-cut durability not proved",
+      "pinned captures up to 24h do not prevent concurrent administrative drift",
+      "auxiliary UI reads are explicitly denied; C2 scope only",
+      "native direct psql/TLS/session proof pending future authorized execution",
+      "PGlite and synthetic browser do not homologate real C2"
+    ]
+  },
+  "preserved": [
+    "reviewed SQL bytes",
+    "C1/B source",
+    "checkpoints and consumed reservation",
+    "main",
+    "production"
+  ]
+}

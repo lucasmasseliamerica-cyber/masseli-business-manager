@@ -1,5 +1,14 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Correções C2 publicadas para revisão — execução ainda não autorizada (02/11/2026)
+
+[Correções F01/F02/F05, regressões e limites F03/F04](./QA_C2_EXECUTOR_HARDENING_20261102.md) ·
+[Seed em sessão única e reconciliação](./QA_C2_SEED_SAME_SESSION_PROCEDURE_20261102.md).
+Os achados abertos descritos nas seções históricas abaixo foram tratados no novo executor.
+Seed/perda continuam pendentes de autorizações separadas; nenhum envio ao TEST neste lote.
+SQLs revisados e C1/B preservados; cobertura 16/60 (26,67%) inalterada.
+
+
 ## Revisão C2 e SQL de seed — sem autorização (02/11/2026)
 
 [Achados, SQL exato e procedimento de reconciliação](./QA_C2_INDEPENDENT_REVIEW_AND_PROVISION_SQL_20261102.md).

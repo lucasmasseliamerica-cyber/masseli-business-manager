@@ -1,5 +1,10 @@
 # C2 — revisão adversarial e SQL de provisionamento para revisão (02/11/2026)
 
+> Registro histórico do executor anterior. As correções e limitações vigentes estão em
+> [Correções C2](./QA_C2_EXECUTOR_HARDENING_20261102.md);
+> [procedimento concreto de sessão única](./QA_C2_SEED_SAME_SESSION_PROCEDURE_20261102.md).
+> SQLs e hashes originais abaixo permanecem preservados.
+
 **Seed não autorizado/não executado. Perda C2 não autorizada/não executada.**
 Base local/remota conferida: 5b15de5cac88750ae0e51f5ee3a11c204327a4e7, árvore limpa.
 Executor revisado: ed3fb9433e80a24811b261a6dc5cb58c7c597c13; suas fontes não foram alteradas

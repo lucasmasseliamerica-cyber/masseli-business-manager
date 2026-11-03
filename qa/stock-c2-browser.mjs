@@ -1,23 +1,37 @@
 // One guarded UI loss plus its separate audit; all other business writes are forbidden.
 import { STOCK_HOST } from './stock-journey-core.mjs';
 import { C2, need, same, wastePayload, auditPayload, reconcileC2 } from './stock-c2-protocol.mjs';
+import { c2ReadDecision } from './stock-c2-read-policy.mjs';
 const LOCAL = 'http://127.0.0.1:4191';
 export function createC2Guard({ state, save, gate, view, token, report, onFailure }) {
   let busy = false, failed = false;
+  const forwardRead = async route => {
+    const admission = gate({ dispatch: true });
+    need(Number.isInteger(admission?.timeoutMs) && admission.timeoutMs > 0 && admission.timeoutMs <= 20000, 'DISPATCH_BUDGET_REQUIRED');
+    const response = await route.fetch({ maxRetries: 0, maxRedirects: 0, timeout: admission.timeoutMs });
+    return route.fulfill({ response });
+  };
   return async route => {
     const req = route.request(), url = new URL(req.url()); let owns = false;
     try {
       if (url.origin === LOCAL) { need(['GET', 'HEAD'].includes(req.method()), 'LOCAL_WRITE_FORBIDDEN'); return await route.continue(); }
       if (url.origin !== `https://${STOCK_HOST}` && !url.hostname.endsWith('.supabase.co') && ['GET', 'HEAD'].includes(req.method())) return await route.abort();
       need(url.origin === `https://${STOCK_HOST}` && !url.username && !url.password && !url.hash, 'BROWSER_TEST_TARGET_REQUIRED');
-      if (['GET', 'HEAD', 'OPTIONS'].includes(req.method())) return await route.continue();
+      const headers = req.headers?.() || {};
+      for (const name of ['accept-profile','content-profile']) need(!headers[name] || headers[name] === 'public','UNREVIEWED_SCHEMA_FORBIDDEN');
+      if (['GET', 'HEAD', 'OPTIONS'].includes(req.method())) {
+        const decision = c2ReadDecision(url, req.method());
+        if (decision === 'DENY_AUXILIARY') { report.auxiliary_reads_blocked = (report.auxiliary_reads_blocked || 0) + 1; return await route.abort(); }
+        need(decision === 'ALLOW', 'UNREVIEWED_READ_FORBIDDEN');
+        return await forwardRead(route);
+      }
       need(!url.search, 'WRITE_QUERY_FORBIDDEN');
       if (url.pathname === '/rest/v1/rpc/fn_reconcile_business_alerts') return await route.abort();
       // Exact source/attributes of this read-only POST are pinned by the security catalog.
       if (url.pathname === '/rest/v1/rpc/fn_session_access_status' && req.method() === 'POST'
-        && same(req.postDataJSON() || {}, {})) return await route.continue();
+        && same(req.postDataJSON() || {}, {})) return await forwardRead(route);
       need(req.method() === 'POST' && req.headers().authorization === `Bearer ${token}` && !busy && !failed, 'OVERLAP_OR_SESSION_REJECTED');
-      busy = true; owns = true; gate();
+      busy = true; owns = true; gate({ dispatch: true });
       const loss = url.pathname === '/rest/v1/rpc/fn_record_waste';
       const audit = url.pathname === '/rest/v1/rpc/fn_write_audit';
       need(loss || audit, 'WRITE_OUTSIDE_BUDGET');
@@ -26,14 +40,15 @@ export function createC2Guard({ state, save, gate, view, token, report, onFailur
       const before = await view();
       reconcileC2(state.baseline, before, loss ? 0 : 1, 0, state.startedAt);
       if (audit) need(same(state.lossReceipt, before.waste[0]) && same(state.movementReceipt, before.transactions[0]), 'CONFIRMED_RECEIPTS_CHANGED');
-      gate(); need(!failed, 'CONCURRENT_FAILURE');
+      gate({ dispatch: true }); need(!failed, 'CONCURRENT_FAILURE');
       state.phase = loss ? 'LOSS_INTENT' : 'AUDIT_INTENT';
       if (loss) state.intentAt = Date.now();
       save(); // file fsync + readback precedes *any* forwarding
-      gate(); need(!failed, 'CONCURRENT_FAILURE');
-      const counter = loss ? 'stock_requests_forwarded' : 'audit_requests_forwarded';
+      const admission = gate({ dispatch: true }); need(!failed, 'CONCURRENT_FAILURE');
+      need(Number.isInteger(admission?.timeoutMs) && admission.timeoutMs > 0 && admission.timeoutMs <= 20000, 'DISPATCH_BUDGET_REQUIRED');
+      const counter = loss ? 'stock_forward_attempts' : 'audit_forward_attempts';
       need(report[counter] === 0, 'BUDGET_EXCEEDED'); report[counter]++;
-      const response = await route.fetch({ maxRetries: 0, maxRedirects: 0, timeout: 20000 });
+      const response = await route.fetch({ maxRetries: 0, maxRedirects: 0, timeout: admission.timeoutMs });
       need(response.ok(), 'RESULT_UNCONFIRMED_NO_REPLAY');
       const receipt = await response.json(), observed = await view();
       reconcileC2(state.baseline, observed, 1, loss ? 0 : 1, state.intentAt);
@@ -43,7 +58,7 @@ export function createC2Guard({ state, save, gate, view, token, report, onFailur
       if (loss) state.movementReceipt = observed.transactions[0];
       state.phase = loss ? 'LOSS_CONFIRMED' : 'AUDIT_CONFIRMED'; save(); gate();
       return await route.fulfill({ response });
-    } catch { failed = true; onFailure(); try { await route.abort(); } catch { /* preserve journal, no retry */ } }
+    } catch (error) { failed = true; onFailure(/^C2_[A-Z0-9_]+$/.test(error?.code||'')?error.code:'C2_BROWSER_RESULT_UNCONFIRMED'); try { await route.abort(); } catch { /* preserve journal, no retry */ } }
     finally { if (owns) busy = false; }
   };
 }
@@ -58,11 +73,11 @@ export async function runC2Browser({ runtime, client, state, save, gate, report 
       localStorage.setItem('nexalvo.supabase.session.v1', JSON.stringify({ accessToken: token, expiresAt: Date.now() + 1200000, user }));
     }, session);
     await context.route('**/*', createC2Guard({ state, save, gate, view: () => client.view(), token: session.token, report,
-      onFailure: () => { failure = true; } }));
+      onFailure: code => { failure = true; report.blocked_code=code; } }));
     const page = await context.newPage();
     const row = () => page.locator(`[data-inventory-item-id="${C2.item}"]`);
     const inventory = async () => { await page.getByText('Inventory', { exact: true }).first().click(); await row().waitFor(); healthy(); };
-    await page.goto(LOCAL, { waitUntil: 'domcontentloaded' }); await inventory(); gate();
+    await page.goto(LOCAL, { waitUntil: 'domcontentloaded',timeout:15000 }); await inventory(); gate();
     await row().getByRole('button', { name: 'Waste', exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.getByText('Location', { exact: true }).locator('..').locator('select').selectOption(C2.location);
@@ -80,5 +95,5 @@ export async function runC2Browser({ runtime, client, state, save, gate, report 
     await dialog.getByText('Recent Stock Movements', { exact: true }).waitFor();
     await dialog.getByText('Reason: Other', { exact: false }).first().waitFor(); healthy();
     report.ui_cycle = 'PASS'; report.persist_reload = 'PASS'; report.ui_history = 'PASS';
-  } finally { await context?.close(); }
+  } finally { await context?.close(); healthy(); }
 }

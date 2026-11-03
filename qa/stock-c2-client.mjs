@@ -1,7 +1,8 @@
 // Public key + independent user sessions only. No administrative fallback, retries or arbitrary writes.
-import { STOCK_HOST, STOCK_ACTORS, StockSignal, requireStock, validateStockReadPath } from './stock-journey-core.mjs';
+import { STOCK_HOST, STOCK_ACTORS, StockSignal, requireStock } from './stock-journey-core.mjs';
 import { C2, need } from './stock-c2-protocol.mjs';
 import { sanitizeC1Diagnostic } from './stock-c1-diagnostics.mjs';
+import { c2ReadDecision } from './stock-c2-read-policy.mjs';
 
 const resources = new Map([
   ['/auth/v1/token', 'AUTH_SESSION'], ['/auth/v1/logout', 'AUTH_SESSION'], ['/auth/v1/user', 'AUTH_USER'],
@@ -33,8 +34,9 @@ export async function openC2Client(config, env, fetchImpl = fetch) {
         http_status: response?.status ?? null, upstream_code: data?.code });
       throw error;
     };
+    const budget = url.pathname.startsWith('/rest/v1/rpc/') ? config.beforeReadRPC?.() : null;
     try { response = await fetchImpl(url, { method, redirect: 'error', headers: { ...headers(actor), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(20000) }); }
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(Math.max(1,Math.floor(budget?.timeoutMs || 20000))) }); }
     catch { fail(method === 'GET' ? 'C2_READ_UNAVAILABLE' : 'C2_RESULT_UNKNOWN_READONLY_RECOVERY_REQUIRED', 'NETWORK_UNAVAILABLE'); }
     try { data = response.status === 204 ? null : await response.json(); } catch { fail('C2_RESPONSE_UNCONFIRMED', 'INVALID_JSON'); }
     if (response.ok && Array.isArray(data)) {
@@ -45,7 +47,7 @@ export async function openC2Client(config, env, fetchImpl = fetch) {
     if (!response.ok) fail('C2_AUTH_OR_READ_REJECTED', 'HTTP_REJECTED');
     return data;
   };
-  const read = (path, actor = 'A', denied = false) => { validateStockReadPath(path); return request(path, actor, 'GET', undefined, denied, denied ? 'READ_ISOLATION' : undefined); };
+  const read = (path, actor = 'A', denied = false) => { need(c2ReadDecision(new URL(path,`https://${STOCK_HOST}`),'GET')==='ALLOW','CLIENT_READ_CONTRACT_REQUIRED'); return request(path, actor, 'GET', undefined, denied, denied ? 'READ_ISOLATION' : undefined); };
   const close = async () => {
     for (const actor of Object.keys(sessions)) {
       try { await request('/auth/v1/logout?scope=local', actor, 'POST'); } catch { /* never print response or secrets */ }

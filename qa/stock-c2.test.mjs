@@ -29,9 +29,9 @@ test('C2 independent authority, baseline/code/fixture binding and 20 minute wind
   assert.throws(()=>c2Authorization({...env,QA_C2_EXECUTION_AUTHORIZED:'TEST_ONLY_EXPLICIT_C1_CHILD_20261023'},'a'.repeat(40),'b'.repeat(64)));
 });
 function harness(fault) {
-  const state={phase:'RESERVED',baseline:fixture(),startedAt:Date.now()-1},v=clone(state.baseline),report={stock_requests_forwarded:0,audit_requests_forwarded:0};
+  const state={phase:'RESERVED',baseline:fixture(),startedAt:Date.now()-1},v=clone(state.baseline),report={stock_forward_attempts:0,audit_forward_attempts:0};
   let failures=0,saves=[],sent=[],expired=false;
-  const guard=createC2Guard({state,save:()=>{saves.push(state.phase);if(fault==='fsync')throw Error('SYNTHETIC');if(fault==='expire')expired=true;},gate:()=>{if(expired)throw Error('EXPIRED');},view:async()=>clone(v),token:'SYNTHETIC_C2',report,onFailure:()=>failures++});
+  const guard=createC2Guard({state,save:()=>{saves.push(state.phase);if(fault==='fsync')throw Error('SYNTHETIC');if(fault==='expire')expired=true;},gate:()=>{if(expired)throw Error('EXPIRED');return {timeoutMs:20000};},view:async()=>clone(v),token:'SYNTHETIC_C2',report,onFailure:()=>failures++});
   const route=(rpc,payload)=>({request:()=>({url:()=>`https://msinksoilkluooxenecy.supabase.co/rest/v1/rpc/${rpc}`,method:()=> 'POST',headers:()=>({authorization:'Bearer SYNTHETIC_C2'}),postDataJSON:()=>payload}),abort:async()=>{},continue:async()=>assert.fail('no network continue'),fetch:async options=>{
     assert.equal(options.maxRetries,0);assert.equal(options.maxRedirects,0);assert.equal(saves.at(-1),rpc==='fn_record_waste'?'LOSS_INTENT':'AUDIT_INTENT');sent.push(rpc);
     const row=rpc==='fn_record_waste'?commitLoss(v):commitAudit(v);

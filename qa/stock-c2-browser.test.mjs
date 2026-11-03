@@ -8,7 +8,7 @@ import { prepareC2Runtime } from './stock-c2-browser-runtime.mjs';
 import { runC2Browser } from './stock-c2-browser.mjs';
 
 async function harness(fault) {
-  const v=fixture(),state={phase:'RESERVED',baseline:structuredClone(v),startedAt:Date.now()-1},report={stock_requests_forwarded:0,audit_requests_forwarded:0};
+  const v=fixture(),state={phase:'RESERVED',baseline:structuredClone(v),startedAt:Date.now()-1},report={stock_forward_attempts:0,audit_forward_attempts:0};
   const phases=[],sent=[];let persisted,remote=0;
   const runtime=await prepareC2Runtime({config:{origin:'https://msinksoilkluooxenecy.supabase.co',key:'sb_publishable_SYNTHETIC_ONLY'}});
   const actual=runtime.browser;
@@ -26,16 +26,19 @@ async function harness(fault) {
       if(url.origin==='http://127.0.0.1:4191')return guard(route);
       if(url.hostname!=='msinksoilkluooxenecy.supabase.co')return route.abort();
       const reply=(body,headers={})=>route.fulfill({status:200,contentType:'application/json',headers,body:JSON.stringify(body)});
-      if(url.pathname==='/auth/v1/user')return reply({id:STOCK_ACTORS.A.owner,app_metadata:{}});
+      const readRoute=(body,headers={})=>({request:()=>req,continue:()=>assert.fail('remote reads must use bounded fetch'),abort:()=>route.abort(),
+        fetch:async options=>{assert.equal(options.timeout,20000);assert.equal(options.maxRetries,0);assert.equal(options.maxRedirects,0);return {body,headers};},
+        fulfill:({response})=>reply(response.body,response.headers)});
+      if(url.pathname==='/auth/v1/user')return guard(readRoute({id:STOCK_ACTORS.A.owner,app_metadata:{}}));
       if(['GET','HEAD','OPTIONS'].includes(req.method())){
         const name=url.pathname.replace('/rest/v1/','');
         let rows=name==='rpc/fn_read_inventory_stock_secure'?v.stocks:name==='rpc/fn_read_inventory_transactions_secure'?v.transactions:name==='rpc/fn_read_waste_transactions_secure'?v.waste:name==='audit_logs'?v.audit:tables[name]||[];
         for(const [key,value]of url.searchParams){if(value.startsWith('eq.'))rows=rows.filter(r=>String(r[key])===value.slice(3));if(value.startsWith('in.('))rows=rows.filter(r=>value.slice(4,-1).split(',').includes(r[key]));}
         const offset=Number(url.searchParams.get('offset')||0),limit=Number(url.searchParams.get('limit')||rows.length||1);
-        return reply(rows.slice(offset,offset+limit),{'content-range':rows.length?`${offset}-${Math.min(offset+limit,rows.length)-1}/${rows.length}`:'*/0'});
+        return guard(readRoute(rows.slice(offset,offset+limit),{'content-range':rows.length?`${offset}-${Math.min(offset+limit,rows.length)-1}/${rows.length}`:'*/0'}));
       }
       const rpc=url.pathname.replace('/rest/v1/rpc/','');
-      if(['fn_session_access_status','current_business_id','user_can'].includes(rpc))return reply([]);
+      if(['fn_session_access_status','current_business_id','user_can'].includes(rpc))return guard(readRoute([]));
       return guard({request:()=>req,abort:()=>route.abort(),continue:()=>{remote++;assert.fail('no remote network');},fetch:async options=>{
         assert.equal(options.maxRetries,0);assert.equal(options.maxRedirects,0);sent.push(rpc);
         assert.equal(persisted.phase,rpc==='fn_record_waste'?'LOSS_INTENT':'AUDIT_INTENT');
@@ -45,7 +48,7 @@ async function harness(fault) {
     });return ctx;
   }};
   return {state,report,client:{view:async()=>structuredClone(v),browserSession:()=>({token:'SYNTHETIC_C2_SESSION',user:{id:STOCK_ACTORS.A.owner,app_metadata:{}}})},
-    runtime:{browser},save:()=>{persisted=structuredClone(state);phases.push(state.phase);},gate:()=>{},
+    runtime:{browser},save:()=>{persisted=structuredClone(state);phases.push(state.phase);},gate:()=>({timeoutMs:20000}),
     observations:()=>({v,sent,phases,remote,persisted}),close:()=>runtime.close()};
 }
 test('SIMULATED C2 actual UI loss, separate audit, reload and history', {timeout:60000},async()=>{

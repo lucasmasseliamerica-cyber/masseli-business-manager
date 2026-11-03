@@ -2,3 +2,4 @@
 qa/stock-c2-provision-review.sql text eol=lf
 qa/stock-c2-provision-reconcile-readonly.sql text eol=lf
 qa/stock-c2-provision-test-schema.sql text eol=lf
+qa/stock-c2-seed-same-session.psql text eol=lf
