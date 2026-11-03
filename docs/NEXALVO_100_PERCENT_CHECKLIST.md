@@ -1,5 +1,15 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## C2 — conexão nativa somente leitura PASS; seed pendente de autorização (03/11/2026)
+
+[Launcher, procedência, testes e prova nativa](./QA_C2_OPERATIONAL_LAUNCHER_20261102.md).
+psql/TLS verify-full, mesmo backend e sessão READ ONLY conferidos; empresa/OWNER ativos,
+zero colisões e contratos atuais PASS. Tentativas anteriores preservadas. Nenhum seed/perda,
+marcador permanente ou migração executados. Futuro seed exige autorização expressa de
+três INSERTs, saldo 2,000/custo 0,1000 **sem movimento inicial**, e janela exclusiva.
+Perda permanece bloqueada, com autorização posterior separada. Cobertura 16/60 inalterada.
+
+
 ## Correções C2 publicadas para revisão — execução ainda não autorizada (02/11/2026)
 
 [Correções F01/F02/F05, regressões e limites F03/F04](./QA_C2_EXECUTOR_HARDENING_20261102.md) ·

@@ -98,11 +98,42 @@
     ]
   },
   "real_readonly_connection": {
-    "status": "NEW_READONLY_REQUEST_PASSWORD_LOCATED",
-    "password_available_confirmed_by_user": true,
-    "password_not_sent_in_chat": true,
-    "previous_attempts_preserved": true,
-    "seed_authorization_requested": false
+    "status": "PASS",
+    "source_head": "1c8477daf79954b6e0aea863df4b60bd187cc898",
+    "operational_code_sha": "56baf2dd75c3581f8d554f7b58477405e6a6307b",
+    "code": "C2_NATIVE_READONLY_CONNECTION_ELIGIBILITY_PASS_NO_SEED",
+    "exit_code": 0,
+    "completed_at": "2026-11-03T05:07:56.032Z",
+    "mode": "VerifyReadOnly",
+    "native_prompt_observed": true,
+    "native_attempts": 1,
+    "backend_same_before_after": true,
+    "observation": {
+      "project": "msinksoilkluooxenecy",
+      "scope": "C2_READONLY_CONNECTION_AND_ELIGIBILITY",
+      "backend_pid": 4099277,
+      "backend_start": "2026-11-03T05:07:55.322457+00:00",
+      "server_address_sha256": "22a4719647904c0670be3c3832465a8adefeb2c135457c65a042019f36e3440e",
+      "server_port": 5432,
+      "tls": true,
+      "tls_version": "TLSv1.3",
+      "cipher": "TLS_AES_256_GCM_SHA384",
+      "read_only": true,
+      "seed_authority_absent": true,
+      "company_active": true,
+      "owner_active": true,
+      "collisions": 0,
+      "provision_contract_md5": "135e8025db9f8097377432b0ff26fe8c",
+      "stock_contracts": "PASS",
+      "catalog_captured_at": "2026-11-03T05:07:55.629822+00:00"
+    },
+    "artifact_hashes_verified": true,
+    "private_artifacts_preserved": true,
+    "password_recorded": false,
+    "seed_authority_absent": true,
+    "permanent_seed_marker_created": false,
+    "seed_executed": false,
+    "loss_executed": false
   },
   "seed_executed": false,
   "loss_executed": false,
@@ -288,5 +319,6 @@
     "artifact_hashes_verified": true,
     "seed_marker_created": false,
     "artifacts_preserved": true
-  }
+  },
+  "request_scope_next": "SEED_ONLY_REQUIRES_EXPLICIT_SEED_WITHOUT_INITIAL_MOVEMENT_APPROVAL_AND_EXCLUSIVE_WINDOW; LOSS_SEPARATE_BLOCKED"
 }

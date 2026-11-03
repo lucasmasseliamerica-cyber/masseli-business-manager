@@ -167,3 +167,36 @@ Qualquer mudança exige outra revisão/hashes.
 Fechamento: [CI isolada PASS](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41580651369), código 56baf2dd75c3581f8d554f7b58477405e6a6307b: 69/69 Linux e 69/69 Windows, zero falhas/skips, builds PASS.
 A segunda tentativa encerrou às 04:58:21 UTC de 03/11 com autenticação rejeitada antes das consultas; PID local encerrado, nenhuma sessão correspondente observável no TEST e hashes dos artefatos íntegros. Nenhuma repetição ocorreu durante a reconciliação.
 Depois da reconciliação, o usuário confirmou que localizou a senha e solicitou nova tentativa somente leitura, preservando as anteriores. Ela continua separada de qualquer autorização de seed/perda.
+
+## Conexão nativa somente leitura PASS — 03/11/2026
+
+Nova tentativa autorizada pelo usuário depois de localizar a senha; as duas anteriores foram
+preservadas integralmente. Fonte QA limpa na admissão: 1c8477daf79954b6e0aea863df4b60bd187cc898,
+descendente somente documental do código validado 56baf2dd75c3581f8d554f7b58477405e6a6307b.
+Concluída em **03/11 às 00:07:56 America/New_York (05:07:56 UTC)**: saída 0,
+C2_NATIVE_READONLY_CONNECTION_ELIGIBILITY_PASS_NO_SEED.
+
+- psql 17.11/CA com os hashes revisados; host direto TEST, TLS verify-full,
+  TLSv1.3/TLS_AES_256_GCM_SHA384, sem pool, fallback ou downgrade.
+- Mesmo backend PID 4099277, backend_start, endereço/porta, role/banco antes e depois.
+  Role/database postgres, transaction_read_only=on e default_transaction_read_only=on.
+  O relatório público conserva apenas o hash do endereço, sem IP bruto.
+- Autorização/GUC de seed ausente; nenhuma criação de marcador permanente, fixture,
+  movimento, perda ou auditoria. O driver de seed não foi usado nesta verificação.
+- Empresa/OWNER ativos; zero colisões de local/item/posição/nome/SKU.
+  Contrato de provisionamento 135e8025db9f8097377432b0ff26fe8c; catálogo de estoque,
+  precisão, auditoria e leitor de perdas PASS. Não é revisão integral de segurança para perda.
+- Hashes dos artefatos do run reconferidos; logs privados e tentativas anteriores preservados.
+  Senha digitada somente no prompt nativo, sem ser lida/registrada pelo launcher.
+
+Prova de leitura pode ser usada pelo launcher de seed por até 30min do fechamento, com
+mesmos hashes/binário/CA e somente diferenças docs/ desde a fonte. Ela não autoriza seed.
+Autorização específica e janela exclusiva continuam obrigatórias; se a prova expirar,
+o launcher bloqueia antes do marcador/envio. Nenhuma expiração libera retry.
+
+Próxima revisão/autoridade solicitável: somente **uma transação e três INSERTs** da fixture
+exclusiva C2, saldo 2,000 e custo médio/último 0,1000, **seed sem movimento inicial**, aceitando
+locks e resíduos descritos. IDs/SQL/hashes permanecem os aprovados. Não há reposição,
+compensação, cleanup, IDs alternativos, migração ou autorização de perda.
+Perda continua bloqueada e depende depois da fixture confirmada, revisão de segurança atual,
+preflight autenticado PASS e autorização própria. Cobertura permanece 16/60 (26,67%).
