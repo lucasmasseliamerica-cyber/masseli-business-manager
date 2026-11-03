@@ -65,3 +65,11 @@ Próximos três passos concretos: (1) revisar este diff/CI e preservar a correç
 (2) quando houver autorização de uma frente remota, retomar seu pacote/gates já preparados;
 (3) homologar UI real dessa frente sob autorização própria, sem repetir A/B/C1 ou promover
 critérios amplos apenas pelos testes isolados. Sessão encerrada não implica execução em segundo plano.
+
+## Fechamento publicado
+
+Código: 9245686f7f1e8f07ff5592316060962152a5f10e.
+[CI operacional offline PASS](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41583825352): 29/29 Linux e 29/29 Windows, zero falhas/skips, builds PASS.
+[Workflow legado TEST ignorado](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41583825095).
+Build local final PASS; verificação de segredos do diff e escopo preservado PASS.
+Este fechamento acrescenta somente documentação/evidência após o código testado.

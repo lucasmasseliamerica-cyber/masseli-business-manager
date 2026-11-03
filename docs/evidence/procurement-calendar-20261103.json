@@ -1,0 +1,38 @@
+{
+  "scope": "PROCUREMENT_CALENDAR_LOCAL_CORRECTION_NOT_REAL_HOMOLOGATION",
+  "base_head": "1bb049d274ba2a51acd125c5df0328ab66ae0d3c",
+  "validated_code_sha": "9245686f7f1e8f07ff5592316060962152a5f10e",
+  "reproduction_before": {
+    "tests": 7,
+    "pass": 1,
+    "fail": 6
+  },
+  "local_after": {
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "skipped": 0,
+    "build": "PASS"
+  },
+  "ci": {
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41583825352",
+    "linux_pass": 29,
+    "windows_pass": 29,
+    "builds": "PASS",
+    "legacy_test_workflow": "SKIPPED",
+    "legacy_url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41583825095"
+  },
+  "remote_database_connections": 0,
+  "remote_writes": 0,
+  "new_owner_prompts": 0,
+  "dependencies_changed": false,
+  "coverage": {
+    "passed": 16,
+    "total": 60
+  },
+  "approved_journeys_repeated": false,
+  "c2_execution_files_changed": false,
+  "approved_sql_changed": false,
+  "old_c2_proof_reusable_for_new_code": false,
+  "new_c2_validation_before_future_execution_required": true
+}
