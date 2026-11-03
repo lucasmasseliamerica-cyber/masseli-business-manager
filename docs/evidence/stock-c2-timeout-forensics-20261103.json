@@ -334,7 +334,16 @@
     "other_c2_offline": "60/60 PASS across completed files",
     "initial_environment_issue": "PGlite not installed locally; no source change; installed CI-pinned 0.3.15 and reran only that 11-test file",
     "local_build": "PASS",
-    "ci": "PENDING_QA_PUBLICATION"
+    "ci": {
+      "status": "PASS",
+      "head_sha": "fec16b1e6cbf5cbe7feca8b65d862415e124c45e",
+      "run_id": 41666423401,
+      "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41666423401",
+      "ubuntu": { "job_id": 126022849868, "tests": 74, "pass": 74, "fail": 0, "build": "PASS", "powershell_parse": "PASS" },
+      "windows": { "job_id": 126022850088, "tests": 74, "pass": 74, "fail": 0, "build": "PASS", "powershell_parse": "PASS" },
+      "test_environment_or_secrets_used": false,
+      "real_closed_journeys_executed": false
+    }
   },
   "future_artifact_hashes": [
     {

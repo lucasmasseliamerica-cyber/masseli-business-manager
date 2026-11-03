@@ -145,6 +145,10 @@ arquivos concluídos. A primeira rodada detectou somente dependência PGlite aus
 ambiente local; instalada a versão 0.3.15 já fixada na CI, o arquivo afetado passou 11/11,
 sem modificar testes ou SQLs aprovados para contornar o erro. Build local PASS.
 Ensaios nativos finais: 5/5 cenários de console/timeout e 7/7 casos de protocolo/TLS PASS.
-Hashes dos artefatos futuros estão na evidência; CI Linux/Windows será vinculada ao SHA
-publicado. A suíte CI existente é exigida pelo caminho C2 alterado, sem conexão TEST ou
-execução de jornadas reais encerradas.
+Hashes dos artefatos futuros estão na evidência. Código validado:
+fec16b1e6cbf5cbe7feca8b65d862415e124c45e. A
+[CI 41666423401](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41666423401)
+concluiu PASS: Linux 74/74 e Windows 74/74, build e parse PowerShell PASS nos dois.
+A publicação posterior deste resultado altera somente documentação/evidência; o código tem
+os mesmos bytes do SHA validado. A suíte CI existente é exigida pelo caminho C2 alterado,
+sem conexão TEST ou execução de jornadas reais encerradas.
