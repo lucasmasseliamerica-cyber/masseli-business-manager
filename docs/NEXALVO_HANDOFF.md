@@ -1,5 +1,12 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+**Demonstrações manuais pausadas pelo operador. Não abrir outro prompt automaticamente.**
+[Avaliação dos eventos e sequência condicional de um único caso final](./QA_C2_SCRAM_READY_PAUSE_20261103.md).
+O run 0368 autenticou, validou leitura e alcançou READY; encerrou no gate humano antes do
+prazo, sem intenção/reserva/dispatch. Operador confirmou entrada nessa fase; não é PASS de
+timeout. O run adicional d0cf não comprovou autenticação/READY e tem finalização incompleta.
+Dois casos aprovados preservados. Código c29187a com CI 41739696474 PASS; nenhum TEST.
+
 SCRAM manual: [checkpoint 2/3, aguardando apenas demora em READY](./QA_C2_SCRAM_MANUAL_CHECKPOINT_20261103.md).
 Positivo humano e demora na senha PASS preservados; não repetir. Código/CI: seis controles
 novos + uma regressão afetada por plataforma. O diálogo local de disponibilidade aguarda

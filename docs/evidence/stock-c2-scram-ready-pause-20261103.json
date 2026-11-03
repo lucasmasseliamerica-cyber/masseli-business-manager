@@ -1,0 +1,115 @@
+{
+  "status": "MANUAL_DEMONSTRATIONS_PAUSED",
+  "scope": "NATIVE_DISPOSABLE_ONLY",
+  "approved_cases_preserved": [
+    {
+      "case": "positive",
+      "passed": true,
+      "source_report_bytes_sha256": "a30766c827fd36622e2f508fcbc0da1a727b6104274dce2736f1e942c5ec4d85",
+      "repeated": false
+    },
+    {
+      "case": "password-delay",
+      "passed": true,
+      "source_report_bytes_sha256": "a6627f851a859d847c0c15fd3f84f6efbcef7c20c323dfb2f4bf31737bfa8d8b",
+      "repeated": false
+    }
+  ],
+  "approved_count": 2,
+  "total_required": 3,
+  "code_sha": "c29187a7b5b805ca3574734b611327abc91c531a",
+  "reached_ready_run": {
+    "id": "03685c48-313d-4d7b-a028-67e9f097454f",
+    "report": {
+      "case": "readiness-delay",
+      "scope": "NATIVE_DISPOSABLE_ONLY",
+      "state": "STOPPED",
+      "reason": "NATIVE_PROCESS_EXIT_FAILURE",
+      "error": "NATIVE_PROCESS_EXIT_FAILURE",
+      "window_ms": 60000,
+      "absolute_cap_ms": 120000,
+      "margin_ms": 30000,
+      "password_prompt_observed": true,
+      "authenticated_read_proofs": 1,
+      "scram_verifier_boolean": true,
+      "server_log_scram_verified": true,
+      "tls": "TLSv1.3",
+      "backend_pid": 20048,
+      "same_backend": false,
+      "human_ready_observed": false,
+      "intent_created": false,
+      "forward_reservations": 0,
+      "dispatch_exposed": false,
+      "all_observed_children_ended": true,
+      "password_value_captured": false,
+      "operational_marker_created": false,
+      "passed": false
+    },
+    "source_report_bytes_sha256": "2345c8572fe2004b8445a3fe601ee3188a711ad440410eb3d1ce3ca9dc13ffb0",
+    "ready_prompt": {
+      "at": "2026-11-03T23:30:35.881Z",
+      "pid": 13060,
+      "password_requested": false
+    },
+    "ready_event_bytes_sha256": "07febc8814eb5472c3a2dac899ad29420a94c0e0035abd36adc0f67489308bb1",
+    "operator_reported_response_after_ready": true,
+    "typed_content_collected": false,
+    "accepted_as_readiness_timeout": false,
+    "exact_helper_error_cause_unknown": true,
+    "process_and_server_stopped": true
+  },
+  "additional_run_started_before_pause": {
+    "id": "d0cf2d97-958d-4288-bffe-64a7969c0b7c",
+    "final": {
+      "type": "FINAL",
+      "state": "STOPPED",
+      "reason": "ABSOLUTE_DEADLINE"
+    },
+    "authenticated_read_proof_present": false,
+    "ready_prompt_present": false,
+    "intent_present": false,
+    "reservation_present": false,
+    "dispatch_present": false,
+    "termination_receipt_present": false,
+    "case_report_present": false,
+    "psql_and_postmaster_observed_inactive_at": "2026-11-03T23:32:47Z",
+    "finalization_complete": false,
+    "accepted_as_readiness_timeout": false,
+    "classification": "DEADLINE_BEFORE_AUTHENTICATION_PROVEN_WITH_INCOMPLETE_FINALIZATION"
+  },
+  "source_bytes_sha256": {
+    "native/adapter.mjs": "b620cf24a377a801d9fd9f82a70e49ad9901cf511a7ba03451dd32af9d765e4d",
+    "native/console-mode.ps1": "5b65db69e2af2f6aa58eca3c34000e22e25bf9cc9ef0c7d9a3c1b05a92159452",
+    "native/demo.mjs": "b3a21125978f903f683287f26348956083b2428f64f3b052159baea6fee028e9"
+  },
+  "ci": {
+    "run_id": 41739696474,
+    "status": "PASS",
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41739696474",
+    "head_sha": "c29187a7b5b805ca3574734b611327abc91c531a",
+    "linux": {
+      "new_scram_controls": 6,
+      "affected_certificate_regression": 1
+    },
+    "windows": {
+      "new_scram_controls": 6,
+      "affected_certificate_regression": 1
+    },
+    "model17_repeated": false,
+    "full_native11_repeated": false,
+    "human_password_in_ci": false
+  },
+  "timer_changes": false,
+  "absolute_cap_ms": 120000,
+  "minimum_margin_ms": 30000,
+  "selected_local_window_ms": 60000,
+  "intermediate_console_process_as_original_root_cause": "HYPOTHESIS_NOT_PROVEN",
+  "focus_verified_before_corrected_password_phase": true,
+  "supabase_connections": 0,
+  "operational_sql_loaded": false,
+  "historical_marker_accessed_or_changed": false,
+  "new_operational_marker_created": false,
+  "coverage": "16/60",
+  "next_manual_prompt": "BLOCKED_PENDING_OPERATOR_DECISION",
+  "operational_path": "BLOCKED_UNCHANGED"
+}
