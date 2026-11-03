@@ -1,5 +1,14 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Continuidade dirigida de calendário — 03/11/2026
+
+[Triagem A/B/C, correção nova e gates](./QA_PROCUREMENT_CALENDAR_20261103.md).
+Alertas de compras corrigidos para o dia civil da empresa; reprodução sintética e testes focados.
+A/B/C1 e pacotes C2/staff/compras/financeiro reaproveitados, sem repetição ou escrita remota.
+Código novo do aplicativo exige novo vínculo/revisão antes de execução C2; prova anterior
+não foi renovada. Seed/perda seguem sem autorização; cobertura 16/60 permanece inalterada.
+
+
 ## C2 — conexão nativa somente leitura PASS; seed pendente de autorização (03/11/2026)
 
 [Launcher, procedência, testes e prova nativa](./QA_C2_OPERATIONAL_LAUNCHER_20261102.md).

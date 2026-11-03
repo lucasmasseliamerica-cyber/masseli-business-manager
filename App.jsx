@@ -10474,10 +10474,12 @@ function evaluateOrderAlerts(sales, now) {
 
 function evaluateProcurementAlerts(purchaseOrders, now) {
   const alerts = [];
+  const today = localDateStr(new Date(now));
   for (const po of purchaseOrders || []) {
     if (po.status === "Cancelled" || po.status === "Received" || po.status === "Reversed") continue;
-    if (!po.expectedDate) continue;
-    const daysOverdue = Math.floor((now - new Date(po.expectedDate).getTime()) / 86400000);
+    if (!isValidCalendarDate(po.expectedDate)) continue;
+    // Compare civil dates; UTC here is only a calendar index, not the deadline instant.
+    const daysOverdue = (Date.parse(`${today}T00:00:00Z`) - Date.parse(`${po.expectedDate}T00:00:00Z`)) / 86400000;
     if (daysOverdue > 0) {
       alerts.push({ key: `po:overdue:${po.id}`, type: po.status === "Partially Received" ? "po_partial_overdue" : "po_overdue",
         severity: daysOverdue >= ALERT_THRESHOLDS.poOverdueCriticalDays ? "critical" : "warning",
