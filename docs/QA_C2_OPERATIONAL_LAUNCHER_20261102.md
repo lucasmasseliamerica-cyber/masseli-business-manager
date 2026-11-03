@@ -1,5 +1,15 @@
 # C2 — launcher operacional e conexão nativa somente leitura
 
+## Seed C2 autorizado condicionalmente — janela UTC ainda pendente (03/11/2026)
+
+[Escopo autorizado e gates](./QA_C2_SEED_CONDITIONAL_GATE_20261103.md) ·
+[Registro da autorização](./evidence/stock-c2-seed-conditional-authorization-20261103.json).
+Somente uma transação/3 INSERTs, IDs revisados, saldo 2,000/custo 0,1000, **sem movimento inicial**.
+Não pedir autorização genérica novamente dentro desse escopo. Antes do único envio faltam
+prova de leitura válida no código atual e confirmação separada da janela exclusiva UTC.
+Seed não enviado; marcador permanente não criado. Perda continua sem autorização. A/B/C1 encerradas.
+
+
 **Seed/perda não executados, não autorizados. Cobertura 16/60.** Base QA limpa conferida:
 1d7ae30e33c518bfb733431c1e69061f031be956. SHA histórico do código de perda validado preservado:
 da7c9de270a4535245751d2297eeaf6e7c63a270. Nenhuma fonte do executor de perda, C1/B, checkpoint,

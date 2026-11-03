@@ -1,0 +1,114 @@
+{
+  "scope": "C2_SEED_ONLY_CONDITIONAL_USER_AUTHORIZATION",
+  "recorded_at_utc": "2026-11-03T14:50:57Z",
+  "authorization_source": "Explicit user message in this conversation, 2026-11-03",
+  "status": "AUTHORIZED_CONDITIONALLY_NOT_EXECUTED",
+  "project": "msinksoilkluooxenecy",
+  "sql_sha256": "6ec2dc2fada7d69f1561b2848c29a11d647aa79c6ada6068ad26f0aa71b90635",
+  "budget": {
+    "write_transactions": 1,
+    "direct_inserts": 3,
+    "permanent_rows": 3,
+    "indirect_business_dml": 0
+  },
+  "fixture": {
+    "location": "ee6bd7b2-5e9d-41e6-8963-e1f178f54e09",
+    "item": "475ae0c8-5a4b-45a2-ad74-1a450e553cb0",
+    "stock": "894e85eb-eb73-42f6-a18c-4d36c0ac0113",
+    "quantity": 2,
+    "average_cost": 0.1,
+    "last_purchase_cost": 0.1,
+    "initial_movement": false
+  },
+  "locks_and_residuals_accepted": true,
+  "excluded": [
+    "loss",
+    "business audit",
+    "replenishment",
+    "cleanup",
+    "migration",
+    "substitute IDs",
+    "retry",
+    "production",
+    "A/B/C1 replay"
+  ],
+  "exclusive_window": {
+    "status": "PENDING_SEPARATE_OWNER_CONFIRMATION",
+    "at_utc": null,
+    "until_utc": null
+  },
+  "conditions": [
+    "current code binding",
+    "reviewed hashes match",
+    "valid native readonly proof",
+    "eligible fixture and no collisions",
+    "no prior seed attempt",
+    "unchanged guards",
+    "separate exclusive UTC window"
+  ],
+  "uncertain_result": "PRESERVE_ALL_ARTIFACTS_AND_RECONCILE_READONLY_NEVER_RETRY",
+  "preparation": {
+    "head_reviewed": "823338b3d1156c9989744323185d1dafc62b7419",
+    "validated_seed_code_base": "56baf2dd75c3581f8d554f7b58477405e6a6307b",
+    "seed_runtime_dependency_binding": "PASS_UNCHANGED",
+    "runtime_files": [
+      {
+        "path": "qa/stock-c2-seed-launcher.mjs",
+        "sha256": "81e40a43849e420c1219d3530b86325aa9be9141c4727f3272ae56b7a3d78675",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/stock-c1-protocol.mjs",
+        "sha256": "731497da9e0a7f1bf57b526621f0902aa1c450f7270df5bccb9c0f4ddaa93fee",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/stock-c1-audit-contract.mjs",
+        "sha256": "6942dcddd5e8af8215bad89050b725054b434ab7be5a1ea0e193407e758107ee",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/stock-journey-core.mjs",
+        "sha256": "69d0f6c570223b2754e4ab8cc499aac2b9a3e71167e5db517829bacffa000946",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/stock-waste-reader-contract.mjs",
+        "sha256": "0b56c2b8f2c82a3a487ecedf301cd170d9b326784ff550f3d20161d89d5725fe",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/photo-journey-core.mjs",
+        "sha256": "d35f075ae6a4316aef058c245b5df6a863529c3d7d0d3f8e8debcc20392549f9",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/stock-c2-seed-transport.mjs",
+        "sha256": "7165dae590a25cc0154cef5d7533d778b0711ecaec15703747849b9e85cdeb78",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/stock-c2-seed-launcher.ps1",
+        "sha256": "43374065d700c59d90ca2e0b64db641f827181046f6270bf684e0c6d135608bb",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/stock-c2-seed-private.ps1",
+        "sha256": "02edf3c8169f40b5df34ac78fe935799a822668cc2e63482941b1e03bc89bb19",
+        "unchanged_from_validated_code": true
+      },
+      {
+        "path": "qa/sql/stock_journey_preflight_readonly_TEST.sql",
+        "sha256": "3877cde26b78e9106a921a63d8bd8aacfbfdae5d2f22b9b364226076151a9e70",
+        "unchanged_from_validated_code": true
+      }
+    ],
+    "app_delta": "Only procurement calendar alert code; App.jsx is not imported by seed launcher",
+    "prior_native_proof": "HISTORICAL_EXPIRED_AND_NON_DOC_HEAD_CHANGE_REQUIRES_NEW_PROOF",
+    "local_records": "Only VerifyReadOnly runs; no SeedAuthorized run; global permanent marker absent",
+    "new_native_readonly_proof": "PENDING",
+    "seed_sent": false,
+    "loss_sent": false
+  },
+  "authorization_reuse": "Do not request generic seed authorization again within this exact conditional scope; complete gates and obtain separate window."
+}
