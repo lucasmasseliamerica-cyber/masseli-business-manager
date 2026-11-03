@@ -1,6 +1,6 @@
 // Child of the single psql. No DB library, connection, password or operational marker.
 import {readFileSync,existsSync} from 'node:fs';import {join} from 'node:path';import {createInterface} from 'node:readline/promises';
-import {fileURLToPath,pathToFileURL} from 'node:url';import {check,json,owned,durable,durableJSON,waitJSON,admission,fileHash} from './common.mjs';
+import {fileURLToPath,pathToFileURL} from 'node:url';import {check,json,owned,durable,durableJSON,waitJSON,admission,fileHash,identityExpression} from './common.mjs';
 import {digest,HISTORY} from '../protocol.mjs';
 export async function gate(directory,stage){
  const m=json(join(directory,'native-manifest.json'));owned(m.clusterRoot);admission(m);
@@ -12,7 +12,8 @@ export async function gate(directory,stage){
  if(stage==='intent'){
   let request;
   if(m.operatorMode==='manual'){
-   const rl=createInterface({input:process.stdin,output:process.stdout});try{const text=await rl.question('LOCAL readiness only: type READY after reviewing the proof/window: ');request={ready:text==='READY'};}finally{rl.close();}
+   durableJSON(join(directory,'human-ready-prompt-observed.json'),{at:new Date().toISOString(),pid:process.pid,password_requested:false});
+   const rl=createInterface({input:process.stdin,output:process.stdout});try{const text=await rl.question('LOCAL: prova validada. Digite somente READY para confirmar prontidao/janela (NUNCA senha): ');request={ready:text==='READY'};}finally{rl.close();}
   }else{check(m.operatorMode==='scripted-local','NATIVE_OPERATOR_MODE_REQUIRED');request=await waitJSON(join(directory,'operator-request.local.json'),m.deadlineWall);}
   admission(m);check(request.ready===true,'NATIVE_OPERATOR_NOT_READY');
   durableJSON(join(directory,'operator-ack.local.json'),{scope:'NATIVE_DISPOSABLE_ONLY',operator_confirmed:true,proof_digest:verified.proof_digest,operation_hash:m.operationHash,history_acknowledged:HISTORY,review_decision:'NATIVE_DISPOSABLE_ONLY',window_at:m.windowAt,window_until:m.windowUntil});
@@ -27,7 +28,7 @@ export async function gate(directory,stage){
   const literal=s=>"'"+String(s).replaceAll("'","''")+"'";
   const proof=recheck.proof;check(Number.isInteger(proof.backend_pid)&&/^\d+$/.test(proof.cluster_id),'NATIVE_IDENTITY_REQUIRED');
   let sql=readFileSync(template,'utf8');
-  const replacements={PID:String(proof.backend_pid),BACKEND_START:literal(proof.backend_start),CLUSTER:literal(proof.cluster_id),DEADLINE:literal(new Date(m.deadlineWall).toISOString()),OPERATION_HASH:literal(m.operationHash),IDENTITY:readFileSync(new URL('./identity.sql',import.meta.url),'utf8')};
+  const replacements={PID:String(proof.backend_pid),BACKEND_START:literal(proof.backend_start),CLUSTER:literal(proof.cluster_id),DEADLINE:literal(new Date(m.deadlineWall).toISOString()),OPERATION_HASH:literal(m.operationHash),IDENTITY:identityExpression(readFileSync(new URL('./identity.sql',import.meta.url),'utf8'),m.authentication||'cert')};
   for(const [key,value]of Object.entries(replacements))sql=sql.replaceAll('@@'+key+'@@',value);
   check(!sql.includes('@@'),'NATIVE_TEMPLATE_UNRESOLVED');admission(m);
   durable(join(directory,'dispatch.local.psql'),sql);admission(m);
@@ -35,4 +36,4 @@ export async function gate(directory,stage){
  }
  return {stage,passed:true};
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){try{await gate(process.argv[2],process.argv[3]);}catch{console.error('NATIVE_LOCAL_GATE_STOP');process.exitCode=3;}}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){try{await gate(process.argv[2],process.argv[3]);}catch{console.error('NATIVE_LOCAL_GATE_STOP');process.exitCode=3;}finally{if(process.stdin.isTTY)process.stdin.destroy();}}

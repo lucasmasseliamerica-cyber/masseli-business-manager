@@ -18,3 +18,4 @@ prototypes/c2-readiness/demo.mjs text eol=lf
 prototypes/c2-readiness/native/*.mjs text eol=lf
 prototypes/c2-readiness/native/*.sql text eol=lf
 prototypes/c2-readiness/native/*.psql.in text eol=lf
+prototypes/c2-readiness/native/console-mode.ps1 text eol=lf

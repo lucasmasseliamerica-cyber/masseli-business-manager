@@ -7,6 +7,7 @@ permissions:
   contents: read
 jobs:
   new-model-only:
+    if: ${{ !contains(github.event.head_commit.message, '[scram-only]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -57,4 +58,11 @@ jobs:
           'C2_NATIVE_OPENSSL=C:\Program Files\Git\usr\bin\openssl.exe' >> $env:GITHUB_ENV
           "C2_NATIVE_ARTIFACTS=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
       - name: Test only the new real native integration (owned local cluster, no Supabase)
+        if: ${{ !contains(github.event.head_commit.message, '[scram-only]') }}
         run: node --test --test-concurrency=1 --test-reporter=tap prototypes/c2-readiness/native/integration.test.mjs
+      - name: New SCRAM controls only (no human password supplied to CI)
+        if: ${{ contains(github.event.head_commit.message, '[scram-only]') }}
+        run: node --test --test-reporter=tap prototypes/c2-readiness/native/scram-policy.test.mjs
+      - name: Affected certificate-positive regression only
+        if: ${{ contains(github.event.head_commit.message, '[scram-only]') }}
+        run: node --test --test-name-pattern="native certificate authentication/read-only proof precedes" --test-reporter=tap prototypes/c2-readiness/native/integration.test.mjs
