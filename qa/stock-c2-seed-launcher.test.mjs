@@ -46,5 +46,37 @@ test('native failure preserves private intent, stdout and stderr, no retry or re
  const root=mkdtempSync(join(tmpdir(),'c2-seed-transport-synthetic-')),directory=privateRun(root,'run-synthetic');
  const r=await nativeOnce({exe:process.execPath,args:['-e',"console.log('SYNTHETIC_OUTPUT');console.error('SYNTHETIC_DIAGNOSTIC');process.exit(3)"],env:nativeEnvironment(process.execPath,'SYNTHETIC',true),directory,timeoutMs:10000});
  assert.equal(r.exitCode,3);assert.equal(r.attempts,1);assert.ok(existsSync(join(directory,'native-intent.json')));assert.match(readFileSync(join(directory,'stdout.private.log'),'utf8'),/SYNTHETIC_OUTPUT/);assert.match(readFileSync(join(directory,'stderr.private.log'),'utf8'),/SYNTHETIC_DIAGNOSTIC/);
- assert.equal(readdirSync(directory).length,3);
+ const events=readdirSync(directory).filter(n=>/^native-event-\d+\.json$/.test(n)).sort().map(n=>JSON.parse(readFileSync(join(directory,n),'utf8')));
+ assert.deepEqual(events.map(e=>e.event),['SPAWN_REQUESTED','CHILD_SPAWNED','CHILD_EXIT','CHILD_CLOSED','NATIVE_RESULT_FINALIZED']);assert.equal(r.eventJournalFinalized,true);
+ assert.ok(events.every((e,i)=>i===0||e.elapsed_ms>=events[i-1].elapsed_ms));
+});
+test('future diagnostics distinguish the client timer from a manual signal without input capture',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'c2-seed-timeout-synthetic-')),directory=privateRun(root,'run-timeout');
+ const r=await nativeOnce({exe:process.execPath,args:['-e','setTimeout(()=>{},10000)'],env:nativeEnvironment(process.execPath,'SYNTHETIC',true),directory,timeoutMs:200});
+ assert.equal(r.timedOut,true);assert.equal(r.interrupted,false);assert.equal(r.stopReason,'TIMEOUT');assert.equal(r.inputDeliveryProven,false);
+ const events=readdirSync(directory).filter(n=>n.startsWith('native-event-')).sort().map(n=>JSON.parse(readFileSync(join(directory,n),'utf8')));
+ assert.ok(events.some(e=>e.event==='TIMEOUT_FIRED'));assert.ok(events.some(e=>e.event==='STOP_REQUESTED'&&e.reason==='TIMEOUT'));
+});
+test('missing event integrity or unconfirmed termination cannot produce PASS despite a receipt',()=>{
+ for(const flag of ['transcriptUnconfirmed','terminationUnconfirmed'])assert.throws(()=>nativeReceipt({exitCode:0,[flag]:true},'RECEIPT','RECEIPT'));
+ assert.throws(()=>nativeReceipt({exitCode:0,eventJournalFinalized:false},'RECEIPT','RECEIPT'));
+});
+test('a received signal is recorded separately from timeout; one child is terminated without replay',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'c2-seed-signal-synthetic-')),directory=privateRun(root,'run-signal');let signalTimer;
+ const r=await nativeOnce({exe:process.execPath,args:['-e','setTimeout(()=>{},10000)'],env:nativeEnvironment(process.execPath,'SYNTHETIC',true),directory,timeoutMs:5000,onStart:()=>{signalTimer=setTimeout(()=>process.emit('SIGTERM'),100);}});clearTimeout(signalTimer);
+ assert.equal(r.timedOut,false);assert.equal(r.interrupted,true);assert.equal(r.stopReason,'SIGTERM');assert.equal(r.attempts,1);assert.throws(()=>nativeReceipt(r,'RECEIPT','RECEIPT'));
+});
+test('event-file collision fails closed and preserves the conflicting file and original intent',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'c2-seed-journal-synthetic-')),directory=privateRun(root,'run-journal');
+ const r=await nativeOnce({exe:process.execPath,args:['-e','setTimeout(()=>{},10000)'],env:nativeEnvironment(process.execPath,'SYNTHETIC',true),directory,timeoutMs:2000,onStart:()=>durableJSON(join(directory,'native-event-001.json'),{scope:'SYNTHETIC_EXISTING_FILE'})});
+ assert.equal(r.transcriptUnconfirmed,true);assert.equal(r.stopReason,'EVENT_JOURNAL_FAILURE');assert.equal(r.attempts,1);assert.ok(existsSync(join(directory,'native-intent.json')));
+ assert.equal(JSON.parse(readFileSync(join(directory,'native-event-001.json'),'utf8')).scope,'SYNTHETIC_EXISTING_FILE');assert.throws(()=>nativeReceipt({...r,exitCode:0},'RECEIPT','RECEIPT'));
+});
+test('early local failure seals the journal before the caller hashes it; late close cannot append events',async()=>{
+ const root=mkdtempSync(join(tmpdir(),'c2-seed-final-synthetic-')),directory=privateRun(root,'run-final');
+ const r=await nativeOnce({exe:process.execPath,args:['-e','setTimeout(()=>{},10000)'],env:nativeEnvironment(process.execPath,'SYNTHETIC',true),directory,timeoutMs:2000,onStart:()=>{throw Error('SYNTHETIC_LOCAL_FAILURE');}});
+ const journal=()=>readdirSync(directory).filter(n=>n.startsWith('native-event-')).sort().map(n=>[n,sha256(readFileSync(join(directory,n)))]);
+ const before=journal();await new Promise(resolve=>setTimeout(resolve,200));assert.deepEqual(journal(),before);
+ assert.equal(r.stopReason,'LOCAL_CALLBACK_FAILURE');assert.equal(r.terminationUnconfirmed,true);
+ const final=JSON.parse(readFileSync(join(directory,before.at(-1)[0]),'utf8'));assert.equal(final.event,'NATIVE_RESULT_FINALIZED');assert.throws(()=>nativeReceipt({...r,exitCode:0},'RECEIPT','RECEIPT'));
 });

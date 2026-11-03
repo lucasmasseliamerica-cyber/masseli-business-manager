@@ -7,7 +7,8 @@ import {createServer} from 'node:net';
 import {randomUUID} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {check,privateRun,durableFile,durableJSON,fileHash,nativeEnvironment,nativeOnce,nativeReceipt} from './stock-c2-seed-transport.mjs';
-export async function nativeHarness({pgBin,openssl,artifactRoot,promptProbe=false}){
+import {timeoutInvestigation} from './stock-c2-timeout-investigation.mjs';
+export async function nativeHarness({pgBin,openssl,artifactRoot,promptProbe=false,investigateTimeout=false}){
  const root=privateRun(artifactRoot,'native-harness-'+randomUUID()),ext=process.platform==='win32'?'.exe':'',psql=join(pgBin,'psql'+ext),ctl=join(pgBin,'pg_ctl'+ext),init=join(pgBin,'initdb'+ext);
  const version=execFileSync(psql,['--version'],{encoding:'utf8',windowsHide:true}).trim();check(/^psql \(PostgreSQL\) 17\./.test(version),'C2_HARNESS_PG17_REQUIRED');
  const port=await new Promise((res,rej)=>{const s=createServer();s.once('error',rej);s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>res(p));});});
@@ -22,7 +23,7 @@ export async function nativeHarness({pgBin,openssl,artifactRoot,promptProbe=fals
   const quote=s=>s.replaceAll('\\','/').replaceAll("'","''");
   appendFileSync(join(data,'postgresql.conf'),`\nlisten_addresses='127.0.0.1'\nport=${port}\nssl=on\nssl_cert_file='${quote(cert)}'\nssl_key_file='${quote(key)}'\n`);
   run(ctl,['-D',data,'-l',join(root,'postgres.private.log'),'-w','-t','20','start']);started=true;
-  for(const [name,sql,expected,receipt,timeoutMs]of (promptProbe?[]:[
+  for(const [name,sql,expected,receipt,timeoutMs]of (promptProbe||investigateTimeout?[]:[
    ['success',"BEGIN READ ONLY;SELECT 'C2_NATIVE_SYNTHETIC_RECEIPT';COMMIT;",0,true,10000],
    ['sql_error',"BEGIN READ ONLY;SELECT 1/0;SELECT 'C2_NATIVE_SYNTHETIC_RECEIPT';COMMIT;",3,false,10000],
    ['disconnect',"SELECT pg_terminate_backend(pg_backend_pid());SELECT 'C2_NATIVE_SYNTHETIC_RECEIPT';",2,false,10000],
@@ -38,7 +39,7 @@ export async function nativeHarness({pgBin,openssl,artifactRoot,promptProbe=fals
    const proof={case:name,exit_code:r.exitCode,timed_out:r.timedOut,attempts:r.attempts,receipt_accepted:accepted,stdout_sha256:fileHash(join(directory,'stdout.private.log')),stderr_sha256:fileHash(join(directory,'stderr.private.log')),artifacts_retained:true,retry:false};
    summary.cases.push(proof);durableJSON(join(directory,'result.sanitized.json'),proof);
   }
-  for(const fault of (promptProbe?[]:['wrong_ca','wrong_hostname'])){
+  for(const fault of (promptProbe||investigateTimeout?[]:['wrong_ca','wrong_hostname'])){
    const directory=privateRun(root,'case-'+fault),script=join(directory,'synthetic.sql');durableFile(script,"SELECT 'C2_NATIVE_SYNTHETIC_RECEIPT';\n");
    const env=nativeEnvironment(psql,fault==='wrong_ca'?join(root,'ABSENT_CA.crt'):cert,true);
    // hostaddr only in the local negative harness: connect loopback while validating wrong hostname.
@@ -55,10 +56,11 @@ export async function nativeHarness({pgBin,openssl,artifactRoot,promptProbe=fals
    check(r.promptObserved&&r.timedOut&&Date.now()-Date.parse(status.observed_at)>=2000&&readFileSync(join(directory,'stdout.private.log')).length===0,'C2_HARNESS_PASSWORD_PROMPT_MUST_WAIT');
    summary.cases.push({case:'native_password_prompt_waits',prompt_observed:true,waited_without_input_ms:Date.now()-Date.parse(status.observed_at),sql_output_bytes:0,deliberately_terminated_after_observation:true,password_supplied:false,test_connected:false,artifacts_retained:true});
   }
+  if(investigateTimeout)summary.cases.push(...await timeoutInvestigation({root,psql,cert,port}));
   summary.status='PASS';return summary;
  }finally{
   if(started||existsSync(join(data,'postmaster.pid'))){try{run(ctl,['-D',data,'-m','fast','-w','-t','20','stop']);summary.local_server_stopped=true;}catch{summary.status='BLOCKED';summary.local_server_stop_unconfirmed=true;}}
   durableJSON(join(root,'native-harness-summary.json'),summary);
  }
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){try{const p={};for(let i=2;i<process.argv.length;i+=2)p[process.argv[i]]=process.argv[i+1];const r=await nativeHarness({pgBin:resolve(p['--pg-bin']),openssl:resolve(p['--openssl']),artifactRoot:resolve(p['--artifacts']),promptProbe:p['--probe-native-prompt']==='true'});console.log(JSON.stringify(r,null,2));process.exitCode=r.status==='PASS'?0:2;}catch{console.log(JSON.stringify({scope:'LOCAL_DISPOSABLE_PG17_NATIVE_PSQL',status:'BLOCKED',code:'C2_NATIVE_HARNESS_BLOCKED_ARTIFACTS_RETAINED'}));process.exitCode=2;}}
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){try{const p={};for(let i=2;i<process.argv.length;i+=2)p[process.argv[i]]=process.argv[i+1];const r=await nativeHarness({pgBin:resolve(p['--pg-bin']),openssl:resolve(p['--openssl']),artifactRoot:resolve(p['--artifacts']),promptProbe:p['--probe-native-prompt']==='true',investigateTimeout:p['--timeout-investigation']==='true'});console.log(JSON.stringify(r,null,2));process.exitCode=r.status==='PASS'?0:2;}catch{console.log(JSON.stringify({scope:'LOCAL_DISPOSABLE_PG17_NATIVE_PSQL',status:'BLOCKED',code:'C2_NATIVE_HARNESS_BLOCKED_ARTIFACTS_RETAINED'}));process.exitCode=2;}}

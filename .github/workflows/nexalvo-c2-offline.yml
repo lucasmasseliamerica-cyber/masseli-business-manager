@@ -23,7 +23,7 @@ jobs:
       - name: Parse C2 PowerShell without invoking launchers
         shell: pwsh
         run: |
-          foreach ($path in @('qa/Invoke-QaStockC2.ps1','qa/stock-c2-private.ps1','qa/stock-c2-seed-launcher.ps1','qa/stock-c2-seed-private.ps1')) {
+          foreach ($path in @('qa/Invoke-QaStockC2.ps1','qa/stock-c2-private.ps1','qa/stock-c2-seed-launcher.ps1','qa/stock-c2-seed-private.ps1','qa/stock-c2-console-lab.ps1')) {
             $tokens=$null; $parseErrors=$null
             $null=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $path),[ref]$tokens,[ref]$parseErrors)
             if ($parseErrors.Count -ne 0) { throw "C2 PowerShell syntax rejected: $path" }

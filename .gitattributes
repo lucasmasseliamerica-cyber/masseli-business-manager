@@ -10,3 +10,5 @@ qa/stock-c2-seed-transport.mjs text eol=lf
 qa/stock-c2-seed-private.ps1 text eol=lf
 qa/stock-c2-seed-native-harness.mjs text eol=lf
 qa/stock-c2-seed-launcher.test.mjs text eol=lf
+qa/stock-c2-timeout-investigation.mjs text eol=lf
+qa/stock-c2-console-lab.ps1 text eol=lf

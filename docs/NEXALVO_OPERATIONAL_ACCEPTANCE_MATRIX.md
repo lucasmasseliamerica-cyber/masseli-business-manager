@@ -1,5 +1,8 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+Investigação local do timeout: [fatos, hipóteses, correção futura e opções](./QA_C2_TIMEOUT_FORENSICS_20261103.md).
+Timer de 120s comprovado; causa da espera indeterminada. Nenhum novo envio ou conexão TEST.
+
 ## Seed C2 — tentativa consumida, resultado incerto; nenhum novo envio (03/11/2026)
 
 [Encerramento e reconciliação somente leitura](./QA_C2_SEED_ATTEMPT_CLOSURE_20261103.md).

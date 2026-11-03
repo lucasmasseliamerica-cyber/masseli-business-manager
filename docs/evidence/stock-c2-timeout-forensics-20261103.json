@@ -1,0 +1,361 @@
+{
+  "scope": "C2_SAVED_ATTEMPT_TIMEOUT_FORENSICS_LOCAL_ONLY",
+  "status": "CLIENT_TIMEOUT_PROVEN_UNDERLYING_WAIT_UNDETERMINED",
+  "baseline_head": "5df21ac79a5b02ba1e11a1872b1cbbb916ec1264",
+  "source_head": "3cebe484596b35d2998daa56eab2361c8c997195",
+  "timeline": [
+    {
+      "event": "ADMISSION_INTENT_SAVED",
+      "at": "2026-11-03T15:10:16.176Z"
+    },
+    {
+      "event": "NATIVE_INTENT_BEFORE_SPAWN",
+      "at": "2026-11-03T15:10:16.930Z"
+    },
+    {
+      "event": "NATIVE_PASSWORD_PROMPT_OBSERVED",
+      "at": "2026-11-03T15:10:16.951Z",
+      "native_pid": 11332
+    },
+    {
+      "event": "TIMER_AND_FINAL_RESULT",
+      "at": "2026-11-03T15:12:16.951Z",
+      "limitation": "No separate historical OS-spawn, timer-fire or child-exit timestamp was recorded"
+    }
+  ],
+  "duration_intent_to_result_ms": 120021,
+  "duration_prompt_to_result_ms": 120000,
+  "native_result": {
+    "exitCode": null,
+    "spawnError": false,
+    "interrupted": true,
+    "timedOut": true,
+    "promptObserved": true,
+    "attempts": 1
+  },
+  "stdout_bytes": 0,
+  "stderr_only_native_prompt": true,
+  "original_artifacts_verified": true,
+  "original_inventory": [
+    {
+      "name": "admission-intent.json",
+      "sha256": "34c4d54d31cfa267d61657b4cb0123b3b61800a37b4940e0b5b8501647f854f7",
+      "bytes": 166
+    },
+    {
+      "name": "native-intent.json",
+      "sha256": "9882a39f7054f9fead45c479ca4e616683ea14e4e3814a5d740b3436f86613de",
+      "bytes": 582
+    },
+    {
+      "name": "native-password-prompt-ready.json",
+      "sha256": "4e8b826d6184d943b7f57108bf34e50f6243710b6c7d14622c4e36e4309fac02",
+      "bytes": 286
+    },
+    {
+      "name": "result.sanitized.json",
+      "sha256": "4b79f0a306bb541d572a0234b8b54cf05049aa87c3943b4f1f87d2cdc9e5f30a",
+      "bytes": 2329
+    },
+    {
+      "name": "snapshot-manifest.json",
+      "sha256": "e62363c72e76f34c08ac705d06b843ebb778f59201797d0fafc9c0d8d2c4004b",
+      "bytes": 422
+    },
+    {
+      "name": "stderr.private.log",
+      "sha256": "79a7c1f4f967151a775b8468756306770ccd6d3801734f866c64c135ca68e22e",
+      "bytes": 10
+    },
+    {
+      "name": "stdout.private.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "name": "stock-c2-provision-reconcile-readonly.sql",
+      "sha256": "304361cbf214905fdd0511af9f33764606187008ea42f45524149e4878ab1fb6",
+      "bytes": 4052
+    },
+    {
+      "name": "stock-c2-provision-review.sql",
+      "sha256": "6ec2dc2fada7d69f1561b2848c29a11d647aa79c6ada6068ad26f0aa71b90635",
+      "bytes": 12524
+    },
+    {
+      "name": "stock-c2-seed-same-session.psql",
+      "sha256": "d2bbdfbce05c065d2d92366d9287e9bb3d7d78c2ca70a56a0575783ba34f4bf2",
+      "bytes": 2410
+    }
+  ],
+  "marker_sha256": "0de51a3f1f0e91450ce820eeff10bc71ccc9b1b7b67a0361273315f58079b34c",
+  "original_classification_preserved": true,
+  "forward_attempts": 1,
+  "budget_consumed": true,
+  "retry_allowed": false,
+  "seed_committed": null,
+  "facts": [
+    "The client timer covered prompt, connection and script execution together",
+    "Original interrupted=true is a timer-handler side effect, not evidence of operator interruption",
+    "Configured stdin was inherited; no original child-handle or focus observation exists",
+    "Prompt detection proves prompt bytes from that child, not authentication or password delivery"
+  ],
+  "unknowns": [
+    "Operator input timing and destination",
+    "Whether password prompt completed",
+    "Whether authentication/TLS completed in this attempt",
+    "Whether SQL was delivered or committed",
+    "Exact OS process creation and exit times"
+  ],
+  "prior_reconciliation_reference": "stock-c2-seed-attempt-reconciled-20261103.json",
+  "prior_reconciliation_repeated": false,
+  "test_connections_this_investigation": 0,
+  "commands_history_read": false,
+  "passwords_captured": false,
+  "laboratory": {
+    "version": "psql (PostgreSQL) 17.11",
+    "psql_sha256": "c290c7f0a3335f290f8c18011a1e5afa03ee3cdd628697a5f3e767e5f1d3d10d",
+    "tls": "verify-full",
+    "host": "127.0.0.1",
+    "authentication_method": "LOCAL_TRUST",
+    "status": "PASS",
+    "cases": [
+      {
+        "case": "operator_delay",
+        "prompt_observed": true,
+        "timed_out": true,
+        "stop_reason": "TIMEOUT",
+        "exit_code": null,
+        "stdout_bytes": 0,
+        "same_console": true,
+        "echo_disabled": true,
+        "public_enter_queued": false,
+        "password_supplied": false,
+        "input_read_or_logged": false,
+        "receipt_accepted": false,
+        "events": [
+          "SPAWN_REQUESTED",
+          "CHILD_SPAWNED",
+          "NATIVE_PASSWORD_PROMPT_OBSERVED",
+          "TIMEOUT_FIRED",
+          "STOP_REQUESTED",
+          "CHILD_EXIT",
+          "CHILD_CLOSED",
+          "NATIVE_RESULT_FINALIZED"
+        ],
+        "artifacts_retained": true,
+        "test_connected": false,
+        "retry": false
+      },
+      {
+        "case": "exit_before_input",
+        "prompt_observed": true,
+        "timed_out": false,
+        "stop_reason": null,
+        "exit_code": null,
+        "stdout_bytes": 0,
+        "same_console": true,
+        "echo_disabled": true,
+        "public_enter_queued": false,
+        "password_supplied": false,
+        "input_read_or_logged": false,
+        "receipt_accepted": false,
+        "events": [
+          "SPAWN_REQUESTED",
+          "CHILD_SPAWNED",
+          "NATIVE_PASSWORD_PROMPT_OBSERVED",
+          "CHILD_EXIT",
+          "CHILD_CLOSED",
+          "NATIVE_RESULT_FINALIZED"
+        ],
+        "artifacts_retained": true,
+        "test_connected": false,
+        "retry": false
+      },
+      {
+        "case": "input_route_control",
+        "prompt_observed": true,
+        "timed_out": false,
+        "stop_reason": null,
+        "exit_code": 0,
+        "stdout_bytes": 24,
+        "same_console": true,
+        "echo_disabled": true,
+        "public_enter_queued": true,
+        "password_supplied": false,
+        "input_read_or_logged": false,
+        "receipt_accepted": true,
+        "events": [
+          "SPAWN_REQUESTED",
+          "CHILD_SPAWNED",
+          "NATIVE_PASSWORD_PROMPT_OBSERVED",
+          "CHILD_EXIT",
+          "CHILD_CLOSED",
+          "NATIVE_RESULT_FINALIZED"
+        ],
+        "artifacts_retained": true,
+        "test_connected": false,
+        "retry": false
+      },
+      {
+        "case": "input_not_delivered",
+        "intentional_lab_adapter": true,
+        "prompt_observed": true,
+        "timed_out": true,
+        "elapsed_ms": 1519,
+        "stdout_bytes": 0,
+        "password_supplied": false,
+        "input_read_or_logged": false,
+        "production_transport_used": false,
+        "artifacts_retained": true,
+        "test_connected": false,
+        "retry": false
+      },
+      {
+        "case": "authenticated_slow",
+        "authenticated_backend_observed": true,
+        "active_pg_sleep_observed": true,
+        "timed_out": true,
+        "stdout_bytes": 0,
+        "input_read_or_logged": false,
+        "password_supplied": false,
+        "authentication_method": "LOCAL_TRUST",
+        "tls": "verify-full",
+        "events": [
+          "SPAWN_REQUESTED",
+          "CHILD_SPAWNED",
+          "TIMEOUT_FIRED",
+          "STOP_REQUESTED",
+          "CHILD_EXIT",
+          "CHILD_CLOSED",
+          "NATIVE_RESULT_FINALIZED"
+        ],
+        "artifacts_retained": true,
+        "test_connected": false,
+        "retry": false
+      }
+    ],
+    "local_server_stopped": true,
+    "files_removed": 0,
+    "summary_sha256": "d12ead54b57af9ca701fe1e98de25e9878c193e4943488259d57984b1c43b708"
+  },
+  "native_regression": {
+    "status": "PASS",
+    "cases": [
+      {
+        "case": "success",
+        "exit_code": 0,
+        "timed_out": false,
+        "attempts": 1,
+        "receipt_accepted": true,
+        "stdout_sha256": "6a4273e0a114e1791f63f0717a93c6737bf5f1abd1c8061ad923a54e8575e368",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "artifacts_retained": true,
+        "retry": false
+      },
+      {
+        "case": "sql_error",
+        "exit_code": 3,
+        "timed_out": false,
+        "attempts": 1,
+        "receipt_accepted": false,
+        "stdout_sha256": "c14f1d989a6366406f756ca3fa04fdfc9dcd5643d363417d46ce94696e5f4a27",
+        "stderr_sha256": "1ae908d94c3a2fce79531c03e46bc1cdcba32f8db8bf190403f96392da389613",
+        "artifacts_retained": true,
+        "retry": false
+      },
+      {
+        "case": "disconnect",
+        "exit_code": 2,
+        "timed_out": false,
+        "attempts": 1,
+        "receipt_accepted": false,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "588110064298864d9afd69ff8e4d7135ab8798e4fd3f3b2b0d6ed95535bdebf9",
+        "artifacts_retained": true,
+        "retry": false
+      },
+      {
+        "case": "missing_receipt",
+        "exit_code": 0,
+        "timed_out": false,
+        "attempts": 1,
+        "receipt_accepted": false,
+        "stdout_sha256": "e18be0f389dfd1271e004a0e7f4cb095a73d4ca3fe181b7e151922f56eba108f",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "artifacts_retained": true,
+        "retry": false
+      },
+      {
+        "case": "timeout",
+        "exit_code": null,
+        "timed_out": true,
+        "attempts": 1,
+        "receipt_accepted": false,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "artifacts_retained": true,
+        "retry": false
+      },
+      {
+        "case": "wrong_ca",
+        "exit_code": 2,
+        "tls_rejected": true,
+        "attempts": 1,
+        "artifacts_retained": true,
+        "retry": false
+      },
+      {
+        "case": "wrong_hostname",
+        "exit_code": 2,
+        "tls_rejected": true,
+        "attempts": 1,
+        "artifacts_retained": true,
+        "retry": false
+      }
+    ],
+    "local_server_stopped": true,
+    "summary_sha256": "01347c2d9622e90c682c02f2b79be1a3180f1d2700c7ee7817f2d88f478265e8"
+  },
+  "constraints": {
+    "approved_sql_changed": false,
+    "guards_weakened": false,
+    "production_timeout_extended": false,
+    "original_marker_modified": false,
+    "loss_authorized": false,
+    "coverage": "16/60"
+  },
+  "previous_lab_summary_hashes": [
+    "50e333d9c992640e18679fff3dd1bdbe133c3bc9f24f31c6856b519e8a034ee5",
+    "b3db6f58508420e7977440b6e84a5f812e6f0a3dc56f691bebdd7643e0da68f0"
+  ],
+  "validation": {
+    "launcher_unit": "14/14 PASS",
+    "other_c2_offline": "60/60 PASS across completed files",
+    "initial_environment_issue": "PGlite not installed locally; no source change; installed CI-pinned 0.3.15 and reran only that 11-test file",
+    "local_build": "PASS",
+    "ci": "PENDING_QA_PUBLICATION"
+  },
+  "future_artifact_hashes": [
+    {
+      "name": "stock-c2-seed-transport.mjs",
+      "sha256": "d65f38547067e4eade3c007bfe521870c686061ec1b2f1816956a94b3e294880"
+    },
+    {
+      "name": "stock-c2-seed-native-harness.mjs",
+      "sha256": "7d688abd1447e9d94740b3055f131fbdcd4defdc9e0aecf01ac94329f36b30d1"
+    },
+    {
+      "name": "stock-c2-seed-launcher.test.mjs",
+      "sha256": "9d42861723f6dc0aed3f5a1cfc9ee61d743547749f13720cd721dcee02197617"
+    },
+    {
+      "name": "stock-c2-timeout-investigation.mjs",
+      "sha256": "b5e712c1997d000cda7772a71d43fe2f52ffb68a1a9ce4ea979c20d898f30e0d"
+    },
+    {
+      "name": "stock-c2-console-lab.ps1",
+      "sha256": "1c1636b7d3f246ebcc5ff9326c85338f18028c69074f8b0c8094386562bff366"
+    }
+  ]
+}
