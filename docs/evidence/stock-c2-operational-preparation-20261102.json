@@ -1,0 +1,110 @@
+{
+  "scope": "C2_NATIVE_CLIENT_AND_CA_PROVENANCE",
+  "loss_validated_code_sha": "da7c9de270a4535245751d2297eeaf6e7c63a270",
+  "base_head": "1d7ae30e33c518bfb733431c1e69061f031be956",
+  "psql": {
+    "version": "17.11",
+    "file_sha256": "c290c7f0a3335f290f8c18011a1e5afa03ee3cdd628697a5f3e767e5f1d3d10d",
+    "size_bytes": 635392,
+    "exe_authenticode": "NotSigned",
+    "installer_url": "https://get.enterprisedb.com/postgresql/postgresql-17.11-5-windows-x64.exe",
+    "installer_sha256": "612c7f5400a003aaffa0372cb273eed52278f93c680ab911eb9cb2229e329072",
+    "installer_authenticode": "Valid",
+    "installer_signer": "EnterpriseDB Corporation",
+    "installer_signer_thumbprint": "7BEDD1269FCCF7A5D95F18274750B79893C06C70",
+    "installer_hash_matches_manifest": true,
+    "manifest_source": "https://github.com/microsoft/winget-pkgs/blob/master/manifests/p/PostgreSQL/PostgreSQL/17/17.11-5/PostgreSQL.PostgreSQL.17.installer.yaml",
+    "vendor_source": "https://www.postgresql.org/download/windows/",
+    "official_zip_url": "https://get.enterprisedb.com/postgresql/postgresql-17.11-5-windows-x64-binaries.zip",
+    "official_zip_sha256": "80379b2c04d51c30225532e0ae04509899141e9957ed096fe749d7fd9df8f82f",
+    "installed_exe_matches_official_zip_bytes": true,
+    "zip_digest_is_local_measurement_not_vendor_signature": true
+  },
+  "ca": {
+    "source": "https://supabase-downloads.s3-ap-southeast-1.amazonaws.com/prod/ssl/prod-ca-2021.crt",
+    "source_template_from_official_dashboard": "https://github.com/supabase/supabase/blob/master/apps/studio/hooks/custom-content/custom-content.json",
+    "source_template_field": "ssl:certificate_url",
+    "source_template_env": "prod",
+    "raw_file_sha256": "700723581420dd1ac98fd7e9ac529f0ef210eadcaf87fc868a3ad7d114c2f3b7",
+    "der_sha256_fingerprint": "807025ad50d4ed219d2c9c7d299c004f824eb00cf7f65afef607d07b72e6cafa",
+    "subject": "CN=Supabase Root 2021 CA, O=Supabase Inc, L=New Castle, S=Delware, C=US",
+    "issuer_equals_subject": true,
+    "basic_constraints_ca": true,
+    "valid_from_utc": "2021-04-28T10:56:53Z",
+    "valid_to_utc": "2031-04-26T10:56:53Z"
+  },
+  "credential_free_tls_probe": {
+    "host": "db.msinksoilkluooxenecy.supabase.co",
+    "port": 5432,
+    "verify_hostname": true,
+    "verify_ca": true,
+    "exit_code": 0,
+    "sql_sent": false,
+    "password_sent": false,
+    "pool": false
+  },
+  "native_harness": {
+    "status": "PASS",
+    "pg_version": "17.11",
+    "test_connected": false,
+    "approved_seed_driver_executed": false,
+    "synthetic_sql_only": true,
+    "local_server_stopped": true,
+    "artifacts_retained": true,
+    "cases": [
+      {
+        "name": "success",
+        "exit": 0,
+        "receipt": true
+      },
+      {
+        "name": "sql_error",
+        "exit": 3,
+        "receipt": false
+      },
+      {
+        "name": "disconnect",
+        "exit": 2,
+        "receipt": false
+      },
+      {
+        "name": "missing_receipt",
+        "exit": 0,
+        "receipt": false
+      },
+      {
+        "name": "timeout",
+        "timed_out": true,
+        "receipt": false
+      },
+      {
+        "name": "wrong_ca",
+        "exit": 2,
+        "rejected": true
+      },
+      {
+        "name": "wrong_hostname",
+        "exit": 2,
+        "rejected": true
+      }
+    ],
+    "adaptations": [
+      "Official EDB full binaries used because installed client lacked server share/postgres.bki",
+      "Windows pg_ctl setup stdout/stderr redirected to retained files rather than inherited pipes",
+      "Local synthetic trust authentication with -w only in harness; real TEST uses native -W",
+      "Synthetic local CA and 127.0.0.1 dynamic port only in harness; real launcher has fixed direct TEST host and verify-full",
+      "No approved SQL/driver rewritten or run; local scripts use SELECT and test termination only",
+      "initdb --no-clean; all run files retained; pg_ctl stops only the local harness server"
+    ]
+  },
+  "real_readonly_connection": {
+    "status": "PENDING_NATIVE_PASSWORD_PROMPT"
+  },
+  "seed_executed": false,
+  "loss_executed": false,
+  "permanent_seed_marker_created": false,
+  "coverage": {
+    "passed": 16,
+    "total": 60
+  }
+}

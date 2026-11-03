@@ -23,7 +23,7 @@ jobs:
       - name: Parse C2 PowerShell without invoking launchers
         shell: pwsh
         run: |
-          foreach ($path in @('qa/Invoke-QaStockC2.ps1','qa/stock-c2-private.ps1')) {
+          foreach ($path in @('qa/Invoke-QaStockC2.ps1','qa/stock-c2-private.ps1','qa/stock-c2-seed-launcher.ps1','qa/stock-c2-seed-private.ps1')) {
             $tokens=$null; $parseErrors=$null
             $null=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $path),[ref]$tokens,[ref]$parseErrors)
             if ($parseErrors.Count -ne 0) { throw "C2 PowerShell syntax rejected: $path" }
@@ -33,5 +33,5 @@ jobs:
         run: npm install --no-save --package-lock=false playwright@1.64.0 @electric-sql/pglite@0.3.15
       - run: npx --no-install playwright install --with-deps chromium
       - name: C2 offline checks (no TEST environment or secrets)
-        run: node --test --test-concurrency=1 --test-reporter=tap qa/stock-c2.test.mjs qa/stock-c2-client.test.mjs qa/stock-c2-runner-regression.test.mjs qa/stock-c2-browser.test.mjs qa/stock-c2-review.test.mjs qa/stock-c2-provision-sql.test.mjs
+        run: node --test --test-concurrency=1 --test-reporter=tap qa/stock-c2.test.mjs qa/stock-c2-client.test.mjs qa/stock-c2-runner-regression.test.mjs qa/stock-c2-browser.test.mjs qa/stock-c2-review.test.mjs qa/stock-c2-provision-sql.test.mjs qa/stock-c2-seed-launcher.test.mjs
       - run: npm run build
