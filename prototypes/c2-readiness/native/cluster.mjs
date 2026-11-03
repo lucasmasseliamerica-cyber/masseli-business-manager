@@ -1,6 +1,6 @@
 // Create/stop only an owned, disposable PG17 cluster. Never delete its artifacts.
 import {execFileSync} from 'node:child_process';import {createServer} from 'node:net';
-import {readFileSync,writeFileSync,appendFileSync,openSync,closeSync,fsyncSync,chmodSync} from 'node:fs';import {join,resolve} from 'node:path';import {randomUUID} from 'node:crypto';import {tmpdir} from 'node:os';
+import {readFileSync,writeFileSync,appendFileSync,openSync,closeSync,fsyncSync,chmodSync,existsSync} from 'node:fs';import {join,resolve} from 'node:path';import {randomUUID} from 'node:crypto';import {tmpdir} from 'node:os';
 import {privateRun} from '../../../qa/stock-c2-seed-transport.mjs';
 import {check,durableJSON,fileHash} from './common.mjs';
 export async function localCluster({pgBin,openssl,artifacts=tmpdir()}){
@@ -9,7 +9,7 @@ export async function localCluster({pgBin,openssl,artifacts=tmpdir()}){
  const version=execFileSync(psql,['--version'],{encoding:'utf8',windowsHide:true}).trim();check(/^psql \(PostgreSQL\) 17\./.test(version),'NATIVE_PG17_REQUIRED');
  const port=await new Promise((res,rej)=>{const s=createServer();s.once('error',rej);s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>res(p));});});
  let started=false;
- const stop=()=>{if(started){run(ctl,['-D',data,'-m','fast','-w','-t','20','stop']);started=false;durableJSON(join(root,'owned-cluster-stopped.json'),{stopped:true,files_removed:0});}};
+ const stop=()=>{if(started||existsSync(join(data,'postmaster.pid'))){run(ctl,['-D',data,'-m','fast','-w','-t','20','stop']);started=false;durableJSON(join(root,'owned-cluster-stopped.json'),{stopped:true,files_removed:0});}};
  try{
   run(openssl,['req','-x509','-newkey','rsa:2048','-nodes','-keyout',join(root,'ca.key'),'-out',join(root,'ca.crt'),'-subj','/CN=C2 LOCAL ONLY CA','-days','1','-addext','basicConstraints=critical,CA:TRUE']);
   for(const [name,cn]of [['server','localhost'],['client','postgres'],['bad-client','not-postgres']]){
@@ -22,11 +22,15 @@ export async function localCluster({pgBin,openssl,artifacts=tmpdir()}){
   if(process.platform!=='win32')for(const n of ['ca','server','client','bad-client','bad-ca'])chmodSync(join(root,n+'.key'),0o600);
   run(join(pgBin,'initdb'+ext),['-D',data,'-U','postgres','-A','reject','--encoding=UTF8','--no-locale','--no-clean']);
   const quote=s=>s.replaceAll('\\','/').replaceAll("'","''");
-  appendFileSync(join(data,'postgresql.conf'),`\nlisten_addresses='127.0.0.1'\nport=${port}\nssl=on\nssl_cert_file='${quote(join(root,'server.crt'))}'\nssl_key_file='${quote(join(root,'server.key'))}'\nssl_ca_file='${quote(join(root,'ca.crt'))}'\nlog_connections=on\nlog_disconnections=on\nlog_statement='none'\n`);
+  appendFileSync(join(data,'postgresql.conf'),`\nlisten_addresses='127.0.0.1'\nunix_socket_directories=''\nport=${port}\nssl=on\nssl_cert_file='${quote(join(root,'server.crt'))}'\nssl_key_file='${quote(join(root,'server.key'))}'\nssl_ca_file='${quote(join(root,'ca.crt'))}'\nlog_connections=on\nlog_disconnections=on\nlog_statement='none'\n`);
   writeFileSync(join(data,'pg_hba.conf'),'hostssl all all 127.0.0.1/32 cert\nhostnossl all all 127.0.0.1/32 reject\nlocal all all reject\n');
   const control=run(join(pgBin,'pg_controldata'+ext),[data]),system_identifier=control.match(/Database system identifier:\s*(\d+)/)?.[1];check(system_identifier,'NATIVE_CLUSTER_ID_REQUIRED');
   run(ctl,['-D',data,'-l',join(root,'postgres.private.log'),'-w','-t','20','start']);started=true;
   const m={scope:'NATIVE_DISPOSABLE_ONLY',root,host:'127.0.0.1',port,database:'postgres',role:'postgres',system_identifier,postmaster_pid:Number(readFileSync(join(data,'postmaster.pid'),'utf8').split(/\r?\n/)[0]),psql,psql_sha256:fileHash(psql),version,hashes:Object.fromEntries(['ca.crt','server.crt','server.key','client.crt','client.key','bad-client.crt','bad-client.key','bad-ca.crt','data/pg_hba.conf'].map(n=>[n,fileHash(join(root,n))]))};
   durableJSON(join(root,'owned-cluster.json'),m);return{root,manifest:m,stop};
- }catch(e){try{stop();}catch{/* retain failed setup */}throw e;}
+ }catch(e){
+  const log=existsSync(join(root,'postgres.private.log'))?readFileSync(join(root,'postgres.private.log'),'utf8'):'';
+  const category=/could not create lock file.*PGSQL.*Permission denied/i.test(log)?'UNIX_SOCKET_PERMISSION':/private key|certificate|SSL/i.test(log)?'TLS_SETUP':/address already in use/i.test(log)?'LOCAL_PORT_COLLISION':'SETUP_FAILURE';
+  console.error('NATIVE_LOCAL_SETUP_CATEGORY='+category);try{stop();}catch{/* retain failed setup */}throw e;
+ }
 }
