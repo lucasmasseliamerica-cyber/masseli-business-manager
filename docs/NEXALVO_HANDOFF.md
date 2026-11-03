@@ -1,5 +1,10 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+SCRAM manual: [checkpoint 2/3, aguardando apenas demora em READY](./QA_C2_SCRAM_MANUAL_CHECKPOINT_20261103.md).
+Positivo humano e demora na senha PASS preservados; não repetir. Código/CI: seis controles
+novos + uma regressão afetada por plataforma. O diálogo local de disponibilidade aguarda
+ação do operador; não há prazo de autenticação correndo enquanto espera. Nenhuma conexão TEST.
+
 Investigação histórica do timeout **encerrada** com as [conclusões e limitações publicadas](./QA_C2_TIMEOUT_FORENSICS_20261103.md).
 Não repetir testes/reconciliação sem fato novo. Timer de 120s comprovado; espera indeterminada.
 Checkpoint separado: [protocolo futuro e modelo local de prontidão](./QA_C2_FUTURE_READINESS_PROTOCOL_20261103.md).
