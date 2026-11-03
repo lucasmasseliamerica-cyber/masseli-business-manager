@@ -5,6 +5,10 @@ Não repetir testes/reconciliação sem fato novo. Timer de 120s comprovado; esp
 Checkpoint separado: [protocolo futuro e modelo local de prontidão](./QA_C2_FUTURE_READINESS_PROTOCOL_20261103.md).
 Somente testes novos; sem conexão TEST. O protocolo não libera a tentativa histórica consumida.
 
+Novo checkpoint: [adaptador nativo somente em PostgreSQL descartável local](./QA_C2_NATIVE_LOCAL_READINESS_20261103.md).
+Modelo/controlador reutilizado, autenticação X.509/TLS reais, operação TEMP sintética e gates
+de prontidão/intenção/reserva; timeout no prompt antes de reserva. Nenhum caminho operacional liberado.
+
 ## Seed C2 — tentativa consumida, resultado incerto; nenhum novo envio (03/11/2026)
 
 [Encerramento e reconciliação somente leitura](./QA_C2_SEED_ATTEMPT_CLOSURE_20261103.md).

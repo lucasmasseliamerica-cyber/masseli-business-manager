@@ -20,3 +20,41 @@ jobs:
           node-version: '22'
       - name: Test only the new readiness state model (no dependencies, secrets or network adapter)
         run: node --test --test-reporter=tap prototypes/c2-readiness/protocol.test.mjs
+  native-local-integration:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Locate PostgreSQL 17 and OpenSSL on Linux
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          if [ ! -x /usr/lib/postgresql/17/bin/initdb ]; then
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get update
+            sudo apt-get install -y postgresql-17
+          fi
+          echo 'C2_NATIVE_PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
+          echo "C2_NATIVE_OPENSSL=$(command -v openssl)" >> "$GITHUB_ENV"
+          echo "C2_NATIVE_ARTIFACTS=$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: Obtain hash-pinned official PostgreSQL 17.11 binaries on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip=Join-Path $env:RUNNER_TEMP 'c2-native-pg17.zip'
+          Invoke-WebRequest 'https://get.enterprisedb.com/postgresql/postgresql-17.11-5-windows-x64-binaries.zip' -OutFile $zip
+          if ((Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne '80379b2c04d51c30225532e0ae04509899141e9957ed096fe749d7fd9df8f82f') { throw 'NATIVE_PG_ARCHIVE_HASH_REJECTED' }
+          $dest=Join-Path $env:RUNNER_TEMP 'c2-native-pg17'
+          Expand-Archive -LiteralPath $zip -DestinationPath $dest
+          "C2_NATIVE_PG_BIN=$(Join-Path $dest 'pgsql\bin')" >> $env:GITHUB_ENV
+          'C2_NATIVE_OPENSSL=C:\Program Files\Git\usr\bin\openssl.exe' >> $env:GITHUB_ENV
+          "C2_NATIVE_ARTIFACTS=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
+      - name: Test only the new real native integration (owned local cluster, no Supabase)
+        run: node --test --test-concurrency=1 --test-reporter=tap prototypes/c2-readiness/native/integration.test.mjs

@@ -1,0 +1,292 @@
+{
+  "scope": "C2_NATIVE_DISPOSABLE_READINESS_REVIEW",
+  "status": "LOCAL_NATIVE_VALIDATED_OPERATIONAL_PATH_BLOCKED",
+  "baseline_head": "8ca79e481e421227cbae918e601a8f67e8238144",
+  "supabase_connections": 0,
+  "operational_forward_attempts": 0,
+  "operational_marker_created": false,
+  "historical_marker_or_private_attempt_accessed": false,
+  "operational_seed_sql_loaded": false,
+  "new_operational_fixture_ids": false,
+  "closed_journeys_or_audits_repeated": false,
+  "coverage": "16/60",
+  "native_authentication": "certificate",
+  "password_or_scram_authentication_proven": false,
+  "password_created_supplied_or_captured": false,
+  "limits": {
+    "absolute_ms": 120000,
+    "minimum_margin_ms": 30000
+  },
+  "local_summary_sha256": "e80c89f74cb9551db15895b2392895474809a045e5dd8bad4f477ce2cb3f3147",
+  "native_client": {
+    "version": "psql (PostgreSQL) 17.11",
+    "psql_sha256": "c290c7f0a3335f290f8c18011a1e5afa03ee3cdd628697a5f3e767e5f1d3d10d",
+    "origin": "EDB 17.11-5 official ZIP; same hash as installed verified client"
+  },
+  "native_cases": [
+    {
+      "case": "success",
+      "status": "NATIVE_SYNTHETIC_CONFIRMED",
+      "reason": null,
+      "forward_reservations": 1,
+      "submissions": 1,
+      "psql_pid": 19420,
+      "helper_pids": [
+        13964,
+        18612
+      ],
+      "all_children_ended": true,
+      "read_proofs": 2,
+      "same_backend": true,
+      "dispatch_exposed": true,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "NATIVE_READ_PROOF",
+        "OPERATOR_DECLARED_READY",
+        "INTENT_DURABLE",
+        "SAME_SESSION_RECHECKED",
+        "FORWARD_RESERVED",
+        "NATIVE_CONFIRMATION_OBSERVED",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "operator-declines",
+      "status": "STOPPED",
+      "reason": "LOCAL_TEST_FINISHED",
+      "forward_reservations": 0,
+      "submissions": 0,
+      "psql_pid": 12380,
+      "helper_pids": [
+        19448
+      ],
+      "all_children_ended": true,
+      "read_proofs": 1,
+      "same_backend": null,
+      "dispatch_exposed": false,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "NATIVE_READ_PROOF",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "intent-collision",
+      "status": "STOPPED",
+      "reason": "EEXIST",
+      "forward_reservations": 0,
+      "submissions": 0,
+      "psql_pid": 6168,
+      "helper_pids": [
+        10664
+      ],
+      "all_children_ended": true,
+      "read_proofs": 1,
+      "same_backend": null,
+      "dispatch_exposed": false,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "NATIVE_READ_PROOF",
+        "OPERATOR_DECLARED_READY",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "reservation-collision",
+      "status": "UNCERTAIN",
+      "reason": "EEXIST",
+      "forward_reservations": 1,
+      "submissions": 0,
+      "psql_pid": 17612,
+      "helper_pids": [
+        16396,
+        9988
+      ],
+      "all_children_ended": true,
+      "read_proofs": 2,
+      "same_backend": true,
+      "dispatch_exposed": false,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "NATIVE_READ_PROOF",
+        "OPERATOR_DECLARED_READY",
+        "INTENT_DURABLE",
+        "SAME_SESSION_RECHECKED",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "untrusted-ca",
+      "status": "STOPPED",
+      "reason": "NATIVE_PROCESS_EXIT_FAILURE",
+      "forward_reservations": 0,
+      "submissions": 0,
+      "psql_pid": 17456,
+      "helper_pids": [],
+      "all_children_ended": true,
+      "read_proofs": 0,
+      "same_backend": null,
+      "dispatch_exposed": false,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "wrong-client-subject",
+      "status": "STOPPED",
+      "reason": "NATIVE_PROCESS_EXIT_FAILURE",
+      "forward_reservations": 0,
+      "submissions": 0,
+      "psql_pid": 8204,
+      "helper_pids": [],
+      "all_children_ended": true,
+      "read_proofs": 0,
+      "same_backend": null,
+      "dispatch_exposed": false,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "short-window",
+      "status": "STOPPED",
+      "reason": "LOCAL_TEST_FINISHED",
+      "forward_reservations": 0,
+      "submissions": 0,
+      "psql_pid": 8384,
+      "helper_pids": [],
+      "all_children_ended": true,
+      "read_proofs": 1,
+      "same_backend": null,
+      "dispatch_exposed": false,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "NATIVE_READ_PROOF",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "external-psql-exit",
+      "status": "STOPPED",
+      "reason": "LOCAL_TEST_FINISHED",
+      "forward_reservations": 0,
+      "submissions": 0,
+      "psql_pid": 17876,
+      "helper_pids": [
+        18512
+      ],
+      "all_children_ended": true,
+      "read_proofs": 1,
+      "same_backend": null,
+      "dispatch_exposed": false,
+      "password_prompt_observed": false,
+      "events": [
+        "CREATED",
+        "NATIVE_READ_PROOF",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    },
+    {
+      "case": "password-delay",
+      "status": "STOPPED",
+      "reason": "ABSOLUTE_DEADLINE",
+      "forward_reservations": 0,
+      "submissions": 0,
+      "psql_pid": 19104,
+      "helper_pids": [],
+      "all_children_ended": true,
+      "read_proofs": 0,
+      "same_backend": null,
+      "dispatch_exposed": false,
+      "password_prompt_observed": true,
+      "events": [
+        "CREATED",
+        "FINAL"
+      ],
+      "artifacts_retained": true
+    }
+  ],
+  "local_server_stopped": true,
+  "files_removed": 0,
+  "validation": {
+    "model_reused": "17/17 PASS in completed combined local run; old simulation tests unmodified",
+    "native_local": "11/11 PASS final integration",
+    "initial_integration_findings": [
+      "Windows/OpenSSL client DN uses /CN=postgres; equivalent spelling explicitly validated",
+      "Externally terminated psql can leave helper stdout handle open; exit event unblocks failure and observed helpers are terminated",
+      "Concurrent public READY is not a live backend proof; native recheck is mandatory"
+    ],
+    "ci": "PENDING_NATIVE_AND_REUSED_MODEL_ONLY"
+  },
+  "artifact_hashes": [
+    {
+      "path": "prototypes/c2-readiness/protocol.mjs",
+      "sha256": "fc5b4babd8e264605113aa4b28ada5dcf071c3b2a24a2eeb89543a2c7820bd54"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/adapter.mjs",
+      "sha256": "bc1600d1bef09e03d129a89515ec1ae9bcf8bedd93f46a5ceef05df874bb0efe"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/bootstrap.psql.in",
+      "sha256": "af6d0172891780b690065afdf48cf34305fc0166b56765d86e8a27c083aac055"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/cluster.mjs",
+      "sha256": "b9d0bcbebdc919c73d1f750a1150afe315567a9ef335c29d958c5939f3ab98f5"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/common.mjs",
+      "sha256": "f85f9f190aac79441b3720b351c48742f4f23660418eaefbb46f247d0cef76a8"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/demo.mjs",
+      "sha256": "04acbe40ebfa28b498fe4712ebda843c5df2740bca8b3e4548f91bc56dae047f"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/identity.sql",
+      "sha256": "7df56bfb28737192e1bed55c3a23b640c66d1085ca3bdde3cc67dc684a6b274a"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/integration.test.mjs",
+      "sha256": "273650e256e605dd26fa0f6f810ff1e07750747014be014c8c0559ec5793117c"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/readiness-helper.mjs",
+      "sha256": "5f85d2488bdcb8a28c61de28f640840b260b85dd92026009d24076f9b777ec1f"
+    },
+    {
+      "path": "prototypes/c2-readiness/native/synthetic-dispatch.psql.in",
+      "sha256": "1efadaeea56c3128af0d99afc47977bf8636672ace96cdf7721efb90d5eee383"
+    },
+    {
+      "path": ".github/workflows/nexalvo-c2-readiness-prototype.yml",
+      "sha256": "bc3bded9738061179768be91cbff0b77812aafeba53a2548242e124b1a9118ab"
+    }
+  ],
+  "limitations": [
+    "Certificate auth is real; SCRAM/password login not tested",
+    "Password-delay test uses real -W prompt with empty open stdin, no physical console input",
+    "Scripted readiness in CI; manual mode implemented but not operator-validated",
+    "Exclusive files/fsync/hard-link publication are not administrator or power-loss protection",
+    "Process-tree/PID supervision is tested for observed children, not all conceivable PID-reuse races",
+    "No operational adapter or authorization; historical consumed attempt remains blocked"
+  ]
+}

@@ -15,3 +15,6 @@ qa/stock-c2-console-lab.ps1 text eol=lf
 prototypes/c2-readiness/protocol.mjs text eol=lf
 prototypes/c2-readiness/protocol.test.mjs text eol=lf
 prototypes/c2-readiness/demo.mjs text eol=lf
+prototypes/c2-readiness/native/*.mjs text eol=lf
+prototypes/c2-readiness/native/*.sql text eol=lf
+prototypes/c2-readiness/native/*.psql.in text eol=lf
