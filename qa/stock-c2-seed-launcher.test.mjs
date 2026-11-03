@@ -5,7 +5,7 @@ import {readFileSync,mkdtempSync,mkdirSync,existsSync,readdirSync} from 'node:fs
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {parseSeedArgs,seedWindow,SEED_AUTHORITY,APPROVED,reserveSeedMarker} from './stock-c2-seed-launcher.mjs';
-import {sha256,durableJSON,nativeEnvironment,nativeReceipt,nativeOnce,privateRun} from './stock-c2-seed-transport.mjs';
+import {sha256,durableJSON,nativeEnvironment,nativeReceipt,nativeOnce,privateRun,nativePasswordPrompt} from './stock-c2-seed-transport.mjs';
 test('operational parser requires explicit mode and rejects unknown, duplicate or control-bearing arguments',()=>{
  for(const args of [[],['--mode','Seed'],['--mode','VerifyReadOnly','--password','SECRET'],['--mode','VerifyReadOnly','--mode','SeedAuthorized'],['--mode','VerifyReadOnly','--psql','x\ny']])assert.throws(()=>parseSeedArgs(args));
  assert.equal(parseSeedArgs(['--mode','VerifyReadOnly']).mode,'VerifyReadOnly');
@@ -26,6 +26,13 @@ test('native readonly environment drops inherited services, credentials, options
   for(const key of ['PGPASSWORD','PGSERVICE','PGHOSTADDR','PSQLRC','QA_C2_SEED_AUTHORIZED','QA_C1_CHILD_EXECUTION_AUTHORIZED','OSTYPE'])assert.equal(env[key],undefined);
   assert.equal(env.PGSSLMODE,'verify-full');assert.equal(env.PGGSSENCMODE,'disable');assert.match(env.PGOPTIONS,/default_transaction_read_only=on/);
  }finally{for(const k of Object.keys(process.env))if(!(k in saved))delete process.env[k];Object.assign(process.env,saved);}
+});
+test('observable native prompt selects the supported standard-stream path, retaining strict TLS and no password capture',()=>{
+ const env=nativeEnvironment('C:/bin/psql.exe','C:/reviewed/ca.crt',true,{},true);assert.equal(env.OSTYPE,'msys');assert.equal(env.LC_ALL,'C');assert.equal(env.PGSSLMODE,'verify-full');assert.equal(env.PGPASSWORD,undefined);
+});
+test('native -W Password: and named prompt are recognized; arbitrary diagnostics cannot declare readiness',()=>{
+ assert.equal(nativePasswordPrompt('Password: '),'Password: ');assert.equal(nativePasswordPrompt('previous\nPassword for user postgres: '),'Password for user postgres: ');
+ for(const text of ['Password','FATAL: password authentication failed','arbitrary Password: ','Password: \n'])assert.equal(nativePasswordPrompt(text),null);
 });
 test('local marker is exclusive and retained after failure; no alternate marker or overwrite',()=>{
  const root=mkdtempSync(join(tmpdir(),'c2-seed-marker-synthetic-')),marker=join(root,'SYNTHETIC.once');reserveSeedMarker(marker,{scope:'SYNTHETIC'});const original=readFileSync(marker);

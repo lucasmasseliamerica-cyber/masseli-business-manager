@@ -21,9 +21,19 @@ e o procedimento usa uma transação REPEATABLE READ READ ONLY.
 O processo psql recebe host TEST direto fixo, porta 5432, usuário/banco postgres,
 TLS verify-full/CA explícita e -X -W -v ON_ERROR_STOP=1. Não há URI com senha, variável
 PGPASSWORD, serviço/pool alternativo, shell ou retry. Ambiente filho tem allowlist; descarta
-PG*/PSQL*/QA_* herdados, inclusive autoridades antigas. A senha é lida por libpq em CONIN$
-com eco desabilitado e prompt em CONOUT$, sem passar pelo Node/PowerShell. Origem do
-comportamento: [PostgreSQL 17 sprompt.c](https://github.com/postgres/postgres/blob/REL_17_11/src/common/sprompt.c).
+PG*/PSQL*/QA_* herdados, inclusive autoridades antigas. Para tornar o prompt observável,
+OSTYPE=msys é definido somente no filho psql, selecionando o caminho stdin/stderr que o
+[PostgreSQL 17 sprompt.c](https://github.com/postgres/postgres/blob/REL_17_11/src/common/sprompt.c)
+suporta explicitamente. stdin é a console nativa TTY, verificada antes da chamada; libpq
+desabilita o eco. Node/PowerShell não leem nem encaminham a entrada da senha. LANG/LC_ALL=C
+fixam o texto do prompt. Só o texto nativo reconhecido Password: é retransmitido à tela;
+stderr bruto continua privado, sem publicação. TLS verify-full e o host direto não mudam.
+
+O arquivo de status native-password-prompt-ready.json registra o texto do prompt observado,
+PID e hora, sem senha ou autorização. É status de cada run, não marcador/reserva do seed.
+Só anunciar espera após constatar esse evento, PID vivo, ausência de resultado final e zero
+saída SQL. A leitura permite até 15min para entrada/conclusão; não há repetição automática.
+PASS também exige prova de emissão do prompt. A janela/autorização do seed permanece separada.
 
 Cada tentativa cria uma pasta privada exclusiva, intenção durável antes do processo,
 snapshot exato, stdout/stderr privados e resultado sanitizado/hashes. Nenhum artefato é removido
@@ -107,3 +117,28 @@ Perda continua bloqueada, orçamento separado até 1 RPC perda +1 auditoria, sem
 
 Conexão nativa TEST e fechamento de testes/CI: pendentes de registro nesta publicação inicial.
 [Evidência sanitizada de procedência/laboratório](./evidence/stock-c2-operational-preparation-20261102.json).
+
+## Tentativa original e correção de observabilidade
+
+A primeira tentativa nativa iniciou às 04:31:42 UTC de 03/11 e terminou às 04:35:00 UTC,
+197.871ms depois, exit 2, sem timeout/interrupção registrados e stdout de zero bytes.
+Erro original sanitizado: FATAL: password authentication failed for user postgres.
+O usuário informou que não preencheu a senha e que ainda precisa localizá-la. Portanto,
+o erro não é prova de senha digitada/incorreta; a causa da submissão anterior não foi provada.
+Intenção/argumentos -W, logs e resultado originais foram preservados, sem reset/replay.
+Não houve SQL nessa tentativa nem criação do marcador permanente.
+
+O transporte anterior usava o prompt de console CONIN$/CONOUT$ não observável nos logs.
+Foi substituído pelo caminho nativo de console stdin/stderr descrito acima. A primeira
+sondagem local registrou Password: (o literal usado por -W), diferente do prompt com nome
+de usuário inicialmente esperado pelo detector. Esse diagnóstico virou regressão para
+ambos os textos, sem aceitar mensagens arbitrárias como prova de prontidão.
+Ensaio seguinte: prompt real observado, 3.993ms esperando sem entrada, zero saída SQL,
+encerramento deliberado somente do processo local e arquivos preservados. Não se usa esse
+ensaio como prova de autenticação TEST. Uma nova verificação TEST só deve ser anunciada
+como aguardando senha quando seu próprio evento/PID tiver sido conferido.
+
+Releituras complementares pelo conector TEST: empresa/OWNER ativos, zero colisões e contrato
+MD5 135e8025db9f8097377432b0ff26fe8c mantido. Captura de contratos às 04:37:49 UTC de 03/11:
+9 funções/10 tabelas, precisão/auditoria/leitor de perdas PASS. São leituras suplementares,
+não prova de sessão nativa ou afinidade de pool. Nenhuma autorização de seed foi solicitada.

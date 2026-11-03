@@ -98,7 +98,7 @@
     ]
   },
   "real_readonly_connection": {
-    "status": "PENDING_NATIVE_PASSWORD_PROMPT"
+    "status": "NOT_PASS_FIRST_ATTEMPT_RETAINED_NEXT_ATTEMPT_NOT_YET_STARTED"
   },
   "seed_executed": false,
   "loss_executed": false,
@@ -106,5 +106,74 @@
   "coverage": {
     "passed": 16,
     "total": 60
+  },
+  "original_native_attempt": {
+    "source_sha": "4dee4640306989d88db5879c213aa649e64d2497",
+    "started_at": "2026-11-03T04:31:42.272Z",
+    "ended_at": "2026-11-03T04:35:00.143Z",
+    "elapsed_ms": 197871,
+    "exit_code": 2,
+    "timeout": false,
+    "interrupted": false,
+    "stdout_bytes": 0,
+    "error_category": "AUTHENTICATION_REJECTED",
+    "sanitized_error": "FATAL: password authentication failed for user postgres",
+    "user_confirmed_password_not_entered": true,
+    "user_password_available": false,
+    "cause_of_submission": "UNPROVEN_DO_NOT_INFER_PASSWORD_ENTRY",
+    "artifacts_preserved": true,
+    "seed_marker_created": false,
+    "sql_executed": false
+  },
+  "prompt_transport_fix": {
+    "native_supported_stdin_stderr_path": true,
+    "child_ostype": "msys",
+    "locale": "C",
+    "stdin_inherited_console_tty_required": true,
+    "password_input_read_by_node_or_powershell": false,
+    "prompt_output_only_observed": true,
+    "ready_status_contains": [
+      "native_pid",
+      "observed_at",
+      "native_prompt"
+    ],
+    "status_is_seed_reservation": false,
+    "readonly_wait_timeout_ms": 900000,
+    "seed_window_unchanged": true,
+    "local_prompt_probe": {
+      "status": "PASS",
+      "actual_native_prompt": "Password:",
+      "waited_without_input_ms": 3993,
+      "sql_output_bytes": 0,
+      "password_supplied": false,
+      "test_connected": false,
+      "deliberate_local_termination": true,
+      "local_server_stopped": true,
+      "artifacts_retained": true
+    }
+  },
+  "supplemental_test_reads": {
+    "company_active": true,
+    "owner_active": true,
+    "collisions": 0,
+    "provision_contract_md5": "135e8025db9f8097377432b0ff26fe8c",
+    "stock_catalog_at": "2026-11-03T04:37:49.715519Z",
+    "stock_functions": 9,
+    "stock_tables": 10,
+    "precision": "PASS",
+    "audit": "PASS",
+    "waste_reader": "PASS",
+    "native_connection_proof": false
+  },
+  "prior_ci": {
+    "code_sha": "4dee4640306989d88db5879c213aa649e64d2497",
+    "run_id": 41578600284,
+    "linux_passed": 67,
+    "windows_passed": 67,
+    "builds": "PASS",
+    "superseded_transport": true
+  },
+  "current_ci": {
+    "status": "PENDING_NEW_PROMPT_TRANSPORT_COMMIT"
   }
 }

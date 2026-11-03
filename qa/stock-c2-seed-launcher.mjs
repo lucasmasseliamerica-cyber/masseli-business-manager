@@ -71,11 +71,12 @@ export async function launchSeed(p){
   if(readOnly){mkdirSync(join(directory,'sql'),{mode:0o700});const bytes=execFileSync('git',['show',p['reviewed-head']+':qa/sql/stock_journey_preflight_readonly_TEST.sql'],{cwd:repo,stdio:['ignore','pipe','ignore'],windowsHide:true});durableFile(join(directory,'sql','stock_journey_preflight_readonly_TEST.sql'),bytes);manifest.push({name:'sql/stock_journey_preflight_readonly_TEST.sql',sha256:sha256(bytes)});}
   durableJSON(join(directory,'snapshot-manifest.json'),manifest);report.snapshot_hashes=manifest;
   const authority=readOnly?{}:{QA_C2_SEED_AUTHORIZED:SEED_AUTHORITY,QA_C2_SEED_VERIFIED_PROJECT_REF:'msinksoilkluooxenecy',QA_C2_SEED_EXCLUSIVE_AT:p['window-at'],QA_C2_SEED_EXCLUSIVE_UNTIL:p['window-until']};
-  const env=nativeEnvironment(exe,ca,readOnly,authority),driver=join(directory,files[0]);
+  const env=nativeEnvironment(exe,ca,readOnly,authority,true),driver=join(directory,files[0]);
   const args=['-X','-W','-A','-t','-h',SEED_HOST,'-p','5432','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-f',driver];
   if(!readOnly){seedWindow(p);reserveSeedMarker(join(tmpdir(),'nexalvo-stock-c2-seed-475ae0c8-5a4b-45a2-ad74-1a450e553cb0.once'),{scope:'C2_SEED_ONE_FORWARD_ATTEMPT_NO_REPLAY',reviewed_head:p['reviewed-head'],at:new Date().toISOString(),sql_hashes:manifest});report.marker_created=true;}
   report.forward_attempts=1;
-  const result=await nativeOnce({exe,args,env,directory,timeoutMs:readOnly?300000:Math.min(120000,window.until-Date.now())});report.native_result=result;
+  const result=await nativeOnce({exe,args,env,directory,timeoutMs:readOnly?900000:Math.min(120000,window.until-Date.now()),consolePrompt:true});report.native_result=result;
+  check(result.promptObserved===true,'C2_SEED_NATIVE_PROMPT_NOT_PROVEN_NO_REPLAY');
   const text=readFileSync(join(directory,'stdout.private.log'),'utf8');
   nativeReceipt(result,text,readOnly?'C2_READONLY_CONNECTION_COMPLETE_NO_SEED':'C2_SEED_COMMIT_RECEIPT_SAME_BACKEND_NO_LOSS_AUTHORIZATION');
   report.observation=readOnly?readConnectionProof(text):nativeSeedProof(text);report.status='PASS';report.code=readOnly?'C2_NATIVE_READONLY_CONNECTION_ELIGIBILITY_PASS_NO_SEED':'C2_SEED_CONFIRMED_LOSS_STILL_BLOCKED';
