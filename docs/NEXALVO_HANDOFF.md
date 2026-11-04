@@ -1,5 +1,12 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+**Preparação SCRAM local encerrada com bloqueio delimitado. Não abrir outra tentativa.**
+[Fechamento definitivo e artefatos da única tentativa final](./QA_C2_SCRAM_FINAL_CLOSURE_20261103.md).
+Run 19f9: SCRAM/leitura PASS, READY alcançado, saída BLOCKED/2 e journal
+NATIVE_PROCESS_EXIT_FAILURE antes do prazo, zero intenção/reserva/dispatch; filhos/servidor
+encerrados e artefatos conferidos. Motivo interno do gate não persistido; não classificar
+como timeout sem resposta. Positivo e demora na senha anteriores PASS preservados. Nenhum TEST.
+
 **Demonstrações manuais pausadas pelo operador. Não abrir outro prompt automaticamente.**
 [Avaliação dos eventos e sequência condicional de um único caso final](./QA_C2_SCRAM_READY_PAUSE_20261103.md).
 O run 0368 autenticou, validou leitura e alcançou READY; encerrou no gate humano antes do

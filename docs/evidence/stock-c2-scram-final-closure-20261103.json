@@ -1,0 +1,164 @@
+{
+  "status": "CLOSED_WITH_DELIMITED_BLOCKER",
+  "scope": "NATIVE_DISPOSABLE_ONLY",
+  "final_case": "readiness-delay",
+  "final_attempts_authorized": 1,
+  "final_attempts_launched": 1,
+  "further_manual_attempts_authorized": false,
+  "availability_confirmed_before_launch": true,
+  "run_id": "19f977e5-efa0-45b3-9b24-9f16bed50b0c",
+  "code_sha": "c29187a7b5b805ca3574734b611327abc91c531a",
+  "prior_document_head": "87445e578451508197f9aa9629c885d40549bb3c",
+  "report": {
+    "case": "readiness-delay",
+    "scope": "NATIVE_DISPOSABLE_ONLY",
+    "state": "STOPPED",
+    "reason": "NATIVE_PROCESS_EXIT_FAILURE",
+    "error": "NATIVE_PROCESS_EXIT_FAILURE",
+    "window_ms": 60000,
+    "absolute_cap_ms": 120000,
+    "margin_ms": 30000,
+    "password_prompt_observed": true,
+    "authenticated_read_proofs": 1,
+    "scram_verifier_boolean": true,
+    "server_log_scram_verified": true,
+    "tls": "TLSv1.3",
+    "backend_pid": 15740,
+    "same_backend": false,
+    "human_ready_observed": false,
+    "intent_created": false,
+    "forward_reservations": 0,
+    "dispatch_exposed": false,
+    "all_observed_children_ended": true,
+    "password_value_captured": false,
+    "operational_marker_created": false,
+    "passed": false
+  },
+  "approved_previous_cases": [
+    {
+      "case": "positive",
+      "passed": true,
+      "source_report_bytes_sha256": "a30766c827fd36622e2f508fcbc0da1a727b6104274dce2736f1e942c5ec4d85",
+      "repeated": false
+    },
+    {
+      "case": "password-delay",
+      "passed": true,
+      "source_report_bytes_sha256": "a6627f851a859d847c0c15fd3f84f6efbcef7c20c323dfb2f4bf31737bfa8d8b",
+      "repeated": false
+    }
+  ],
+  "approved_count": 2,
+  "total_required": 3,
+  "expected_timeout_proven": false,
+  "absence_of_human_response_proven": false,
+  "operator_reported_ready_text_after_prompt": true,
+  "operator_reported_exit_code": 2,
+  "operator_ack_accepted": false,
+  "chronology_utc": {
+    "psql_started": "2026-11-04T03:10:47.003Z",
+    "password_prompt": "2026-11-04T03:10:47.019Z",
+    "sql_backend_started": "2026-11-04T03:11:04.147162+00:00",
+    "ready_prompt": "2026-11-04T03:11:04.358Z",
+    "original_deadline": "2026-11-04T03:11:46.966Z",
+    "guard_error_log_last_write": "2026-11-04T03:11:31.151Z",
+    "final_journal_last_write": "2026-11-04T03:11:31.798Z"
+  },
+  "provable_stop": "Readiness helper failed; bootstrap SHELL_ERROR guard aborted SQL; controller recorded NATIVE_PROCESS_EXIT_FAILURE before deadline",
+  "exact_helper_failure_code": "NOT_RECORDED_GENERIC_GATE_STOP_ONLY",
+  "classification": "BLOCKED_NOT_READY_WAIT_TIMEOUT",
+  "absent_artifacts": {
+    "operator-ack.local.json": true,
+    "intent.local-only.json": true,
+    "intent-release.local.json": true,
+    "validated-read2.json": true,
+    "forward-reservation.local-only.json": true,
+    "dispatch-release.local.json": true,
+    "dispatch.local.psql": true,
+    "permit-published.local.json": true,
+    "native-mutant-boundary.json": true
+  },
+  "finalization": {
+    "complete": true,
+    "journal_sequence": [
+      "CREATED",
+      "NATIVE_READ_PROOF",
+      "FINAL"
+    ],
+    "journal_semantic_checksum_matches": true,
+    "journal_report_agree": true,
+    "pending_byte_pairs_match": true,
+    "pinned_sources_match": true,
+    "termination": {
+      "psql_pid": 14252,
+      "helper_pids": [
+        19428
+      ],
+      "shell_pids": [
+        17208
+      ],
+      "all_observed_children_ended": true
+    },
+    "server_stop": {
+      "stopped": true,
+      "files_removed": 0
+    },
+    "psql_and_postmaster_observed_inactive": true
+  },
+  "source_bytes_sha256": {
+    "protocol.mjs": "fc5b4babd8e264605113aa4b28ada5dcf071c3b2a24a2eeb89543a2c7820bd54",
+    "native/adapter.mjs": "b620cf24a377a801d9fd9f82a70e49ad9901cf511a7ba03451dd32af9d765e4d",
+    "native/cluster.mjs": "36313a6778a2a7ef051f2c40cc67732a3ca6c782a434084a54570e7546c2ae74",
+    "native/common.mjs": "1078f98d932593e8e744c0927d22bbe316e716bfce4fde207e0588ec3b481e03",
+    "native/console-mode.ps1": "5b65db69e2af2f6aa58eca3c34000e22e25bf9cc9ef0c7d9a3c1b05a92159452",
+    "native/demo.mjs": "b3a21125978f903f683287f26348956083b2428f64f3b052159baea6fee028e9",
+    "native/readiness-helper.mjs": "ab60e1688e04bb8ac7fcf7520cce1fe6e89867cd5dbf7b963b3ba40cf50ddb87",
+    "native/identity.sql": "7df56bfb28737192e1bed55c3a23b640c66d1085ca3bdde3cc67dc684a6b274a",
+    "native/bootstrap.psql.in": "af6d0172891780b690065afdf48cf34305fc0166b56765d86e8a27c083aac055",
+    "native/synthetic-dispatch.psql.in": "1efadaeea56c3128af0d99afc47977bf8636672ace96cdf7721efb90d5eee383"
+  },
+  "artifact_bytes_sha256": {
+    "000-CREATED.json": "d4236072d715850b5ecc068691b29b584dbd7819deeae6d8df87c2a62d0ca187",
+    "001-NATIVE_READ_PROOF.json": "222b16a81dc19fef8d04d111aee3876af2c26a00f4a56dcf44eb60921191a0d0",
+    "002-FINAL.json": "58d577bf6292dfa4655f67de12d850b30bd29fdb33e85d73d478b723d7fd80e5",
+    "native-process-started.json": "e07f5c8476757c4f35bc0cef26f5e8494d28ba59ceecbed91878db7f889b7448",
+    "native-password-prompt-observed.json": "ae3d11453c1143ac0ccfea129021b00ac496618ed73ad51f900f8338407861e2",
+    "password-phase-availability.json": "386608689b6191dcc180ae3a430eab2faa90b8638f3da22a02c6a23b8f5957ba",
+    "human-ready-prompt-observed.json": "c7546432d948536b214fc02a79b56b2b3f1bc3b387677f2de0b9c45ea6cc5335",
+    "validated-read1.json": "90af85ea65ed0b36c75754ecffdd54153ba2cc11b08efc5e8ac283045d4e29f2",
+    "native-manifest.json": "544a3ac749ea5a8ae5ffbd4c793f6fcc9e87d0f9f72dab02f6f7e571a1b545db",
+    "native-termination.json": "db87bcba0240995d580cf1a9772fe66ee7f01f8791c01ec1ae1d31387f540cd7",
+    "manual-scram-case-result.json": "6f94b1fdb7aa767fec70c8e55974cade4fe9d26b977a5c2f97f2e4f32713548a",
+    "owned-cluster-stopped.json": "2a04ec9dee940efe622677b5e73351778700f34ce9dbd3f237261fc8f64fad9b"
+  },
+  "absolute_cap_ms": 120000,
+  "minimum_margin_ms": 30000,
+  "local_window_ms": 60000,
+  "timers_changed": false,
+  "new_code_changes": false,
+  "new_tests_run": 0,
+  "retained_ci": {
+    "code_sha": "c29187a7b5b805ca3574734b611327abc91c531a",
+    "run_id": 41739696474,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41739696474",
+    "status": "PASS",
+    "linux": {
+      "new_controls": 6,
+      "affected_native_case": 1
+    },
+    "windows": {
+      "new_controls": 6,
+      "affected_native_case": 1
+    },
+    "human_password_in_ci": false
+  },
+  "raw_logs_published": false,
+  "password_or_keyboard_input_captured_by_agent": false,
+  "supabase_connections": 0,
+  "operational_seed_loaded": false,
+  "historical_marker_accessed_or_changed": false,
+  "operational_path": "BLOCKED_UNCHANGED",
+  "coverage": "16/60",
+  "remaining_gap": "Authenticated wait at READY without a human response until deadline not proven; primary helper cause absent from saved events",
+  "automatic_continuation": false
+}
