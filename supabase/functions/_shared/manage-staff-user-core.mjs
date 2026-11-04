@@ -15,9 +15,41 @@ export class StaffRequestError extends Error {
     this.name = 'StaffRequestError';
     this.status = status;
     this.code = code;
-    this.safeToCompensate = false;
+    this.reconciliationRequired = false;
+    this.profileOutcome = null;
   }
 }
+
+// Exact PostgreSQL/PostgREST rejection pairs. Unknown, gateway and malformed responses
+// remain uncertain. This classification never proves ownership of an Auth identity.
+export function classifyStaffProfileFailure(status, body) {
+  const statuses = { P0001: 400, '23502': 400, '23503': 409, '23505': 409,
+    '23514': 400, '22P02': 400, '42501': 403, '42883': 404, PGRST202: 404 };
+  if (!body || typeof body !== 'object' || Array.isArray(body)
+      || typeof body.message !== 'string' || !body.message.trim()
+      || !Object.hasOwn(body, 'details') || !(body.details === null || typeof body.details === 'string')
+      || !Object.hasOwn(body, 'hint') || !(body.hint === null || typeof body.hint === 'string')) return 'uncertain';
+  return Object.hasOwn(statuses, body.code) && statuses[body.code] === status ? 'rejected' : 'uncertain';
+}
+
+export function staffReconciliationError(code, profileOutcome = 'uncertain') {
+  const error = new StaffRequestError('Staff administration needs reconciliation. Do not resend; contact an administrator.', 503, code);
+  error.reconciliationRequired = true;
+  error.profileOutcome = profileOutcome;
+  return error;
+}
+
+export function validStaffProfileReceipt(row, userId, businessId, command) {
+  if (!row || Array.isArray(row) || row.id !== userId || row.business_id !== businessId
+      || row.employee_id !== command.employeeId || row.name !== command.name
+      || row.username !== command.username || row.role !== command.role || row.active !== command.active) return false;
+  const permissions = row.permission_overrides;
+  return !!permissions && typeof permissions === 'object' && !Array.isArray(permissions)
+    && Object.keys(permissions).length === Object.keys(command.permissionOverrides).length
+    && Object.entries(command.permissionOverrides).every(([key, value]) => permissions[key] === value);
+}
+
+export const validStaffIdentityId = value => typeof value === 'string' && UUID_PATTERN.test(value);
 
 function onlyKeys(input, allowed) {
   if (Object.keys(input).some((key) => !allowed.has(key))) {
@@ -101,7 +133,8 @@ export function canManageStaff(profile) {
 
 export function publicStaffError(error) {
   if (error instanceof StaffRequestError) {
-    return { status: error.status, body: { ok: false, error: error.message, code: error.code } };
+    return { status: error.status, body: { ok: false, error: error.message, code: error.code,
+      ...(error.reconciliationRequired === true ? { reconciliation_required: true, retry_allowed: false, profile_outcome: error.profileOutcome } : {}) } };
   }
   return { status: 500, body: { ok: false, error: 'The staff service could not complete the request.', code: 'STAFF_SERVICE_ERROR' } };
 }

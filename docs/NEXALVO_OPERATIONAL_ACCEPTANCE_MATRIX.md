@@ -1,5 +1,10 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+Staff: [recuperação de convite corrigida e transição preparada](./QA_STAFF_RECOVERY_PATCH_20261103.md).
+Reprodução HTTP sintética confirmou exclusão Auth após 504; o caminho foi removido e o
+chamador bloqueia reenvio incerto. 76 regressões afetadas/build PASS, sem implantação ou
+homologação TEST. SQLs/OWNER-safe preservados; cobertura continua **16/60 (26,67%)**.
+
 Investigação local do timeout: [fatos, hipóteses, correção futura e opções](./QA_C2_TIMEOUT_FORENSICS_20261103.md).
 Timer de 120s comprovado; causa da espera indeterminada. Nenhum novo envio ou conexão TEST.
 

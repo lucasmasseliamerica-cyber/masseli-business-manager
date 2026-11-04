@@ -2,13 +2,15 @@ name: NEXALVO operational - offline only
 on:
   push:
     branches: [automation/nexalvo-qa-actions]
-    paths: ['App.jsx', 'src/App.jsx', 'qa/procurement-calendar-regression.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
+    paths: ['App.jsx', 'src/App.jsx', 'src/i18n.jsx', 'supabase/functions/manage-staff-user/**', 'supabase/functions/_shared/manage-staff-user-core.mjs', 'qa/manage-staff-user*.mjs', 'qa/staff-write-recovery-browser.test.mjs', 'qa/procurement-calendar-regression.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
 permissions:
   contents: read
 # Reuses the documented [c2-offline] commit mechanism to keep the legacy TEST
 # workflow's build dependency skipped. No TEST environment, secrets or RPCs here.
 jobs:
   calendar:
+    # Staff-only commits select their affected checks below; do not rerun closed calendar work.
+    if: ${{ !contains(github.event.head_commit.message, '[staff-offline]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -23,4 +25,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test --test-reporter=tap qa/procurement-calendar-regression.test.mjs qa/purchase-supplier-usability-regression.test.mjs qa/report-accuracy-regression.test.mjs
+      - run: npm run build
+  staff-recovery:
+    if: ${{ contains(github.event.head_commit.message, '[staff-offline]') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Affected staff handler, recovery, caller and shared-boundary checks only
+        run: node --test --test-reporter=tap qa/manage-staff-user-recovery.test.mjs qa/staff-write-recovery-browser.test.mjs qa/manage-staff-user.test.mjs qa/platform-admin-backend.test.mjs qa/employee-workflow-regression.test.mjs
       - run: npm run build

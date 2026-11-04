@@ -1,5 +1,12 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+Staff: [compensação insegura corrigida em código e transição atualizada](./QA_STAFF_RECOVERY_PATCH_20261103.md).
+Gateway após possível commit reproduziu DELETE Auth; exclusão automática agora removida,
+rejeição estritamente classificada e convite parcial exige reconciliação. Chamador bloqueia
+reenvio/reload da aba; falha de recarga após confirmação não repete convite. 76 regressões
+afetadas e build PASS; CI isolada staff aguardando publicação. Nenhuma consulta/escrita TEST.
+SQLs/OWNER-safe preservados; configuração, janela, entrega e homologação reais continuam gates.
+
 Staff/OWNER-safe: [retomada dirigida, pacote preservado e gates atuais](./QA_STAFF_USER_SERVICE_READINESS_20261103.md).
 SQL/Edge/testes aprovados em 7df40ec continuam iguais; CI 39097605790 12/12 SUCCESS reutilizada.
 Leitura TEST: RPC nova ausente, legado com fingerprint revisado/EXECUTE authenticated; Edge

@@ -72,7 +72,7 @@ test('public staff errors are sanitized', () => {
   assert.doesNotMatch(JSON.stringify(result), /password|SQL details/);
 });
 
-test('Edge boundary verifies Auth and tenant permission before service RPC and compensates failed invite', () => {
+test('Edge boundary verifies Auth and tenant permission and never deletes an unproven invitation identity', () => {
   const privilegedKeyName = ['SUPABASE', 'SERVICE', 'ROLE', 'KEY'].join('_');
   assert.ok(edge.includes(privilegedKeyName));
   assert.match(edge, /NEXALVO_ALLOWED_PROJECT_REF/);
@@ -83,11 +83,11 @@ test('Edge boundary verifies Auth and tenant permission before service RPC and c
   assert.match(edge, /function publicProfile\(row/);
   assert.match(edge, /user: publicProfile\(result\)/g);
   assert.match(edge, /\/auth\/v1\/invite/);
-  assert.match(edge, /deleteInvitedIdentity/);
-  assert.match(edge, /STAFF_COMPENSATION_REQUIRED/);
+  assert.doesNotMatch(edge, /deleteInvitedIdentity|method:\s*'DELETE'|safeToCompensate/);
+  assert.match(edge, /STAFF_INVITE_PROFILE_REJECTED/);
   assert.match(edge, /STAFF_PROFILE_COMMIT_UNCERTAIN/);
-  assert.match(edge, /profileError\.safeToCompensate !== true/);
-  assert.ok(edge.indexOf('profileError.safeToCompensate !== true') < edge.indexOf('deleteInvitedIdentity(config, invitedId)'));
+  assert.match(edge, /profileError\.profileOutcome === 'rejected'/);
+  assert.match(edge, /validStaffProfileReceipt/);
   assert.doesNotMatch(edge, /Access-Control-Allow-Origin['"]?\s*[:,]\s*['"]\*/);
   assert.doesNotMatch(edge, /console\.(log|debug)\(/);
 });

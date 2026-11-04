@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 export const LANGUAGE_STORAGE_KEY = "nexalvo.ui.language.v1";
 export const PORTUGUESE = {
+  "Staff administration needs reconciliation. Do not resend; contact an administrator.": "A gestão de equipe precisa de conciliação. Não reenvie; contate um administrador.",
   "Tax rate must be between 0 and 100.": "A alíquota deve estar entre 0 e 100.",
   "Check the product recipe before taking payment.": "Confira a composição do produto antes de receber o pagamento.",
   "Refresh inventory before taking payment.": "Atualize o estoque antes de receber o pagamento.",

@@ -1,5 +1,9 @@
 # staff-user-service / OWNER-safe — retomada dirigida
 
+**Atualização posterior:** ramo inseguro corrigido e testado isoladamente no
+[patch de recuperação/transição](./QA_STAFF_RECOVERY_PATCH_20261103.md). Este checkpoint
+preserva a coleta histórica d261ba0; não indica implantação da correção.
+
 Estado: **PREPARADO, NÃO APLICADO; gates operacionais e de homologação pendentes**.
 Branch automation/nexalvo-qa-actions. HEAD local/remoto inicial:
 6d87e2ef6440e1f70221599b75719c2f2dbdbed9, árvore limpa. Esse fechamento C2 é preservado;

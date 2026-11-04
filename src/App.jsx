@@ -2515,10 +2515,43 @@ const supabaseAuth = {
   },
 };
 
+// One staff mutation at a time. Retain only a non-sensitive pending bit across reloads
+// in this tab; reconciliation must precede any administrative release of that bit.
+const STAFF_WRITE_PENDING_KEY = "nexalvo.staff-write.pending.v1";
+let staffWriteNeedsReconciliation = false;
+function staffWriteBlocked() {
+  if (staffWriteNeedsReconciliation) return true;
+  try { return window.sessionStorage.getItem(STAFF_WRITE_PENDING_KEY) !== null; }
+  catch { return true; }
+}
+function staffWriteRecoveryError(status = null) {
+  const error = new Error("Staff administration needs reconciliation. Do not resend; contact an administrator.");
+  error.commitUncertain = true;
+  error.retrySafe = false;
+  error.status = status;
+  return error;
+}
+function finishConfirmedStaffWrite() {
+  try {
+    window.sessionStorage.removeItem(STAFF_WRITE_PENDING_KEY);
+    staffWriteNeedsReconciliation = window.sessionStorage.getItem(STAFF_WRITE_PENDING_KEY) !== null;
+  } catch { staffWriteNeedsReconciliation = true; }
+}
 async function callSupabaseFunction(functionName, payload = {}) {
+  const staffWrite = functionName === "manage-staff-user";
+  if (staffWrite && staffWriteBlocked()) throw staffWriteRecoveryError();
   const session = await supabaseAuth.restoreSession();
   if (!session?.accessToken) throw new Error("Your session has expired. Sign in again.");
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
+  if (staffWrite) {
+    if (staffWriteBlocked()) throw staffWriteRecoveryError();
+    try {
+      window.sessionStorage.setItem(STAFF_WRITE_PENDING_KEY, "pending");
+      if (window.sessionStorage.getItem(STAFF_WRITE_PENDING_KEY) !== "pending") throw new Error();
+    } catch { staffWriteNeedsReconciliation = true; throw staffWriteRecoveryError(); }
+    staffWriteNeedsReconciliation = true;
+  }
+  let res;
+  try { res = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
     method: "POST",
     headers: {
       apikey: SUPABASE_ANON_KEY,
@@ -2526,8 +2559,19 @@ async function callSupabaseFunction(functionName, payload = {}) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
+  }); } catch (error) { if (staffWrite) throw staffWriteRecoveryError(); throw error; }
   const body = await res.json().catch(() => null);
+  if (staffWrite) {
+    const rejectionCodes = ["INVALID_REQUEST", "AUTH_REQUIRED", "AUTH_INVALID", "PROFILE_DENIED", "STAFF_ACCESS_DENIED", "ORIGIN_DENIED", "REDIRECT_DENIED", "METHOD_NOT_ALLOWED", "BODY_TOO_LARGE"];
+    const definitive = !res.ok && res.status >= 400 && res.status < 500 && res.status !== 408
+      && body?.ok === false && body?.reconciliation_required !== true && body?.retry_allowed !== false
+      && (rejectionCodes.includes(body.code) || (payload.operation === "update" && body.code === "PROFILE_OPERATION_REJECTED"));
+    const confirmed = res.ok && body?.ok === true && body?.reconciliation_required !== true && body?.retry_allowed !== false && typeof body?.user?.id === "string"
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.user.id)
+      && (payload.operation !== "update" || body.user.id === payload.user_id);
+    if (!definitive && !confirmed) throw staffWriteRecoveryError(res.status);
+    finishConfirmedStaffWrite();
+  }
   if (!res.ok) {
     const error = new Error(body?.error || `${functionName} failed (${res.status})`);
     error.status = res.status;
@@ -2627,17 +2671,21 @@ function useSupabaseUsers(businessId, reportLoadError, clearLoadError) {
         employee_id:row.employeeId || null, active:row.active !== false, permission_overrides:row.role === "OWNER" ? {} : (row.permissions || {}),
       });
     }
-    return reload();
-  }, [data, reload]);
+    try { return await reload(); }
+    catch (error) { reportLoadError?.("users", "refresh", error.message); return before; }
+  }, [data, reload, reportLoadError]);
 
   const invite = useCallback(async (row) => {
-    await callSupabaseFunction("manage-staff-user", {
+    const receipt = await callSupabaseFunction("manage-staff-user", {
       operation:"invite", email:row.email, name:row.name, username:row.username, role:row.role,
       employee_id:row.employeeId || null, active:row.active !== false, permission_overrides:row.role === "OWNER" ? {} : (row.permissions || {}),
       redirect_to: window.location.origin,
     });
-    return reload();
-  }, [reload]);
+    // A failed list refresh must not turn a confirmed invitation into a retryable failure.
+    try { await reload(); }
+    catch (error) { reportLoadError?.("users", "refresh", error.message); }
+    return receipt.user;
+  }, [reload, reportLoadError]);
 
   return [data, persist, reload, invite];
 }

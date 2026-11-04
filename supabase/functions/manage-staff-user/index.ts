@@ -4,6 +4,10 @@ import {
   parseStaffRequest,
   publicStaffError,
   StaffRequestError,
+  classifyStaffProfileFailure,
+  staffReconciliationError,
+  validStaffProfileReceipt,
+  validStaffIdentityId,
 } from '../_shared/manage-staff-user-core.mjs';
 
 const MAX_BODY_BYTES = 16 * 1024;
@@ -78,16 +82,19 @@ async function profileRpc(config: ReturnType<typeof requiredConfiguration>, acto
       }),
     });
   } catch {
-    throw new StaffRequestError('The staff profile result is uncertain and needs reconciliation.', 503, 'STAFF_PROFILE_COMMIT_UNCERTAIN');
-  }
-  if (!response.ok) {
-    const error = new StaffRequestError('The staff profile operation was rejected.', 409, 'PROFILE_OPERATION_REJECTED');
-    error.safeToCompensate = true;
-    throw error;
+    throw staffReconciliationError('STAFF_PROFILE_COMMIT_UNCERTAIN');
   }
   const body = await response.json().catch(() => null);
-  if (!body || typeof body.id !== 'string') {
-    throw new StaffRequestError('The staff profile result is uncertain and needs reconciliation.', 503, 'STAFF_PROFILE_COMMIT_UNCERTAIN');
+  if (!response.ok) {
+    if (classifyStaffProfileFailure(response.status, body) === 'rejected') {
+      const error = new StaffRequestError('The staff profile operation was rejected.', 409, 'PROFILE_OPERATION_REJECTED');
+      error.profileOutcome = 'rejected';
+      throw error;
+    }
+    throw staffReconciliationError('STAFF_PROFILE_COMMIT_UNCERTAIN');
+  }
+  if (!validStaffProfileReceipt(body, userId, businessId, command)) {
+    throw staffReconciliationError('STAFF_PROFILE_COMMIT_UNCERTAIN');
   }
   return body;
 }
@@ -105,23 +112,16 @@ async function inviteIdentity(config: ReturnType<typeof requiredConfiguration>, 
       body: JSON.stringify({ email, redirect_to: redirectOrigin }),
     });
   } catch {
-    throw new StaffRequestError('The invitation result is uncertain and needs reconciliation.', 503, 'STAFF_INVITE_COMMIT_UNCERTAIN');
+    throw staffReconciliationError('STAFF_INVITE_COMMIT_UNCERTAIN');
   }
-  if (!response.ok) throw new StaffRequestError('The invitation could not be created.', 409, 'INVITE_REJECTED');
+  // Auth's error status does not prove that no invitation/identity side effect occurred.
+  if (!response.ok) throw staffReconciliationError('STAFF_INVITE_COMMIT_UNCERTAIN');
   const invited = await response.json().catch(() => null);
   const invitedId = invited?.id || invited?.user?.id;
-  if (typeof invitedId !== 'string') {
-    throw new StaffRequestError('The invitation identity needs administrator reconciliation.', 503, 'INVITE_IDENTITY_MISSING');
+  if (!validStaffIdentityId(invitedId)) {
+    throw staffReconciliationError('INVITE_IDENTITY_MISSING');
   }
   return invitedId;
-}
-
-async function deleteInvitedIdentity(config: ReturnType<typeof requiredConfiguration>, userId: string) {
-  const response = await fetch(`${config.supabaseUrl}/auth/v1/admin/users/${encodeURIComponent(userId)}?should_soft_delete=false`, {
-    method: 'DELETE',
-    headers: { apikey: config.serviceRoleKey, Authorization: `Bearer ${config.serviceRoleKey}` },
-  });
-  return response.ok || response.status === 404;
 }
 
 function publicProfile(row: Record<string, unknown>) {
@@ -178,15 +178,10 @@ Deno.serve(async (req: Request) => {
       const result = await profileRpc(config, caller.id, caller.business_id, invitedId, command);
       return jsonResponse({ ok: true, user: publicProfile(result) }, 200, origin);
     } catch (profileError) {
-      if (!(profileError instanceof StaffRequestError) || profileError.safeToCompensate !== true) {
-        throw new StaffRequestError('The invitation needs administrator reconciliation.', 503, 'STAFF_COMMIT_UNCERTAIN');
-      }
-      const compensated = await deleteInvitedIdentity(config, invitedId).catch(() => false);
-      if (!compensated) {
-        console.error('manage-staff-user compensation required', { stage: 'profile' });
-        throw new StaffRequestError('The invitation needs administrator reconciliation.', 500, 'STAFF_COMPENSATION_REQUIRED');
-      }
-      throw profileError;
+      // Even a definitive profile rejection does not prove that /invite created a new
+      // identity owned exclusively by this operation. No automatic Auth deletion is safe.
+      const rejected = profileError instanceof StaffRequestError && profileError.profileOutcome === 'rejected';
+      throw staffReconciliationError(rejected ? 'STAFF_INVITE_PROFILE_REJECTED' : 'STAFF_COMMIT_UNCERTAIN', rejected ? 'rejected' : 'uncertain');
     }
   } catch (error) {
     const result = publicStaffError(error);

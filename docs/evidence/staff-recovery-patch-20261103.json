@@ -1,0 +1,61 @@
+{
+  "scope": "LOCAL_SYNTHETIC_HTTP_AND_STORAGE_ONLY",
+  "status": "PREPARED_NOT_DEPLOYED",
+  "baseline": "d261ba0d0c1394dec172f89dc52afde8defcf621",
+  "diagnostic_before": {
+    "possible_profile_commit_then_504": true,
+    "unexpected_auth_delete_attempts": 1,
+    "test_failed_as_expected": true
+  },
+  "after": {
+    "auth_delete_path_removed": true,
+    "rejection_classification": "STRUCTURED_EXACT_STATUS_SQLSTATE_ALLOWLIST",
+    "identity_creation_exclusivity_not_proven": true,
+    "compensation": "NO_AUTOMATIC_AUTH_DELETE",
+    "unknown_result": "STOP_RECONCILE_NO_RETRY",
+    "confirmed_receipt_checks": "IDENTITY_TENANT_PAYLOAD",
+    "browser_pending": "NON_SENSITIVE_SAME_TAB_SESSION_STORAGE",
+    "confirmed_write_refresh_failure": "REPORTED_AS_READ_FAILURE_WITHOUT_RESEND"
+  },
+  "tests": {
+    "affected": 76,
+    "passed": 76,
+    "failed": 0,
+    "skipped": 0,
+    "real_edge_handler": true,
+    "fetch_intercepted": true,
+    "real_invites": 0
+  },
+  "build": {
+    "status": "PASS",
+    "modules": 1579
+  },
+  "reviewed_sql_unchanged": true,
+  "owner_safe_guards_unchanged": true,
+  "remote_reads": 0,
+  "remote_writes": 0,
+  "c2_activity": 0,
+  "coverage": "16/60",
+  "ci_status": "PENDING_CODE_PUSH",
+  "artifact_sha256": {
+    "supabase/functions/manage-staff-user/index.ts": "45ab977f2bd07917586940e6a9e3f6cb25ea090749a61c2c677a78c014a1256c",
+    "supabase/functions/_shared/manage-staff-user-core.mjs": "708484deed58b1c3d86afca49894d820aa11eaa6a0ce554423dbd6cadb2f90c4",
+    "App.jsx": "d4f17b18137cd25a3a332386aaf5d125857e9424f500f2b2a8c75b6cda0a784a",
+    "src/App.jsx": "d4f17b18137cd25a3a332386aaf5d125857e9424f500f2b2a8c75b6cda0a784a",
+    "src/i18n.jsx": "155f597bd895c663867a4fa2db15889adf996a7369e7b44f660a593a03c62e61",
+    "qa/manage-staff-user.test.mjs": "ea53cef155fb5c8c4f8fa9769dfd87a20b1c5c5922cc54f94418ba3c8224bbd2",
+    "qa/manage-staff-user-recovery.test.mjs": "b660acc82d8681660ca70f74a08824a658dd8e44552de68c2313de11463151a2",
+    "qa/staff-write-recovery-browser.test.mjs": "f38db2b98d65d1d9e3eba3e64c9fd6879ab01fdb27e3e77808dec8ae76729e8f",
+    ".github/workflows/nexalvo-operational-offline.yml": "6af44e8b557592e1238e991a594599944608f7664560b22da2838681f797ced8",
+    "migrations/20261017_manage_staff_user_TEST.sql": "16ca5d6505a73d71f0131aab7790947b1ce581134f716919aea705932d9cf9ec",
+    "migrations/20261017_manage_staff_user_rollback_TEST.sql": "d49b03e82886e0214aaf5826fae275b8ec7602e3eb4ce7fdcda7944d5dc355ca",
+    "qa/sql/manage_staff_user_preflight_readonly_TEST.sql": "7529b15ea28519f161d21a4cdc85a2b2ad50ca6ffbeca0fc304da67be7cde7dc",
+    "qa/sql/manage_staff_user_postflight_readonly_TEST.sql": "013e3816e6c84986304ca98e24810a033780118224f65cfa3d8b3370c6c9b83a"
+  },
+  "limitations": [
+    "No deployed or real SMTP/Auth/role homologation",
+    "Browser guard is same-tab, not server idempotency or durable global journal",
+    "Manual authorized reconciliation must establish identity ownership before any recovery",
+    "No prior C2 authorization or historical marker changes"
+  ]
+}
