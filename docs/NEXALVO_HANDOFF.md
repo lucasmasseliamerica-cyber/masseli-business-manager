@@ -1,5 +1,13 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+Staff/OWNER-safe: [retomada dirigida, pacote preservado e gates atuais](./QA_STAFF_USER_SERVICE_READINESS_20261103.md).
+SQL/Edge/testes aprovados em 7df40ec continuam iguais; CI 39097605790 12/12 SUCCESS reutilizada.
+Leitura TEST: RPC nova ausente, legado com fingerprint revisado/EXECUTE authenticated; Edge
+manage-staff-user v4 ativa e legada. Novo pós-flight somente leitura 2/13 BLOCKED esperado
+antes de instalação. Faltam configuração staff comprovada, janela, autorização SQL/deploy e
+escopo de homologação; convites reais exigem revisão do ramo HTTP não-2xx/compensação.
+Nenhuma escrita/deploy/usuário/permissão alterados. C2 continua encerrado, sem novas tentativas.
+
 **Preparação SCRAM local encerrada com bloqueio delimitado. Não abrir outra tentativa.**
 [Fechamento definitivo e artefatos da única tentativa final](./QA_C2_SCRAM_FINAL_CLOSURE_20261103.md).
 Run 19f9: SCRAM/leitura PASS, READY alcançado, saída BLOCKED/2 e journal

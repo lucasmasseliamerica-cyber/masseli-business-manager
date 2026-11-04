@@ -1,0 +1,565 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "scope": "STAFF_READ_ONLY_NO_C2",
+  "preflight": {
+    "constraints": [
+      {
+        "name": "audit_logs_business_id_fkey",
+        "type": "f",
+        "table": "audit_logs",
+        "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id)"
+      },
+      {
+        "name": "audit_logs_pkey",
+        "type": "p",
+        "table": "audit_logs",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "audit_logs_user_id_fkey",
+        "type": "f",
+        "table": "audit_logs",
+        "definition": "FOREIGN KEY (user_id) REFERENCES users(id)"
+      },
+      {
+        "name": "employees_business_id_fkey",
+        "type": "f",
+        "table": "employees",
+        "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id)"
+      },
+      {
+        "name": "employees_hourly_rate_nonnegative",
+        "type": "c",
+        "table": "employees",
+        "definition": "CHECK (hourly_rate IS NULL OR hourly_rate >= 0::numeric)"
+      },
+      {
+        "name": "employees_location_id_fkey",
+        "type": "f",
+        "table": "employees",
+        "definition": "FOREIGN KEY (location_id) REFERENCES locations(id)"
+      },
+      {
+        "name": "employees_manager_id_fkey",
+        "type": "f",
+        "table": "employees",
+        "definition": "FOREIGN KEY (manager_id) REFERENCES employees(id)"
+      },
+      {
+        "name": "employees_no_self_manager",
+        "type": "c",
+        "table": "employees",
+        "definition": "CHECK (manager_id IS DISTINCT FROM id)"
+      },
+      {
+        "name": "employees_pkey",
+        "type": "p",
+        "table": "employees",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "finite_hourly_rate",
+        "type": "c",
+        "table": "employees",
+        "definition": "CHECK (hourly_rate IS NULL OR (hourly_rate::text <> ALL (ARRAY['NaN'::text, 'Infinity'::text, '-Infinity'::text])))"
+      },
+      {
+        "name": "users_business_id_fkey",
+        "type": "f",
+        "table": "users",
+        "definition": "FOREIGN KEY (business_id) REFERENCES businesses(id)"
+      },
+      {
+        "name": "users_business_id_username_key",
+        "type": "u",
+        "table": "users",
+        "definition": "UNIQUE (business_id, username)"
+      },
+      {
+        "name": "users_employee_id_fkey",
+        "type": "f",
+        "table": "users",
+        "definition": "FOREIGN KEY (employee_id) REFERENCES employees(id)"
+      },
+      {
+        "name": "users_pkey",
+        "type": "p",
+        "table": "users",
+        "definition": "PRIMARY KEY (id)"
+      },
+      {
+        "name": "users_role_check",
+        "type": "c",
+        "table": "users",
+        "definition": "CHECK (role = ANY (ARRAY['OWNER'::text, 'MANAGER'::text, 'EMPLOYEE'::text]))"
+      }
+    ],
+    "rpc_collision": [],
+    "required_columns": [
+      {
+        "type": "uuid",
+        "table": "audit_logs",
+        "column": "business_id",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "audit_logs",
+        "column": "user_id",
+        "default": null,
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "audit_logs",
+        "column": "user_name_snapshot",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "audit_logs",
+        "column": "role_snapshot",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "audit_logs",
+        "column": "action",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "audit_logs",
+        "column": "details",
+        "default": null,
+        "nullable": "YES"
+      },
+      {
+        "type": "uuid",
+        "table": "employees",
+        "column": "id",
+        "default": "gen_random_uuid()",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "employees",
+        "column": "business_id",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "boolean",
+        "table": "employees",
+        "column": "active",
+        "default": "true",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "users",
+        "column": "id",
+        "default": "gen_random_uuid()",
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "users",
+        "column": "business_id",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "uuid",
+        "table": "users",
+        "column": "employee_id",
+        "default": null,
+        "nullable": "YES"
+      },
+      {
+        "type": "text",
+        "table": "users",
+        "column": "name",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "users",
+        "column": "username",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "text",
+        "table": "users",
+        "column": "role",
+        "default": null,
+        "nullable": "NO"
+      },
+      {
+        "type": "jsonb",
+        "table": "users",
+        "column": "permission_overrides",
+        "default": "'{}'::jsonb",
+        "nullable": "NO"
+      },
+      {
+        "type": "boolean",
+        "table": "users",
+        "column": "active",
+        "default": "true",
+        "nullable": "NO"
+      },
+      {
+        "type": "timestamp with time zone",
+        "table": "users",
+        "column": "updated_at",
+        "default": "now()",
+        "nullable": "NO"
+      }
+    ],
+    "legacy_profile_rpc": {
+      "exists": true,
+      "arguments": "p_user_id uuid, p_name text, p_username text, p_role text, p_employee_id uuid, p_active boolean, p_permission_overrides jsonb",
+      "fingerprint": "4e02f0128a171ec8a6e65de291f115e7",
+      "authenticated_execute": true
+    },
+    "service_role_privileges": [
+      {
+        "table": "audit_logs",
+        "insert": true,
+        "select": true,
+        "update": true
+      },
+      {
+        "table": "employees",
+        "insert": true,
+        "select": true,
+        "update": true
+      },
+      {
+        "table": "users",
+        "insert": true,
+        "select": true,
+        "update": true
+      }
+    ]
+  },
+  "postflight": {
+    "scope": "STAFF_CATALOG_ONLY_NO_BUSINESS_RPC",
+    "checks": [
+      {
+        "name": "legacy_reviewed_definition",
+        "passed": true
+      },
+      {
+        "name": "legacy_service_only",
+        "passed": false
+      },
+      {
+        "name": "new_argument_names",
+        "passed": false
+      },
+      {
+        "name": "new_empty_search_path",
+        "passed": false
+      },
+      {
+        "name": "new_exact_signature",
+        "passed": false
+      },
+      {
+        "name": "new_no_overloads",
+        "passed": false
+      },
+      {
+        "name": "new_owner_postgres",
+        "passed": false
+      },
+      {
+        "name": "new_plpgsql_volatile",
+        "passed": false
+      },
+      {
+        "name": "new_returns_users",
+        "passed": false
+      },
+      {
+        "name": "new_reviewed_body",
+        "passed": false
+      },
+      {
+        "name": "new_security_invoker",
+        "passed": false
+      },
+      {
+        "name": "new_service_only",
+        "passed": false
+      },
+      {
+        "name": "service_table_privileges",
+        "passed": true
+      }
+    ],
+    "failed": 11,
+    "passed": 2,
+    "status": "BLOCKED_STAFF_SQL_CONTRACT",
+    "expected": 13,
+    "related_triggers": [
+      {
+        "enabled": "O",
+        "definition": "CREATE TRIGGER employees_guard_salary BEFORE INSERT OR UPDATE ON employees FOR EACH ROW EXECUTE FUNCTION trg_guard_employee_salary()",
+        "table_name": "employees",
+        "table_schema": "public",
+        "trigger_name": "employees_guard_salary",
+        "function_name": "public.trg_guard_employee_salary",
+        "may_write_users": false,
+        "function_definition_md5": "2e9c4dd22f7c3e0af08179ebcc428e75"
+      },
+      {
+        "enabled": "O",
+        "definition": "CREATE TRIGGER employees_validate_tenant_references BEFORE INSERT OR UPDATE OF location_id, manager_id, business_id ON employees FOR EACH ROW EXECUTE FUNCTION trg_validate_employee_tenant_references()",
+        "table_name": "employees",
+        "table_schema": "public",
+        "trigger_name": "employees_validate_tenant_references",
+        "function_name": "public.trg_validate_employee_tenant_references",
+        "may_write_users": false,
+        "function_definition_md5": "edeaa3ac909bcba597fa259165a1da31"
+      },
+      {
+        "enabled": "O",
+        "definition": "CREATE TRIGGER users_prevent_self_privilege_escalation BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION trg_prevent_self_privilege_escalation()",
+        "table_name": "users",
+        "table_schema": "public",
+        "trigger_name": "users_prevent_self_privilege_escalation",
+        "function_name": "public.trg_prevent_self_privilege_escalation",
+        "may_write_users": false,
+        "function_definition_md5": "fffa8e8473147183978e5d49080e91b0"
+      },
+      {
+        "enabled": "O",
+        "definition": "CREATE TRIGGER users_validate_permission_overrides BEFORE INSERT OR UPDATE OF permission_overrides ON users FOR EACH ROW EXECUTE FUNCTION trg_validate_user_permission_overrides()",
+        "table_name": "users",
+        "table_schema": "public",
+        "trigger_name": "users_validate_permission_overrides",
+        "function_name": "public.trg_validate_user_permission_overrides",
+        "may_write_users": false,
+        "function_definition_md5": "9fe2814f30f7087988d7da5d27048834"
+      }
+    ],
+    "legacy_acl_snapshot": {
+      "owner": "postgres",
+      "entries": [
+        {
+          "grantee": "postgres",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        },
+        {
+          "grantee": "authenticated",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        },
+        {
+          "grantee": "service_role",
+          "grantor": "postgres",
+          "grantable": false,
+          "privilege": "EXECUTE"
+        }
+      ],
+      "raw_acl": [
+        "postgres=X/postgres",
+        "authenticated=X/postgres",
+        "service_role=X/postgres"
+      ]
+    },
+    "project_ref_expected": "msinksoilkluooxenecy"
+  },
+  "edge": {
+    "slug": "manage-staff-user",
+    "version": 4,
+    "status": "ACTIVE",
+    "verify_jwt": true,
+    "ezbr_sha256": "1caa00e94cbfdace6f380d10f327c477560df425cc938dda99850e68daface37",
+    "created_at_utc": "2026-10-02T16:17:18.648Z",
+    "updated_at_utc": "2026-10-06T14:56:47.188Z",
+    "source_is_legacy": true,
+    "uses_rpc": "fn_save_user_profile",
+    "files": [
+      {
+        "name": "index.ts",
+        "utf8_characters": 4289
+      },
+      {
+        "name": "deno.json",
+        "utf8_characters": 38
+      }
+    ]
+  },
+  "retained_ci": {
+    "code_sha": "7df40ec2ba5e8f0abbd41e4850b394b85ee3f15c",
+    "run_id": 39097605790,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39097605790",
+    "jobs": [
+      {
+        "name": "build-and-security",
+        "conclusion": "success"
+      },
+      {
+        "name": "test-api-smoke",
+        "conclusion": "success"
+      },
+      {
+        "name": "authenticated-preflight",
+        "conclusion": "success"
+      },
+      {
+        "name": "auth-lifecycle",
+        "conclusion": "success"
+      },
+      {
+        "name": "replay-financial",
+        "conclusion": "success"
+      },
+      {
+        "name": "access-regression",
+        "conclusion": "success"
+      },
+      {
+        "name": "authenticated-concurrency",
+        "conclusion": "success"
+      },
+      {
+        "name": "browser-smoke",
+        "conclusion": "success"
+      },
+      {
+        "name": "network-after-commit",
+        "conclusion": "success"
+      },
+      {
+        "name": "two-tenant-concurrency",
+        "conclusion": "success"
+      },
+      {
+        "name": "performance-read",
+        "conclusion": "success"
+      },
+      {
+        "name": "qa-summary",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "implementation_modified": false,
+  "migrations_applied": 0,
+  "edge_deployments": 0,
+  "user_or_permission_mutations": 0,
+  "c2_connections": 0,
+  "c2_closure_sha": "6d87e2ef6440e1f70221599b75719c2f2dbdbed9",
+  "coverage": "16/60",
+  "collection_date_utc": "2026-11-04",
+  "review_date_client": "2026-11-03",
+  "artifacts": [
+    {
+      "path": "migrations/20261017_manage_staff_user_TEST.sql",
+      "sha256_checkout_bytes": "16ca5d6505a73d71f0131aab7790947b1ce581134f716919aea705932d9cf9ec",
+      "sha256_git_lf": "e45edc68f24fb8ef4348cbca9264b150bbc32846b84d9662dd06a43b2dea9501",
+      "unchanged_since_7df40ec_normalized": true
+    },
+    {
+      "path": "migrations/20261017_manage_staff_user_rollback_TEST.sql",
+      "sha256_checkout_bytes": "d49b03e82886e0214aaf5826fae275b8ec7602e3eb4ce7fdcda7944d5dc355ca",
+      "sha256_git_lf": "ecc7820826f31007c8124243855325adf68ae38e26f1a2566baf74d51a1c3a63",
+      "unchanged_since_7df40ec_normalized": true
+    },
+    {
+      "path": "qa/sql/manage_staff_user_preflight_readonly_TEST.sql",
+      "sha256_checkout_bytes": "7529b15ea28519f161d21a4cdc85a2b2ad50ca6ffbeca0fc304da67be7cde7dc",
+      "sha256_git_lf": "9544c0e56fcd11a4428c8fde76805c8f7609a40e0688c4b12042f804fbb89508",
+      "unchanged_since_7df40ec_normalized": true
+    },
+    {
+      "path": "supabase/functions/manage-staff-user/index.ts",
+      "sha256_checkout_bytes": "ec60edfa0f87416c18cb73f75ff7173534f2d88ed45ad118ba0032bf1a617a66",
+      "sha256_git_lf": "6300628b6cd338fc28c79f82e2f2d02246756d8cd3a4eb979105a8f02afbca9d",
+      "unchanged_since_7df40ec_normalized": true
+    },
+    {
+      "path": "supabase/functions/_shared/manage-staff-user-core.mjs",
+      "sha256_checkout_bytes": "957dcbbd2537b0881540cf0ea911373e8f4922fbc4893ad5d049c9a7dada9397",
+      "sha256_git_lf": "e71b5f1a7e62f961470171c4f195394301c50493d0d32238ad1469c544daabc1",
+      "unchanged_since_7df40ec_normalized": true
+    },
+    {
+      "path": "supabase/functions/_shared/platform-admin-core.mjs",
+      "sha256_checkout_bytes": "31575b6662a9ff71d7f054323e3fccfa88140e4182ac6ab4dfdf36aa36d6bf04",
+      "sha256_git_lf": "998e9bf51d9df93337a55a98542174dbfd5c3b1f23f92b6027537c23be8b365d",
+      "unchanged_since_7df40ec_normalized": true
+    },
+    {
+      "path": "qa/manage-staff-user.test.mjs",
+      "sha256_checkout_bytes": "ba3cc5a3e4d88b4155e2642479ab180d7a330dfb0d89320ce93948ec3cafb8e4",
+      "sha256_git_lf": "c2699c08a104aead89561d0aea4ffd24b0d6de8b99166ba549bb711d89b81873",
+      "unchanged_since_7df40ec_normalized": true
+    },
+    {
+      "path": "qa/sql/manage_staff_user_postflight_readonly_TEST.sql",
+      "sha256_checkout_bytes": "013e3816e6c84986304ca98e24810a033780118224f65cfa3d8b3370c6c9b83a",
+      "sha256_git_lf": "013e3816e6c84986304ca98e24810a033780118224f65cfa3d8b3370c6c9b83a",
+      "unchanged_since_7df40ec_normalized": null
+    }
+  ],
+  "legacy_edge_recovery_files": [
+    {
+      "file": "index.ts",
+      "sha256_bytes": "83176782873feec23a2dd3bbe2383ec268fcd5a3ce4580ad4291da85e793ffd7"
+    },
+    {
+      "file": "deno.json",
+      "sha256_bytes": "71c6a6391c13388d377104eba277c711fbbb57510d568ef739e689bf1864a4c6"
+    }
+  ],
+  "new_sql_validation": {
+    "actual_test_catalog_read_only": true,
+    "final_status": "BLOCKED_STAFF_SQL_CONTRACT",
+    "passed": 2,
+    "total": 13,
+    "reason": "Replacement RPC absent and authenticated still executes legacy",
+    "positive_post_migration_result_not_claimed": true,
+    "query_adjustment": "pg_get_functiondef requires the same public-visible search_path as legacy fingerprint guard; initial catalog-only search_path gave a rendering-dependent mismatch",
+    "approved_implementation_changed": false,
+    "additional_coverage_limit": "Only pre-application negative state was executed. PASS 13/13 after installation is not claimed."
+  },
+  "remaining_gates": [
+    "Specific TEST migration and replacement deployment authorization",
+    "Exclusive staff-operation window; old and new Edge incompatible during transition",
+    "Server configuration presence and exact allowed origins not verified with this connector",
+    "Independent role sessions and explicitly authorized isolated targets/budget for real homologation",
+    "Review compensation classification for HTTP non-2xx before any real invitation"
+  ],
+  "invitation_recovery_limit": {
+    "evidence_kind": "EXISTING_SOURCE_REVIEW_ONLY_NO_RUNTIME_INJECTION",
+    "path": "supabase/functions/manage-staff-user/index.ts",
+    "observation": "All non-2xx profile RPC responses are marked safeToCompensate; transport errors and invalid success receipts are uncertain",
+    "remaining_gate": "Review gateway/ambiguous HTTP failures before real invitation homologation",
+    "approved_code_modified": false
+  },
+  "configuration_inventory": {
+    "supabase_reserved_values_read": false,
+    "staff_allowlist_confirmed": false,
+    "management_secret_inventory_tool_available": false,
+    "proposed_local_origin": "http://127.0.0.1:5173",
+    "proposed_project_marker": "msinksoilkluooxenecy",
+    "configuration_writes_authorized": false
+  },
+  "authorization_request_submitted": false,
+  "reason": "Not authorization-only: configuration, exclusive window, role/target/budget homologation and invitation recovery gate remain"
+}
