@@ -1,5 +1,12 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+**Lote autônomo encerrado:** [três correções, transição staff e evidências finais](./QA_AUTONOMOUS_BATCH_20261103.md).
+Código 37c2fde: staff/recibo 79/79, fornecedor 50/50 e modal 16/16, CI isolada Linux/Windows
+e builds PASS; componentes anteriores conferidos por hash, sem repetição desnecessária.
+Nenhuma consulta/escrita TEST, migração, deploy ou usuário real neste lote. Quatro SQLs
+staff preservados; cobertura 16/60; C2 encerrado/marcador consumido inalterados. Nenhum
+processo/teste próprio em andamento. Configuração/janela/autorização/homologação são gates.
+
 Equipe: [erro de desativação/reativação tratado no modal](./QA_STAFF_STATUS_FEEDBACK_20261103.md).
 Rejeição antes não capturada agora é visível/acessível e não gera sucesso falso. Guardas
 self/último OWNER preservados; 16 regressões afetadas/build PASS, sem usuário real alterado.

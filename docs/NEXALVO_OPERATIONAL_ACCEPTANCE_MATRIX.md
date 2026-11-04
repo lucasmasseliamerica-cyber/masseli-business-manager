@@ -1,5 +1,9 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+[Lote autônomo concluído em código](./QA_AUTONOMOUS_BATCH_20261103.md): staff/recibo 79/79,
+fornecedor 50/50 e modal 16/16, CI isolada Linux/Windows/builds PASS. Sem validação operacional
+remota nova; **16/60 (26,67%)** permanece, nenhum critério macro promovido.
+
 Equipe: [feedback de desativação/reativação corrigido](./QA_STAFF_STATUS_FEEDBACK_20261103.md),
 16 regressões afetadas/build PASS; somente validação isolada, cobertura permanece 16/60.
 

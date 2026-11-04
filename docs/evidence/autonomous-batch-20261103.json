@@ -1,0 +1,91 @@
+{
+  "status": "LOCAL_BATCH_COMPLETE_REAL_DEPLOYMENT_BLOCKED",
+  "runtime_head": "37c2fde874ccf716b5d73d98fc20ffb2bbe15b57",
+  "source_commits": {
+    "staff": "344cd0ed40e3aeded4d3f33433a4f30f2972a1e9",
+    "staff_receipt": "37c2fde874ccf716b5d73d98fc20ffb2bbe15b57",
+    "supplier_payment": "4c3fbba62330b5805e356e7d7c46c464b7a949c5",
+    "staff_status": "940fdfaad2a2ec9e563b3ed661a71841c54c6661"
+  },
+  "component_reuse": [
+    {
+      "component": "staff-caller",
+      "validated_sha": "37c2fde874ccf716b5d73d98fc20ffb2bbe15b57",
+      "normalized_sha256": "5b6fb54b4cb9a8a07e356b4f69f73dfa4791aaa8c6bae94a089d5231c5f41eef",
+      "matches": true
+    },
+    {
+      "component": "staff-hook",
+      "validated_sha": "37c2fde874ccf716b5d73d98fc20ffb2bbe15b57",
+      "normalized_sha256": "d3ee47b3f002ff830f6d914326a023e8b8a664c16396749fee08070c06441dc0",
+      "matches": true
+    },
+    {
+      "component": "supplier-payment",
+      "validated_sha": "4c3fbba62330b5805e356e7d7c46c464b7a949c5",
+      "normalized_sha256": "7217368cfdab73d4c8ced3e8a949dd130140b7446ee3290d974367bd14c5ca32",
+      "matches": true
+    },
+    {
+      "component": "staff-status-modal",
+      "validated_sha": "940fdfaad2a2ec9e563b3ed661a71841c54c6661",
+      "normalized_sha256": "653d492ecb9741557ffbad5737fdf1d07f807ef5e5d99928fa9d5a839a55f841",
+      "matches": true
+    },
+    {
+      "component": "supabase/functions/manage-staff-user/index.ts",
+      "validated_sha": "344cd0ed40e3aeded4d3f33433a4f30f2972a1e9",
+      "normalized_sha256": "e7848c5dc60194b68b5cd2543085a96f06150fd20dbfd12c406bfef64afa03c5",
+      "matches": true
+    },
+    {
+      "component": "supabase/functions/_shared/manage-staff-user-core.mjs",
+      "validated_sha": "344cd0ed40e3aeded4d3f33433a4f30f2972a1e9",
+      "normalized_sha256": "d80fe6de5974864cf36566c1ce37e37d816eb4109ea140252feb9663d08ffb8c",
+      "matches": true
+    }
+  ],
+  "sql_preserved": [
+    "migrations/20261017_manage_staff_user_TEST.sql",
+    "migrations/20261017_manage_staff_user_rollback_TEST.sql",
+    "qa/sql/manage_staff_user_preflight_readonly_TEST.sql",
+    "qa/sql/manage_staff_user_postflight_readonly_TEST.sql"
+  ],
+  "app_mirrors_equal": true,
+  "ci": {
+    "staff79": "PASS",
+    "purchase50": "PASS",
+    "staffUI16": "PASS",
+    "runs": {
+      "staff79": {
+        "id": 41770964097,
+        "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41770964097",
+        "sha": "37c2fde874ccf716b5d73d98fc20ffb2bbe15b57"
+      },
+      "purchase50": {
+        "id": 41770066412,
+        "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41770066412",
+        "sha": "4c3fbba62330b5805e356e7d7c46c464b7a949c5"
+      },
+      "staffUI16": {
+        "id": 41770341294,
+        "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41770341294",
+        "sha": "940fdfaad2a2ec9e563b3ed661a71841c54c6661"
+      }
+    },
+    "all_builds_pass": true,
+    "remote_workflows_skipped": true,
+    "closed_calendar_not_repeated": true
+  },
+  "remote_reads": 0,
+  "remote_writes": 0,
+  "c2_activity": 0,
+  "coverage": "16/60",
+  "owned_processes_running": [],
+  "pending_authorizations": [
+    "server configuration changes if needed",
+    "one staff migration and one Edge replacement",
+    "isolated real role/update homologation",
+    "separate controlled invitation and any manual recovery"
+  ]
+}

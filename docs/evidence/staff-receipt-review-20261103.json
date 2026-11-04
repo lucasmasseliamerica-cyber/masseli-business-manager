@@ -17,7 +17,7 @@
     "status": "PASS",
     "modules": 1579
   },
-  "ci_status": "PENDING_CODE_PUSH",
+  "ci_status": "PASS",
   "remote_reads": 0,
   "remote_writes": 0,
   "coverage": "16/60",
@@ -25,5 +25,19 @@
     "App.jsx": "aabe235069c70ea2130c7a39aee52ffb2de585d78ba93546df71402855a561b2",
     "src/App.jsx": "aabe235069c70ea2130c7a39aee52ffb2de585d78ba93546df71402855a561b2",
     "qa/staff-write-recovery-browser.test.mjs": "de01ee349b8be54dd7b420604d284647393f44616ca9c9d88234f061e632ceb0"
+  },
+  "code_sha": "37c2fde874ccf716b5d73d98fc20ffb2bbe15b57",
+  "ci": {
+    "run_id": 41770964097,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41770964097",
+    "linux": {
+      "tests": 79,
+      "build": "PASS"
+    },
+    "windows": {
+      "tests": 79,
+      "build": "PASS"
+    },
+    "remote_workflow": "SKIPPED"
   }
 }
