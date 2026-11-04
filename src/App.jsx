@@ -2555,8 +2555,10 @@ function finishConfirmedStaffWrite() {
     staffWriteNeedsReconciliation = window.sessionStorage.getItem(STAFF_WRITE_PENDING_KEY) !== null;
   } catch { staffWriteNeedsReconciliation = true; }
 }
-async function callSupabaseFunction(functionName, payload = {}) {
+async function callSupabaseFunction(functionName, payload = {}, expectedStaffBusinessId = null) {
   const staffWrite = functionName === "manage-staff-user";
+  const staffUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (staffWrite && (typeof expectedStaffBusinessId !== "string" || !staffUuid.test(expectedStaffBusinessId))) throw staffWriteRecoveryError();
   if (staffWrite && staffWriteBlocked()) throw staffWriteRecoveryError();
   const session = await supabaseAuth.restoreSession();
   if (!session?.accessToken) throw new Error("Your session has expired. Sign in again.");
@@ -2584,9 +2586,15 @@ async function callSupabaseFunction(functionName, payload = {}) {
     const definitive = !res.ok && res.status >= 400 && res.status < 500 && res.status !== 408
       && body?.ok === false && body?.reconciliation_required !== true && body?.retry_allowed !== false
       && (rejectionCodes.includes(body.code) || (payload.operation === "update" && body.code === "PROFILE_OPERATION_REJECTED"));
-    const confirmed = res.ok && body?.ok === true && body?.reconciliation_required !== true && body?.retry_allowed !== false && typeof body?.user?.id === "string"
-      && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(body.user.id)
-      && (payload.operation !== "update" || body.user.id === payload.user_id);
+    const user = body?.user, expectedPermissions = payload.permission_overrides || {};
+    const confirmed = res.ok && body?.ok === true && body?.reconciliation_required !== true && body?.retry_allowed !== false
+      && typeof user?.id === "string" && staffUuid.test(user.id) && user.business_id === expectedStaffBusinessId
+      && ["invite", "update"].includes(payload.operation) && (payload.operation !== "update" || user.id === payload.user_id)
+      && user.name === payload.name && user.username === payload.username && user.role === payload.role
+      && user.employee_id === (payload.employee_id || null) && user.active === payload.active
+      && user.permission_overrides && typeof user.permission_overrides === "object" && !Array.isArray(user.permission_overrides)
+      && Object.keys(user.permission_overrides).length === Object.keys(expectedPermissions).length
+      && Object.entries(expectedPermissions).every(([key, value]) => user.permission_overrides[key] === value);
     if (!definitive && !confirmed) throw staffWriteRecoveryError(res.status);
     finishConfirmedStaffWrite();
   }
@@ -2687,23 +2695,23 @@ function useSupabaseUsers(businessId, reportLoadError, clearLoadError) {
       if (changed) await callSupabaseFunction("manage-staff-user", {
         operation:"update", user_id:row.id, name:row.name, username:row.username, role:row.role,
         employee_id:row.employeeId || null, active:row.active !== false, permission_overrides:row.role === "OWNER" ? {} : (row.permissions || {}),
-      });
+      }, businessId);
     }
     try { return await reload(); }
     catch (error) { reportLoadError?.("users", "refresh", error.message); return before; }
-  }, [data, reload, reportLoadError]);
+  }, [data, reload, reportLoadError, businessId]);
 
   const invite = useCallback(async (row) => {
     const receipt = await callSupabaseFunction("manage-staff-user", {
       operation:"invite", email:row.email, name:row.name, username:row.username, role:row.role,
       employee_id:row.employeeId || null, active:row.active !== false, permission_overrides:row.role === "OWNER" ? {} : (row.permissions || {}),
       redirect_to: window.location.origin,
-    });
+    }, businessId);
     // A failed list refresh must not turn a confirmed invitation into a retryable failure.
     try { await reload(); }
     catch (error) { reportLoadError?.("users", "refresh", error.message); }
     return receipt.user;
-  }, [reload, reportLoadError]);
+  }, [reload, reportLoadError, businessId]);
 
   return [data, persist, reload, invite];
 }

@@ -3,19 +3,22 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';import vm from 'node:vm';
 const source=readFileSync(new URL('../src/App.jsx',import.meta.url),'utf8');
 const target='22222222-2222-4222-8222-222222222222';
+const business='33333333-3333-4333-8333-333333333333';
 const section=(a,b)=>{const at=source.indexOf(a),end=source.indexOf(b,at);assert.ok(at>=0&&end>at);return source.slice(at,end);};
 const code=section('const STAFF_WRITE_PENDING_KEY =','function platformAdminFailureMessage');
-const confirmed=()=>({ok:true,status:200,json:async()=>({ok:true,user:{id:target}})});
-const payload={operation:'update',user_id:target};
+const payload={operation:'update',user_id:target,name:'Synthetic Staff',username:'synthetic',role:'EMPLOYEE',employee_id:null,active:true,permission_overrides:{}};
+const confirmed=()=>({ok:true,status:200,json:async()=>({ok:true,user:{id:target,business_id:business,name:payload.name,username:payload.username,role:payload.role,employee_id:null,active:true,permission_overrides:{}}})});
 function browser(fetch,storage=new Map()){
  const context=vm.createContext({window:{sessionStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}},supabaseAuth:{restoreSession:async()=>({accessToken:'synthetic-session'})},SUPABASE_URL:'https://staff-lab.invalid',SUPABASE_ANON_KEY:'synthetic-public',fetch});
- vm.runInContext(code+';globalThis.invoke=callSupabaseFunction;',context);return{context,storage,invoke:(p=payload)=>context.invoke('manage-staff-user',p)};
+ vm.runInContext(code+';globalThis.invoke=callSupabaseFunction;',context);return{context,storage,invoke:(p=payload)=>context.invoke('manage-staff-user',p,business)};
 }
 for(const [name,response]of[
  ['transport loss',()=>{throw new TypeError('response lost');}],
  ['gateway',()=>({ok:false,status:504,json:async()=>({error:'gateway'})})],
  ['truncated success',()=>({ok:true,status:200,json:async()=>{throw new SyntaxError('truncated');}})],
  ['missing success receipt',()=>({ok:true,status:200,json:async()=>({ok:true})})],
+ ['incomplete identified receipt',()=>({ok:true,status:200,json:async()=>({ok:true,user:{id:target}})})],
+ ['wrong company receipt',()=>{const r=confirmed();r.json=async()=>({ok:true,user:{id:target,business_id:target,...payload}});return r;}],
  ['contradictory success',()=>({ok:true,status:200,json:async()=>({ok:true,user:{id:target},reconciliation_required:true,retry_allowed:false})})],
  ['wrong success identity',()=>({ok:true,status:200,json:async()=>({ok:true,user:{id:'11111111-1111-4111-8111-111111111111'}})})],
  ['reconciliation diagnostic',()=>({ok:false,status:503,json:async()=>({ok:false,code:'STAFF_INVITE_PROFILE_REJECTED',reconciliation_required:true,retry_allowed:false})})],
@@ -47,6 +50,11 @@ test('blocked persistence prevents any dispatch',async()=>{
  await assert.rejects(page.invoke(),e=>e.commitUncertain===true);
  page.context.window.sessionStorage.setItem=(k,v)=>page.storage.set(k,v);
  await assert.rejects(page.invoke(),e=>e.commitUncertain===true);assert.equal(calls,0);
+});
+test('missing expected staff company prevents forwarding before any pending reservation',async()=>{
+ let calls=0;const page=browser(async()=>{calls++;return confirmed();});
+ await assert.rejects(page.context.invoke('manage-staff-user',payload),e=>e.commitUncertain===true);
+ assert.equal(calls,0);assert.equal(page.storage.size,0);
 });
 test('concurrent submissions cannot cross the same-tab pending boundary',async()=>{
  let release,calls=0;const waiting=new Promise(r=>{release=r;});const page=browser(async()=>{calls++;await waiting;return confirmed();});

@@ -28,12 +28,18 @@ Limites: bloqueio da aba não é idempotência de servidor/journal global. Outra
 cliente HTTP e remoção manual de armazenamento não são controlados. Não há prova de identidade
 nova nem cleanup automático. Resíduos Auth/perfil/auditoria exigem reconciliação administrativa.
 
-**76/76 regressões afetadas PASS**, zero falhas/skips; build Vite PASS, 1.579 módulos. Foram
+Validação inicial: **76/76 regressões afetadas PASS**, zero falhas/skips; build Vite PASS, 1.579 módulos. Foram
 reexecutados staff, fronteira compartilhada platform-admin e employee porque o chamador/erros
 mudaram. O teste estático antigo de exclusão foi atualizado para o novo contrato; testes novos
 executam o handler real localmente. HTTPs/armazenamento são sintéticos, não prova de implantação.
 
-CI isolada: [staff-offline] seleciona staff-recovery Linux/Windows, 76 regressões e build;
+Revisão final do chamador: um ID isolado não basta para confirmar o recibo. Empresa esperada,
+identidade e campos submetidos precisam coincidir; contexto de empresa ausente impede envio.
+Três regressões adicionais cobrem recibo identificado incompleto, empresa divergente e falta
+de contexto. Total final **79/79 PASS**, build PASS. A CI inicial 76/76 permanece histórica;
+a nova CI staff vincula esse complemento. Não houve mudança nos trechos financeiro/modal.
+
+CI isolada: [staff-offline] seleciona staff-recovery Linux/Windows, 79 regressões e build;
 [c2-offline] reutiliza o gate documentado que evita jornadas/logins persistentes do workflow
 legado. Não foram reexecutados calendário, A/B/C1, ensaios C2/nativos ou auditorias encerradas.
 
