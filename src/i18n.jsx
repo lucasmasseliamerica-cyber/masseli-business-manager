@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 export const LANGUAGE_STORAGE_KEY = "nexalvo.ui.language.v1";
 export const PORTUGUESE = {
+  "Could not change the staff login status. Reconcile the account before continuing.": "Não foi possível alterar o estado do login da equipe. Confira a conta antes de continuar.",
   "The supplier payment result is unconfirmed. Do not pay again; reconcile the payment and cash-flow history with an administrator.": "O resultado do pagamento ao fornecedor não foi confirmado. Não pague novamente; confira o pagamento e o histórico de caixa com um administrador.",
   "Staff administration needs reconciliation. Do not resend; contact an administrator.": "A gestão de equipe precisa de conciliação. Não reenvie; contate um administrador.",
   "Tax rate must be between 0 and 100.": "A alíquota deve estar entre 0 e 100.",

@@ -1,5 +1,9 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+Equipe: [erro de desativação/reativação tratado no modal](./QA_STAFF_STATUS_FEEDBACK_20261103.md).
+Rejeição antes não capturada agora é visível/acessível e não gera sucesso falso. Guardas
+self/último OWNER preservados; 16 regressões afetadas/build PASS, sem usuário real alterado.
+
 Compras: [recibo de pagamento a fornecedor validado antes de confirmar](./QA_SUPPLIER_PAYMENT_RECEIPT_20261103.md).
 HTTP 200/null reproduziu falso sucesso; validação agora confere ID/pedido/valor/método/status,
 com bloqueio de reenvio incerto. 50 regressões afetadas e build PASS; nenhum pagamento real.

@@ -1,5 +1,8 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+Equipe: [feedback de desativação/reativação corrigido](./QA_STAFF_STATUS_FEEDBACK_20261103.md),
+16 regressões afetadas/build PASS; somente validação isolada, cobertura permanece 16/60.
+
 Compras: [validação do recibo de pagamento](./QA_SUPPLIER_PAYMENT_RECEIPT_20261103.md), 50
 regressões afetadas/build PASS. Sem homologação financeira real; critério/cobertura inalterados.
 

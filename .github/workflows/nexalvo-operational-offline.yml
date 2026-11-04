@@ -2,7 +2,7 @@ name: NEXALVO operational - offline only
 on:
   push:
     branches: [automation/nexalvo-qa-actions]
-    paths: ['App.jsx', 'src/App.jsx', 'src/i18n.jsx', 'supabase/functions/manage-staff-user/**', 'supabase/functions/_shared/manage-staff-user-core.mjs', 'qa/manage-staff-user*.mjs', 'qa/staff-write-recovery-browser.test.mjs', 'qa/supplier-payment-receipt.test.mjs', 'qa/procurement-calendar-regression.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
+    paths: ['App.jsx', 'src/App.jsx', 'src/i18n.jsx', 'supabase/functions/manage-staff-user/**', 'supabase/functions/_shared/manage-staff-user-core.mjs', 'qa/manage-staff-user*.mjs', 'qa/staff-write-recovery-browser.test.mjs', 'qa/staff-deactivation-feedback.test.mjs', 'qa/supplier-payment-receipt.test.mjs', 'qa/procurement-calendar-regression.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
 permissions:
   contents: read
 # Reuses the documented [c2-offline] commit mechanism to keep the legacy TEST
@@ -10,7 +10,7 @@ permissions:
 jobs:
   calendar:
     # Staff-only commits select their affected checks below; do not rerun closed calendar work.
-    if: ${{ !contains(github.event.head_commit.message, '[staff-offline]') && !contains(github.event.head_commit.message, '[purchase-offline]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[staff-offline]') && !contains(github.event.head_commit.message, '[purchase-offline]') && !contains(github.event.head_commit.message, '[staff-ui-offline]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -61,4 +61,22 @@ jobs:
       - run: npm ci
       - name: Supplier receipt and affected financial caller regressions, synthetic HTTP only
         run: node --test --test-reporter=tap qa/supplier-payment-receipt.test.mjs qa/operational-p0-regression.test.mjs qa/purchase-supplier-usability-regression.test.mjs
+      - run: npm run build
+  staff-ui-feedback:
+    if: ${{ contains(github.event.head_commit.message, '[staff-ui-offline]') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Staff status modal feedback and affected employee UI checks only
+        run: node --test --test-reporter=tap qa/staff-deactivation-feedback.test.mjs qa/employee-workflow-regression.test.mjs
       - run: npm run build

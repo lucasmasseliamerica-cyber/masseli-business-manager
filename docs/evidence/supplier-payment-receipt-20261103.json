@@ -25,12 +25,27 @@
   "remote_reads": 0,
   "remote_writes": 0,
   "coverage": "16/60",
-  "ci_status": "PENDING_CODE_PUSH",
+  "ci_status": "PASS",
   "artifact_sha256": {
     "App.jsx": "1bd8c2f9fc14fbc498e0c4c725ce297ff5cd11faffd2cc58ae4864470d693331",
     "src/App.jsx": "1bd8c2f9fc14fbc498e0c4c725ce297ff5cd11faffd2cc58ae4864470d693331",
     "src/i18n.jsx": "8b7cff40f882cb791403c6c24051e97502e97cb3836f21fd8bf3faa38dcd6480",
     "qa/supplier-payment-receipt.test.mjs": "dc5166bad1ba3ab9b0d03da90b16254175a2e01f43cd13f6994634052d55b77c",
     ".github/workflows/nexalvo-operational-offline.yml": "423544cf61132e980e418427ce7d42307b5e46c6ab45d7cc2bfb5543e95a2af0"
+  },
+  "code_sha": "4c3fbba62330b5805e356e7d7c46c464b7a949c5",
+  "ci": {
+    "run_id": 41770066412,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41770066412",
+    "linux": {
+      "tests": 50,
+      "build": "PASS"
+    },
+    "windows": {
+      "tests": 50,
+      "build": "PASS"
+    },
+    "unrelated_suites_repeated": false,
+    "remote_workflow": "SKIPPED"
   }
 }

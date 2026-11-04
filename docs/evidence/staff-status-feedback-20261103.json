@@ -1,0 +1,39 @@
+{
+  "status": "PREPARED_NOT_HOMOLOGATED",
+  "scope": "SYNTHETIC_HANDLER_STATE_ONLY",
+  "baseline": "4c3fbba62330b5805e356e7d7c46c464b7a949c5",
+  "diagnostic_original": {
+    "unhandled_rejection": true,
+    "test_failed_as_expected": true
+  },
+  "corrected": {
+    "failure_visible": true,
+    "accessible_alert": true,
+    "false_success_prevented": true,
+    "submitting_finally_released": true,
+    "self_and_last_owner_guards_preserved": true,
+    "automatic_retry": false
+  },
+  "tests": {
+    "new": 7,
+    "affected_total": 16,
+    "passed": 16,
+    "failed": 0,
+    "skipped": 0
+  },
+  "build": {
+    "status": "PASS",
+    "modules": 1579
+  },
+  "remote_reads": 0,
+  "remote_writes": 0,
+  "coverage": "16/60",
+  "ci_status": "PENDING_CODE_PUSH",
+  "artifact_sha256": {
+    "App.jsx": "84da7abe6e4a813c4212b598b9db0b7dd9ecf6b90d34dc9112306f701396b3fd",
+    "src/App.jsx": "84da7abe6e4a813c4212b598b9db0b7dd9ecf6b90d34dc9112306f701396b3fd",
+    "src/i18n.jsx": "8ecc80a139f604c8e792d312fe5c3fa33cb380bb6512ad656e7c1c9c4efb7d71",
+    "qa/staff-deactivation-feedback.test.mjs": "1e7428aa2f75a7633a2771b362da5e27d8cb7a9e027f49426c09418598ff0f62",
+    ".github/workflows/nexalvo-operational-offline.yml": "b9d22df45574999badac5747f97ec65a927ab75bf63165eb00455cb470b81201"
+  }
+}

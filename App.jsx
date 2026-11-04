@@ -11647,11 +11647,20 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
   };
 
   const deactivate = async () => {
+    if (submitting) return;
+    if (protectedSelf) { setError("Only an Owner can change your login from Team & Permissions."); setConfirmingDeactivate(false); return; }
     if (user.role === "OWNER" && otherOwnersActive === 0) { showToast("At least one active Owner account must remain.", "danger"); setConfirmingDeactivate(false); return; }
-    await setUsers(users.map((u) => (u.id === user.id ? { ...u, active: !(u.active !== false) } : u)));
-    showToast(user.active === false ? "User reactivated" : "User deactivated", "danger");
-    setConfirmingDeactivate(false);
-    onClose();
+    setError("");
+    setSubmitting(true);
+    try {
+      await setUsers(users.map((u) => (u.id === user.id ? { ...u, active: !(u.active !== false) } : u)));
+      showToast(user.active === false ? "User reactivated" : "User deactivated", "danger");
+      setConfirmingDeactivate(false);
+      onClose();
+    } catch (error) {
+      setError(error?.message || "Could not change the staff login status. Reconcile the account before continuing.");
+      setConfirmingDeactivate(false);
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -11697,11 +11706,11 @@ function UserFormModal({ dark, user, users, setUsers, inviteUser, employees, cur
         <div className="text-xs mb-4 px-3 py-2 rounded-xl" style={{ background: dark ? C.surfaceDark : C.bgLight, color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Owners always have full access to every section — permissions above only apply to Managers and Employees.")}</div>
       )}
 
-      {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
+      {error && <div role="alert" className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
       {!ownerControlsSecurity && <div className="text-xs mb-3" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("Only an Owner can change roles or permission overrides.")}</div>}
       <div className="flex gap-2">
         {user && !protectedSelf && (
-          <GhostButton dark={dark} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
+          <GhostButton dark={dark} disabled={submitting} style={{ color: "#FF6B85", borderColor: "#FF6B85" }} onClick={() => setConfirmingDeactivate(true)}>
             {user.active === false ? translateUI("Reactivate") : translateUI("Deactivate")}
           </GhostButton>
         )}
