@@ -1,10 +1,15 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+Compras: [recibo de pagamento a fornecedor validado antes de confirmar](./QA_SUPPLIER_PAYMENT_RECEIPT_20261103.md).
+HTTP 200/null reproduziu falso sucesso; validação agora confere ID/pedido/valor/método/status,
+com bloqueio de reenvio incerto. 50 regressões afetadas e build PASS; nenhum pagamento real.
+
 Staff: [compensação insegura corrigida em código e transição atualizada](./QA_STAFF_RECOVERY_PATCH_20261103.md).
 Gateway após possível commit reproduziu DELETE Auth; exclusão automática agora removida,
 rejeição estritamente classificada e convite parcial exige reconciliação. Chamador bloqueia
 reenvio/reload da aba; falha de recarga após confirmação não repete convite. 76 regressões
-afetadas e build PASS; CI isolada staff aguardando publicação. Nenhuma consulta/escrita TEST.
+afetadas e build PASS; [CI isolada staff 41769649760](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41769649760)
+PASS Linux/Windows no código 344cd0e. Nenhuma consulta/escrita TEST.
 SQLs/OWNER-safe preservados; configuração, janela, entrega e homologação reais continuam gates.
 
 Staff/OWNER-safe: [retomada dirigida, pacote preservado e gates atuais](./QA_STAFF_USER_SERVICE_READINESS_20261103.md).

@@ -36,7 +36,7 @@
   "remote_writes": 0,
   "c2_activity": 0,
   "coverage": "16/60",
-  "ci_status": "PENDING_CODE_PUSH",
+  "ci_status": "PASS",
   "artifact_sha256": {
     "supabase/functions/manage-staff-user/index.ts": "45ab977f2bd07917586940e6a9e3f6cb25ea090749a61c2c677a78c014a1256c",
     "supabase/functions/_shared/manage-staff-user-core.mjs": "708484deed58b1c3d86afca49894d820aa11eaa6a0ce554423dbd6cadb2f90c4",
@@ -57,5 +57,20 @@
     "Browser guard is same-tab, not server idempotency or durable global journal",
     "Manual authorized reconciliation must establish identity ownership before any recovery",
     "No prior C2 authorization or historical marker changes"
-  ]
+  ],
+  "code_sha": "344cd0ed40e3aeded4d3f33433a4f30f2972a1e9",
+  "ci": {
+    "run_id": 41769649760,
+    "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/41769649760",
+    "linux": {
+      "tests": 76,
+      "build": "PASS"
+    },
+    "windows": {
+      "tests": 76,
+      "build": "PASS"
+    },
+    "calendar_repeated": false,
+    "remote_workflow": "SKIPPED"
+  }
 }

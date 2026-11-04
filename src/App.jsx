@@ -2270,6 +2270,24 @@ const supabaseRest = {
     try { if (res.status !== 204) body = await res.json(); }
     catch (cause) { if (res.ok && !harmless) throw unconfirmed(cause, res.status); }
     if (!res.ok) throw new Error(`rpc ${fnName} failed (${res.status}): ${JSON.stringify(body)}`);
+    if (fnName === "fn_pay_purchase_order") {
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const amount = body?.amount;
+      const valid = body && !Array.isArray(body) && typeof body.id === "string" && uuid.test(body.id)
+        && typeof args.p_purchase_order_id === "string" && uuid.test(args.p_purchase_order_id)
+        && body.purchase_order_id === args.p_purchase_order_id
+        && typeof args.p_amount === "number" && Number.isFinite(args.p_amount) && args.p_amount > 0
+        && (typeof amount === "number" || (typeof amount === "string" && amount.trim() !== ""))
+        && Number.isFinite(Number(amount)) && Number(amount) > 0 && Number(amount) === Number(args.p_amount)
+        && typeof args.p_payment_method === "string" && args.p_payment_method.trim() !== ""
+        && body.payment_method === args.p_payment_method && body.status === "completed";
+      if (!valid) {
+        const error = unconfirmed(null, res.status);
+        error.message = "The supplier payment result is unconfirmed. Do not pay again; reconcile the payment and cash-flow history with an administrator.";
+        error.code = "PAYMENT_RECEIPT_UNCONFIRMED";
+        throw error;
+      }
+    }
     return body;
   },
 };

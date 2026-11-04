@@ -1,5 +1,8 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+Compras: [validação do recibo de pagamento](./QA_SUPPLIER_PAYMENT_RECEIPT_20261103.md), 50
+regressões afetadas/build PASS. Sem homologação financeira real; critério/cobertura inalterados.
+
 Staff: [recuperação de convite corrigida e transição preparada](./QA_STAFF_RECOVERY_PATCH_20261103.md).
 Reprodução HTTP sintética confirmou exclusão Auth após 504; o caminho foi removido e o
 chamador bloqueia reenvio incerto. 76 regressões afetadas/build PASS, sem implantação ou
