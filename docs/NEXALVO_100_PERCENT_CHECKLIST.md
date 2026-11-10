@@ -1,5 +1,11 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Staff — tentativa manual MANAGER registrada; ERP inativo (10/11/2026)
+
+- [x] Operador relatou tentativa no navegador com `This NEXALVO account is inactive`. Código confere: a checagem de perfil após Auth recusa acesso e limpa a sessão local. Sem recibo HTTP manual ou sessão reutilizável comprovada. [Evidência](./evidence/staff-manager-manual-browser-login-20261110.json).
+- [x] OWNER A ainda retida no formulário na conferência local (vencimento 15:45:46 UTC). O coletor M/E não está vinculado a essa sessão; nenhum novo GET/POST Auth do helper, alteração de perfil/senha, comando ou reserva de negócio.
+- [ ] Usar somente a coleta Auth preparada com OWNER A utilizável no mesmo fluxo e janela válida. Considerar o login manual antes de qualquer novo POST MANAGER. Sem negócio: 0/17 Edge, 0/4 PATCH; staff suspenso e cobertura 16/60.
+
 ## Staff — autorização M/E registrada, bloqueada antes da coleta (10/11/2026)
 
 - [x] Autorização específica preservada: até um GET administrativo e um login Auth por MANAGER e EMPLOYEE no TEST. Nenhum slot consumido. [Evidência da admissão](./evidence/staff-member-acquisition-admission-blocked-20261110.json).

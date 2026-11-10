@@ -1,0 +1,42 @@
+{
+  "status": "MANUAL_MANAGER_UI_LOGIN_REPORTED_AUTH_COLLECTION_BLOCKED",
+  "recorded_utc": "2026-11-10T15:26:03.924Z",
+  "project": "msinksoilkluooxenecy",
+  "manual": {
+    "source": "operator_report",
+    "actor": "MANAGER",
+    "channel": "browser_ui",
+    "message": "This NEXALVO account is inactive",
+    "attempt_utc": null,
+    "http_status": null,
+    "server_session_issuance_verified": false,
+    "interpretation": "APP_PROFILE_INACTIVE_BRANCH_AFTER_AUTH_SUCCESS_CLEARS_LOCAL_SESSION"
+  },
+  "owner": {
+    "last_identity_http": 200,
+    "holder_alive": true,
+    "expires_utc": "2026-11-10T15:45:46.0000000+00:00",
+    "usable_for_member_password_collection_and_executor": false
+  },
+  "helper": {
+    "new_gets": 0,
+    "new_posts": 0,
+    "new_member_reservations": 0,
+    "manager_manual_attempt_reconcile_before_any_new_login": true,
+    "new_form_opened": false
+  },
+  "business": {
+    "edge": 0,
+    "edge_max": 17,
+    "patch": 0,
+    "patch_max": 4,
+    "executor_started": false
+  },
+  "password_reset": false,
+  "account_or_profile_change": false,
+  "staff_suspended": true,
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  }
+}
