@@ -155,12 +155,24 @@ export function operationalMarkdown(report = evaluateOperationalReadiness()) {
     for (const c of module.criteria) lines.push(`| ${c.title} | ${c.status} | ${c.evidence ? `[${c.evidence.kind}](${c.evidence.source.startsWith('https:') ? c.evidence.source : '../' + c.evidence.source}): ${c.evidence.detail}` : c.blocker || c.remaining} |`);
     lines.push('');
   }
-  lines.push('Gerar novamente: `node qa/operational-readiness.mjs --write`. Nenhuma consulta ou escrita no Supabase é executada por esse comando.', '');
+  lines.push('Prévia offline: `node qa/operational-readiness.mjs --markdown`. Concilie a prévia com as evidências registradas antes de editar a matriz cumulativa.', '');
   return lines.join('\n');
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const report = evaluateOperationalReadiness();
-  if (process.argv.includes('--write')) writeFileSync(new URL('../docs/NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md', import.meta.url), operationalMarkdown(report));
-  console.log(JSON.stringify({ ...report, modules: report.modules.map(({ criteria, ...m }) => m) }, null, 2));
+  if (process.argv.includes('--write')) {
+    try {
+      writeFileSync(new URL('../docs/NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md', import.meta.url), operationalMarkdown(report), { flag: 'wx' });
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      console.error('A matriz cumulativa já existe. Use --markdown para gerar uma prévia sem sobrescrevê-la.');
+      process.exitCode = 1;
+    }
+  }
+  if (!process.exitCode) {
+    console.log(process.argv.includes('--markdown')
+      ? operationalMarkdown(report)
+      : JSON.stringify({ ...report, modules: report.modules.map(({ criteria, ...m }) => m) }, null, 2));
+  }
 }
