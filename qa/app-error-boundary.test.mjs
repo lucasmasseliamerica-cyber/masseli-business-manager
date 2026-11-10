@@ -7,7 +7,7 @@ const main = readFileSync(new URL('../src/main.jsx', import.meta.url), 'utf8');
 
 test('application root is protected by a React error boundary', () => {
   assert.match(main, /<AppErrorBoundary>[\s\S]*<App \/>[\s\S]*<\/AppErrorBoundary>/);
-  assert.match(boundary, /static getDerivedStateFromError\(\)/);
+  assert.match(boundary, /static getDerivedStateFromError\(error\)/);
   assert.match(boundary, /componentDidCatch\(\)/);
   assert.match(boundary, /generation: current\.generation \+ 1/);
   assert.match(boundary, /window\.location\.reload\(\)/);

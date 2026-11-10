@@ -57,32 +57,46 @@ function fallbackLanguage() {
 
 const COPY = {
   en: {
+    loading: "Loading NEXALVO…",
     title: "NEXALVO needs to recover",
     message: "An unexpected interface error occurred. No operation is being retried automatically.",
     guidance: "Try opening the application again. If the problem returns, send the reference below to support.",
+    reloadGuidance: "Reload the page to load the application. If the problem returns, send the reference below to support.",
     retry: "Open application again",
     reload: "Reload page",
     reference: "Support reference",
   },
   "pt-BR": {
+    loading: "Carregando NEXALVO…",
     title: "O NEXALVO precisa se recuperar",
     message: "Ocorreu um erro inesperado na interface. Nenhuma operação será repetida automaticamente.",
     guidance: "Tente abrir o aplicativo novamente. Se o problema voltar, envie a referência abaixo ao suporte.",
+    reloadGuidance: "Recarregue a página para carregar o aplicativo. Se o problema voltar, envie a referência abaixo ao suporte.",
     retry: "Abrir aplicativo novamente",
     reload: "Recarregar página",
     reference: "Referência para suporte",
   },
 };
 
+export class AppModuleLoadError extends Error {
+  constructor() {
+    super("App module load failed");
+  }
+}
+
+export function AppLoading() {
+  return <main role="status" style={{ padding: 24, color: "#FFFFFF", background: "#180C28" }}>{COPY[fallbackLanguage()].loading}</main>;
+}
+
 export default class AppErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { crashed: false, incidentId: "", generation: 0 };
+    this.state = { crashed: false, reloadOnly: false, incidentId: "", generation: 0 };
     this.headingRef = React.createRef();
   }
 
-  static getDerivedStateFromError() {
-    return { crashed: true };
+  static getDerivedStateFromError(error) {
+    return { crashed: true, reloadOnly: error instanceof AppModuleLoadError };
   }
 
   componentDidCatch() {
@@ -108,10 +122,10 @@ export default class AppErrorBoundary extends React.Component {
           <div style={{ color: "#FFD400", fontWeight: 900, letterSpacing: "0.08em", fontSize: 13, marginBottom: 16 }}>NEXALVO</div>
           <h1 ref={this.headingRef} tabIndex="-1" style={{ margin: "0 0 12px", fontSize: 24 }}>{copy.title}</h1>
           <p style={{ color: "#FFFFFF", lineHeight: 1.5 }}>{copy.message}</p>
-          <p style={{ color: "#B6A6D1", lineHeight: 1.5 }}>{copy.guidance}</p>
+          <p style={{ color: "#B6A6D1", lineHeight: 1.5 }}>{this.state.reloadOnly ? copy.reloadGuidance : copy.guidance}</p>
           {this.state.incidentId && <p style={{ color: "#B6A6D1", fontSize: 12, overflowWrap: "anywhere" }}>{copy.reference}: <code>{this.state.incidentId}</code></p>}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 20 }}>
-            <button type="button" onClick={this.retry} style={{ border: 0, borderRadius: 14, padding: "11px 16px", background: "#B6FF3C", color: "#0A0710", fontWeight: 800, cursor: "pointer" }}>{copy.retry}</button>
+            {!this.state.reloadOnly && <button type="button" onClick={this.retry} style={{ border: 0, borderRadius: 14, padding: "11px 16px", background: "#B6FF3C", color: "#0A0710", fontWeight: 800, cursor: "pointer" }}>{copy.retry}</button>}
             <button type="button" onClick={this.reload} style={{ border: "1px solid #B6A6D1", borderRadius: 14, padding: "11px 16px", background: "transparent", color: "#FFFFFF", fontWeight: 700, cursor: "pointer" }}>{copy.reload}</button>
           </div>
         </section>

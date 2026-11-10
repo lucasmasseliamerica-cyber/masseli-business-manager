@@ -2,7 +2,7 @@ name: NEXALVO operational - offline only
 on:
   push:
     branches: [automation/nexalvo-qa-actions]
-    paths: ['App.jsx', 'src/App.jsx', 'src/i18n.jsx', 'supabase/functions/manage-staff-user/**', 'supabase/functions/_shared/manage-staff-user-core.mjs', 'qa/manage-staff-user*.mjs', 'qa/staff-write-recovery-browser.test.mjs', 'qa/staff-deactivation-feedback.test.mjs', 'qa/supplier-payment-receipt.test.mjs', 'qa/procurement-calendar-regression.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
+    paths: ['App.jsx', 'src/App.jsx', 'src/main.jsx', 'src/AppErrorBoundary.jsx', 'src/i18n.jsx', 'supabase/functions/manage-staff-user/**', 'supabase/functions/_shared/manage-staff-user-core.mjs', 'qa/manage-staff-user*.mjs', 'qa/staff-write-recovery-browser.test.mjs', 'qa/staff-deactivation-feedback.test.mjs', 'qa/supplier-payment-receipt.test.mjs', 'qa/procurement-calendar-regression.test.mjs', 'qa/app-error-boundary.test.mjs', 'qa/app-startup-recovery-browser.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
 permissions:
   contents: read
 # Reuses the documented [c2-offline] commit mechanism to keep the legacy TEST
@@ -10,7 +10,7 @@ permissions:
 jobs:
   calendar:
     # Staff-only commits select their affected checks below; do not rerun closed calendar work.
-    if: ${{ !contains(github.event.head_commit.message, '[staff-offline]') && !contains(github.event.head_commit.message, '[purchase-offline]') && !contains(github.event.head_commit.message, '[staff-ui-offline]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[staff-offline]') && !contains(github.event.head_commit.message, '[purchase-offline]') && !contains(github.event.head_commit.message, '[staff-ui-offline]') && !contains(github.event.head_commit.message, '[app-startup-offline]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -79,4 +79,24 @@ jobs:
       - run: npm ci
       - name: Staff status modal feedback and affected employee UI checks only
         run: node --test --test-reporter=tap qa/staff-deactivation-feedback.test.mjs qa/employee-workflow-regression.test.mjs
+      - run: npm run build
+  app-startup-recovery:
+    if: ${{ contains(github.event.head_commit.message, '[app-startup-offline]') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.64.0
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: Verify startup recovery with a local module outage
+        run: node --test --test-reporter=tap qa/app-error-boundary.test.mjs qa/app-startup-recovery-browser.test.mjs
       - run: npm run build
