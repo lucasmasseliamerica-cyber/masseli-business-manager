@@ -14,3 +14,5 @@ npm run build
 ```
 
 O job offline correspondente está definido para Linux/Windows. Não houve execução remota de CI nesta validação local. A falha do HTML, do bootstrap ou das dependências dele ainda exige recuperação no nível de hospedagem. Monitoramento, alertas e o ensaio operacional continuam pendentes. Cobertura operacional: 16/60.
+
+O bootstrap também carregava o CSS antes de montar a proteção. Um 503 sintético no CSS reproduziu a tela vazia no Chromium. Com o CSS sob a mesma proteção de carregamento do App, os dois cenários afetados passaram. O build Vite e uma prova adicional contra o CSS compilado confirmaram a tela de recuperação e a recarga manual. A cobertura operacional segue em 16/60.

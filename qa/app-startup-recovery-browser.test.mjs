@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
-test('a failed App module load shows recovery and waits for a manual reload', { timeout: 45000 }, async () => {
+for (const [asset, resource] of [['App module', '/src/App.jsx'], ['application stylesheet', '/src/index.css']]) test(
+`a failed ${asset} load shows recovery and waits for a manual reload`, { timeout: 45000 }, async () => {
   const vite = await createServer({ envFile: false, server: { host: '127.0.0.1', port: 0, hmr: false }, logLevel: 'silent' });
   let browser;
   try {
@@ -12,7 +13,7 @@ test('a failed App module load shows recovery and waits for a manual reload', { 
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ serviceWorkers: 'block' });
     let outage = true;
-    let moduleRequests = 0;
+    let assetRequests = 0;
     let externalRequests = 0;
     await page.addInitScript(() => {
       window.qaClientErrors = [];
@@ -24,9 +25,9 @@ test('a failed App module load shows recovery and waits for a manual reload', { 
         externalRequests++;
         return route.abort();
       }
-      if (url.pathname === '/src/App.jsx') {
-        moduleRequests++;
-        if (outage) return route.fulfill({ status: 503, body: 'synthetic-module-unavailable' });
+      if (url.pathname === resource) {
+        assetRequests++;
+        if (outage) return route.fulfill({ status: 503, body: 'synthetic-asset-unavailable' });
       }
       return route.continue();
     });
@@ -41,14 +42,14 @@ test('a failed App module load shows recovery and waits for a manual reload', { 
     assert.equal(signals.filter(({ source }) => source === 'react-boundary').length, 1);
     for (const signal of signals) assert.deepEqual(Object.keys(signal).sort(), ['incidentId', 'occurredAt', 'source']);
     assert.match(await alert.getByRole('code').textContent(), /^[\w-]+$/);
-    assert.equal(moduleRequests, 1);
+    assert.equal(assetRequests, 1);
     assert.equal(externalRequests, 0);
 
     outage = false;
     await reload.click();
     await page.locator('input[name=email]').waitFor({ timeout: 15000 });
     assert.equal(await alert.count(), 0);
-    assert.equal(moduleRequests, 2);
+    assert.equal(assetRequests, 2);
     assert.equal(externalRequests, 0);
   } finally {
     try { await browser?.close(); } finally { await vite.close(); }
