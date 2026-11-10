@@ -1,5 +1,16 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Staff — readmissão OWNER A preparada; perfil indisponível (10/11/2026)
+
+- [x] Conferência local da sessão existente preparada sem login, refresh ou chave administrativa como sessão; 4/4 testes sintéticos. O operador informou que não consegue acessar o perfil do navegador. Sessão real não verificada.
+- [x] Pedido específico preparado para 1 nova tentativa Auth OWNER A, com leituras condicionais e diagnóstico sanitizado; teste sintético do sanitizador PASS. O HTTP 400 anterior permanece sem causa registrada e com sua tentativa consumida.
+- [ ] Aguardar acesso à sessão existente ou autorização específica da alternativa. Readmissão ainda exige sessões independentes e janela válida. Manifesto/adendo, 0/17 Edge e 0/4 PATCH preservados; staff suspenso. [Revisão](./QA_STAFF_OWNER_SESSION_READMISSION_20261110.md).
+
+## Relatórios — fuso da empresa e comparação anterior no Chromium (10/11/2026)
+
+- [x] `75ea4af4789dc987f5924a9b41ecbdf2a5b62652`: cenário novo somente local. Empresa em Nova York, navegador em Tóquio, virada de mês e dia de 25 horas. A UI mostrou Nov 1, USD 150 e 4 pedidos; comparação +50% em receita e +100% em pedidos. Ontem mostrou Oct 31 e USD 100. **1/1 PASS**, HTTP interceptado.
+- [ ] Homologação com dados reais continua pendente; 16/60 sem alteração. Nenhuma verificação aprovada foi repetida.
+
 ## Staff — janela de homologação bloqueada no Auth OWNER A (10/11/2026 UTC)
 
 - [x] Janela exclusiva 04:25–05:10 UTC, últimos 10 min reservados à recuperação. Manifesto, adendo, checkpoint, quatro fontes da Edge v6, 40 permissões padrão e estado inicial conferidos; nenhum lock concorrente nas relações revisadas no instante da leitura.

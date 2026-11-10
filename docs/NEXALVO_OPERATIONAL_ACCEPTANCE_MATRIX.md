@@ -1,5 +1,10 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Staff — readmissão com sessão OWNER A existente (10/11/2026)
+
+- [x] Conferência local pronta e testada sem login ou refresh. Sessão não verificada: operador sem acesso ao perfil original do navegador.
+- [ ] [Alternativa específica de uma tentativa Auth OWNER A](./QA_STAFF_OWNER_SESSION_READMISSION_20261110.md) aguarda autorização. Janela válida e as três sessões ainda são requisitos para o lote autorizado. Staff suspenso, 0/17 Edge e 0/4 PATCH. Cobertura real 16/60.
+
 ## Staff — janela de homologação bloqueada no Auth OWNER A (10/11/2026 UTC)
 
 - [x] Janela exclusiva 04:25–05:10 UTC, últimos 10 min reservados à recuperação. Manifesto, adendo, checkpoint, quatro fontes da Edge v6, 40 permissões padrão e estado inicial conferidos; nenhum lock concorrente nas relações revisadas no instante da leitura.
@@ -499,7 +504,7 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | Histórico completo além de 500 registros sem totais parciais | PENDENTE | Paginação e teto explícito corrigidos; homologar volume real isolado |
 | Receita/custos/despesas/caixa conciliados com ledger real | BLOQUEADO | Jornada financeira QA autorizada e critérios de período/estorno |
 | Filtros/exportações respeitam perfis e salários/custos | BLOQUEADO | MANAGER/EMPLOYEE reais e conjunto de dados representativo |
-| Fuso, intervalos e comparação anterior conferidos na UI | PENDENTE | Cenários de virada de dia/mês com fuso da empresa distinto do navegador |
+| Fuso, intervalos e comparação anterior conferidos na UI | PENDENTE | Chromium com HTTP simulado: dia de 25 horas, virada de mês, totais e período anterior PASS com empresa Nova York e navegador Tóquio (`75ea4af`); falta homologação real |
 
 ### Estabilidade/rede
 
