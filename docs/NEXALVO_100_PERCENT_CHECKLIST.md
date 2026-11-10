@@ -1,5 +1,11 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Staff — janela sem admissão M/E; coleta restrita preparada (10/11/2026)
+
+- [x] Perfil consultado: `NO_STORED_SESSION`. Operador sem outros perfis MANAGER/EMPLOYEE. A janela 14:58–15:43 UTC não teve admissão nem handoff. Zero login M/E, Edge, PATCH ou reserva de negócio.
+- [x] [Plano de aquisição M/E](./QA_STAFF_MEMBER_SESSION_ACQUISITION_20261110.md): composição em memória validada em 5 cenários sintéticos, usando o contrato de reserva aprovado. Sem rede, retry, senha nova ou nova tentativa OWNER A.
+- [ ] A autorização adicional é só para até um GET por UUID e um login em cada conta MANAGER e EMPLOYEE, com OWNER A utilizável e nova janela válida. As leituras de identidade já pertencem ao lote de negócio. Staff suspenso; cobertura 16/60.
+
 ## Staff — readmissão Auth OWNER A PASS no TEST (10/11/2026)
 
 - [x] Readmissão específica consumida: um GET administrativo, um POST Auth e um GET de identidade, todos 200. UUID e TEST confirmados; sem retry, refresh, redefinição de senha ou alteração de conta. [Evidência](./evidence/staff-owner-readmission-pass-20261110.json).

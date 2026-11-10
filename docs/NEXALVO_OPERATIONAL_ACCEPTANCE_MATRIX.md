@@ -1,5 +1,11 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Staff — janela sem admissão M/E; coleta restrita preparada (10/11/2026)
+
+- [x] Perfil consultado: `NO_STORED_SESSION`. Operador sem outros perfis MANAGER/EMPLOYEE. A janela 14:58–15:43 UTC não teve admissão nem handoff. Zero login M/E, Edge, PATCH ou reserva de negócio.
+- [x] [Plano de aquisição M/E](./QA_STAFF_MEMBER_SESSION_ACQUISITION_20261110.md): composição em memória validada em 5 cenários sintéticos, usando o contrato de reserva aprovado. Sem rede, retry, senha nova ou nova tentativa OWNER A.
+- [ ] A autorização adicional é só para até um GET por UUID e um login em cada conta MANAGER e EMPLOYEE, com OWNER A utilizável e nova janela válida. As leituras de identidade já pertencem ao lote de negócio. Staff suspenso; cobertura 16/60.
+
 ## Staff — readmissão Auth OWNER A PASS no TEST (10/11/2026)
 
 - [x] Readmissão específica consumida: um GET administrativo, um POST Auth e um GET de identidade, todos 200. UUID e TEST confirmados; sem retry, refresh, redefinição de senha ou alteração de conta. [Evidência](./evidence/staff-owner-readmission-pass-20261110.json).
@@ -472,8 +478,8 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
 | Salários sem SELECT direto após hardening público | CONCLUÍDO | [USER_CONFIRMED_SQL](../docs/NEXALVO_100_PERCENT_CHECKLIST.md): Pós-preflight público real 16/16 confirmado; teste por perfil real ainda separado |
-| Sessões MANAGER/EMPLOYEE independentes e vínculos ativos | BLOQUEADO | Acesso Auth M/E recuperado; perfis/employees inativos no baseline. Lote autorizado parou no login OWNER A antes de reativar e verificar as sessões |
-| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Migração, Edge v6 pelo adendo e gates aprovados; 21 casos autorizados, todos não enviados por bloqueio na aquisição da sessão OWNER A |
+| Sessões MANAGER/EMPLOYEE independentes e vínculos ativos | BLOQUEADO | Acesso Auth M/E recuperado e OWNER A readmitida; perfis/employees M/E inativos no baseline e sessões M/E indisponíveis para admissão |
+| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Migração, Edge v6 pelo adendo e gates aprovados; 21 casos autorizados não enviados por falta das sessões M/E |
 | UI: funcionário, ponto/pausa e tarefa persistidos/reconsultados | BLOQUEADO | Perfis/vínculos prontos e autorização de dados QA isolados |
 
 ### Configurações/unidades
