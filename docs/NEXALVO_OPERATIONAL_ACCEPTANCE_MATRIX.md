@@ -1,5 +1,104 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Staff — recuperação Auth MANAGER/EMPLOYEE PASS no TEST (09/11/2026)
+
+- [x] Formulário passou a validação local antes da rede; TEST/TLS/UUIDs e quatro checkpoints confirmados. Uma alteração de senha e um login por conta retornaram 200, com identidade verificada e uma sessão Auth observada por conta.
+- [x] Autorização Auth consumida em 2 PUTs/2 logins, sem retry ou resultado incerto. Perfis ERP/employee, papéis, MFA e auditoria de negócio preservados. Tokens não persistidos; 64 registros históricos íntegros.
+- [ ] Homologação de negócio ainda não executada. Requer sessões independentes e janela válida do lote já autorizado. 17 Edge/4 PATCH intactos, staff suspenso, cobertura 16/60.
+
+## Staff — formulário encerrou na margem, sem confirmação ou rede (09/11/2026)
+
+- [x] Única abertura na janela 17:21:55–17:31:55 UTC. Requisito local de comprimento MANAGER pendente na captura fornecida; confirmação permaneceu bloqueada naquele momento.
+- [x] Encerramento em WINDOW_MARGIN_REJECTED, zero leituras TEST, alterações, logins ou reservas. Autorização intacta, staff suspenso, 17 Edge/4 PATCH e cobertura 16/60 preservados.
+
+## Staff — formulário de coleta local validado, sem execução real (09/11/2026)
+
+- [x] Formulário Windows com campos mascarados, contagens e confirmação somente após validação local das duas senhas e da chave. Política, TEST/TLS/UUIDs, SQL e pipeline de reservas preservados.
+- [x] 8/8 verificações sintéticas da coleta WinForms, sem rede, clipboard automatizado, repetição de suítes ou alteração de conta. 60 registros de acesso anteriores íntegros.
+- [ ] Abertura real depende de disponibilidade confirmada e janela válida. Autorização de acesso não consumida, 17 Edge/4 PATCH preservados, staff suspenso e cobertura 16/60.
+
+## Staff — readmissão pós-diagnóstico sem envio Auth (09/11/2026)
+
+- [x] Janela confirmada 17:03:14–17:13:14 UTC; histórico de acesso e diagnóstico sintético preservados, sem novos ensaios ou suítes repetidas.
+- [x] Dois GETs administrativos 200. Após validar ambas as entradas, o helper encerrou com MANAGER LENGTH_24_TO_64. Zero alteração de senha, login, reserva ou resultado incerto.
+- [ ] Acesso não restabelecido, autorização não consumida. Staff suspenso, homologação 17 Edge/4 PATCH intacta, cobertura 16/60.
+
+## Staff — readmissão encerrou no comprimento local de MANAGER (09/11/2026)
+
+- [x] Janela confirmada e separada da anterior; 36 artefatos históricos íntegros. Núcleo, política e SQL reutilizados; somente a admissão nova foi conferida.
+- [x] Canal e identidades confirmados por dois GETs administrativos 200. Único diagnóstico MANAGER LENGTH_24_TO_64; zero alteração de senha, login, reserva ou resultado incerto. Processo encerrado sem reabertura.
+- [ ] Acesso ainda não restabelecido. Autorização Auth não consumida e homologação 17 Edge/4 PATCH intacta. Staff suspenso, cobertura 16/60.
+
+## Staff — diagnóstico por conta: comprimento local rejeitado (09/11/2026)
+
+- [x] Readmissão confirmada na janela 16:05:23–16:15:23 UTC. Os 24 registros anteriores ficaram íntegros; somente os novos diagnósticos e controles de admissão foram testados.
+- [x] Dois GETs administrativos 200 confirmaram TEST/TLS e UUIDs. Helper encerrado em LENGTH_24_TO_64 para MANAGER e EMPLOYEE, sem registrar valores ou comprimentos observados.
+- [x] Zero PUTs, logins, SQL de checkpoint, intenções, reservas ou resultado incerto. Nenhum prompt novo foi aberto. Nenhuma conta ou perfil foi alterado pela execução.
+- [ ] Acesso ainda bloqueado, autorização Auth não consumida. Homologação não iniciada; 17 Edge/4 PATCH preservados, staff suspenso e cobertura 16/60.
+
+## Staff — readmissão encerrou na política local de senha (09/11/2026)
+
+- [x] Janela renovada com disponibilidade confirmada, mesmo journal canônico e 12 artefatos anteriores íntegros. Somente as novas verificações da readmissão foram executadas.
+- [x] Dois GETs administrativos 200 confirmaram TEST/TLS e os UUIDs. A coleta encerrou em PASSWORD_LOCAL_POLICY_REJECTED, sem SQL, permissão de envio, intenção, reserva, alteração de senha, login ou resultado incerto.
+- [ ] Acesso ainda não restabelecido; autorização Auth intacta, sem nova abertura automática. Homologação 17 Edge/4 PATCH integral, staff suspenso e cobertura 16/60.
+
+## Staff — canal Auth administrativo comprovado; sem alterações de senha (09/11/2026)
+
+- [x] Bloqueio local de leitura de horários corrigido na mesma autorização e janela, com original preservado. Dois GETs administrativos reais 200 confirmaram TEST/TLS e os UUIDs MANAGER/EMPLOYEE.
+- [x] Encerramento nativo BLOCKED em HIDDEN_DISTINCT_PASSWORDS, último prompt de confirmação MANAGER; exceção específica não registrada. Processo encerrado antes do prazo, sem intenção, reserva, PUT, login ou resultado incerto.
+- [ ] Nova janela de acesso e readmissão local preservando o journal; uma alteração de senha e um login por conta continuam autorizados e não consumidos. Homologação 17 Edge/4 PATCH intacta, staff suspenso, cobertura 16/60.
+
+## Staff — acesso Auth autorizado e helper revisado; canal pendente (09/11/2026)
+
+- [x] Autorização adicional registrada para uma alteração de senha e um login por identidade QA existente, MANAGER e EMPLOYEE, somente no TEST. Nenhum envio ou reserva consumiu essa autorização.
+- [x] Helper de console local revisado: 15/15 testes sintéticos de transporte/guards e 5/5 de checkpoints; alvos e origem TEST fixados. Sem repetição de testes ou probes aprovados.
+- [ ] Confirmar disponibilidade do operador/chave existente por canal local, janela própria e leitura administrativa real antes de qualquer PUT. Nenhum prompt, mudança de senha ou login ocorreu nesta etapa.
+- [ ] Homologação de negócio segue bloqueada até as sessões independentes. Manifesto/adendo/checkpoint preservados, 17 Edge e 4 PATCH integrais, staff suspenso e cobertura 16/60.
+
+## Staff — acesso MANAGER e EMPLOYEE: proposta adicional, sem alteração (06/11/2026 local)
+
+- [x] Proprietário confirmou ausência de credencial/sessão nas duas contas QA existentes. Leituras Auth específicas: identidades email confirmadas, não banidas/excluídas, zero sessões armazenadas e zero MFA verificados; nenhuma credencial consultada.
+- [x] Proposta mínima preparada: uma atualização administrativa somente de senha por UUID e um login de conferência por conta, com efeitos de sessões/tokens/logs explicitados. Conector atual não fornece alteração de senha Auth; canal administrativo seguro e helper concreto revisto são gates prévios.
+- [x] Nenhuma alteração Auth, login, convite ou prompt nesta preparação. Testes e gates aprovados não repetidos. Manifesto de56f442, adendo aceito e checkpoint occurred_at preservados; negócio permanece 0/17 Edge e 0/4 PATCH.
+- [ ] Autorizar especificamente o acesso das duas identidades e comprovar as novas sessões antes de combinar janela válida para o lote já autorizado. Perfis ERP seguem inativos; staff suspenso. Cobertura 16/60 inalterada.
+
+## Staff — adendo aceito; acesso MANAGER ainda não confirmado (06/11/2026 local)
+
+- [x] Adendo vinculado ao manifesto original: Edge v6 com mesmo ID/bundle/quatro fontes/verify_jwt; checkpoint occurred_at corrigido validado só por leitura, original preservado.
+- [x] Condições de dados/metadata da admissão passaram. Coleta local encerrada antes do processo HTTP porque o acesso MANAGER não pôde ser concluído. Nenhuma senha foi testada, redefinida ou recuperada.
+- [x] Todos os 21 casos NÃO ENVIADOS: Edge 0/17, PATCH 0/4, reservas 0, novas auditorias 0; orçamento de escrita não consumido.
+- [x] Leitura final confirmou perfis/employee M/E inativos, vínculos/cargos/overrides/updated_at originais, OWNER A/B preservados. Nenhuma recuperação necessária.
+- [ ] Homologação real depende das sessões legítimas independentes; controle da conta e e-mail identificado não comprovam senha ou sessão atual. Nenhum novo prompt automático.
+- [ ] Se necessário, renovar apenas a janela operacional depois de resolver o acesso. Autorização específica e adendo permanecem preservados; não há liberação automática de staff.
+
+**Staff suspenso. Cobertura 16/60 (26,67%) inalterada.** C2, A/fotos, B #1253, C1, migração e gates aprovados preservados, sem repetição.
+
+## Staff — lote autorizado, bloqueado na admissão; zero envios (06/11/2026 local)
+
+- [x] Autorização específica de56f442 recebida para até 17 Edge/4 PATCH, com recuperação; janela 07/11/2026 04:10–04:55 UTC, últimos 10 minutos exclusivos de recuperação.
+- [x] Integridade do manifesto, código e alterações locais revisadas conferida; nenhum teste/gate aprovado repetido.
+- [x] Leitura atual: Edge v6, mesmo ID/hash do bundle e quatro fontes idênticas à v5, verify_jwt=true. A versão diverge do manifesto v5; não houve novo deploy neste atendimento.
+- [x] Erro de preparação identificado no checkpoint: audit_logs.created_at não existe. Coluna real occurred_at; correção separada validada somente por leitura, sem substituir o SQL autorizado ou liberar envio.
+- [x] Todos os 21 casos permanecem NÃO ENVIADOS; zero reservas, Edge, PATCH, auditorias novas e chamadas de recuperação. Orçamentos de escrita não consumidos.
+- [x] Estado final por leitura coincide com o inicial: perfis/employee M/E inativos, overrides {}, cargo E null, vínculo M null e updated_at originais. OWNER A/B preservados.
+- [ ] Retomada operacional depende de revisão específica da admissão v6 e do checkpoint corrigido, sem reautorizar genericamente os 21 payloads. Se a janela não servir mais, renovar somente a janela necessária.
+
+**Staff suspenso; cobertura 16/60 (26,67%) inalterada.** C2, A/fotos, B #1253, C1, migração 20261104143420/13 de 13 e os probes aprovados permanecem preservados.
+
+## Staff — entrega e gate de leitura concluídos; negócio ainda não homologado (04/11/2026)
+
+- [x] **Código validado:** staff/recibo 79/79 e modal 16/16, CI Linux/Windows/builds PASS, reutilizados sem repetir suítes.
+- [x] **Entrega real concluída:** migração 20261104143420, pós-flight 13/13 PASS e manage-staff-user v5 ACTIVE, mesmo ID, quatro fontes/import map conferidos, verify_jwt=true.
+- [x] **Gate real sem negócio concluído:** origem QA 204/exata, externa 403/sem allow-origin e único POST inválido autenticado 400/INVALID_REQUEST. POST consumido; replay bloqueado. Não repetir os probes.
+- [x] **Preparação atual:** [plano concreto](./QA_STAFF_BUSINESS_HOMOLOGATION_PLAN_20261104.md), inventário/dependências somente leitura, contas QA M/E controladas pelo proprietário, 21 envios propostos com payloads/recuperação; nenhuma alteração de dados executada.
+- [ ] **Homologação real de negócio:** atualização de employee/perfil existente, sessões independentes e matriz de permissões OWNER/MANAGER/EMPLOYEE, concessão/revogação e isolamento staff; aguarda autorização específica e janela.
+- [ ] **Recuperação real:** até quatro envios previstos no pedido, restauração semântica e nove auditorias residuais esperadas; ainda não executada.
+- [ ] **Limites separados:** UI completa, rebaixamento do último OWNER, convite/SMTP e concorrência real não estão homologados nem autorizados por este pacote.
+
+**Staff suspenso. Cobertura macro 16/60 (26,67%), 15 pendentes/29 bloqueados, sem promoção.**
+C2 continua bloqueada, com tentativa/marcadores preservados; A/fotos, B #1253 e C1 não serão repetidos.
+As seções históricas abaixo não renovam autorizações nem substituem este estado atual.
+
 [Lote autônomo concluído em código](./QA_AUTONOMOUS_BATCH_20261103.md): staff/recibo 79/79,
 fornecedor 50/50 e modal 16/16, CI isolada Linux/Windows/builds PASS. Sem validação operacional
 remota nova; **16/60 (26,67%)** permanece, nenhum critério macro promovido.
@@ -355,8 +454,8 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
 | Salários sem SELECT direto após hardening público | CONCLUÍDO | [USER_CONFIRMED_SQL](../docs/NEXALVO_100_PERCENT_CHECKLIST.md): Pós-preflight público real 16/16 confirmado; teste por perfil real ainda separado |
-| Sessões MANAGER/EMPLOYEE independentes e vínculos ativos | BLOQUEADO | Inventário atual: zero MANAGER ativo; um EMPLOYEE ativo sem employee_id |
-| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Aprovar staff-user-service preparado; RPC nova não exposta no TEST |
+| Sessões MANAGER/EMPLOYEE independentes e vínculos ativos | BLOQUEADO | Inventário atual: zero MANAGER ativo; candidatos QA M/E inativos e controlados; reativação/vínculos pendentes de autorização |
+| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Migração/Edge v5 e gate de leitura PASS; homologação de negócio ainda aguarda autorização/janela do pacote de 21 envios |
 | UI: funcionário, ponto/pausa e tarefa persistidos/reconsultados | BLOQUEADO | Perfis/vínculos prontos e autorização de dados QA isolados |
 
 ### Configurações/unidades
@@ -375,7 +474,7 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | OWNER A/B: identidade, fixtures e isolamento HTTP | CONCLUÍDO | [REAL_API_CI](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096): authenticated-preflight e access-regression completos |
 | Hardening público: colunas sensíveis/RLS e EXECUTE anon | CONCLUÍDO | [USER_CONFIRMED_SQL](../docs/NEXALVO_100_PERCENT_CHECKLIST.md): Pós-preflight real 16/16; não comprova toda a matriz de perfis |
 | Matriz real OWNER/MANAGER/EMPLOYEE em UI/API/RPC | BLOQUEADO | Sessões independentes e vínculos QA ainda indisponíveis |
-| Overrides e revogação sem escalonamento por manageUsers | BLOQUEADO | Aplicar substituição OWNER-safe preparada e homologar perfis reais |
+| Overrides e revogação sem escalonamento por manageUsers | BLOQUEADO | OWNER-safe já aplicado e gate Auth/CORS PASS; concessão/revogação com perfis reais ainda não executada |
 
 ### Autenticação
 
@@ -411,6 +510,6 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | Recibo fiel e impressão/exportação no navegador operacional | PENDENTE | Documento/adapter exercitados no browser isolado; validar registro TEST real |
 | Impressora física da operação e segunda via | BLOQUEADO | Hardware/driver e aceite da impressão na Masseli |
 | Backup restaurado integralmente em ambiente isolado | BLOQUEADO | Acesso seguro ao export e autorização de destino descartável; sem produção |
-| Recuperação de falha/monitoramento e plano de contingência | PENDENTE | Error Boundary existe; falta ensaio operacional e monitoramento de incidentes |
+| Recuperação de falha/monitoramento e plano de contingência | PENDENTE | [Chromium local](./QA_APP_STARTUP_RECOVERY_20261110.md): 503 no módulo principal mostra recarga manual; faltam ensaio operacional e monitoramento de incidentes |
 
-Gerar novamente: `node qa/operational-readiness.mjs --write`. Nenhuma consulta ou escrita no Supabase é executada por esse comando.
+Prévia offline: `node qa/operational-readiness.mjs --markdown`. Concilie a prévia com as evidências registradas antes de editar esta matriz cumulativa. O gerador não sobrescreve a matriz existente.
