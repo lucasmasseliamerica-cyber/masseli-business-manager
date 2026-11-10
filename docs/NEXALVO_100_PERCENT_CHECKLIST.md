@@ -1,5 +1,12 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Staff — janela de homologação bloqueada no Auth OWNER A (10/11/2026 UTC)
+
+- [x] Janela exclusiva 04:25–05:10 UTC, últimos 10 min reservados à recuperação. Manifesto, adendo, checkpoint, quatro fontes da Edge v6, 40 permissões padrão e estado inicial conferidos; nenhum lock concorrente nas relações revisadas no instante da leitura.
+- [x] Três GETs Auth administrativos 200. Login único OWNER A recusado com HTTP 400, sem causa específica no relatório e sem resultado incerto. MANAGER e EMPLOYEE não receberam novo login. Formulário e helper encerrados; executor de negócio não iniciado.
+- [x] 21 casos não enviados, 0/17 Edge e 0/4 PATCH; nenhuma intenção, reserva ou auditoria de negócio. Checkpoint final exato: perfis e employees M/E inativos e canários inalterados. [Evidência sanitizada](./evidence/staff-business-admission-20261110.json).
+- [ ] Readmissão depende de uma sessão OWNER A legítima (ou autorização para nova tentativa Auth específica) e janela válida. Não reabrir o helper consumido. Orçamento de negócio preservado; staff suspenso e cobertura 16/60.
+
 ## Matriz cumulativa — preservação das evidências locais (10/11/2026 UTC)
 
 - [x] Correção local `71debcaedcd1c716c67de0815ad26efbfc0bb14f`: a regeneração antiga excluiria 24 seções registradas. O gerador recusa sobrescrever o arquivo e oferece `--markdown` para prévia. Comando testado com SHA da matriz intacto e regressão de cobertura 1/1 PASS. Nenhum acesso ao TEST por essa correção.

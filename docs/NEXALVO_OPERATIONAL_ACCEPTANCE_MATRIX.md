@@ -1,5 +1,12 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Staff — janela de homologação bloqueada no Auth OWNER A (10/11/2026 UTC)
+
+- [x] Janela exclusiva 04:25–05:10 UTC, últimos 10 min reservados à recuperação. Manifesto, adendo, checkpoint, quatro fontes da Edge v6, 40 permissões padrão e estado inicial conferidos; nenhum lock concorrente nas relações revisadas no instante da leitura.
+- [x] Três GETs Auth administrativos 200. Login único OWNER A recusado com HTTP 400, sem causa específica no relatório e sem resultado incerto. MANAGER e EMPLOYEE não receberam novo login. Formulário e helper encerrados; executor de negócio não iniciado.
+- [x] 21 casos não enviados, 0/17 Edge e 0/4 PATCH; nenhuma intenção, reserva ou auditoria de negócio. Checkpoint final exato: perfis e employees M/E inativos e canários inalterados. [Evidência sanitizada](./evidence/staff-business-admission-20261110.json).
+- [ ] Readmissão depende de uma sessão OWNER A legítima (ou autorização para nova tentativa Auth específica) e janela válida. Não reabrir o helper consumido. Orçamento de negócio preservado; staff suspenso e cobertura 16/60.
+
 ## Staff — recuperação Auth MANAGER/EMPLOYEE PASS no TEST (09/11/2026)
 
 - [x] Formulário passou a validação local antes da rede; TEST/TLS/UUIDs e quatro checkpoints confirmados. Uma alteração de senha e um login por conta retornaram 200, com identidade verificada e uma sessão Auth observada por conta.
@@ -454,8 +461,8 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
 | Salários sem SELECT direto após hardening público | CONCLUÍDO | [USER_CONFIRMED_SQL](../docs/NEXALVO_100_PERCENT_CHECKLIST.md): Pós-preflight público real 16/16 confirmado; teste por perfil real ainda separado |
-| Sessões MANAGER/EMPLOYEE independentes e vínculos ativos | BLOQUEADO | Inventário atual: zero MANAGER ativo; candidatos QA M/E inativos e controlados; reativação/vínculos pendentes de autorização |
-| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Migração/Edge v5 e gate de leitura PASS; homologação de negócio ainda aguarda autorização/janela do pacote de 21 envios |
+| Sessões MANAGER/EMPLOYEE independentes e vínculos ativos | BLOQUEADO | Acesso Auth M/E recuperado; perfis/employees inativos no baseline. Lote autorizado parou no login OWNER A antes de reativar e verificar as sessões |
+| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Migração, Edge v6 pelo adendo e gates aprovados; 21 casos autorizados, todos não enviados por bloqueio na aquisição da sessão OWNER A |
 | UI: funcionário, ponto/pausa e tarefa persistidos/reconsultados | BLOQUEADO | Perfis/vínculos prontos e autorização de dados QA isolados |
 
 ### Configurações/unidades
@@ -473,7 +480,7 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | --- | --- | --- |
 | OWNER A/B: identidade, fixtures e isolamento HTTP | CONCLUÍDO | [REAL_API_CI](https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/39427759096): authenticated-preflight e access-regression completos |
 | Hardening público: colunas sensíveis/RLS e EXECUTE anon | CONCLUÍDO | [USER_CONFIRMED_SQL](../docs/NEXALVO_100_PERCENT_CHECKLIST.md): Pós-preflight real 16/16; não comprova toda a matriz de perfis |
-| Matriz real OWNER/MANAGER/EMPLOYEE em UI/API/RPC | BLOQUEADO | Sessões independentes e vínculos QA ainda indisponíveis |
+| Matriz real OWNER/MANAGER/EMPLOYEE em UI/API/RPC | BLOQUEADO | Três sessões simultâneas e vínculos QA ainda não comprovados no lote; homologação UI separada |
 | Overrides e revogação sem escalonamento por manageUsers | BLOQUEADO | OWNER-safe já aplicado e gate Auth/CORS PASS; concessão/revogação com perfis reais ainda não executada |
 
 ### Autenticação

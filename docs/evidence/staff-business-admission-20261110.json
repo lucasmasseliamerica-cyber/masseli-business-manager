@@ -1,0 +1,177 @@
+{
+  "status": "BLOCKED_AUTH_OWNER_A_HTTP_400",
+  "project": "msinksoilkluooxenecy",
+  "authorized_business_manifest": "de56f442bf76ed402cdc2a83c629bfd7a59205bf43cbd882a807a1c0230bc94f",
+  "accepted_addendum_link": "61ca25cce72fac16a224df507e0146667f3fcf1daa584d8d27fe659a16f491cb",
+  "session_manifest": "b8475bb3923144231a9c2d76bb5d0f09360ead3db5c051b7df9e856dfc2c4fda",
+  "accepted_checkpoint_sql": "f4b9aa823e4c33c1efc58af83fd79410b75dce26765ee764f116b81732da47f7",
+  "window": {
+    "start_utc": "2026-11-10T04:25:00Z",
+    "cutoff_utc": "2026-11-10T05:00:00Z",
+    "end_utc": "2026-11-10T05:10:00Z",
+    "operational_exclusivity_confirmed": true
+  },
+  "admission": {
+    "project": "msinksoilkluooxenecy",
+    "edge_version": 6,
+    "edge_id": "9dad0ab5-fd65-43da-be56-da79c3cec5ba",
+    "bundle_sha256": "50a95817b3363fdbcbfd97b25f20b2c84a98cfdb93d5ade00e2fb5316897ef0d",
+    "edge_source_hashes": 4,
+    "verify_jwt": true,
+    "initial_state_exact": true,
+    "quiet_at_admission": true,
+    "competing_staff_relation_locks": 0,
+    "role_defaults_exact": 40,
+    "user_exclusivity_confirmed": true,
+    "observed_utc": "2026-11-10T04:25:11.891974+00:00",
+    "quiet_observed_utc": "2026-11-10 04:25:13.321932+00",
+    "window_sha256": "f1c939286358544f3f62213d0c47efbea999d9ecd6d37c385937b57cbae0539a",
+    "local_gate": {
+      "phase": "LOCAL_STAFF_ADMISSION",
+      "branch": "automation/nexalvo-qa-actions",
+      "head": "f9e0e6b371c052ff48e46e75b830258817c05f29",
+      "manifest_files": 38,
+      "code_files": 6,
+      "session_files": 8,
+      "prior_attempts": 0,
+      "live_helpers": 0,
+      "window_confirmed": true
+    },
+    "sql_reads_used": 2
+  },
+  "auth": {
+    "admin_gets_used": 3,
+    "admin_gets_max": 3,
+    "per_actor": [
+      {
+        "actor": "OWNER_A",
+        "admin_read_200": true,
+        "reserved": true,
+        "http": 400,
+        "passed": false,
+        "uncertain": false
+      },
+      {
+        "actor": "MANAGER",
+        "admin_read_200": true,
+        "reserved": false,
+        "http": null,
+        "passed": false,
+        "uncertain": false
+      },
+      {
+        "actor": "EMPLOYEE",
+        "admin_read_200": true,
+        "reserved": false,
+        "http": null,
+        "passed": false,
+        "uncertain": false
+      }
+    ],
+    "owner_login_cause_recorded": false,
+    "password_changes": 0,
+    "result_uncertain": false,
+    "credentials_persisted": false,
+    "helper_exited": true,
+    "native_executor_started": false
+  },
+  "business": {
+    "edge": {
+      "used": 0,
+      "max": 17
+    },
+    "patch": {
+      "used": 0,
+      "max": 4
+    },
+    "contract_GETs": {
+      "used": 0,
+      "max": 83
+    },
+    "sql_read_only": {
+      "used": 3,
+      "max": 44
+    },
+    "commands": 0,
+    "intentions": 0,
+    "reservations": 0,
+    "confirmed_new_audits": 0,
+    "not_sent": [
+      "P1",
+      "P2",
+      "P3",
+      "P4",
+      "N1",
+      "N2",
+      "U1",
+      "G1",
+      "N3",
+      "N4",
+      "N5",
+      "N6",
+      "N7",
+      "U2",
+      "U3",
+      "G2",
+      "N8",
+      "R1",
+      "R2",
+      "R3",
+      "R4"
+    ]
+  },
+  "final": {
+    "observed_utc": "2026-11-10T04:30:29.026552+00:00",
+    "baseline_unchanged": true,
+    "checked_profiles": 4,
+    "checked_employees": 4,
+    "manager_erp_active": false,
+    "employee_erp_active": false,
+    "manager_employee_active": false,
+    "employee_employee_active": false,
+    "owner_A_and_B_unchanged": true,
+    "staff_suspended": true,
+    "coverage": {
+      "completed": 16,
+      "total": 60,
+      "pending": 15,
+      "blocked": 29
+    }
+  },
+  "prior_approved_gates_reused": true,
+  "no_retry": true,
+  "canonical_journal_hashes": [
+    {
+      "name": "renewal-window-20261109.json",
+      "sha256": "f1c939286358544f3f62213d0c47efbea999d9ecd6d37c385937b57cbae0539a"
+    },
+    {
+      "name": "session-acquisition-approval-20261109.json",
+      "sha256": "d35e532a549f69467e8626835d5563127ac3d7f8fdfc4d5aee004a858f770ca4"
+    },
+    {
+      "name": "renewal-admission-20261109.json",
+      "sha256": "de8f34f602370892be994760ab7f33be10400a84ddecd550d44935a7b0ce7333"
+    },
+    {
+      "name": "session-OWNER_A-login.reserve.json",
+      "sha256": "996e4740e179acde82bffdb1e1cfb15fe0bb7c0d10eeeacb8f53c1b58e16bd4d"
+    },
+    {
+      "name": "session-OWNER_A-login.result.json",
+      "sha256": "8650eafd272ddfacfa9952750df06514cfd684bac31a2fe9122086e36590ec43"
+    },
+    {
+      "name": "session-acquisition-final.json",
+      "sha256": "474c3e3088d1ee87f01f7d9e40e613d6c168fea67f4c0894fc3a22d95e9c7035"
+    },
+    {
+      "name": "renewal-final-readonly-20261110.json",
+      "sha256": "5efe180722b5b4babaa17faa17bf53fad0df11a1ebc239f5c05c4dc93eb159da"
+    },
+    {
+      "name": "renewal-outcome-20261110.json",
+      "sha256": "f86f9961ef42f106f7a6d4a2ba06853ed55508bb1759d2f3a02ff015aa4cbf19"
+    }
+  ]
+}
