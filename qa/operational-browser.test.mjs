@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false, c1Baseline = false, inventoryAuditFault } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false, c1Baseline = false, inventoryAuditFault, reportCalendar = false } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -30,6 +30,21 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     product_recipes: [{ id: randomUUID(), product_id: product, inventory_item_id: item, qty_per_unit: 1 }],
     inventory_items: [{ id: item, business_id: business, name: 'Açaí QA', unit: 'Units', active: true, min_qty: 0, max_qty: 200, created_at: now }],
   };
+  if (reportCalendar) {
+    tables.businesses[0] = { ...tables.businesses[0], currency: 'USD', timezone: 'America/New_York' };
+    state.sales = [
+      ['2026-10-31T04:00:00.000Z', 80],
+      ['2026-11-01T03:59:59.999Z', 20],
+      ['2026-11-01T04:00:00.000Z', 30],
+      ['2026-11-01T05:30:00.000Z', 20],
+      ['2026-11-01T06:30:00.000Z', 10],
+      ['2026-11-02T04:59:59.999Z', 90],
+      ['2026-11-02T05:00:00.000Z', 999],
+    ].map(([sale_date, subtotal], index) => ({
+      id: randomUUID(), business_id: business, location_id: location, order_no: index + 1,
+      status: 'completed', sale_date, subtotal, discount: 0, tax: 0, total: subtotal,
+    }));
+  }
   if (purchaseScenario) {
     const supplier = '88888888-8888-4888-8888-888888888888';
     tables.suppliers = [
@@ -69,7 +84,10 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   state.uploadProductSnapshots = [];
   state.auditRows = [{ id: randomUUID(), business_id: business, action: 'Prior QA event', details: 'Historical event to preserve', occurred_at: now, user_id: owner }];
   state.auditBaseline = structuredClone(state.auditRows);
-  const context = await browser.newContext({ viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 } });
+  const context = await browser.newContext({
+    viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 },
+    ...(reportCalendar ? { timezoneId: 'Asia/Tokyo', serviceWorkers: 'block' } : {}),
+  });
   context.setDefaultTimeout(10000);
   await context.addInitScript(({ owner, language }) => {
     localStorage.setItem('nexalvo.ui.language.v1', language);
@@ -242,12 +260,34 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     return route.abort();
   });
   const page = await context.newPage();
+  if (reportCalendar) await page.clock.setFixedTime(new Date('2026-11-02T04:59:59.999Z'));
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(local, { waitUntil: 'domcontentloaded' });
   await page.locator('main').waitFor();
   return { context, page, state, errors, catalog: tables };
 }
+
+test('SIMULATED HTTP: Reports use the company DST day and previous period, not the browser date', { timeout: 30000 }, async () => {
+  const { context, page, state, errors } = await isolated({ reportCalendar: true });
+  try {
+    await page.getByText('Reports', { exact: true }).first().click();
+    await page.getByRole('button', { name: 'Today', exact: true }).click();
+    await page.getByText('Nov 1 – Nov 1', { exact: true }).waitFor();
+    const revenue = page.getByText('REVENUE', { exact: true }).locator('..');
+    await revenue.getByText('$150.00', { exact: true }).waitFor();
+    await revenue.getByText('+50% vs prior period', { exact: true }).waitFor();
+    const orders = page.getByText('ORDERS', { exact: true }).locator('..');
+    await orders.getByText('4', { exact: true }).waitFor();
+    await orders.getByText('+100% vs prior period', { exact: true }).waitFor();
+    await page.getByRole('button', { name: 'Yesterday', exact: true }).click();
+    await page.getByText('Oct 31 – Oct 31', { exact: true }).waitFor();
+    await revenue.getByText('$100.00', { exact: true }).waitFor();
+    assert.equal(state.sales.length, 7);
+    assert.deepEqual(state.blocked, []);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
 
 test('SIMULATED HTTP: inventory CSV download treats an untrusted name as text', { timeout: 30000 }, async () => {
   const { context, page, state, errors } = await isolated({ csvName: '=1+1' });
