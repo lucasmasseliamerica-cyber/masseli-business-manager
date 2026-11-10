@@ -1,5 +1,11 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Staff — readmissão Auth OWNER A PASS no TEST (10/11/2026)
+
+- [x] Readmissão específica consumida: um GET administrativo, um POST Auth e um GET de identidade, todos 200. UUID e TEST confirmados; sem retry, refresh, redefinição de senha ou alteração de conta. [Evidência](./evidence/staff-owner-readmission-pass-20261110.json).
+- [x] Sessão confirmada somente em memória, com vencimento 15:45:46 UTC. Adaptador novo validado em 7 cenários sintéticos; conferência local de candidatas M/E validada em 2 testes. Tentativa anterior HTTP 400 preservada.
+- [ ] Janela de negócio 14:58–15:43 UTC confirmada sob condição. Falta provar MANAGER/EMPLOYEE, atualizar admissão e entregar as três sessões ao executor. Sem envio de negócio no marco Auth: 0/17 Edge, 0/4 PATCH; staff suspenso e cobertura 16/60.
+
 ## Staff — readmissão com sessão OWNER A existente (10/11/2026)
 
 - [x] Conferência local pronta e testada sem login ou refresh. Sessão não verificada: operador sem acesso ao perfil original do navegador.

@@ -1,0 +1,119 @@
+{
+  "status": "OWNER_AUTH_READMISSION_PASS",
+  "project": "msinksoilkluooxenecy",
+  "previous_owner_attempt_unchanged": true,
+  "approval_sha256": "118ff3c5496c21a0089f418ed7527fe89e3b509dadc0552e0dbce6e30bebe664",
+  "window": {
+    "start_utc": "2026-11-10T14:45:19.8803125+00:00",
+    "end_utc": "2026-11-10T14:55:19.8803125+00:00"
+  },
+  "auth": {
+    "admin_reads": 1,
+    "admin_status": 200,
+    "login_posts": 1,
+    "login_status": 200,
+    "identity_reads": 1,
+    "identity_status": 200,
+    "result_uncertain": false,
+    "retry": false,
+    "refresh": false,
+    "password_change": false,
+    "token_persisted": false
+  },
+  "hold": {
+    "pid": 19548,
+    "expires_utc": "2026-11-10T15:45:46.0000000+00:00",
+    "observed_live": true,
+    "private_memory_only": true
+  },
+  "business_at_auth_milestone": {
+    "edge_used": 0,
+    "edge_max": 17,
+    "patch_used": 0,
+    "patch_max": 4,
+    "confirmed_window": {
+      "project": "msinksoilkluooxenecy",
+      "manifest_sha256": "de56f442bf76ed402cdc2a83c629bfd7a59205bf43cbd882a807a1c0230bc94f",
+      "addendum_link_sha256": "61ca25cce72fac16a224df507e0146667f3fcf1daa584d8d27fe659a16f491cb",
+      "checkpoint_sha256": "f4b9aa823e4c33c1efc58af83fd79410b75dce26765ee764f116b81732da47f7",
+      "start_utc": "2026-11-10T14:58:00Z",
+      "cutoff_utc": "2026-11-10T15:33:00Z",
+      "end_utc": "2026-11-10T15:43:00Z",
+      "Edge": 17,
+      "PATCH": 4,
+      "no_other_staff_operations_or_TEST_DDL": true,
+      "operator_exclusivity_confirmed": true,
+      "conditional_on_three_independent_sessions": true
+    },
+    "window_sha256": "12bfb807efe779828faac94ec671dd43ad37475356a3bf3c0ae81647c9de2c39",
+    "handoff_started": false,
+    "manager_employee_sessions_unproven": true
+  },
+  "validation": {
+    "native_adapter_synthetic_paths": 7,
+    "local_staff_inventory_tests": 2,
+    "approved_suites_repeated": false,
+    "adapter_case_code_unchanged": true,
+    "adapter_files": [
+      {
+        "name": "business-window.mjs",
+        "sha256": "bcddb7f1554d835b850f9347ebb8214d41c3cf34d023ed6e5ead64b6beb3c56b"
+      },
+      {
+        "name": "staff-business-control.mjs",
+        "sha256": "c46e2dcd1117b8c56292ea220c558f698c69589fb7d0f064ad703f737d55d61f"
+      },
+      {
+        "name": "staff-business-native-owner-r1.mjs",
+        "sha256": "12d8ff9d26d5a5124f0b23656d82119e0edeac461abd31c1188db7e0ace9e444"
+      }
+    ]
+  },
+  "receipt_hashes": [
+    {
+      "name": "owner-a-readmission-01-admin-pass.json",
+      "sha256": "5eb59e257fae1e8b05484f9058e256c9a99876de4a431e9eef0d2a208740e377"
+    },
+    {
+      "name": "owner-a-readmission-01-approval.json",
+      "sha256": "118ff3c5496c21a0089f418ed7527fe89e3b509dadc0552e0dbce6e30bebe664"
+    },
+    {
+      "name": "owner-a-readmission-01-business-window.json",
+      "sha256": "12bfb807efe779828faac94ec671dd43ad37475356a3bf3c0ae81647c9de2c39"
+    },
+    {
+      "name": "owner-a-readmission-01-form-opened.json",
+      "sha256": "4151b6ce71283280fb54ae4a6eaebc093ed858880718ccee2d89d20c818a5fe0"
+    },
+    {
+      "name": "owner-a-readmission-01-hold-ready.json",
+      "sha256": "e06fc64a51d994fbb4ff965b97e8a26039da41f8ae4283a3b6cf380adfed851a"
+    },
+    {
+      "name": "owner-a-readmission-01-identity.result.json",
+      "sha256": "a218dd4c4f82d7b91dbe15db9514364a8da4172fcefd63f7017cc7951c1ecb3c"
+    },
+    {
+      "name": "owner-a-readmission-01-lock.json",
+      "sha256": "f8295a9981c81a1900031e3c9bad39b8a817af498518fc465aba3d3f6681ec5b"
+    },
+    {
+      "name": "owner-a-readmission-01-login.intent.json",
+      "sha256": "9cb2b37eae77d1b6a05604b56fc74fa6e66c8f52d65a5f52c5a2f7ce7bc28427"
+    },
+    {
+      "name": "owner-a-readmission-01-login.reserve.json",
+      "sha256": "9d903ef49bf11340b886a8910d73c1f35b17a870a9fbf5a3cce976d81dffa6d4"
+    },
+    {
+      "name": "owner-a-readmission-01-login.result.json",
+      "sha256": "978c7e0f3fcca06fb4b75af6735761d193338ae6e18572b1b7f6c11d2047f4d3"
+    }
+  ],
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  },
+  "staff_suspended": true
+}
