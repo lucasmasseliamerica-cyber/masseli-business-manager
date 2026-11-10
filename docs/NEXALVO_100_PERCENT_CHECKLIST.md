@@ -1,5 +1,11 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Staff — autorização M/E registrada, bloqueada antes da coleta (10/11/2026)
+
+- [x] Autorização específica preservada: até um GET administrativo e um login Auth por MANAGER e EMPLOYEE no TEST. Nenhum slot consumido. [Evidência da admissão](./evidence/staff-member-acquisition-admission-blocked-20261110.json).
+- [x] Formulário OWNER A confirmado ativo localmente, vencimento registrado 15:45:46 UTC. Ele aceita tokens M/E existentes; não faz aquisição por senha e não transfere OWNER A isoladamente. Nenhum formulário novo foi aberto e nenhum gate aprovado foi repetido.
+- [ ] Prosseguir somente com OWNER A legítima no fluxo da coleta e do executor e janela válida. Sem novo login OWNER A nesta etapa; 0/17 Edge, 0/4 PATCH, staff suspenso e cobertura 16/60.
+
 ## Staff — janela sem admissão M/E; coleta restrita preparada (10/11/2026)
 
 - [x] Perfil consultado: `NO_STORED_SESSION`. Operador sem outros perfis MANAGER/EMPLOYEE. A janela 14:58–15:43 UTC não teve admissão nem handoff. Zero login M/E, Edge, PATCH ou reserva de negócio.

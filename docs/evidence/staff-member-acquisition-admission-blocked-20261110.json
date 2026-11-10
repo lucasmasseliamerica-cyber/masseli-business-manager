@@ -1,0 +1,62 @@
+{
+  "status": "BLOCKED_OWNER_SESSION_NOT_BOUND_TO_MEMBER_ACQUISITION",
+  "observed_utc": "2026-11-10T15:02:25.316Z",
+  "project": "msinksoilkluooxenecy",
+  "owner": {
+    "last_identity_http": 200,
+    "holder_pid": 19548,
+    "holder_observed_live": true,
+    "expires_utc": "2026-11-10T15:45:46.0000000+00:00",
+    "held_in_memory_only": true,
+    "holder_accepts_existing_member_tokens_only": true,
+    "member_password_acquisition_available_in_holder": false,
+    "secure_handoff_of_owner_alone_available": false
+  },
+  "member_admin_gets": {
+    "MANAGER": 0,
+    "EMPLOYEE": 0
+  },
+  "member_auth_posts": {
+    "MANAGER": 0,
+    "EMPLOYEE": 0
+  },
+  "owner_auth_posts_this_stage": 0,
+  "new_form_opened": false,
+  "business": {
+    "edge": 0,
+    "edge_max": 17,
+    "patch": 0,
+    "patch_max": 4,
+    "case_commands": 0,
+    "case_reservations": 0,
+    "executor_started": false,
+    "previous_window_admitted": false
+  },
+  "linked_artifacts": [
+    {
+      "name": "proposta-sessoes-manager-employee-20261110.md",
+      "sha256": "863171a9a5b13000072ae073fb53de85717766f82b9adb6377d2c76352ef2827"
+    },
+    {
+      "name": "StaffBusinessMemberSessions.psm1",
+      "sha256": "c304f5d0028d701152f8e3a104282c2453e0c5f597a543121fe589ad68016ee3"
+    },
+    {
+      "name": "owner-a-readmission-01-identity.result.json",
+      "sha256": "a218dd4c4f82d7b91dbe15db9514364a8da4172fcefd63f7017cc7951c1ecb3c"
+    },
+    {
+      "name": "owner-a-readmission-01-business-window.json",
+      "sha256": "12bfb807efe779828faac94ec671dd43ad37475356a3bf3c0ae81647c9de2c39"
+    },
+    {
+      "name": "owner-a-readmission-01-business-outcome.json",
+      "sha256": "2da03a9348a4e8e9dd6899bd246863201aaaef35381e9569d4727826769e124f"
+    }
+  ],
+  "staff_suspended": true,
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  }
+}
