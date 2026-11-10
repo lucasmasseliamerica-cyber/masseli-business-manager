@@ -1,0 +1,45 @@
+{
+  "status": "REVIEWED_OFFLINE_AWAITING_AUTH_SUPPLEMENT",
+  "project": "msinksoilkluooxenecy",
+  "business_manifest_sha256": "de56f442bf76ed402cdc2a83c629bfd7a59205bf43cbd882a807a1c0230bc94f",
+  "addendum_link_sha256": "61ca25cce72fac16a224df507e0146667f3fcf1daa584d8d27fe659a16f491cb",
+  "accounting_sha256": "f6e059eb9a752e6170a6d1d800310883ef0a7bf58da42fefcf3c85d8875899cc",
+  "files": {
+    "qa/staff-integrated-run.mjs": "68585525e63d77530831eeb59661dfe431922b1a0b58b937e282c89124f9fdbb",
+    "qa/staff-integrated-auth.mjs": "53f3f45b2f28cc306a5473a3d384e4c0bca6c7df9fa7a8d8584af61ddd2a0834",
+    "qa/staff-integrated-input.mjs": "6fa92087ee0d8bf2eb89ce7147a49ead44036e12727689335d728ae0513c94fb",
+    "qa/staff-integrated-business.mjs": "72660e47a818dbf6f684aa66eb38d1e9f6c6fea42df3c6fe9aa055648d5c79da",
+    "qa/staff-integrated-control.mjs": "b9950bb551144e2ea95606257337931f7e0d5e0b4fe3deeea3d84d7112634394"
+  },
+  "synthetic_integration_checks": 6,
+  "synthetic_network": "local loopback and injected TEST responses only",
+  "business": {
+    "Edge": 17,
+    "PATCH": 4,
+    "authenticated_GET": 83
+  },
+  "live_window_proposed": false,
+  "manual": {
+    "actor": "MANAGER",
+    "channel": "browser_ui",
+    "http_status": null,
+    "possibly_consumed": 1,
+    "business_attempts": 0
+  },
+  "owner_prior": {
+    "historical_confirmed_posts": 2,
+    "expires_utc": "2026-11-10T15:45:46.0000000+00:00",
+    "transfer_to_integrated_process_available": false
+  },
+  "local_independent": {
+    "stylesheet_503_reproduced": true,
+    "chromium_affected_checks": 2,
+    "built_css_503_pass": true,
+    "build_pass": true
+  },
+  "real_TEST_requests": 0,
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  }
+}

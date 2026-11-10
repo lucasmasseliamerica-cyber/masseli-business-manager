@@ -21,3 +21,5 @@ prototypes/c2-readiness/native/*.psql.in text eol=lf
 prototypes/c2-readiness/native/console-mode.ps1 text eol=lf
 # Preserve the byte hash of the accepted staff read-only checkpoint.
 qa/sql/staff_business_checkpoint_readonly_TEST.sql text eol=lf
+# The integrated staff package pins these source bytes.
+qa/staff-integrated-*.mjs text eol=lf

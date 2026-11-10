@@ -1,5 +1,11 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Staff — coleta e executor integrados localmente (10/11/2026)
+
+- [x] Mesmo PID para coleta mascarada, Auth e execução do plano aprovado. Sessões em memória, controlador sem credenciais e leituras Auth contadas uma vez. Seis verificações sintéticas passaram.
+- [x] Tentativa manual MANAGER registrada como 1 Auth possivelmente consumida, status HTTP desconhecido. EMPLOYEE continua com o limite anterior disponível. Sem consumo Edge/PATCH. [Evidência](./evidence/staff-integrated-auth-20261110.json).
+- [ ] Autorizar somente o POST adicional MANAGER e, na modalidade por senha, a nova tentativa OWNER A com GET por UUID. Confirmar janela após a autorização e readmitir no TEST. Staff suspenso, 0/17 Edge, 0/4 PATCH e cobertura 16/60.
+
 ## Staff — tentativa manual MANAGER registrada; ERP inativo (10/11/2026)
 
 - [x] Operador relatou tentativa no navegador com `This NEXALVO account is inactive`. Código confere: a checagem de perfil após Auth recusa acesso e limpa a sessão local. Sem recibo HTTP manual ou sessão reutilizável comprovada. [Evidência](./evidence/staff-manager-manual-browser-login-20261110.json).
