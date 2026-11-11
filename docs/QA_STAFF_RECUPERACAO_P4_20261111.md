@@ -1,0 +1,22 @@
+# Staff TEST — restauração isolada após P4
+
+A recuperação R1–R4 foi autorizada para o manifesto SHA-256 `7d85662d199fb402c487445643a8d6ca08ad2e4b525dcbc53b74003fad8c5cb7`. A janela exclusiva e a disponibilidade de uma sessão existente de OWNER A aguardam confirmação. O último estado confirmado é o de P4, com os dois perfis e seus registros de funcionário ativos e duas auditorias. [Evidência do lote encerrado](./evidence/staff-integrated-business-stopped-20261111.json)
+
+| Ordem | Envio | Efeito previsto | Auditorias novas |
+| --- | --- | --- | --- |
+| R1 | Edge | Restaurar perfil EMPLOYEE `…9e58` para inativo, com o vínculo original. | 1 |
+| R2 | Edge | Restaurar perfil MANAGER `…c6d1` para inativo, removendo o vínculo temporário. | 1 |
+| R3 | PATCH | Restaurar registro de funcionário `…ecbd` para inativo e seu cargo original. | 0 |
+| R4 | PATCH | Restaurar registro de funcionário `…7faf` para inativo. | 0 |
+
+Os quatro `updated_at` devem avançar. A conferência final exige os demais campos semânticos do checkpoint original, canários intactos e quatro auditorias no recorte, duas preservadas e duas novas. O consumo acumulado passará de 2/17 Edge e 2/4 PATCH para 4/17 Edge e 4/4 PATCH se os quatro envios ocorrerem. A homologação de permissões segue pendente.
+
+## Admissão e execução
+
+1. Confirmar a janela exclusiva e a presença do operador. O executor aceita somente um access token já existente de OWNER A, em campo mascarado local. A identidade será conferida por um GET no Auth do TEST, com validade até 30 segundos após o fim da janela. Uma nova aquisição por login exige escopo Auth próprio se a sessão existente estiver indisponível.
+2. Conferir o manifesto do executor `335c6050924a5338b9d6dccd48f01dfc4b1f760d5257870879f0f7dca9899659` e o registro do aceite `8c48ecb0aca12305467f85ca0204e267db99946c2532f4e387112d51b14b9b1c`. O controlador histórico mantém SHA-256 `e3159952733b2edd99f490dfb983d27b5668acec194c58344ccf2ea201a42776`. A correção `business_B` continua separada.
+3. Na janela, conferir a Edge v6, ID, bundle, `verify_jwt` e quatro fontes. Executar o checkpoint derivado somente leitura de SHA-256 `ee0a8d9757e34c423d6e4111246a219fc632f8754b7f2fdfea77703ff549750b`. A consulta preserva a seleção do checkpoint original e acrescenta a contagem de locks concorrentes. Exigir correspondência integral com P4 e zero locks antes de abrir a coleta.
+4. Criar `approval.json`, `admission.json` e `initial.json` no diário exclusivo `work/staff-user-service/staff-p4-recovery-20261111`, vinculados pelos hashes. Rodar `node qa/staff-p4-recovery.mjs <sha256-da-aprovacao>` a partir da área operacional, referenciando o caminho absoluto do script da QA. A aprovação fixa o manifesto da proposta, o manifesto do executor, a janela, a sessão existente e o orçamento 2/2. Guardar o token somente em memória do executor.
+5. Com `ready.json` confirmado, registrar um checkpoint fresco por etapa como `R1-before.json`, seguido do recibo e de `R1-after.json`. Publicar os checkpoints no diário por escrita exclusiva, sincronização e renomeação. Repetir a sequência de verificação para R2, R3 e R4 somente após cada `ack`. Cada envio usa uma intenção durável e uma reserva. Os PATCHs incluem o ID, a empresa e o `updated_at` observado no filtro. Divergência, perda da janela ou resultado incerto interrompem os envios e pedem reconciliação somente por leitura.
+
+Seis verificações locais passaram, incluindo drift de microssegundos, auditorias, filtro de PATCH, prazo após reserva, parada sem replay e coleta mascarada por loopback com texto sintético. A leitura local dos artefatos históricos confirmou os quatro IDs, o checkpoint original, os hashes de P4 e as duas auditorias. O executor de recuperação ainda não realizou chamadas ao TEST. [Executor](../qa/staff-p4-recovery.mjs) · [Testes](../qa/staff-p4-recovery.test.mjs)

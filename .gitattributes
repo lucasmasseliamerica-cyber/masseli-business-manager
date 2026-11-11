@@ -23,3 +23,4 @@ prototypes/c2-readiness/native/console-mode.ps1 text eol=lf
 qa/sql/staff_business_checkpoint_readonly_TEST.sql text eol=lf
 # The integrated staff package pins these source bytes.
 qa/staff-integrated-*.mjs text eol=lf
+qa/staff-p4-*.mjs text eol=lf
