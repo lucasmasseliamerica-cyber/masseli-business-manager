@@ -1,0 +1,70 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "qa_head_checked": "870dfae6390d50f6d867ed07c73fe04705563a12",
+  "preview_commit": "d554b2b67be1f87c72158be0a3c131086f6a2e66",
+  "window": {
+    "start_utc": "2026-11-11T14:50:00Z",
+    "recovery_start_utc": "2026-11-11T15:25:00Z",
+    "end_utc": "2026-11-11T15:35:00Z",
+    "exclusive_confirmed": true,
+    "sha256": "bdd7e484e1bb6b43d4cc1c29372475dc6ea03d88357386fb057126b4ba883bb4"
+  },
+  "package_sha256": {
+    "business_manifest": "de56f442bf76ed402cdc2a83c629bfd7a59205bf43cbd882a807a1c0230bc94f",
+    "accepted_addendum": "61ca25cce72fac16a224df507e0146667f3fcf1daa584d8d27fe659a16f491cb",
+    "accepted_read_only_checkpoint_sql": "f4b9aa823e4c33c1efc58af83fd79410b75dce26765ee764f116b81732da47f7",
+    "readmission_manifest": "70b177897e78b8ca6414164915122bdf4f89ea5f2bb5f779e9fcebfdb9317f67",
+    "window_approval": "5a88313f3579b2ad38577e5af5694859653c8e06d427536b3ab3d658e284f6b9",
+    "initial_state_admission": "a3f23b5e0dbc89f108fb4b7e6e279abed2c5d621130a5bf66c1189c73f336c8e"
+  },
+  "read_only_admission": {
+    "observed_utc": "2026-11-11T14:51:30.597564Z",
+    "sql_reads": 2,
+    "erp_profiles_match": 4,
+    "employees_match": 4,
+    "manager_and_employee_profiles_and_employees_inactive": true,
+    "staff_update_audits_in_scope": 0,
+    "role_defaults_match": 40,
+    "competing_staff_relation_locks": 0,
+    "edge_version": 6,
+    "edge_id": "9dad0ab5-fd65-43da-be56-da79c3cec5ba",
+    "edge_bundle_sha256": "50a95817b3363fdbcbfd97b25f20b2c84a98cfdb93d5ade00e2fb5316897ef0d",
+    "edge_sources_match": 4,
+    "verify_jwt": true
+  },
+  "result": {
+    "code": "INTEGRATED_ADMISSION_BLOCKED",
+    "phase": "PINNED_RUNTIME_FILE_HASH_CHECK",
+    "exit_code": 2,
+    "process_ended": true,
+    "launch_lock_created": false,
+    "form_opened": false,
+    "ready_created": false,
+    "admin_get": 0,
+    "auth_post": 0,
+    "identity_get": 0,
+    "business_get": 0,
+    "business_edge": 0,
+    "business_patch": 0,
+    "business_cases": 0,
+    "result_uncertain": false
+  },
+  "frontend_binding_for_review": {
+    "files": ["App.jsx", "src/App.jsx"],
+    "approved_runtime_commit": "37c2fde874ccf716b5d73d98fc20ffb2bbe15b57",
+    "approved_each_sha256": "aabe235069c70ea2130c7a39aee52ffb2de585d78ba93546df71402855a561b2",
+    "proposed_each_sha256": "5d4a78e51bcb1ac87dc455fe56066e3b12836fcee4d3f5ec6e66c7f3078ce450",
+    "commits_responsible": ["46715919a1eee900b40671ba0229bcff96fe9877", "d554b2b67be1f87c72158be0a3c131086f6a2e66"],
+    "other_runtime_pins_match": 4,
+    "approved": false,
+    "applied_to_launcher": false
+  },
+  "balances": {
+    "business_edge": 17,
+    "business_patch": 4,
+    "business_get": 83,
+    "business_cases_pending": 21,
+    "manual_manager_login_possibly_consumed_historical": 1,
+    "operational_coverage": "16/60"
+  }
+}

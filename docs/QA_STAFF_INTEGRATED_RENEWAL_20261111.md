@@ -1,5 +1,15 @@
 # Staff TEST — renovação da coleta sem encaminhamentos
 
+## Janela de 11 de novembro, 09h50–10h35
+
+A confirmação cobriu 14h50–15h35 UTC, com recuperação reservada a 15h25–15h35. Na admissão, as leituras do TEST confirmaram a fixture, permissões padrão e ausência de locks concorrentes nas relações staff. A Edge v6 manteve ID, bundle, quatro fontes e `verify_jwt=true`. Os timestamps da fixture foram comparados como instantes com precisão de microssegundos. O launcher encerrou com saída 2 no guard dos arquivos vinculados. A parada ocorreu antes do lock da coleta e do formulário. O diário registra zero novos encaminhamentos Auth e zero envios de negócio. [Evidência](./evidence/staff-integrated-admission-blocked-20261111.json)
+
+### Complemento para revisão
+
+Vincular exclusivamente `App.jsx` e `src/App.jsx` do commit QA `870dfae6390d50f6d867ed07c73fe04705563a12`, ambos idênticos e com SHA-256 `5d4a78e51bcb1ac87dc455fe56066e3b12836fcee4d3f5ec6e66c7f3078ce450`. O vínculo original aponta para `aabe235069c70ea2130c7a39aee52ffb2de585d78ba93546df71402855a561b2` em ambos. A diferença vem de `4671591` (Stripe Terminal no PDV) e `d554b2b` (guia de configuração inicial, com atalho para Equipe e Permissões condicionado a `manageUsers`). A alteração da tela de equipe se limita ao título e à âncora do guia. A migração staff e os três outros arquivos de código vinculados conferem pelos hashes originais.
+
+O complemento proposto mantém o manifesto de negócio e o adendo vigentes, os 21 casos fixados, Edge v6, SQL de checkpoint, recuperação e orçamentos. O executor atual conserva o guard original. Após aceite do complemento, vincular o novo par de hashes como condição estrita, testar rejeição de qualquer outro hash e verificar o novo vínculo antes de agendar a próxima coleta. O Preview mantém o commit `d554b2b`. Staff permanece suspenso.
+
 ## Estado comprovado
 
 A janela de 10/11/2026, 20:36–21:21 UTC, correspondeu a 15:36–16:21 em Nova York. O processo 19208 registrou parada em `COLLECTION` às 21:10:35.011 UTC, no limite da coleta. Na conferência local de 11/11, o processo havia encerrado e a porta 62477 estava fechada.
