@@ -67,7 +67,12 @@
       }
     ],
     "expense_idempotency_installed": false,
-    "vercel_plan": "Hobby"
+    "vercel_plan": "Hobby",
+    "supabase_test_scheduled_backups": {
+      "plan": "Free",
+      "scheduled_backups_available": false,
+      "logical_export_required": true
+    }
   },
   "staff": {
     "last_collection_pid": 16660,
