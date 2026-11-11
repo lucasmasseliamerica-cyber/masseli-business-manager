@@ -1,0 +1,68 @@
+{
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  },
+  "project": "msinksoilkluooxenecy",
+  "preflight": {
+    "tables": [],
+    "observed_utc": "2026-11-11T04:16:02.295127+00:00",
+    "service_rpcs": [],
+    "sales_triggers": [],
+    "dependency_matches": [
+      {
+        "matches": true,
+        "signature": "public.current_business_id()"
+      },
+      {
+        "matches": true,
+        "signature": "public.fn_create_sale(uuid,uuid,uuid,text,text,uuid,uuid,numeric,numeric,text,text,jsonb)"
+      },
+      {
+        "matches": true,
+        "signature": "public.fn_next_order_no(uuid,text)"
+      },
+      {
+        "matches": true,
+        "signature": "public.fn_record_inventory_movement(uuid,uuid,uuid,text,numeric,numeric,uuid,uuid,uuid,text,boolean)"
+      },
+      {
+        "matches": true,
+        "signature": "public.user_can(text)"
+      }
+    ],
+    "private_schema_present": false
+  },
+  "local": {
+    "postgres_version": "17.11",
+    "terminal_integration_pass": 8,
+    "browser_checkout_pass": 2,
+    "deno_entrypoints_checked": 2,
+    "clean_install_vite": "6.4.4",
+    "preview_browser_direct_path_reload": [
+      "desktop",
+      "mobile"
+    ],
+    "bundle_credentials_found": 0
+  },
+  "staff": {
+    "renewal_pid": 16660,
+    "collection_end_utc": "2026-11-11T04:04:35.017Z",
+    "phase": "COLLECTION",
+    "auth_requests": 0,
+    "edge_used": 0,
+    "patch_used": 0,
+    "edge_budget": 17,
+    "patch_budget": 4,
+    "staff_suspended": true
+  },
+  "remote": {
+    "stripe_mutations": 0,
+    "terminal_migration_applied": false,
+    "terminal_edges_deployed": 0,
+    "vercel_preview_url": null,
+    "vercel_connector_http": 403,
+    "vercel_cli": "login_required",
+    "physical_s700_test": false
+  }
+}

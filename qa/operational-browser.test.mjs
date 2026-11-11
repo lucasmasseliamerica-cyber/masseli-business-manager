@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false, c1Baseline = false, inventoryAuditFault, reportCalendar = false } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false, c1Baseline = false, inventoryAuditFault, reportCalendar = false, terminalScenario = false } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -30,6 +30,10 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
     product_recipes: [{ id: randomUUID(), product_id: product, inventory_item_id: item, qty_per_unit: 1 }],
     inventory_items: [{ id: item, business_id: business, name: 'Açaí QA', unit: 'Units', active: true, min_qty: 0, max_qty: 200, created_at: now }],
   };
+  if (terminalScenario) {
+    tables.businesses[0].currency = 'USD';
+    state.terminalCalls = [];
+  }
   if (reportCalendar) {
     tables.businesses[0] = { ...tables.businesses[0], currency: 'USD', timezone: 'America/New_York' };
     state.sales = [
@@ -103,7 +107,8 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
         const response = await route.fetch();
         const body = await response.text();
         assert.ok(body.includes('const PAYMENT_MODE ='), 'expected Vite payment mode boundary');
-        return route.fulfill({ response, body: body.replace('const PAYMENT_MODE =', `import.meta.env.VITE_CARD_PAYMENT_MODE = ${JSON.stringify(cardMode)};\nconst PAYMENT_MODE =`) });
+        return route.fulfill({ response, body: body.replace('const PAYMENT_MODE =',
+          `import.meta.env.VITE_CARD_PAYMENT_MODE = ${JSON.stringify(cardMode)};\nimport.meta.env.VITE_STRIPE_TERMINAL_ENABLED = ${JSON.stringify(String(terminalScenario))};\nconst PAYMENT_MODE =`) });
       }
       return route.continue();
     }
@@ -131,6 +136,25 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
       return reply([]);
     }
     if (url.pathname === '/auth/v1/user') return reply({ id: owner, app_metadata: {} });
+    if (terminalScenario && url.pathname === '/functions/v1/terminal-payment') {
+      const data = request.postDataJSON();
+      state.terminalCalls.push(data);
+      assert.equal(data.location_id, location);
+      if (data.action === 'readiness') return reply({ ready: true, pending: [] });
+      if (data.action === 'start') {
+        assert.deepEqual(data.items, [{ product_id: product, qty: 1 }]);
+        assert.equal(data.expected_amount_minor, 1000);
+        state.terminalOriginal = data;
+        return route.abort('failed');
+      }
+      assert.equal(data.action, 'status');
+      const original = state.terminalOriginal;
+      assert.equal(data.operation_id, original.operation_id);
+      if (!state.sales.length) state.sales.push({ id: original.sale_id, business_id: business, location_id: location,
+        order_no: 1001, sale_date: now, status: 'completed', fulfillment_status: 'Completed', channel: 'In Store',
+        payment_method: 'Stripe Terminal', subtotal: 10, discount: 0, tax: 0, total: 10 });
+      return reply({ operation_id: original.operation_id, sale_id: original.sale_id, state: 'approved', currency: 'usd', amount_minor: 1000 });
+    }
     if (url.pathname === '/rest/v1/') return reply({});
     const name = url.pathname.replace('/rest/v1/', '');
     if (request.method() === 'GET') {
@@ -544,6 +568,30 @@ test('SIMULATED HTTP: Stripe mode shows disconnected in PT and blocks card befor
       assert.deepEqual(state.blocked, []); assert.deepEqual(errors, []);
       if (!visit) await page.reload({ waitUntil: 'domcontentloaded' });
     }
+  } finally { await context.close(); }
+});
+
+test('SIMULATED HTTP: enabled Stripe checkout recovers the same attempt after lost response and reload', { timeout: 60000 }, async () => {
+  const { context, page, state, errors } = await isolated({ cardMode: 'stripe_terminal', terminalScenario: true });
+  const openSale = async () => {
+    await page.getByRole('button', { name: 'Sales', exact: true }).click();
+    await page.getByRole('button', { name: 'New Sale', exact: true }).click();
+    return page.getByRole('dialog');
+  };
+  try {
+    const dialog = await openSale();
+    await dialog.getByRole('button', { name: 'Add Bowl QA', exact: true }).click();
+    await dialog.locator('select').filter({ has: page.locator('option[value="Credit Card"]') }).selectOption('Credit Card');
+    await dialog.getByRole('button', { name: /Charge on reader/ }).click();
+    await dialog.getByRole('status').getByText(/Verifying payment/i).waitFor();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const reopened = await openSale();
+    await reopened.getByText('Payment Successful', { exact: true }).waitFor();
+    await reopened.getByRole('button', { name: 'Payment Receipt', exact: true }).waitFor();
+    assert.deepEqual(state.terminalCalls.map(call => call.action), ['readiness', 'start', 'status']);
+    assert.equal(state.saleAttempts.length, 0, 'the browser must not finalize Stripe through fn_create_sale');
+    assert.equal(state.sales.length, 1);
+    assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });
 

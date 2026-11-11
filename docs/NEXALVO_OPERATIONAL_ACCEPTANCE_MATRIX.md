@@ -445,13 +445,13 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
-| Antes da cobrança: backend Stripe autenticado e leitor disponível, sem fallback manual | BLOQUEADO | Adapter/backend não implantado; modo Stripe bloqueia cartão; prova real Stripe TEST pendente |
+| Antes da cobrança: backend Stripe autenticado e leitor disponível, sem fallback manual | BLOQUEADO | Backend S700 e PDV implementados e verificados localmente. Falta aplicar o pacote TEST, vincular leitor/conta e comprovar a conexão real. [Pacote TEST](./QA_STRIPE_TERMINAL_EVENTO_TEST_20261111.md) |
 | Offline desabilitado explicitamente em todas as integrações Terminal | BLOQUEADO | Inspecionar configuração real SDK/leitor; não há SDK nem fila offline implementados |
-| Timeout/queda/reinício preservam tentativa desconhecida e proíbem novo PaymentIntent | BLOQUEADO | Persistência backend/locks e recuperação real autorizada ainda pendentes; núcleo simulado preparado |
-| Stripe confirma e backend grava venda/estoque/financeiro uma única vez | BLOQUEADO | Preparar/revisar migração, RPC privada e integração Stripe; sem escrita ou aplicação autorizada |
+| Timeout/queda/reinício preservam tentativa desconhecida e proíbem novo PaymentIntent | BLOQUEADO | Reserva durável e recuperação da mesma tentativa verificadas localmente. Prova Stripe TEST e ensaio publicado pendentes |
+| Stripe confirma e backend grava venda/estoque/financeiro uma única vez | BLOQUEADO | Migração e RPC privada verificadas em PostgreSQL descartável. Aplicação TEST e prova Stripe autenticada pendentes |
 | Recusa/cancelamento/reconexão conciliados no mesmo PaymentIntent | BLOQUEADO | Leitor simulado Stripe e pagamentos TEST controlados dependem de configuração e autorização |
-| Webhook assinado duplicado/fora de ordem e concorrência não duplicam efeitos | BLOQUEADO | Endpoint, segredo seguro de assinatura, deduplicação persistente e testes TEST pendentes |
-| PDV: seis estados PT/EN e aprovação somente após confirmação backend real | BLOQUEADO | Desconectado/bloqueio exercitados em browser simulado; demais estados reais dependem do backend |
+| Webhook assinado duplicado/fora de ordem e concorrência não duplicam efeitos | BLOQUEADO | Assinatura, deduplicação persistente e reserva concorrente exercitadas localmente. Endpoint Stripe TEST, segredo e prova remota pendentes |
+| PDV: seis estados PT/EN e aprovação somente após confirmação backend real | BLOQUEADO | Bloqueio e recuperação após recarga exercitados em Chromium com HTTP interceptado. Aprovação publicada depende do ensaio TEST |
 | Wi-Fi/Ethernet/celular validados por modelo, região e firmware compatíveis | PENDENTE | Definir modelos da operação e comprovar compatibilidade; Wi-Fi sozinho não prova cobrança online |
 
 ### Produtos e fotos

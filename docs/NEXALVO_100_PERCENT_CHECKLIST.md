@@ -1,5 +1,12 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Primeira entrega — evento de 15/11/2026
+
+- [x] Integração Stripe Terminal S700 implementada para TEST e verificada localmente com PostgreSQL descartável, HTTP interceptado e Chromium. [Pacote TEST](./QA_STRIPE_TERMINAL_EVENTO_TEST_20261111.md)
+- [ ] Publicar Preview ligado ao TEST após recuperar o acesso Vercel. Instalar o pacote Supabase somente após aprovação específica e preparar o Stripe TEST.
+- [ ] Confirmar a entrega da S700, executar o ensaio publicado e aprovar a passagem para o ambiente de operação. [Checklist do evento](./QA_NEXALVO_EVENTO_20261115.md)
+- [ ] Staff continua suspenso. A janela de 11/11 encerrou na coleta, antes de Auth, com zero dos 17 Edge e 4 PATCH usados. Cobertura operacional **16/60**.
+
 ## Staff — complemento registrado e coleta expirada antes de Auth (11/11/2026 UTC)
 
 - [x] Complemento específico registrado e reafirmado com o mesmo saldo. OWNER A e MANAGER mantêm um login cada, EMPLOYEE mantém a autorização anterior. A tentativa manual MANAGER continua possivelmente consumida.

@@ -734,8 +734,8 @@ const InventoryService = {
  * approve a Stripe sale. Unknown outcomes must reconcile the SAME durable attempt/PaymentIntent;
  * reconnect/restart must never create or process another intent automatically.
  * The prepared domain policy is in supabase/functions/_shared/terminal-online-core.mjs.
- * No Stripe HTTP/SDK or persistent adapter is deployed here: explicit stripe_terminal mode is
- * blocked, cannot fall back to manual confirmation, and cannot finalize via this client path.
+ * Stripe Terminal uses the separately enabled backend checkout below. The manual payment
+ * adapter never starts or finalizes a Stripe charge.
  * ============================================================================== */
 
 // Operational default: record a payment already approved on an external card terminal. No
@@ -743,6 +743,9 @@ const InventoryService = {
 // configuration. Stripe Terminal is a separate, fail-closed mode until real TEST homologation.
 // A nonempty invalid mode is also blocked; a typo must not enable manual card confirmation.
 const PAYMENT_MODE = ((mode) => mode === "simulator" ? "simulator" : !mode || mode === "external" ? "external" : "stripe_terminal")(import.meta.env.VITE_CARD_PAYMENT_MODE);
+const STRIPE_TERMINAL_UI_ENABLED = import.meta.env.VITE_CARD_PAYMENT_MODE === "stripe_terminal" &&
+  import.meta.env.VITE_STRIPE_TERMINAL_ENABLED === "true" &&
+  import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "") === "https://msinksoilkluooxenecy.supabase.co";
 const STRIPE_TERMINAL_UNAVAILABLE = "Stripe Terminal is disconnected or not configured. Card charges are blocked until the backend verifies Stripe and the reader. Offline payments are not allowed.";
 
 // The one payment-result shape every adapter returns, and the only shape finalizeSuccessfulPayment/
@@ -2115,6 +2118,90 @@ async function supabaseFetch(path, options = {}) {
   }
 
   return res;
+}
+
+async function requestTerminalPayment(input) {
+  await ensureFreshSession();
+  const token = _supabaseSession?.accessToken;
+  if (!token) throw new Error("TERMINAL_AUTH_REQUIRED");
+  const response = await fetch(`${SUPABASE_URL.replace(/\/$/, "")}/functions/v1/terminal-payment`, {
+    method: "POST", redirect: "error", signal: AbortSignal.timeout(45000),
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const value = await response.json();
+  if (!response.ok) throw new Error(value?.code || "TERMINAL_UNCONFIRMED");
+  return value;
+}
+
+const terminalClosed = new Set(["approved", "declined", "canceled"]);
+const terminalBeforeStart = new Set(["TERMINAL_AUTH_REQUIRED", "TERMINAL_AUTH_INVALID", "TERMINAL_REQUEST_INVALID",
+  "TERMINAL_LOCATION_FORBIDDEN", "TERMINAL_CART_SCOPE", "TERMINAL_INVALID_CART", "TERMINAL_QUOTE_CHANGED",
+  "TERMINAL_INVALID_DISCOUNT", "TERMINAL_INSUFFICIENT_STOCK", "TERMINAL_TAX_CONFIG", "TERMINAL_DISABLED",
+  "TERMINAL_BINDING_UNAVAILABLE", "READER_UNAVAILABLE", "READER_NETWORK_UNSUPPORTED", "STALE_CONNECTIVITY",
+  "TERMINAL_PREVIOUS_PAYMENT_PENDING"]);
+
+function useStripeTerminalCheckout({ enabled, businessId, locationId, onApproved }) {
+  const scope = enabled && businessId && locationId ? `nexalvo.terminal.operation.v1:${businessId}:${locationId}` : null;
+  const active = useRef(null);
+  const latest = useRef({ scope, onApproved });
+  latest.current = { scope, onApproved };
+  const [state, setState] = useState({ scope: null, ready: false, attempt: null, busy: false, message: "" });
+  const checkout = state.scope === scope ? state : { ready: false, attempt: null, busy: false, message: "" };
+
+  const run = useCallback(async (action, payload) => {
+    if (!scope || active.current) return;
+    const currentRun = {};
+    active.current = currentRun;
+    const update = patch => {
+      if (latest.current.scope === scope) setState(previous => ({
+        ...(previous.scope === scope ? previous : { scope, ready: false, attempt: null, message: "" }), ...patch,
+      }));
+    };
+    let pointer;
+    try {
+      update({ busy: true, message: "" });
+      const saved = localStorage.getItem(scope);
+      pointer = saved ? JSON.parse(saved) : null;
+      if (action === "start") {
+        if (pointer) return update({ ready: false, attempt: { ...pointer, state: "verifying" } });
+        const candidate = { operation_id: payload.operation_id, sale_id: payload.sale_id };
+        localStorage.setItem(scope, JSON.stringify(candidate));
+        pointer = candidate;
+        update({ ready: false, attempt: { ...pointer, state: "processing" } });
+      }
+      if (action === "inspect" && !pointer) {
+        const readiness = await requestTerminalPayment({ action: "readiness", location_id: locationId });
+        const pending = readiness.pending?.[0];
+        if (!pending) return update({ ready: readiness.ready === true, attempt: null });
+        pointer = { operation_id: pending.operation_id, sale_id: pending.sale_id };
+        localStorage.setItem(scope, JSON.stringify(pointer));
+        return update({ ready: false, attempt: pending });
+      }
+      if (!pointer) return;
+      const result = await requestTerminalPayment(action === "start" ? payload : {
+        action: action === "cancel" ? "cancel" : "status", location_id: locationId, operation_id: pointer.operation_id,
+      });
+      if (result.operation_id !== pointer.operation_id || result.sale_id !== pointer.sale_id || result.currency !== "usd" ||
+          !["processing", "verifying", "approved", "declined", "canceled"].includes(result.state)) throw new Error("TERMINAL_UNCONFIRMED");
+      if (result.state === "approved" && latest.current.scope === scope) await latest.current.onApproved(result);
+      if (terminalClosed.has(result.state)) {
+        if (JSON.parse(localStorage.getItem(scope) || "null")?.operation_id === pointer.operation_id) localStorage.removeItem(scope);
+        update({ ready: false, attempt: null, message: result.state === "declined" ? "Declined" : result.state === "canceled" ? "Canceled" : "" });
+      } else update({ ready: false, attempt: result });
+    } catch (error) {
+      if (action === "start" && terminalBeforeStart.has(error.message)) {
+        if (JSON.parse(localStorage.getItem(scope) || "null")?.operation_id === pointer?.operation_id) localStorage.removeItem(scope);
+        update({ ready: false, attempt: null, message: error.message === "TERMINAL_QUOTE_CHANGED" ? "Sale total changed. Refresh and review the price and tax." : STRIPE_TERMINAL_UNAVAILABLE });
+      } else update({ ready: false, attempt: pointer ? { ...pointer, state: "verifying" } : null, message: pointer ? "Verifying payment" : STRIPE_TERMINAL_UNAVAILABLE });
+    } finally {
+      if (active.current === currentRun) active.current = null;
+      update({ busy: false });
+    }
+  }, [scope, locationId]);
+
+  useEffect(() => { if (scope) void run("inspect"); }, [scope, run]);
+  return { ...checkout, run };
 }
 
 
@@ -5917,6 +6004,11 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
   const doCancel = async () => {
     if (busy) return;
     if (!can("reverseSales")) { showToast("You don't have permission to reverse sales.", "danger"); setConfirming(false); return; }
+    if (sale.paymentMethod === "Stripe Terminal") {
+      showToast(currentLanguage() === "pt-BR" ? "Esta venda exige conciliação de reembolso Stripe." : "This sale requires Stripe refund reconciliation.", "danger");
+      setConfirming(false);
+      return;
+    }
     setBusy(true);
     try {
       // Re-check against the latest record right before writing. IMPORTANT: unlike the original
@@ -6091,7 +6183,7 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
           <div className="flex flex-col gap-2">
             <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, cancelled ? "Reversal Receipt" : "Customer Receipt")}><Receipt size={15} />{" "}{translateUI(cancelled ? "Reversal Receipt" : "Customer Receipt")}</GhostButton>
             {!cancelled && <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} />{" "}{translateUI("Kitchen Ticket")}</GhostButton>}
-            {CARD_PAYMENT_METHODS.includes(sale.paymentMethod) && (
+            {(CARD_PAYMENT_METHODS.includes(sale.paymentMethod) || sale.paymentMethod === "Stripe Terminal") && (
               <GhostButton dark={dark} onClick={() => doPrint(printingService.preparePaymentReceipt, "Payment Receipt")}><Wallet size={15} />{" "}{translateUI("Payment Receipt")}</GhostButton>
             )}
           </div>
@@ -6279,6 +6371,16 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
   const paymentCtx = { sales, persistSales, inventory, setInventory, invTx, setInvTx, cashTx, persistCash, currentUser, auditLog, setAuditLog, supabaseSalesOps, reloadInventory, businessId, reportLoadError };
   const loyaltyCtx = { loyaltyTransactions, setLoyaltyTransactions, currentUser, auditLog, setAuditLog, reloadLoyalty, reportLoadError };
   const printCtx = { settings, locations, employees, customers };
+  const terminalCard = paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod);
+  const terminalEnabled = STRIPE_TERMINAL_UI_ENABLED && supabaseSalesOps?.remote === true && can("manageSales");
+  const terminal = useStripeTerminalCheckout({ enabled: terminalEnabled, businessId, locationId, async onApproved(receipt) {
+    const list = await supabaseSalesOps.reload();
+    const sale = list.find(row => row.id === receipt.sale_id && row.paymentMethod === "Stripe Terminal" &&
+      Math.round(Number(row.total) * 100) === receipt.amount_minor);
+    if (!sale) throw new Error("TERMINAL_RECEIPT_PENDING");
+    setCompletedSale(sale);
+    await Promise.allSettled([reloadInventory?.(), commitLoyaltyForSale(sale, null, loyaltyCtx)]);
+  } });
 
   // Routes a resolved PaymentResult (from any adapter — simulator today, Stripe Terminal later)
   // to the SAME finalize/fail functions every payment method already uses. This is the one place
@@ -6385,7 +6487,12 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
     if (lineData.some((l) => l.product.price === null || l.product.price === "" || !Number.isFinite(Number(l.product.price)) || Number(l.product.price) < 0)) { setError("Selling price must be a valid number, zero or greater."); return; }
     if (new Set(lineData.map((l) => l.productId)).size !== lineData.length) { setError("The same product can't appear more than once on a sale."); return; }
     if (!paymentMethod || !availablePaymentMethods.includes(paymentMethod)) { setError("Select a valid payment method."); return; }
-    if (paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod)) { setError(STRIPE_TERMINAL_UNAVAILABLE); return; }
+    if (terminal.attempt) { setError("Verifying payment"); return; }
+    if (terminalCard && (!terminalEnabled || !terminal.ready || terminal.busy)) { setError(STRIPE_TERMINAL_UNAVAILABLE); return; }
+    if (terminalCard && selectedReward) {
+      setError(language === "pt-BR" ? "Remova a recompensa para pagar pelo Stripe Terminal." : "Remove the reward to pay with Stripe Terminal.");
+      return;
+    }
     if (!channel || !(settings.channels || []).includes(channel)) { setError("Select a valid sales channel."); return; }
     if (!locationId || !(locations || []).some((location) => location.id === locationId && location.active !== false)) { setError("Select an active sales location."); return; }
     if (!Number.isFinite(manualDiscount) || manualDiscount < 0 || !Number.isFinite(totalDiscount) || !Number.isFinite(taxAmt) || !Number.isFinite(total)) { setError("Discount and tax must be valid finite amounts."); return; }
@@ -6453,8 +6560,18 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       redeemedReward: selectedReward || null, // extra field — finalizeSuccessfulPayment builds `sale` field-by-field, never spreads pendingSale, so this never leaks into the persisted sale
     };
 
-    // Single entry point for every payment method — the rest of this component never needs to
-    // know whether the result came from an instant manual method or an adapter.
+    if (terminalCard) {
+      await terminal.run("start", {
+        action: "start", location_id: locationId, operation_id: newDbId(), sale_id: saleId,
+        items: pendingSale.items.map(item => ({ product_id: item.productId, qty: Number(item.qty) })),
+        expected_amount_minor: Math.round(total * 100), discount_minor: Math.round(totalDiscount * 100),
+        channel, employee_id: employeeId || null, customer_id: customerId || null, notes: notes || null,
+        fulfillment_status: pendingSale.fulfillmentStatus,
+      });
+      return;
+    }
+
+    // Existing payment adapters confirm their own payment types.
     const handle = paymentService.processPayment({ paymentMethod, amount: total, currency: settings.currency || "USD", metadata: { saleId, orderNo } });
 
     if (CARD_PAYMENT_METHODS.includes(paymentMethod)) {
@@ -6535,7 +6652,7 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           <div className="flex flex-col gap-2 mb-4">
             <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareCustomerReceipt, "Customer Receipt")}><Receipt size={15} />{" "}{translateUI("Customer Receipt")}</GhostButton>
             <GhostButton dark={dark} onClick={() => doPrint(printingService.prepareKitchenTicket, "Kitchen Ticket")}><ScrollText size={15} />{" "}{translateUI("Kitchen Ticket")}</GhostButton>
-            {CARD_PAYMENT_METHODS.includes(completedSale.paymentMethod) && (
+            {(CARD_PAYMENT_METHODS.includes(completedSale.paymentMethod) || completedSale.paymentMethod === "Stripe Terminal") && (
               <GhostButton dark={dark} onClick={() => doPrint(printingService.preparePaymentReceipt, "Payment Receipt")}><Wallet size={15} />{" "}{translateUI("Payment Receipt")}</GhostButton>
             )}
           </div>
@@ -6543,6 +6660,15 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
           {printPreview && (
             <PrintPreviewModal dark={dark} title={printPreview.title} html={printPreview.html} onClose={() => setPrintPreview(null)} />
           )}
+        </div>
+      ) : terminal.attempt ? (
+        <div>
+          <div role="status" className="font-semibold mb-3">Stripe Terminal · {translateUI(terminal.attempt.state === "processing" ? "Processing" : "Verifying payment")}</div>
+          {Number.isSafeInteger(terminal.attempt.amount_minor) && <div className="text-sm mb-3">{fmtMoney(terminal.attempt.amount_minor / 100)}</div>}
+          <div className="flex flex-wrap gap-2">
+            <GhostButton dark={dark} disabled={terminal.busy} onClick={() => terminal.run("inspect")}>{language === "pt-BR" ? "Verificar pagamento" : "Check payment"}</GhostButton>
+            {terminal.attempt.can_cancel && <GhostButton dark={dark} disabled={terminal.busy} onClick={() => terminal.run("cancel")}>{translateUI("Cancel")}</GhostButton>}
+          </div>
         </div>
       ) : pendingCardSale ? (
         // External card confirmation records a payment received elsewhere; it never collects
@@ -6698,12 +6824,13 @@ function NewSaleModal({ dark, onClose, products, inventory, setInventory, sales,
       </div>
 
       {error && <div className="text-xs font-semibold mb-3 px-3 py-2 rounded-xl" style={{ background: "#3A0F1E", color: "#FF6B85" }}>{translateUI(error)}</div>}
-      {paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod) && <div role="status" className="rounded-xl p-3 mb-3" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
-        <div className="font-bold">Stripe Terminal · {translateUI("Disconnected")}</div>
-        <div className="text-xs mt-1">{translateUI(STRIPE_TERMINAL_UNAVAILABLE)}</div>
+      {terminalCard && <div role="status" className="rounded-xl p-3 mb-3" style={{ background: dark ? C.surfaceDark : C.bgLight }}>
+        <div className="font-bold">Stripe Terminal · {translateUI(terminal.ready ? "Connected" : "Disconnected")}</div>
+        {!terminal.ready && <div className="text-xs mt-1">{translateUI(terminal.message || STRIPE_TERMINAL_UNAVAILABLE)}</div>}
+        {terminalEnabled && !terminal.ready && <GhostButton dark={dark} disabled={terminal.busy} onClick={() => terminal.run("inspect")}>{language === "pt-BR" ? "Verificar leitor" : "Check reader"}</GhostButton>}
       </div>}
-      <PrimaryButton full disabled={submitting || (paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod))} onClick={submit}>
-        <Check size={16} /> {submitting ? translateUI("Saving…") : paymentService.getMode() === "stripe_terminal" && CARD_PAYMENT_METHODS.includes(paymentMethod) ? translateUI("Stripe Terminal unavailable") : CARD_PAYMENT_METHODS.includes(paymentMethod) ? interpolateUI("Record Card Payment — {0}",[fmtMoney(total)]) : interpolateUI("Complete Sale — {0}",[fmtMoney(total)])}
+      <PrimaryButton full disabled={submitting || terminal.busy || (terminalCard && !terminal.ready)} onClick={submit}>
+        <Check size={16} /> {submitting ? translateUI("Saving…") : terminalCard ? (terminal.ready ? `${language === "pt-BR" ? "Cobrar no leitor" : "Charge on reader"} — ${fmtMoney(total)}` : translateUI("Stripe Terminal unavailable")) : CARD_PAYMENT_METHODS.includes(paymentMethod) ? interpolateUI("Record Card Payment — {0}",[fmtMoney(total)]) : interpolateUI("Complete Sale — {0}",[fmtMoney(total)])}
       </PrimaryButton>
       </>
       )}
