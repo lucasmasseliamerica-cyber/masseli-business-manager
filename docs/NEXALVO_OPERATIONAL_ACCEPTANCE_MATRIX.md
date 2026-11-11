@@ -445,10 +445,10 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 
 | Critério | Estado | Evidência ou bloqueio |
 | --- | --- | --- |
-| Antes da cobrança: backend Stripe autenticado e leitor disponível, sem fallback manual | BLOQUEADO | Backend S700 e PDV implementados e verificados localmente. Falta aplicar o pacote TEST, vincular leitor/conta e comprovar a conexão real. [Pacote TEST](./QA_STRIPE_TERMINAL_EVENTO_TEST_20261111.md) |
+| Antes da cobrança: backend Stripe autenticado e leitor disponível, sem fallback manual | BLOQUEADO | Backend S700 instalado no TEST com pós-flight PASS. Faltam Preview, vínculo leitor/conta e prova da conexão real. [Evidência TEST](./evidence/terminal-evento-test-install-20261111.json) |
 | Offline desabilitado explicitamente em todas as integrações Terminal | BLOQUEADO | Inspecionar configuração real SDK/leitor; não há SDK nem fila offline implementados |
 | Timeout/queda/reinício preservam tentativa desconhecida e proíbem novo PaymentIntent | BLOQUEADO | Reserva durável e recuperação da mesma tentativa verificadas localmente. Prova Stripe TEST e ensaio publicado pendentes |
-| Stripe confirma e backend grava venda/estoque/financeiro uma única vez | BLOQUEADO | Migração e RPC privada verificadas em PostgreSQL descartável. Aplicação TEST e prova Stripe autenticada pendentes |
+| Stripe confirma e backend grava venda/estoque/financeiro uma única vez | BLOQUEADO | Migração aplicada no TEST e RPC verificada em PostgreSQL descartável. Prova Stripe autenticada e persistência de venda no ensaio pendentes |
 | Recusa/cancelamento/reconexão conciliados no mesmo PaymentIntent | BLOQUEADO | Leitor simulado Stripe e pagamentos TEST controlados dependem de configuração e autorização |
 | Webhook assinado duplicado/fora de ordem e concorrência não duplicam efeitos | BLOQUEADO | Assinatura, deduplicação persistente e reserva concorrente exercitadas localmente. Endpoint Stripe TEST, segredo e prova remota pendentes |
 | PDV: seis estados PT/EN e aprovação somente após confirmação backend real | BLOQUEADO | Bloqueio e recuperação após recarga exercitados em Chromium com HTTP interceptado. Aprovação publicada depende do ensaio TEST |

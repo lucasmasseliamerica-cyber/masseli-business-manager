@@ -1,0 +1,156 @@
+{
+  "status": "INSTALLATION_TEST_CONFIRMED_CONFIGURATION_PENDING",
+  "project": "msinksoilkluooxenecy",
+  "source_commit": "46715919a1eee900b40671ba0229bcff96fe9877",
+  "manifest_sha256": "21349740458365b971b7f76e3a42e898a39347c9ea14c4e3168561948ccff756",
+  "preflight": {
+    "observed_utc": "2026-11-11T13:09:22.721412+00:00",
+    "dependency_matches": 5,
+    "terminal_catalog_absent": true,
+    "edge_names_available": true
+  },
+  "migration": {
+    "path": "supabase/migrations/20261111032959_terminal_online_TEST.sql",
+    "count": 1,
+    "sha256": "c8b88cd0cc8fe299ebf26eee5b7e9256f6327243be2997761399e8e805c2dd13",
+    "business_writes": 0,
+    "initial_bindings": 0,
+    "remote_version": "20261111130949",
+    "remote_name": "terminal_online_test",
+    "receipt": "success",
+    "postflight": {
+      "tables": [
+        {
+          "rls": true,
+          "name": "attempts",
+          "client_select": false
+        },
+        {
+          "rls": true,
+          "name": "bindings",
+          "client_select": false
+        },
+        {
+          "rls": true,
+          "name": "events",
+          "client_select": false
+        },
+        {
+          "rls": true,
+          "name": "sale_authorizations",
+          "client_select": false
+        }
+      ],
+      "observed_utc": "2026-11-11T13:10:03.024141+00:00",
+      "service_rpcs": [
+        {
+          "name": "fn_terminal_attempt",
+          "anon_execute": false,
+          "service_execute": true,
+          "authenticated_execute": false
+        },
+        {
+          "name": "fn_terminal_claim",
+          "anon_execute": false,
+          "service_execute": true,
+          "authenticated_execute": false
+        },
+        {
+          "name": "fn_terminal_context",
+          "anon_execute": false,
+          "service_execute": true,
+          "authenticated_execute": false
+        },
+        {
+          "name": "fn_terminal_event",
+          "anon_execute": false,
+          "service_execute": true,
+          "authenticated_execute": false
+        },
+        {
+          "name": "fn_terminal_finalize",
+          "anon_execute": false,
+          "service_execute": true,
+          "authenticated_execute": false
+        },
+        {
+          "name": "fn_terminal_observe",
+          "anon_execute": false,
+          "service_execute": true,
+          "authenticated_execute": false
+        },
+        {
+          "name": "fn_terminal_reserve",
+          "anon_execute": false,
+          "service_execute": true,
+          "authenticated_execute": false
+        }
+      ],
+      "sales_triggers": [
+        "terminal_guard_sale"
+      ],
+      "dependency_matches": [
+        {
+          "matches": true,
+          "signature": "public.current_business_id()"
+        },
+        {
+          "matches": true,
+          "signature": "public.fn_create_sale(uuid,uuid,uuid,text,text,uuid,uuid,numeric,numeric,text,text,jsonb)"
+        },
+        {
+          "matches": true,
+          "signature": "public.fn_next_order_no(uuid,text)"
+        },
+        {
+          "matches": true,
+          "signature": "public.fn_record_inventory_movement(uuid,uuid,uuid,text,numeric,numeric,uuid,uuid,uuid,text,boolean)"
+        },
+        {
+          "matches": true,
+          "signature": "public.user_can(text)"
+        }
+      ],
+      "private_schema_present": true
+    }
+  },
+  "edges": [
+    {
+      "id": "b825056e-8d9a-4646-8c40-8e06578601ee",
+      "slug": "terminal-payment",
+      "version": 1,
+      "active": true,
+      "verify_jwt": true,
+      "bundle_sha256": "c466f78a8081b968fa88b60c50398f52394a7c8c3cddf06848ad878e8071fe5a",
+      "files_matched": 6
+    },
+    {
+      "id": "81ad2dec-921e-47ed-9503-b3581b8b4fdf",
+      "slug": "terminal-webhook",
+      "version": 1,
+      "active": true,
+      "verify_jwt": false,
+      "bundle_sha256": "1e39e3984966245b4590ab04b82186003f3cacec19655d197150068d0f0dfd51",
+      "files_matched": 6
+    }
+  ],
+  "other_edge_versions_unchanged": true,
+  "terminal_row_counts": {
+    "events": 0,
+    "attempts": 0,
+    "bindings": 0,
+    "sale_authorizations": 0
+  },
+  "dispatches": {
+    "migrations": 1,
+    "edge_publications": 2,
+    "secret_changes": 0,
+    "stripe_requests": 0,
+    "business_writes": 0,
+    "production": 0
+  },
+  "operational_coverage": {
+    "completed": 16,
+    "total": 60
+  }
+}

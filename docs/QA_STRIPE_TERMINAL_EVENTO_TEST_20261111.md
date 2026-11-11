@@ -2,7 +2,9 @@
 
 O pacote prepara o PDV online para o Supabase TEST `msinksoilkluooxenecy`, com Stripe API `2026-10-28.endive`. O botão exige habilitação explícita no frontend, autorização do operador, unidade vinculada, backend habilitado e leitor conferido. O modo live depende de revisão específica do catálogo e da associação de conta, ambiente e leitor em produção. [Versão da API](https://docs.stripe.com/api/versioning) · [Fluxo server-driven](https://docs.stripe.com/terminal/payments/collect-card-payment?terminal-sdk-platform=server-driven)
 
-## Instalação que pode ser revisada agora
+## Instalação confirmada no TEST
+
+O manifesto `21349740458365b971b7f76e3a42e898a39347c9ea14c4e3168561948ccff756` vinculou os arquivos do commit `46715919a1eee900b40671ba0229bcff96fe9877`. O Supabase registrou a migração como `20261111130949` (`terminal_online_test`). O pós-flight confirmou cinco dependências, quatro tabelas privadas com RLS, sete RPCs restritas e o trigger `terminal_guard_sale`. As duas funções estão ACTIVE v1, com os 12 arquivos e os modos JWT conferidos. As quatro tabelas do Terminal estão vazias. [Evidência](./evidence/terminal-evento-test-install-20261111.json)
 
 | Artefato | Efeito |
 | --- | --- |
@@ -14,7 +16,7 @@ Cada Edge usa seu `index.ts`, `deno.json` e os quatro módulos `terminal-online-
 
 Pré-flight e pós-flight usam `qa/sql/terminal_online_catalog_readonly_TEST.sql`. Pré-flight exige cinco fingerprints exatos, schema Terminal ausente e nenhuma regra pré-existente em `sales`. Pós-flight exige as mesmas dependências, quatro tabelas com RLS sem leitura de clientes, sete RPCs com execução exclusiva de `service_role` e o trigger `terminal_guard_sale`. Conferir as duas funções ACTIVE, o hash de cada fonte e `verify_jwt` no painel/API de gestão.
 
-**Pedido específico para esta etapa.** Autorizar a instalação desta migração e a publicação das duas novas funções no TEST, com os hashes do manifesto e as leituras delimitadas acima. As etapas de binding, Secrets, webhook Stripe, fixture e pagamentos TEST dependem de pedidos específicos depois da confirmação da conta, do Preview e do leitor. Produção exige revisão própria.
+A autorização de instalação foi consumida em uma aplicação da migração e uma publicação por função. A próxima autorização poderá vincular o Preview, a conta Stripe TEST, a localização e o leitor confirmados. A configuração, a fixture e os pagamentos TEST têm escopos próprios.
 
 ## Configuração da próxima etapa
 
@@ -23,7 +25,7 @@ Pré-flight e pós-flight usam `qa/sql/terminal_online_catalog_readonly_TEST.sql
 | Vercel Preview | `VITE_SUPABASE_URL` do TEST, `VITE_SUPABASE_ANON_KEY` pública, `VITE_CARD_PAYMENT_MODE=stripe_terminal`, `VITE_STRIPE_TERMINAL_ENABLED=false` até o backend estar admitido |
 | Supabase TEST | `STRIPE_TERMINAL_TEST_SECRET_KEY`, `STRIPE_TERMINAL_TEST_ACCOUNT_ID`, `STRIPE_TERMINAL_TEST_WEBHOOK_SECRET`, `STRIPE_TERMINAL_TEST_ALLOWED_ORIGINS` com origem Preview exata, `STRIPE_TERMINAL_TEST_ALLOW_CHARGES` desabilitada durante instalação |
 | Binding privado | Empresa e unidade exclusivas QA, `acct_…`, `tml_…`, `tmr_…`, modelo S700 ou S700 simulada, rede prevista, teto em centavos e estado habilitado somente após a admissão |
-| Webhook Stripe TEST | `payment_intent.created`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`. Conferir assinatura e a conta do endpoint |
+| Webhook Stripe TEST | Destino `https://msinksoilkluooxenecy.supabase.co/functions/v1/terminal-webhook`, eventos `payment_intent.created`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`. Conferir assinatura e a conta do endpoint |
 
 Manter a S700 dedicada ao NEXALVO durante o ensaio. O aplicativo usa uma tentativa aberta por unidade e por leitor. O backend valida preço, desconto, imposto, ingredientes, saldo inicial e limite. A configuração de rede registra o meio previsto. O ensaio físico confirma o meio de fato usado.
 
