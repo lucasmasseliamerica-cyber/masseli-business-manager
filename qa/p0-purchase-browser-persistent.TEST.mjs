@@ -26,9 +26,8 @@ async function api(path,token,body){
  const res=await fetch(new URL(path,base),{method:body===undefined?'GET':'POST',
   headers:{apikey:KEY,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},
   ...(body===undefined?{}:{body:JSON.stringify(body)}),redirect:'error',signal:AbortSignal.timeout(20000)});
- const txt=await res.text();let data;try{data=JSON.parse(txt)}catch{data=txt}
- if(!res.ok) throw new Error('TEST API '+res.status+' '+path+' '+JSON.stringify(data).slice(0,350));
- return data;
+ if(!res.ok) throw new Error('TEST API HTTP '+res.status);
+ return res.json().catch(()=>{throw new Error('TEST API INVALID_JSON')});
 }
 async function findOrder(token){
  const rows=await api('/rest/v1/purchase_orders?select=id,business_id,status,po_number,notes&business_id=eq.'+BUSINESS+'&notes=eq.'+encodeURIComponent(TAG),token);
@@ -56,45 +55,32 @@ async function waitStock(token,expected){
  for(let i=0;i<15;i++){const v=await stock(token);if(Math.abs(v-expected)<0.0001)return;await sleep(700)}
  throw new Error('Inventory did not reach expected '+expected);
 }
-async function cleanup(token){
- let po=null;
- // A timed-out create may still commit. Allow bounded settlement before deciding no PO exists.
- for(let i=0;i<20;i++){po=await findOrder(token);if(po)break;await sleep(750)}
- if(!po)return {status:'no order persisted after bounded settlement'};
- if(po.status==='Reversed'||po.status==='Cancelled')return {status:po.status,id:po.id};
- const lines=await api('/rest/v1/rpc/fn_read_purchase_order_items_secure?select=id,received_qty&purchase_order_id=eq.'+po.id,token);
- const received=lines.some(l=>Number(l.received_qty)>0);
- const rpc=received?'fn_reverse_purchase_order':'fn_cancel_purchase_order';
- const result=await api('/rest/v1/rpc/'+rpc,token,{p_purchase_order_id:po.id});
- const final=await waitStatus(token,po.id,received?'Reversed':'Cancelled');
- return {status:final.status,id:po.id,resultStatus:result?.status};
-}
-// Verify the failure path too: restored stock alone does not prove financial compensation.
-async function verifyPaymentCompensation(token,poId){
+async function verifyPaymentReversal(token,poId){
  const payments=await api('/rest/v1/purchase_order_payments?select=id,amount,status&purchase_order_id=eq.'+poId,token);
- for(const payment of payments){
-  assert.equal(payment.status,'reversed','Compensation left a non-reversed supplier payment');
-  const entries=await api('/rest/v1/cash_flow?select=type,amount&purchase_order_payment_id=eq.'+payment.id,token);
-  assert.ok(entries.length>=2,'Compensated payment is missing ledger entries');
-  const net=entries.reduce((sum,e)=>{
-   assert.ok(['income','expense'].includes(e.type),'Unexpected payment ledger type');
-   const amount=Number(e.amount);assert.ok(Number.isFinite(amount),'Invalid payment ledger amount');
-   return sum+(e.type==='income'?1:-1)*amount;
-  },0);
-  assert.ok(Math.abs(net)<0.001,'Failure compensation left a nonzero financial impact');
+ assert.equal(payments.length,1,'Expected exactly one supplier payment');
+ const [payment]=payments;
+ assert.equal(payment.status,'reversed','Supplier payment must be reversed');
+ const entries=await api('/rest/v1/cash_flow?select=type,amount&purchase_order_payment_id=eq.'+payment.id,token);
+ assert.equal(entries.length,2,'Expected payment and reversal ledger entries');
+ const types=new Set(entries.map(entry=>entry.type));
+ assert.ok(types.has('expense')&&types.has('income'),'Expected one expense and one income entry');
+ const amount=Number(payment.amount);
+ assert.ok(Number.isFinite(amount)&&amount>0,'Invalid supplier payment amount');
+ for(const entry of entries){
+  assert.ok(Math.abs(Number(entry.amount)-amount)<0.001,'Ledger amount differs from supplier payment');
  }
 }
 test('P0.05 REAL TEST browser purchase -> receipt -> payment -> reversal',{timeout:180000},async()=>{
- let browser,token,before,poId,primaryError=null,cleanupError=null;
+ let browser,poId,primaryError;
  try{
   const login=await api('/auth/v1/token?grant_type=password',null,{email:process.env.QA_TWO_TENANT_A_EMAIL,password:process.env.QA_TWO_TENANT_A_PASSWORD});
-  token=login.access_token;assert.ok(token);
+  const token=login.access_token;assert.ok(token);
   const who=await api('/auth/v1/user',token);assert.equal(who.id,OWNER,'Wrong TEST owner');
   const suppliers=await api('/rest/v1/suppliers?select=id,business_id,active&id=eq.'+SUPPLIER,token);
   assert.equal(suppliers.length,1);assert.equal(suppliers[0].business_id,BUSINESS);assert.equal(suppliers[0].active,true);
   const items=await api('/rest/v1/inventory_items?select=id,business_id,active&id=eq.'+ITEM,token);
   assert.equal(items.length,1);assert.equal(items[0].business_id,BUSINESS);assert.equal(items[0].active,true);
-  before=await stock(token);assert.ok(before>=1,'Insufficient dedicated QA stock for reversal');
+  const before=await stock(token);assert.ok(before>=1,'Insufficient dedicated QA stock for reversal');
   const ready=await fetch('http://127.0.0.1:4179/',{signal:AbortSignal.timeout(3000)});
   assert.equal(ready.status,200,'Local TEST Vite preview is not running');
   browser=await chromium.launch({headless:true});
@@ -137,36 +123,18 @@ test('P0.05 REAL TEST browser purchase -> receipt -> payment -> reversal',{timeo
    if(i===14)throw new Error('Supplier payment not persisted');
    await sleep(700);
   }
-  // Exercise reversal through the actual UI. The finally block is an independent
-  // authenticated API compensation fallback if UI reversal fails or the page crashes.
+  // The planned reversal is reachable only after the preceding UI steps and readbacks pass.
   await page.getByText('Reverse Purchase',{exact:true}).first().click();
   await page.getByText('Reverse Purchase',{exact:true}).last().click();
   await waitStatus(token,poId,'Reversed');
   await waitStock(token,before);
-  const payments=await api('/rest/v1/purchase_order_payments?select=id,amount,status&purchase_order_id=eq.'+poId,token);
-  assert.equal(payments.length,1,'Expected exactly one supplier payment');
-  assert.equal(payments[0].status,'reversed','Supplier payment must be reversed');
-  const entries=await api('/rest/v1/cash_flow?select=type,amount&purchase_order_payment_id=eq.'+payments[0].id,token);
-  assert.equal(entries.length,2,'Payment and compensating cash-flow entries must both remain in audit history');
-  const net=entries.reduce((sum,e)=>sum+(e.type==='income'?1:-1)*Number(e.amount),0);
-  assert.ok(Math.abs(net)<0.001,'Purchase payment cash flow must net to zero after reversal');
-  // A successful browser test still invokes compensation in finally.
- }catch(e){primaryError=e}
- finally{
-  try{
-   if(token){
-    const result=await cleanup(token);
-    if(before!==undefined)await waitStock(token,before);
-    const final=await findOrder(token);
-    if(final){
-     assert.ok(['Reversed','Cancelled'].includes(final.status),'Active QA purchase left behind');
-     await verifyPaymentCompensation(token,final.id);
-    }
-    console.log('P0.05 COMPENSATION '+JSON.stringify({tag:TAG,poId,status:result.status,stockRestored:before!==undefined}));
-   }
-  }catch(e){cleanupError=e;console.error('P0.05 CRITICAL: compensation failed; investigate QA tag '+TAG+': '+e.message)}
-  if(browser)await browser.close();
+  await verifyPaymentReversal(token,poId);
+ }catch(error){
+  primaryError=error;
+  console.error('P0.05 STOPPED '+JSON.stringify({tag:TAG,poId:poId??null,next:'READ_ONLY_RECONCILIATION'}));
+  throw error;
+ }finally{
+  try{await browser?.close()}
+  catch(error){if(!primaryError)throw error}
  }
- if(cleanupError)throw new AggregateError([primaryError,cleanupError].filter(Boolean),'P0.05 cleanup failed; manual QA investigation required');
- if(primaryError)throw primaryError;
 });
