@@ -33,7 +33,8 @@ function command(name, args, input) {
   return execFileSync(pg(name), args, { encoding: 'utf8', input, env: pgEnv, timeout: 35000, windowsHide: true,
     stdio: ['pipe', 'pipe', 'pipe'] }).trim();
 }
-const psqlArgs = () => ['-X', '-w', '-Atq', '-v', 'ON_ERROR_STOP=1', '-h', '127.0.0.1', '-p', String(port), '-U', 'postgres', '-d', 'postgres'];
+const connection = () => ['-w', '-h', '127.0.0.1', '-p', String(port), '-U', 'postgres'];
+const psqlArgs = (database = 'postgres') => ['-X', '-Atq', '-v', 'ON_ERROR_STOP=1', ...connection(), '-d', database];
 const sql = query => command('psql', psqlArgs(), query);
 const q = value => value === null || value === undefined ? 'null' : `'${String(value).replaceAll("'", "''")}'`;
 const jsonArg = value => q(JSON.stringify(value)) + '::jsonb';
@@ -277,4 +278,66 @@ test('decline and confirmed cancellation leave no paid sale or stock movement', 
   assert.equal((await request(follow(data, 'cancel'))).body.state, 'canceled');
   assert.equal(writes().filter(call => call.path.endsWith('/cancel')).length, 1);
   assert.deepEqual(counts(), { sales: 0, items: 0, stock: 10, moves: 0, ledger: 0, audit: 0, guards: 0 });
+});
+
+test('a logical backup restores a settled sale and its protections into a fresh database', async () => {
+  const data = cart();
+  assert.equal((await request(data)).body.state, 'approved');
+  assert.deepEqual(counts(), { sales: 1, items: 1, stock: 9.5, moves: 1, ledger: 1, audit: 1, guards: 0 });
+  const relations = [
+    'public.sales', 'public.sale_items', 'public.inventory_stock', 'public.inventory_transactions',
+    'public.cash_flow', 'public.audit_logs', 'terminal_private.attempts', 'terminal_private.bindings',
+  ];
+  const restored = 'qa_restore';
+  const archive = join(scratch, 'terminal-restore.dump');
+  const before = relations.map(relation => sql('select to_jsonb(row) from ' + relation + ' row order by to_jsonb(row)::text;'));
+
+  command('pg_dump', [...connection(), '--format=custom', '--file', archive, 'postgres']);
+  sql('create database qa_restore template template0;');
+  command('pg_restore', [...connection(), '--exit-on-error', '--single-transaction', '--dbname', restored, archive]);
+  const restoredSql = query => command('psql', psqlArgs(restored), query);
+
+  assert.deepEqual(
+    relations.map(relation => restoredSql('select to_jsonb(row) from ' + relation + ' row order by to_jsonb(row)::text;')),
+    before,
+  );
+  assert.equal(restoredSql("select state from terminal_private.attempts;"), 'approved');
+  assert.equal(restoredSql("select total from public.sales;"), '9.65');
+  assert.equal(restoredSql("select has_function_privilege('authenticated', 'public.fn_terminal_finalize(uuid)', 'EXECUTE');"), 'f');
+  assert.equal(restoredSql("select has_function_privilege('service_role', 'public.fn_terminal_finalize(uuid)', 'EXECUTE');"), 't');
+  assert.throws(() => restoredSql("update public.sales set payment_method='Cash';"), /TERMINAL_REFUND_REQUIRED/);
+  assert.equal(sql('select total from public.sales;'), '9.65');
+});
+
+test('cash closing counts real drawer movements when their category matches the opening label', () => {
+  const baseline = JSON.parse(read('./fixtures/cash-register-close-test-baseline.json'));
+  assert.equal(createHash('md5').update(baseline.definition).digest('hex'), baseline.fingerprint);
+  const definition = Buffer.from(baseline.definition, 'utf8').toString('base64');
+  const register = randomUUID();
+  sql('alter table public.cash_registers add closed_by uuid, add closed_at timestamptz, add expected_cash numeric, add actual_cash numeric, add difference numeric, add difference_reason text, add notes text;');
+  sql("do $fixture$ begin execute convert_from(decode('" + definition + "','base64'),'UTF8'); end $fixture$;");
+  sql("insert into public.cash_registers(id,business_id,location_id,status,opening_cash) values (" +
+    [register, business, location, 'open'].map(q).join(',') + ",100);");
+  const ledger = [
+    ['opening_balance', 'Cash Register - Opening', 100, 'Cash'],
+    ['expense', 'Cash Register - Opening', 60, 'Cash'],
+    ['income', 'Cash added', 20, ' cAsH '],
+    ['expense', 'Electronic payment', 9, 'Card'],
+  ];
+  for (const [type, category, amount, method] of ledger) {
+    const row = [business, location, type, category, amount, method, register].map(q).join(',');
+    sql('insert into public.cash_flow(business_id,location_id,type,category,amount,payment_method,related_cash_register_id) values (' + row + ');');
+  }
+  const closing = "set role authenticated; set request.jwt.claim.sub = " + q(owner) +
+    "; select (public.fn_close_cash_register(" + q(register) + ",60,null,null)).expected_cash;";
+  assert.throws(() => sql(closing), /reason is required/);
+  assert.equal(sql('select status from public.cash_registers;'), 'open');
+
+  const fix = read('../migrations/20261111_cash_register_close_ledger_TEST.sql');
+  sql(fix);
+  assert.equal(Number(sql(closing)), 60);
+  assert.equal(sql('select status from public.cash_registers;'), 'closed');
+  assert.equal(Number(sql('select difference from public.cash_registers;')), 0);
+  assert.equal(sql("select count(*) from public.audit_logs where action='Cash Register Closed';"), '1');
+  assert.throws(() => sql(fix), /CASH_REGISTER_CLOSE_CONTRACT_DRIFT/);
 });

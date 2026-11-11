@@ -1,5 +1,7 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+O evento de 15/11/2026 foi cancelado. A data deixa de ser critério de entrega. A cobertura permanece **16/60**. A configuração inicial e o ensaio de restauração locais constam no [marco operacional](./QA_NEXALVO_ENTREGA_OPERACIONAL.md).
+
 ## Staff — complemento registrado e coleta expirada antes de Auth (11/11/2026 UTC)
 
 - [x] Complemento específico registrado e reafirmado com o mesmo saldo. OWNER A e MANAGER mantêm um login cada, EMPLOYEE mantém a autorização anterior. A tentativa manual MANAGER continua possivelmente consumida.

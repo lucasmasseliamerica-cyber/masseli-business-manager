@@ -1,0 +1,87 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "previous_verified_preview": {
+    "deployment_id": "dpl_Eyp9mRJCC532kFFfzC7w8kkEVZgR",
+    "commit": "1813cff21e53b90243298e0ada7508a86696fb8c",
+    "url": "https://masseli-business-manager-ewdbjnobw-lucas-masseli.vercel.app/"
+  },
+  "scope": "NEXALVO_OPERATIONAL_RELEASE",
+  "event": "CANCELLED",
+  "local_checks": {
+    "company_setup_browser": {
+      "result": "PASS",
+      "transport": "intercepted",
+      "owner_shortcuts": 5,
+      "employee_setup_hidden": true
+    },
+    "postgres_restore": {
+      "result": "PASS",
+      "postgres": "17.11",
+      "database": "fresh database in disposable loopback cluster",
+      "synthetic": true,
+      "relations_compared": 8,
+      "preserved_terminal_guard_and_rpc_acl": true
+    },
+    "cash_close_ledger": {
+      "result": "PASS",
+      "original_expected_cash_rejected_count_without_reason": true,
+      "corrected_expected_cash": 60,
+      "corrected_difference": 0,
+      "one_audit_row": true,
+      "changed_catalog_blocks_reapply": true
+    },
+    "vite_build": "PASS",
+    "app_copies_equal": true
+  },
+  "remote_readonly": {
+    "purchase_fixture": {
+      "stock": 15,
+      "stock_rows": 1,
+      "item_active": true,
+      "location_active": true,
+      "supplier_active": true,
+      "business_confirmed": true,
+      "prior_tagged_orders": 0
+    },
+    "cash_contracts": [
+      {
+        "signature": "fn_close_cash_register(uuid,numeric,text,text)",
+        "fingerprint": "abc12e6f24daac827c1fea828377e7a0",
+        "anon_execute": false,
+        "finite_guard": true,
+        "authenticated_execute": true
+      },
+      {
+        "signature": "fn_create_expense(uuid,uuid,date,text,text,numeric,text,boolean,text)",
+        "fingerprint": "2d2e871c427eaa6110aff62d0a0f35e5",
+        "anon_execute": false,
+        "finite_guard": true,
+        "authenticated_execute": true
+      },
+      {
+        "signature": "fn_open_cash_register(uuid,uuid,numeric,text)",
+        "fingerprint": "cd4e3943b0adc5856e89c15152f95e02",
+        "anon_execute": false,
+        "finite_guard": true,
+        "authenticated_execute": true
+      }
+    ],
+    "expense_idempotency_installed": false,
+    "vercel_plan": "Hobby"
+  },
+  "staff": {
+    "last_collection_pid": 16660,
+    "exited_in_collection": true,
+    "auth_dispatched": 0,
+    "edge_dispatched": 0,
+    "patch_dispatched": 0,
+    "edge_remaining": 17,
+    "patch_remaining": 4,
+    "next_window_confirmed": false
+  },
+  "no_remote_mutations_during_checks": true,
+  "operational_coverage": {
+    "completed": 16,
+    "total": 60
+  }
+}

@@ -13,7 +13,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false, c1Baseline = false, inventoryAuditFault, reportCalendar = false, terminalScenario = false } = {}) {
+async function isolated({ loseSaleResponse = false, mobile = false, language = 'en', cardMode, photoFault, purchaseScenario = false, initialStockUnknown = false, saleFault, csvName, photoProductActive = true, saleJourneyFixture = false, inventoryScenario = false, c1Baseline = false, inventoryAuditFault, reportCalendar = false, terminalScenario = false, profileRole = 'OWNER' } = {}) {
   const business = '11111111-1111-4111-8111-111111111111';
   const owner = '22222222-2222-4222-8222-222222222222';
   const location = '33333333-3333-4333-8333-333333333333';
@@ -23,7 +23,7 @@ async function isolated({ loseSaleResponse = false, mobile = false, language = '
   const state = { sales: [], saleItems: [], customers: [], stock: 100, saleAttempts: [], blocked: [], remoteRequests: 0,
     images: new Map(), photoUploads: [], photoDeletes: [], productWrites: [], purchaseWrites: [], purchaseOrders: [], purchaseLines: [], purchaseReceipts: [], initialStockWrites: [], cashMovements: [], inventoryMovements: [], reversalAttempts: [] };
   const tables = {
-    users: [{ id: owner, business_id: business, name: 'OWNER LOCAL SIMULADO', role: 'OWNER', active: true, permission_overrides: {} }],
+    users: [{ id: owner, business_id: business, name: 'OWNER LOCAL SIMULADO', role: profileRole, active: true, permission_overrides: {} }],
     businesses: [{ id: business, name: 'MASSELI QA HTTP SIMULADO', currency: 'BRL', timezone: 'America/Sao_Paulo', tax_enabled: false, tax_rate: 0, status: 'ACTIVE' }],
     locations: [{ id: location, business_id: business, name: 'Unidade simulada', active: true, created_at: now }],
     products: [{ id: product, business_id: business, name: 'Bowl QA', price: 10, active: true, category: 'Bowls', image_url: null, created_at: now }],
@@ -828,4 +828,32 @@ for (const quantity of [0.125,0.004]) test(`SIMULATED HTTP: purchase quantity ${
     assert.equal(await page.getByRole('button',{name:'Receive Items',exact:true}).count(),0);
     assert.deepEqual(errors,[]);assert.deepEqual(state.blocked,[]);
   } finally {await context.close();}
+});
+
+test('company setup guides the owner to existing forms and stays out of employee settings', async () => {
+  const owner = await isolated();
+  try {
+    await owner.page.goto(local);
+    const navigation = owner.page.locator('aside');
+    await navigation.getByRole('button', { name: 'Settings', exact: true }).click();
+    await owner.page.getByRole('heading', { name: 'Company setup' }).waitFor();
+    const setup = owner.page.locator('ol').filter({ has: owner.page.getByRole('button', { name: 'Business and tax', exact: true }) });
+    for (const [name, id] of [['Business and tax', 'business-info'], ['Locations', 'business-locations'], ['Team & Permissions', 'business-team']]) {
+      await setup.getByRole('button', { name, exact: true }).click();
+      assert.equal(await owner.page.locator(':focus').getAttribute('id'), id);
+    }
+    await setup.getByRole('button', { name: 'Inventory', exact: true }).click();
+    await owner.page.getByRole('button', { name: 'New Item', exact: true }).waitFor();
+    await navigation.getByRole('button', { name: 'Settings', exact: true }).click();
+    await setup.getByRole('button', { name: 'Products', exact: true }).click();
+    await owner.page.getByRole('button', { name: 'New Product', exact: true }).waitFor();
+  } finally { await owner.context.close(); }
+
+  const employee = await isolated({ profileRole: 'EMPLOYEE' });
+  try {
+    await employee.page.goto(local);
+    await employee.page.locator('aside').getByRole('button', { name: 'Settings', exact: true }).click();
+    await employee.page.getByText("You don't have permission to change business settings.", { exact: true }).waitFor();
+    assert.equal(await employee.page.getByRole('heading', { name: 'Company setup' }).count(), 0);
+  } finally { await employee.context.close(); }
 });

@@ -1,5 +1,7 @@
 # NEXALVO — entrega para o evento de 15/11/2026
 
+O evento foi cancelado. Esta página conserva o histórico de preparação. A data e os dados específicos do evento deixaram de ser critérios de entrega. [Entrega operacional vigente](./QA_NEXALVO_ENTREGA_OPERACIONAL.md)
+
 A S700 e o Stripe Terminal são requisitos da primeira versão operacional. A conta Stripe dos EUA foi confirmada pelo operador. A entrega do leitor e o ensaio físico seguem pendentes. A cobertura operacional registrada é **16/60**. [Matriz operacional](./NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md)
 
 | Prioridade | Frente | Estado | Evidência e condição de conclusão |

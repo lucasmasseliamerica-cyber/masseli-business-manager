@@ -1,0 +1,36 @@
+# NEXALVO — entrega operacional
+
+A operação do NEXALVO continua após o cancelamento do evento de 15/11/2026. O aceite usa a matriz operacional e a checklist cumulativa. Os registros do evento ficam como histórico. Cobertura comprovada **16/60**. [Matriz](./NEXALVO_OPERATIONAL_ACCEPTANCE_MATRIX.md) · [Checklist cumulativa](./NEXALVO_100_PERCENT_CHECKLIST.md) · [Histórico do evento](./QA_NEXALVO_EVENTO_20261115.md)
+
+| Frente | Estado | Critério restante e próxima ação |
+| --- | --- | --- |
+| Preview e autenticação | Preview TEST verificado | Login de operador TEST existente, empresa/unidade conferidas, navegação interna e sessão restaurada após reload. Reusar a URL protegida da Vercel. [Evidência anterior](./evidence/nexalvo-vercel-preview-20261111.json) |
+| Configuração inicial | Implementada e verificada localmente | Em Configurações → Configuração inicial, o OWNER percorre empresa/impostos, unidades, estoque inicial, produtos e operadores. Cada passo abre o formulário existente. Validar persistência na empresa de teste após salvar e recarregar, com valores da própria empresa. |
+| Permissões e staff | Janela pendente | A coleta anterior encerrou em COLLECTION antes de Auth. PID 16660 encerrado, sem despacho da integração. Saldo **17 Edge e 4 PATCH**, incluindo recuperação. Vincular nova janela aos recibos já preservados e validar a admissão no launcher, que bloqueia o lock da última coleta. Executar o pacote fixado com sessões reais no mesmo processo. [Pacote staff](./QA_STAFF_INTEGRATED_RENEWAL_20261111.md) |
+| Produtos, estoque e clientes | Evidência parcial válida | Confirmar CRUD com SKU, preço, composição/custo, produto visível no PDV, saldo por unidade e cliente arquivável. Usar fixtures TEST autorizadas e conservar históricos. C1 e fotos continuam válidos no seu escopo. C2 permanece consumido. |
+| Pedidos, vendas e relatórios | Evidência parcial válida | Reusar B para venda, reload, replay e cancelamento. Homologar transições, meios de pagamento pendentes, comprovante e totais por período e papel com leitura autenticada. |
+| Compras e fornecedores | Fixture P0.05 reconfirmada por leitura | Empresa fictícia, fornecedor, insumo e unidade ativos. Saldo 15,000 em uma posição e zero pedidos com a tag P0.05 do navegador. A jornada persistente precisa de autorização própria. O runner antigo usa compensação automática após falha e fica desativado até a adequação ao limite e à parada por incerteza. |
+| Caixa e financeiro | Correção candidata | A leitura do TEST identificou que o fechamento exclui movimentações pela categoria textual. A correção calcula por tipo de lançamento e normaliza Cash, sem tocar registros anteriores. Prova local passou. Revisar o pacote TEST abaixo. Normalização e idempotência na criação de despesa seguem escopos próprios. |
+| Stripe TEST | Instalação verificada | Vincular sandbox, empresa/unidade e leitor de teste. Configurar webhook e Secrets do TEST em etapa revisável. Ensaiar com leitor simulado, depois homologar o S700 físico quando disponível. A dependência física se aplica ao aceite de cartão presencial. [Pacote Stripe](./QA_STRIPE_TERMINAL_EVENTO_TEST_20261111.md) |
+| Backup e restauração | Ensaio lógico local PASS | PostgreSQL 17 restaurou oito relações de uma venda sintética em base nova, incluindo estoque, financeiro, auditoria e proteção da cobrança. Para o aceite integral, restaurar um backup TEST autorizado em destino isolado e conferir também Auth, Storage e funções. [Evidência](./evidence/nexalvo-operational-continuation-20261111.json) |
+| Produção | Em preparação | Conferir serviços e configurações próprios de produção, homologação por papel, recuperação, plano comercial da Vercel e escopo de cada alteração remota antes da promoção. O Preview continua identificado como TEST. |
+
+## Correção do fechamento de caixa para revisão
+
+O pacote é uma aplicação da migração [20261111_cash_register_close_ledger_TEST.sql](../migrations/20261111_cash_register_close_ledger_TEST.sql) somente no Supabase TEST `msinksoilkluooxenecy`. SHA-256 `a2b9685abf58a2984c822dee232a13d9b1bec462e521f3004eeb541ddc6f35bc`. A transação valida a definição vigente de `fn_close_cash_register(uuid,numeric,text,text)` pelo MD5 `abc12e6f24daac827c1fea828377e7a0` antes de alterar a função. O DDL mantém assinatura, proprietário e grants e não inclui alteração de dados. Timeouts do DDL são 5 s para lock e 30 s para execução.
+
+No cenário local, abertura de 100, despesa Cash de 60 com a categoria da abertura, entrada Cash de 20 com grafia mista e despesa eletrônica de 9 resultaram em saldo esperado de 60. A definição anterior rejeitou o fechamento sem justificativa. Com a correção, a diferença foi zero e houve uma linha de auditoria. A reaplicação foi bloqueada pela validação da definição anterior. O pós-flight da eventual instalação confere função, assinatura e grants por leitura. A homologação de abertura, despesa e fechamento persistentes exige escopo de fixture e janela próprios.
+
+## Publicação e recuperação
+
+A equipe `lucas-masseli` está no plano Hobby. A Vercel reserva Hobby para uso pessoal não comercial. A opção comercial equivalente é Pro, com base de **US$ 20/mês**, um assento de deploy e US$ 20/mês de crédito de uso. Assentos extras, consumo adicional e impostos podem aumentar o custo. A mudança é de plano da equipe, em Settings → Billing, com aprovação específica do custo. [Vercel Hobby](https://vercel.com/docs/plans/hobby) · [Vercel Pro](https://vercel.com/docs/plans/pro-plan#platform-fee)
+
+Para voltar a uma versão no TEST, abra a URL imutável da última versão verificada e confira o ambiente, a tela de login e a rota de entrada. O deployment `dpl_Eyp9mRJCC532kFFfzC7w8kkEVZgR` é a referência anterior. [Preview anterior](https://masseli-business-manager-ewdbjnobw-lucas-masseli.vercel.app/)
+
+Uma recuperação de produção usa apenas um deployment anterior já associado à produção e compatível com o esquema vigente. Confirme ambiente e commit antes de promover. Preserve tentativas financeiras pendentes e reconcilie com a operação original. O rollback do frontend não reverte dados nem configurações. [Rollback Vercel](https://vercel.com/docs/instant-rollback)
+
+No ensaio de recuperação, compare o backup e a restauração isolada por escopo, contagem e chaves, confira uma venda e seus lançamentos e confirme acesso com os papéis autorizados. Backup lógico do banco e cópia dos objetos de Storage são verificações distintas. Para incidentes, registre horário, ambiente, versão, módulo, código sanitizado e identificador da operação. Evite incluir tokens, payloads, dados de clientes ou cartão. [Backup e restauração Supabase](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore)
+
+## Roteiro de homologação geral
+
+Entre no Preview com um usuário TEST existente e confira empresa, unidade e permissões. Com a fixture autorizada, configure catálogo e estoque, abra o caixa, registre pedido e venda, confira comprovante e baixa, compare financeiro e relatório e feche o caixa. Examine a mesma operação após reload ou falha de conexão. No cartão, confirme o estado na Stripe antes de entregar o comprovante ou iniciar uma segunda cobrança. Registre o equipamento e o resultado físico da S700 separadamente.

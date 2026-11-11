@@ -4672,7 +4672,7 @@ function AppBody() {
             {tab === "customers" && <CustomersView {...ctx} reloadInventory={reloadCatalogInventory} />}
             {tab === "employees" && (navAllowed(currentUser, "employees") ? <EmployeesView {...ctx} /> : <RestrictedView dark={dark} />)}
             {tab === "reports" && (navAllowed(currentUser, "reports") ? <ReportsView {...ctx} /> : <RestrictedView dark={dark} />)}
-            {tab === "settings" && <SettingsView {...ctx} settingsUnavailable={settings === null} onLogout={logout} />}
+            {tab === "settings" && <SettingsView {...ctx} settingsUnavailable={settings === null} onLogout={logout} setTab={setTab} />}
             {tab === "platform" && (navAllowed(currentUser, "platform") ? <PlatformAdminView dark={dark} currentUser={currentUser} showToast={showToast} /> : <RestrictedView dark={dark} />)}
           </div>
         </main>
@@ -11411,7 +11411,37 @@ function SettingsListEditor({ dark, label, values, onChange }) {
   </Card>;
 }
 
-function SettingsView({ dark, settings, setSettings, settingsUnavailable, users, setUsers, inviteUser, employees, locations, setLocations, inventory, sales, currentUser, can, auditLog, setAuditLog, showToast, onLogout }) {
+function CompanySetup({ dark, setTab, can }) {
+  const { translateUI } = useLanguage();
+  const focusSection = id => document.getElementById(id)?.focus();
+  const steps = [
+    { label: "Business and tax", description: "Set currency, timezone and sales tax. Save your settings.", open: () => focusSection("business-info") },
+    { label: "Locations", description: "Add the units where you sell or keep stock.", open: () => focusSection("business-locations") },
+    { label: "Inventory", description: "Add ingredients and record opening stock at each location.", open: () => setTab("inventory"), permission: "adjustInventory" },
+    { label: "Products", description: "Add SKUs, prices and recipes for the items you sell.", open: () => setTab("products"), permission: "manageRecipesAndCosts" },
+    { label: "Team & Permissions", description: "Set up staff logins and check each operator's role.", open: () => focusSection("business-team"), permission: "manageUsers" },
+  ];
+
+  return (
+    <Card dark={dark} className="mb-4">
+      <h2 className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Company setup")}</h2>
+      <ol className="list-decimal list-inside space-y-3" style={{ color: dark ? C.white : C.black }}>
+        {steps.filter(step => !step.permission || can(step.permission)).map(step => (
+          <li key={step.label} className="text-sm">
+            <button type="button" onClick={step.open} className="font-semibold underline underline-offset-4">
+              {translateUI(step.label)}
+            </button>
+            <p className="ml-5 mt-1 text-xs" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>
+              {translateUI(step.description)}
+            </p>
+          </li>
+        ))}
+      </ol>
+    </Card>
+  );
+}
+
+function SettingsView({ dark, settings, setSettings, settingsUnavailable, users, setUsers, inviteUser, employees, locations, setLocations, inventory, sales, currentUser, can, auditLog, setAuditLog, showToast, onLogout, setTab }) {
   const { translateUI } = useLanguage();
   const [form, setForm] = useState(settings);
   const [userModal, setUserModal] = useState(null); // 'new' | user object | null
@@ -11447,6 +11477,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
   return (
     <div className="pb-6">
       <SectionHeader dark={dark} title={translateUI("Settings")} sub={translateUI("Business configuration")} />
+      {currentUser.role === "OWNER" && canEditSettings && <CompanySetup dark={dark} setTab={setTab} can={can} />}
 
       <Card dark={dark} className="mb-4">
         <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("My Account")}</div>
@@ -11458,7 +11489,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
 
       <fieldset disabled={!canEditSettings} style={{ opacity: canEditSettings ? 1 : 0.6 }}>
         <Card dark={dark} className="mb-4">
-          <div className="font-bold text-sm mb-3" style={{ color: dark ? C.white : C.black }}>{translateUI("Business Info")}</div>
+          <h2 id="business-info" tabIndex={-1} className="font-bold text-sm mb-3 scroll-mt-24" style={{ color: dark ? C.white : C.black }}>{translateUI("Business Info")}</h2>
           <Field dark={dark} label={translateUI("Business Name")}><Input dark={dark} value={form.businessName} onChange={(e) => setForm({ ...form, businessName: e.target.value })} /></Field>
           <Field dark={dark} label={translateUI("Currency")}>
             <Select dark={dark} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
@@ -11510,7 +11541,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
       )}
 
       {canEditSettings && (
-        <div className="mt-6">
+        <div id="business-locations" tabIndex={-1} className="mt-6 scroll-mt-24" aria-label={translateUI("Locations")}>
           <LocationsView dark={dark} locations={locations} setLocations={setLocations} inventory={inventory} sales={sales}
             employees={employees} currentUser={currentUser} can={can} auditLog={auditLog} setAuditLog={setAuditLog} showToast={showToast} />
         </div>
@@ -11518,7 +11549,7 @@ function SettingsView({ dark, settings, setSettings, settingsUnavailable, users,
 
       {canManageUsers && (
         <>
-          <div className="font-bold text-sm mt-6 mb-2" style={{ color: dark ? C.white : C.black }}>{translateUI("Team & Permissions")}</div>
+          <h2 id="business-team" tabIndex={-1} className="font-bold text-sm mt-6 mb-2 scroll-mt-24" style={{ color: dark ? C.white : C.black }}>{translateUI("Team & Permissions")}</h2>
           <Card dark={dark} className="mb-4">
             {users.map((u) => (
               <ListRow key={u.id} dark={dark} onClick={() => setUserModal(u)}
