@@ -1,5 +1,7 @@
 # Staff TEST — renovação da coleta sem encaminhamentos
 
+A janela posterior de 19h30–20h15 UTC usou o complemento aprovado. As três sessões e P1–P4 passaram. Uma leitura interrompeu o lote antes dos demais casos, deixando a restauração para revisão. [Resultado da homologação parcial](./QA_NEXALVO_ENTREGA_OPERACIONAL.md#homologação-staff-da-janela-19h3020h15-utc) · [Evidência](./evidence/staff-integrated-business-stopped-20261111.json)
+
 ## Janela de 11 de novembro, 09h50–10h35
 
 A confirmação cobriu 14h50–15h35 UTC, com recuperação reservada a 15h25–15h35. Na admissão, as leituras do TEST confirmaram a fixture, permissões padrão e ausência de locks concorrentes nas relações staff. A Edge v6 manteve ID, bundle, quatro fontes e `verify_jwt=true`. Os timestamps da fixture foram comparados como instantes com precisão de microssegundos. O launcher encerrou com saída 2 no guard dos arquivos vinculados. A parada ocorreu antes do lock da coleta e do formulário. O diário registra zero novos encaminhamentos Auth e zero envios de negócio. [Evidência](./evidence/staff-integrated-admission-blocked-20261111.json)

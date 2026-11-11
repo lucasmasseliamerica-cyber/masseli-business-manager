@@ -7,7 +7,8 @@
 - [x] Login OWNER no Preview TEST, empresa e unidade QA, navegação interna e sessão após reload verificados. [Evidência](./evidence/nexalvo-operational-continuation-20261111.json)
 - [x] Catálogo e PDV conferidos com fixtures existentes. Relatório de outubro conciliado em leitura com 251 cancelamentos e receita zero. [Evidência](./evidence/nexalvo-published-journeys-20261111.json)
 - [x] Complemento staff para os dois hashes do frontend preparado, com três testes direcionados e ensaio da admissão local PASS. [Pacote](./QA_STAFF_INTEGRATED_RENEWAL_20261111.md)
-- [ ] Staff. A janela de 09h50–10h35 em Nova York parou antes da coleta. Aceite do complemento e nova janela exclusiva pendentes. Saldo 17 Edge e 4 PATCH. [Evidência](./evidence/staff-integrated-admission-blocked-20261111.json)
+- [x] Staff TEST. Três sessões confirmadas no mesmo processo. P1–P4 PASS, com duas auditorias e consumo de 2/17 Edge e 2/4 PATCH. [Evidência](./evidence/staff-integrated-business-stopped-20261111.json)
+- [ ] Staff TEST. Leitura de isolamento interrompida por filtro inválido. MANAGER e EMPLOYEE seguem ativos na fixture. Revisar primeiro a restauração isolada de R1–R4, depois a correção do filtro e o escopo dos casos pendentes. [Procedimento](./QA_NEXALVO_ENTREGA_OPERACIONAL.md#homologação-staff-da-janela-19h3020h15-utc)
 - [x] Runner de compras P0.05 encerra em falha sem compensação automática. Quatro regressões locais PASS. [Implementação](../qa/p0-purchase-browser-persistent.TEST.mjs) · [Testes](../qa/purchase-compensation-regression.test.mjs)
 - [ ] Jornada P0.05 persistente. Preparar vínculo dos recibos por etapa, intenção durável, orçamento e autorização própria. Nenhuma execução remota nesta etapa.
 - [ ] Homologações persistentes, revisão das origens do Preview e configuração Stripe TEST. S700 física é dependência do aceite de cartão presencial. A integração de IA está adiada.

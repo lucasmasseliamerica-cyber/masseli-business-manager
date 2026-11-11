@@ -1,0 +1,86 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "qa_head_at_dispatch": "6291e5c5c17db02b1f9e1c6f4efdf5bf0bebfb91",
+  "preview_commit": "d554b2b67be1f87c72158be0a3c131086f6a2e66",
+  "frontend_rebind_manifest_sha256": "b6660c18e33bf27789c05c484313e2bc715d4a1f097cba06b638b96e31bb22bf",
+  "business_manifest_sha256": "de56f442bf76ed402cdc2a83c629bfd7a59205bf43cbd882a807a1c0230bc94f",
+  "accepted_addendum_sha256": "61ca25cce72fac16a224df507e0146667f3fcf1daa584d8d27fe659a16f491cb",
+  "window_utc": ["2026-11-11T19:30:00Z", "2026-11-11T20:05:00Z", "2026-11-11T20:15:00Z"],
+  "process": {
+    "pid": 17936,
+    "same_process_collection_auth_and_business": true,
+    "ended": true,
+    "ended_utc": "2026-11-11T19:37:40.747Z",
+    "credentials_in_operational_receipts": false
+  },
+  "read_only_admission": {
+    "observed_utc": "2026-11-11T19:30:04.949299Z",
+    "edge_version": 6,
+    "edge_source_files_exact": 4,
+    "verify_jwt": true,
+    "profiles_exact": 4,
+    "employees_exact": 4,
+    "role_defaults_exact": 40,
+    "competing_staff_relation_locks": 0
+  },
+  "auth": {
+    "admin_GET_used": 3,
+    "login_POST_used": 3,
+    "identity_GET_used": 3,
+    "actors_identity_pass": ["OWNER_A", "MANAGER", "EMPLOYEE"],
+    "all_HTTP": 200,
+    "sessions_covered_window": true
+  },
+  "cases": {
+    "P1": {"result": "PASS", "method": "PATCH", "http": 200, "audits": 0},
+    "P2": {"result": "PASS", "method": "PATCH", "http": 200, "audits": 0},
+    "P3": {"result": "PASS", "method": "POST", "http": 200, "audits": 1},
+    "P4": {"result": "PASS", "method": "POST", "http": 200, "audits": 1},
+    "not_run": ["N1", "N2", "U1", "G1", "N3", "N4", "N5", "N6", "N7", "U2", "U3", "G2", "N8", "R1", "R2", "R3", "R4"]
+  },
+  "stop": {
+    "stage": "reads-baseline",
+    "check": "OWNER_A-foreign-employee",
+    "http_status": 400,
+    "public_error_code_available": false,
+    "checks_matching_before_stop": 23,
+    "expected_stage_checks": 74,
+    "stage_checks_not_dispatched": 50,
+    "cause": "The controller used plan.business_B, absent from the pinned plan, which defines business_B_canary. The persisted request used business_id=eq.undefined.",
+    "proposed_one_line_correction_verified_offline": true,
+    "request_paths_changed_by_proposal": 3,
+    "proposal_applied_to_approved_controller": false,
+    "mutation_results_uncertain": 0,
+    "recovery_sent": false
+  },
+  "budget": {
+    "Edge": {"used": 2, "limit": 17},
+    "PATCH": {"used": 2, "limit": 4},
+    "authenticated_GET_including_identity": {"used": 28, "limit": 83},
+    "read_only_SQL_checkpoints": 10,
+    "original_run_closed": true
+  },
+  "final_reconciled_state": {
+    "observed_utc": "2026-11-11T19:38:01.195279Z",
+    "matches_verified_P4": true,
+    "manager_profile_active": true,
+    "manager_employee_active": true,
+    "manager_employee_link_present": true,
+    "employee_profile_active": true,
+    "employee_employee_active": true,
+    "manager_and_employee_permission_overrides_count": 0,
+    "owner_profiles_and_employee_canaries_unchanged": true,
+    "staff_audits_persisted": 2,
+    "restored": false
+  },
+  "preserved_receipts_sha256": {
+    "readmission_launch_lock": "12321d5f22de9383b168ae34227c018d5046bbcdc30d9a75816b8a4a3d0058a9",
+    "native_ready": "be4a788b4f890c9e9d9ae29b73eeb4d36b81b4dc15b819a01a54062648907640",
+    "native_ended": "01754b2f6407ec9e2da56a0f43ad84c41382b0c1f6198679909073abfcbfd0b0",
+    "stop": "4e515409832f4d1dfc5b74e0b0c4d4aadc3d7ce9467db2022b9cf5c48a1ba33a",
+    "baseline_read_result": "9ff39afa16a733a6e2a436d572fb49543f7f13b46f252d277b7470e026de6b60",
+    "final_read_only_checkpoint": "e4ee5c5fa6ce382179b73936dc72372a3bfd5756a00aae6dd6bc23bdad38998f"
+  },
+  "isolated_recovery_proposal_sha256": "7d85662d199fb402c487445643a8d6ca08ad2e4b525dcbc53b74003fad8c5cb7",
+  "operational_coverage": "16/60"
+}

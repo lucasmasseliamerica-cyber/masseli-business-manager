@@ -6,7 +6,7 @@ A operação do NEXALVO continua após o cancelamento do evento de 15/11/2026. O
 | --- | --- | --- |
 | Preview e autenticação | OWNER TEST verificado | Sessão real na empresa fictícia QA, unidade LOJA QA - TESTE, navegação para Pedidos, Configurações e Estoque e sessão restaurada após reload. [Evidência](./evidence/nexalvo-operational-continuation-20261111.json) |
 | Configuração inicial | Implementada e verificada localmente | Em Configurações → Configuração inicial, o OWNER percorre empresa/impostos, unidades, estoque inicial, produtos e operadores. Cada passo abre o formulário existente. Validar persistência na empresa de teste após salvar e recarregar, com valores da própria empresa. |
-| Permissões e staff | Complemento pronto para revisão | A janela de 11/11, 09h50–10h35 em Nova York, parou antes do formulário por divergência nos hashes de `App.jsx` e `src/App.jsx`. O novo vínculo dos dois arquivos passou em três regressões e no ensaio de admissão local. Aceite específico e nova janela pendentes. Saldo **17 Edge e 4 PATCH**, incluindo recuperação. [Pacote staff](./QA_STAFF_INTEGRATED_RENEWAL_20261111.md) |
+| Permissões e staff | Lote interrompido em leitura | Na janela de 19h30–20h15 UTC, três sessões confirmadas e P1–P4 PASS. HTTP 400 no filtro da empresa B encerrou o lote. Consumo **2/17 Edge e 2/4 PATCH**. MANAGER e EMPLOYEE seguem ativos no TEST, com duas auditorias confirmadas. Revisar a restauração isolada antes de retomar a homologação. [Evidência](./evidence/staff-integrated-business-stopped-20261111.json) |
 | Produtos, estoque e clientes | Evidência parcial válida | Confirmar CRUD com SKU, preço, composição/custo, produto visível no PDV, saldo por unidade e cliente arquivável. Usar fixtures TEST autorizadas e conservar históricos. C1 e fotos continuam válidos no seu escopo. C2 permanece consumido. |
 | Pedidos, vendas e relatórios | Evidência parcial válida | Reusar B para venda, reload, replay e cancelamento. Homologar transições, meios de pagamento pendentes, comprovante e totais por período e papel com leitura autenticada. |
 | Compras e fornecedores | Fixture P0.05 reconfirmada por leitura | Empresa fictícia, fornecedor, insumo e unidade ativos. Saldo 15,000 em uma posição e zero pedidos com a tag P0.05 do navegador. O runner agora encerra em falha sem compensação automática e mantém a reversão planejada no caminho de sucesso. Quatro regressões locais passaram. Antes de habilitar a jornada persistente, fixar o orçamento, vincular cada etapa ao seu recibo, registrar a tentativa de forma durável e obter autorização específica. |
@@ -38,7 +38,23 @@ A origem fixada para a homologação publicada é `https://masseli-business-mana
 
 A alteração proposta é de configuração do projeto TEST. Nenhum segredo foi modificado nesta verificação. O Stripe Dashboard pediu login. O TEST registrava zero vínculos, tentativas e eventos do Terminal. [Pacote Stripe](./QA_STRIPE_TERMINAL_EVENTO_TEST_20261111.md)
 
-## Admissão staff da janela 09h50–10h35
+## Homologação staff da janela 19h30–20h15 UTC
+
+O aceite do complemento foi registrado para os dois hashes exatos do Preview. As quatro fontes da Edge v6, os vínculos de código e o estado inicial conferiram. O PID 17936 coletou as entradas mascaradas, confirmou OWNER A, MANAGER e EMPLOYEE e abriu o executor com as três sessões em memória. O orçamento Auth foi consumido em três GETs administrativos, três logins e três GETs de identidade, todos HTTP 200.
+
+| Casos | Resultado |
+| --- | --- |
+| P1 e P2 | PASS. Dois PATCH HTTP 200, dois employees QA ativados e zero auditorias adicionais. |
+| P3 e P4 | PASS. Dois Edge HTTP 200, perfis MANAGER e EMPLOYEE ativados, vínculo temporário de MANAGER registrado e duas auditorias. |
+| Leituras autenticadas | OWNER A inicial PASS. As primeiras 23 verificações da etapa de permissões corresponderam aos recibos esperados. A 24ª, `OWNER_A-foreign-employee`, retornou HTTP 400 e as 50 restantes da etapa ficaram sem envio. |
+| N1–N8, U1–U3 e G1–G2 | Sem execução. |
+| R1–R4 | Sem execução. A parada encerrou o PID antes da recuperação. |
+
+O controlador montou `business_id=eq.undefined` ao usar `plan.business_B`. O pacote fixa `business_B_canary`. A admissão anterior conferiu os arquivos e o estado inicial, mas não validou as consultas geradas para a etapa de permissões. A substituição da referência foi verificada localmente contra as 74 consultas. Só os três filtros de employee da empresa B mudaram. O controlador aprovado conserva seus bytes. A leitura do TEST de 19h38:01 UTC confirmou o estado de P4, com ambos os perfis e employees ativos, zero overrides novos, perfis OWNER A/B e employees canários preservados e duas auditorias no recorte. Consumo autenticado **28/83 GET**, incluindo as três leituras de identidade. A tentativa está encerrada e os recibos ficam preservados. [Evidência](./evidence/staff-integrated-business-stopped-20261111.json)
+
+A restauração isolada proposta reutiliza os corpos e a ordem de R1–R4. São até dois Edge e dois PATCH, com OWNER A, nova janela exclusiva e estado reconciliado como pré-condição. A restauração repõe os campos semânticos da fixture e acrescenta duas auditorias às duas existentes. Cada `updated_at` avança. O manifesto para revisão tem SHA-256 `7d85662d199fb402c487445643a8d6ca08ad2e4b525dcbc53b74003fad8c5cb7`. A admissão exige sessão OWNER A comprovada. Caso não esteja disponível, a autorização de acesso precisa cobrir um GET administrativo, um login e um GET de identidade dessa conta. Staff permanece suspenso e a cobertura segue em **16/60**.
+
+## Histórico da admissão staff da janela 09h50–10h35
 
 O TEST confirmou quatro perfis, quatro employees, 40 permissões padrão, zero auditorias staff no recorte e zero locks concorrentes nas tabelas verificadas. MANAGER e EMPLOYEE seguem inativos no ERP e em employees. O executor encerrou com saída 2 e `INTEGRATED_ADMISSION_BLOCKED` ao comparar os hashes do frontend com o vínculo original. O diário comprova ausência de lock da nova coleta, formulário, READY e encaminhamentos Auth ou de negócio. **21 casos pendentes.** [Evidência](./evidence/staff-integrated-admission-blocked-20261111.json) · [Vínculo proposto](./QA_STAFF_INTEGRATED_RENEWAL_20261111.md#janela-de-11-de-novembro-09h5010h35)
 
