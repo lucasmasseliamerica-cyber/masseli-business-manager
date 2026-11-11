@@ -17,6 +17,8 @@ export const proposalHash = '7d85662d199fb402c487445643a8d6ca08ad2e4b525dcbc53b7
 const bundleDir = 'outputs/staff-integrated-frontend-rebind-20261111';
 const oldJournalDir = 'work/staff-user-service/business-run-20261107-0410';
 export const recoveryJournalDir = 'work/staff-user-service/staff-p4-recovery-20261111';
+export const renewedRecoveryJournalDir = `${recoveryJournalDir}-renewed`;
+const closedCollectionEvidence = 'docs/evidence/staff-p4-recovery-collection-expired-20261111.json';
 const appOrigin = 'http://127.0.0.1:5173';
 const ids = ['R1', 'R2', 'R3', 'R4'];
 const groups = ['profiles', 'employees', 'staff_audits'];
@@ -169,6 +171,21 @@ export function verifyWindow(approval) {
   return window;
 }
 
+export function verifyClosedRecoveryCollection(workspace, evidenceSha, start) {
+  const file = path.join(repo, closedCollectionEvidence);
+  assert.equal(hashFile(file), evidenceSha, 'RECOVERY_CLOSURE_EVIDENCE_DRIFT');
+  const evidence = readJson(file);
+  assert(evidence.project === PROJECT && evidence.proposal_sha256 === proposalHash &&
+    evidence.collection.stop_phase === 'COLLECTION' && evidence.collection.process_ended === true &&
+    evidence.collection.result_uncertain === false && start >= Date.parse(evidence.window_utc[1]), 'RECOVERY_CLOSURE_SCOPE');
+  const journal = openJournal(path.join(workspace, recoveryJournalDir));
+  const hashes = evidence.preserved_receipts_sha256;
+  assert.deepEqual(journal.names().sort(), ['admission.json', 'approval.json', 'ended.json', 'initial.json', 'lock.json', 'stop.json']);
+  for (const name of journal.names()) assert.equal(journal.hash(name), hashes[name.slice(0, -5)], 'RECOVERY_CLOSURE_DRIFT');
+  const stop = journal.read('stop.json');
+  assert(stop.step === 'COLLECTION' && stop.uncertain === false && stop.read_only_reconciliation_required === false);
+}
+
 async function waitFor(journal, name, end) {
   while (Date.now() < end && !journal.exists('stop.json')) {
     if (journal.exists(name)) return journal.read(name);
@@ -236,18 +253,20 @@ export async function sendRecoveryAction({ action, before, journal, window, gate
   return result;
 }
 
-async function main(workspace, approvalSha) {
+async function main(workspace, approvalSha, renewed) {
   assert(/^[a-f0-9]{64}$/.test(approvalSha));
   for (const variable of ['NODE_OPTIONS', 'NODE_TLS_REJECT_UNAUTHORIZED', 'NODE_EXTRA_CA_CERTS', 'NODE_USE_ENV_PROXY',
     'NODE_DEBUG', 'NODE_DEBUG_NATIVE', 'SSLKEYLOGFILE']) assert(!Object.hasOwn(process.env, variable));
-  const journal = openJournal(path.join(workspace, recoveryJournalDir));
+  const journal = openJournal(path.join(workspace, renewed ? renewedRecoveryJournalDir : recoveryJournalDir));
   assert.deepEqual(journal.names().sort(), ['admission.json', 'approval.json', 'initial.json']);
   assert.equal(journal.hash('approval.json'), approvalSha);
   const approval = journal.read('approval.json');
   const window = verifyWindow(approval);
   const advanced = window.start < Date.parse('2026-11-11T20:15:00Z');
-  const launcher = path.join(workspace, bundleDir, advanced ? 'manifesto-executor-recuperacao-1505.json' : 'manifesto-executor-recuperacao.json');
-  const confirmedWindow = path.join(workspace, bundleDir, 'janela-recuperacao-1505-confirmada.json');
+  const launcherName = renewed ? 'manifesto-executor-recuperacao-renovado.json' :
+    advanced ? 'manifesto-executor-recuperacao-1505.json' : 'manifesto-executor-recuperacao.json';
+  const launcher = path.join(workspace, bundleDir, launcherName);
+  const confirmedWindow = path.join(workspace, bundleDir, renewed ? 'janela-recuperacao-renovada-confirmada.json' : 'janela-recuperacao-1505-confirmada.json');
   const query = path.join(workspace, bundleDir, 'checkpoint-recuperacao-readonly.sql');
   const verify = () => {
     requestTimeout(window, 'RECOVERY');
@@ -258,12 +277,13 @@ async function main(workspace, approvalSha) {
     assert.equal(hashFile(launcher), approval.launcher_manifest_sha256);
     const manifest = readJson(launcher);
     assert.equal(manifest.proposal_sha256, proposalHash);
-    if (advanced) {
+    if (advanced || renewed) {
       assert.equal(hashFile(confirmedWindow), approval.window_record_sha256);
-      assert.equal(manifest.window_record_sha256, approval.window_record_sha256);
       const record = readJson(confirmedWindow);
       assert(record.start_utc === approval.start_utc && record.end_utc === approval.end_utc &&
-        record.previous_window_released === true && record.exclusive_confirmed === true && record.proposal_sha256 === proposalHash);
+        record.exclusive_confirmed === true && record.proposal_sha256 === proposalHash);
+      if (advanced) assert(record.previous_window_released === true && manifest.window_record_sha256 === approval.window_record_sha256);
+      if (renewed) verifyClosedRecoveryCollection(workspace, manifest.prior_collection_evidence_sha256, window.start);
     }
     assert.equal(hashFile(query), manifest.checkpoint_with_locks_sha256);
     assert.deepEqual(Object.keys(manifest.files).sort(), [...launcherFiles].sort());
@@ -329,6 +349,10 @@ async function main(workspace, approvalSha) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === currentFile) {
-  try { assert.equal(process.argv.length, 3); await main(process.cwd(), process.argv[2]); }
+  try {
+    const renewed = process.argv[3] === '--renew';
+    assert(process.argv.length === (renewed ? 4 : 3));
+    await main(process.cwd(), process.argv[2], renewed);
+  }
   catch { console.error('RECOVERY_R1_R4_ADMISSION_BLOCKED'); process.exitCode = 2; }
 }
