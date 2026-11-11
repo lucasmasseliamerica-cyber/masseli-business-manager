@@ -4,7 +4,8 @@
 
 - [x] Integração Stripe Terminal S700 implementada para TEST e verificada localmente com PostgreSQL descartável, HTTP interceptado e Chromium. [Pacote TEST](./QA_STRIPE_TERMINAL_EVENTO_TEST_20261111.md)
 - [x] Migração `20261111130949` e duas Edge v1 confirmadas no Supabase TEST. Pós-flight PASS, 12 fontes conferidas e zero linhas nas tabelas Terminal. [Evidência](./evidence/terminal-evento-test-install-20261111.json)
-- [ ] Publicar Preview ligado ao TEST após recuperar o acesso Vercel. Preparar a configuração Stripe TEST com origem HTTPS, conta, localização, leitor e teto confirmados.
+- [x] [Preview QA](https://masseli-business-manager-ewdbjnobw-lucas-masseli.vercel.app) publicado com Supabase TEST e cartão desativado. Acesso inicial, troca de idioma, rota direta e reload conferidos em desktop e tela móvel. [Evidência](./evidence/nexalvo-vercel-preview-20261111.json)
+- [ ] Entrar como operador TEST e fechar a configuração Stripe TEST com sandbox, empresa/unidade, localização, leitor e teto confirmados.
 - [ ] Confirmar a entrega da S700, executar o ensaio publicado e aprovar a passagem para o ambiente de operação. [Checklist do evento](./QA_NEXALVO_EVENTO_20261115.md)
 - [ ] Staff continua suspenso. A janela de 11/11 encerrou na coleta, antes de Auth, com zero dos 17 Edge e 4 PATCH usados. Cobertura operacional **16/60**.
 

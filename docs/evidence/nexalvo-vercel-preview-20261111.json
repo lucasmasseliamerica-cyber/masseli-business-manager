@@ -1,0 +1,63 @@
+{
+  "status": "VERCEL_TEST_PREVIEW_VERIFIED",
+  "project": "masseli-business-manager",
+  "project_id": "prj_us7sl42flzb6kDsF6trVa4x1zIYf",
+  "branch": "automation/nexalvo-qa-actions",
+  "deployed_commit": "1813cff21e53b90243298e0ada7508a86696fb8c",
+  "environment": "preview",
+  "deployment_id": "dpl_Eyp9mRJCC532kFFfzC7w8kkEVZgR",
+  "url": "https://masseli-business-manager-ewdbjnobw-lucas-masseli.vercel.app",
+  "protected_by_team_authentication": true,
+  "supabase_test_host": "msinksoilkluooxenecy.supabase.co",
+  "scoped_preview_env": [
+    "VITE_SUPABASE_URL",
+    "VITE_SUPABASE_ANON_KEY",
+    "VITE_CARD_PAYMENT_MODE",
+    "VITE_STRIPE_TERMINAL_ENABLED"
+  ],
+  "card_enabled": false,
+  "verified_in_browser": {
+    "root": true,
+    "language_switch": true,
+    "direct_auth_callback": true,
+    "callback_reload": true,
+    "back_to_root": true,
+    "mobile_390x844_callback_reload": true,
+    "assets": [
+      "index-BYDxrlEn.js",
+      "react-vendor-BqH9RPIO.js",
+      "App-U7_qIo3a.js",
+      "icons-DqaAL-MG.js",
+      "index-DWJcxIzp.css"
+    ]
+  },
+  "reviewed_bundle": {
+    "matching_asset_names": 5,
+    "local_asset_sha256_checks": 5,
+    "credential_pattern_matches": 0,
+    "privileged_jwt_matches": 0
+  },
+  "endpoint_checks": {
+    "auth_test_http": 200,
+    "auth_origin_allowed": true,
+    "terminal_webhook_http": 405,
+    "method_rejected": true
+  },
+  "authenticated_operator_session": "pending",
+  "production": {
+    "current_deployment_id": "dpl_BASNGoZmMwdBZMKrbizbhrE2Lv5E",
+    "production_env_metadata_unchanged": true
+  },
+  "stripe_test": {
+    "dashboard_login_required": true,
+    "bindings": 0,
+    "attempts": 0,
+    "events": 0,
+    "payments_executed": 0,
+    "physical_s700_homologation": "pending"
+  },
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  }
+}

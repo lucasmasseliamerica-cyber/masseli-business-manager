@@ -23,11 +23,15 @@ A autorização de instalação foi consumida em uma aplicação da migração e
 | Local | Campos previstos |
 | --- | --- |
 | Vercel Preview | `VITE_SUPABASE_URL` do TEST, `VITE_SUPABASE_ANON_KEY` pública, `VITE_CARD_PAYMENT_MODE=stripe_terminal`, `VITE_STRIPE_TERMINAL_ENABLED=false` até o backend estar admitido |
-| Supabase TEST | `STRIPE_TERMINAL_TEST_SECRET_KEY`, `STRIPE_TERMINAL_TEST_ACCOUNT_ID`, `STRIPE_TERMINAL_TEST_WEBHOOK_SECRET`, `STRIPE_TERMINAL_TEST_ALLOWED_ORIGINS` com origem Preview exata, `STRIPE_TERMINAL_TEST_ALLOW_CHARGES` desabilitada durante instalação |
+| Supabase TEST | `STRIPE_TERMINAL_TEST_ALLOWED_ORIGINS` com a origem exata `https://masseli-business-manager-ewdbjnobw-lucas-masseli.vercel.app` e `STRIPE_TERMINAL_TEST_ALLOW_CHARGES=false` na etapa de configuração. `STRIPE_TERMINAL_TEST_ACCOUNT_ID`, `STRIPE_TERMINAL_TEST_SECRET_KEY` e `STRIPE_TERMINAL_TEST_WEBHOOK_SECRET` pertencem ao sandbox escolhido e ficam no backend. |
 | Binding privado | Empresa e unidade exclusivas QA, `acct_…`, `tml_…`, `tmr_…`, modelo S700 ou S700 simulada, rede prevista, teto em centavos e estado habilitado somente após a admissão |
 | Webhook Stripe TEST | Destino `https://msinksoilkluooxenecy.supabase.co/functions/v1/terminal-webhook`, eventos `payment_intent.created`, `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`. Conferir assinatura e a conta do endpoint |
 
 Manter a S700 dedicada ao NEXALVO durante o ensaio. O aplicativo usa uma tentativa aberta por unidade e por leitor. O backend valida preço, desconto, imposto, ingredientes, saldo inicial e limite. A configuração de rede registra o meio previsto. O ensaio físico confirma o meio de fato usado.
+
+O Preview está verificado e o teste de entrada do webhook recebeu `405 METHOD_NOT_ALLOWED` para GET. A leitura confirmou zero vínculos, tentativas e eventos. O Stripe Dashboard solicitou login. A revisão da configuração depende da seleção do sandbox, da empresa/unidade QA e de um leitor identificado com localização nos EUA. [Evidência do Preview](./evidence/nexalvo-vercel-preview-20261111.json)
+
+Para o ensaio no sandbox, o leitor simulado pode executar o fluxo server-driven antes da chegada da S700 física. Após iniciar a ação de pagamento pelo NEXALVO, o operador de teste apresenta um cartão simulado no leitor pelo helper Stripe `present_payment_method`. Cada caso deve conferir a tentativa no Supabase, o PaymentIntent na Stripe e os efeitos previstos na venda, no estoque e no financeiro. O roteiro do evento inclui aprovação, recusa, cancelamento e recarga com a mesma tentativa. [Testes Stripe Terminal](https://docs.stripe.com/terminal/references/testing#simulated-card-presentment) · [Roteiro](./QA_NEXALVO_EVENTO_20261115.md)
 
 ## Recuperação e efeitos
 
