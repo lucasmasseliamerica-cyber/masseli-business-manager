@@ -17,11 +17,13 @@ A operação do NEXALVO continua após o cancelamento do evento de 15/11/2026. O
 
 ## Correção do fechamento de caixa para revisão
 
-O pacote é uma aplicação da migração [20261111_cash_register_close_ledger_TEST.sql](../migrations/20261111_cash_register_close_ledger_TEST.sql) somente no Supabase TEST `msinksoilkluooxenecy`. SHA-256 `a2b9685abf58a2984c822dee232a13d9b1bec462e521f3004eeb541ddc6f35bc`. A transação valida a definição vigente de `fn_close_cash_register(uuid,numeric,text,text)` pelo MD5 `abc12e6f24daac827c1fea828377e7a0` antes de alterar a função. O DDL mantém assinatura, proprietário e grants e não inclui alteração de dados. Timeouts do DDL são 5 s para lock e 30 s para execução.
+O operador manteve o pacote em revisão. O pacote prevê uma aplicação da migração [20261111_cash_register_close_ledger_TEST.sql](../migrations/20261111_cash_register_close_ledger_TEST.sql) somente no Supabase TEST `msinksoilkluooxenecy`. SHA-256 `a2b9685abf58a2984c822dee232a13d9b1bec462e521f3004eeb541ddc6f35bc`. A transação valida a definição vigente de `fn_close_cash_register(uuid,numeric,text,text)` pelo MD5 `abc12e6f24daac827c1fea828377e7a0` antes de alterar a função. O DDL mantém assinatura, proprietário e grants e não inclui alteração de dados. Timeouts do DDL são 5 s para lock e 30 s para execução.
 
 No cenário local, abertura de 100, despesa Cash de 60 com a categoria da abertura, entrada Cash de 20 com grafia mista e despesa eletrônica de 9 resultaram em saldo esperado de 60. A definição anterior rejeitou o fechamento sem justificativa. Com a correção, a diferença foi zero e houve uma linha de auditoria. A reaplicação foi bloqueada pela validação da definição anterior. O pós-flight da eventual instalação confere função, assinatura e grants por leitura. A homologação de abertura, despesa e fechamento persistentes exige escopo de fixture e janela próprios.
 
 ## Publicação e recuperação
+
+O [Preview TEST atual](https://masseli-business-manager-kb2n942fr-lucas-masseli.vercel.app/) está em READY no deployment dpl_8c6aAPEMkrhLm4pT5mhw56dfB6o6, commit d554b2b67be1f87c72158be0a3c131086f6a2e66. A tela inicial e o reload da rota de autenticação passaram no navegador. A URL anterior abriu novamente e funciona como referência de retorno da QA. Login com operador TEST segue pendente.
 
 A equipe `lucas-masseli` está no plano Hobby. A Vercel reserva Hobby para uso pessoal não comercial. A opção comercial equivalente é Pro, com base de **US$ 20/mês**, um assento de deploy e US$ 20/mês de crédito de uso. Assentos extras, consumo adicional e impostos podem aumentar o custo. A mudança é de plano da equipe, em Settings → Billing, com aprovação específica do custo. [Vercel Hobby](https://vercel.com/docs/plans/hobby) · [Vercel Pro](https://vercel.com/docs/plans/pro-plan#platform-fee)
 

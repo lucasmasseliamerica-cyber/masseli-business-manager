@@ -83,5 +83,17 @@
   "operational_coverage": {
     "completed": 16,
     "total": 60
-  }
+  },
+  "current_verified_preview": {
+    "commit": "d554b2b67be1f87c72158be0a3c131086f6a2e66",
+    "deployment_id": "dpl_8c6aAPEMkrhLm4pT5mhw56dfB6o6",
+    "url": "https://masseli-business-manager-kb2n942fr-lucas-masseli.vercel.app/",
+    "target": "preview",
+    "login_screen": true,
+    "callback_reload": true,
+    "prior_preview_reopened": true,
+    "operator_authenticated": false
+  },
+  "cash_migration_disposition": "USER_REQUESTED_REVIEW_ONLY",
+  "cash_migration_applied": 0
 }
