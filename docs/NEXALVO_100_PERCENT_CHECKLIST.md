@@ -5,7 +5,9 @@
 - [x] Ensaio local de restauração lógica concluído. O aceite integral aguarda backup TEST autorizado e restauração isolada dos demais serviços.
 - [ ] Revisar a migração TEST de fechamento de caixa, validada em PostgreSQL descartável. Homologação persistente depende de fixture e autorização.
 - [x] Login OWNER no Preview TEST, empresa e unidade QA, navegação interna e sessão após reload verificados. [Evidência](./evidence/nexalvo-operational-continuation-20261111.json)
-- [ ] Nova janela staff, homologações persistentes restantes e configuração Stripe TEST. S700 física é dependência do aceite de cartão presencial.
+- [x] Catálogo e PDV conferidos com fixtures existentes. Relatório de outubro conciliado em leitura com 251 cancelamentos e receita zero. [Evidência](./evidence/nexalvo-published-journeys-20261111.json)
+- [ ] Janela staff preparada, com 17 Edge e 4 PATCH preservados. Falta confirmação de horário e exclusividade.
+- [ ] Homologações persistentes, revisão das origens do Preview e configuração Stripe TEST. S700 física é dependência do aceite de cartão presencial. A integração de IA está adiada.
 - [ ] Verificar os gates de produção. A equipe Vercel está no Hobby. A migração ao plano comercial exige aprovação do custo.
 
 [Evidência do marco](./evidence/nexalvo-operational-continuation-20261111.json) · [Entrega operacional](./QA_NEXALVO_ENTREGA_OPERACIONAL.md)

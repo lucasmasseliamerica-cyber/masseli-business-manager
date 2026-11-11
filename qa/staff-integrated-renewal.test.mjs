@@ -127,3 +127,47 @@ test('the controller waits past the historical stop and accepts only the current
   journal.save(records.stopped, { phase: 'COLLECTION' });
   assert.equal(await waitForResult(journal, records, 'missing-result.json', Date.now() + 2000), false);
 });
+
+test('readmission binds both collection closures and keeps the new window single-use', () => {
+  const { journal, approval, entries } = fixture();
+  const oldWindow = journal.read('staff-integrated-window.json');
+  const oldWindowName = 'staff-integrated-renewal-window-confirmed.json';
+  const oldApprovalName = 'staff-integrated-renewal-approval-record.json';
+  const oldAdmissionName = 'staff-integrated-renewal-admission-record.json';
+  const lock = 'staff-integrated-renewal-launch-lock.json';
+  const form = 'integrated-renewal-form-opened.json';
+  const stopped = 'integrated-renewal-execution-stopped.json';
+  journal.save(oldWindowName, oldWindow);
+  const windowHash = journal.hash(oldWindowName);
+  journal.save(oldApprovalName, { ...approval, window_sha256: windowHash });
+  journal.save(oldAdmissionName, { window_sha256: windowHash });
+  journal.save(lock, { pid: 54321, window_sha256: windowHash });
+  journal.save(form, { pid: 54321 });
+  journal.save(stopped, { pid: 54321, phase: 'COLLECTION', no_retry: true, utc: '2026-11-11T04:09:35.011Z' });
+  const closureFile = 'staff-integrated-renewal-collection-expired-20261111.json';
+  const files = Object.fromEntries([lock, form, stopped, oldWindowName, oldApprovalName, oldAdmissionName]
+    .map(name => [name, journal.hash(name)]));
+  journal.save(closureFile, {
+    project: PROJECT, phase: 'COLLECTION', forwarding_attempts: 0, process_ended: true,
+    listener_closed: true, result_uncertain: false, files,
+  });
+  entries.set('staff-integrated-window.json', {
+    ...oldWindow, start_utc: '2026-11-11T18:00:00Z', cutoff_utc: '2026-11-11T18:35:00Z', end_utc: '2026-11-11T18:45:00Z',
+  });
+  const next = { ...approval, renewal_collection_closure_sha256: journal.hash(closureFile) };
+  const before = Object.fromEntries(journal.names().map(name => [name, journal.hash(name)]));
+  const records = verifyLaunchState(journal, next, () => false);
+  assert.equal(records.lock, 'staff-integrated-readmission-launch-lock.json');
+  assert.equal(records.stopped, 'integrated-readmission-execution-stopped.json');
+  assert.deepEqual(Object.fromEntries(journal.names().map(name => [name, journal.hash(name)])), before);
+  assert.throws(() => verifyLaunchState(journal, next, pid => pid === 54321), /COLLECTION_PROCESS_NOT_CLOSED/);
+  assert.throws(() => verifyLaunchState(journal, { ...next, employee_additional_login: 1 }, () => false), /COLLECTION_AUTH_SCOPE_CHANGED/);
+  entries.get(stopped).phase = 'AUTH';
+  assert.throws(() => verifyLaunchState(journal, next, () => false), /COLLECTION_HISTORY_DRIFT/);
+  entries.get(stopped).phase = 'COLLECTION';
+  journal.save('integrated-auth-MANAGER-login.intent.json', {});
+  assert.throws(() => verifyLaunchState(journal, next, () => false), /PRIOR_DISPATCH_OR_LOCK/);
+  entries.delete('integrated-auth-MANAGER-login.intent.json');
+  journal.save(records.lock, {});
+  assert.throws(() => verifyLaunchState(journal, next, () => false), /PRIOR_DISPATCH_OR_LOCK/);
+});

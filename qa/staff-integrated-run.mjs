@@ -22,6 +22,23 @@ const renewalRecords = Object.freeze({
   lock: 'staff-integrated-renewal-launch-lock.json',
   form: 'integrated-renewal-form-opened.json', stopped: 'integrated-renewal-execution-stopped.json',
 });
+const readmissionRecords = Object.freeze({
+  lock: 'staff-integrated-readmission-launch-lock.json',
+  form: 'integrated-readmission-form-opened.json', stopped: 'integrated-readmission-execution-stopped.json',
+});
+const originalCollection = Object.freeze({
+  records: originalRecords, closure: COLLECTION_CLOSURE, field: 'collection_closure_sha256',
+  window: 'staff-integrated-expired-window-20261110.json',
+  approval: 'staff-integrated-expired-approval-20261110.json',
+  admission: 'staff-integrated-expired-admission-20261110.json',
+});
+const renewedCollection = Object.freeze({
+  records: renewalRecords, closure: 'staff-integrated-renewal-collection-expired-20261111.json',
+  field: 'renewal_collection_closure_sha256',
+  window: 'staff-integrated-renewal-window-confirmed.json',
+  approval: 'staff-integrated-renewal-approval-record.json',
+  admission: 'staff-integrated-renewal-admission-record.json',
+});
 const PACKAGE_FILES = [
   'qa/staff-integrated-run.mjs', 'qa/staff-integrated-auth.mjs', 'qa/staff-integrated-input.mjs',
   'qa/staff-integrated-business.mjs', 'qa/staff-integrated-control.mjs',
@@ -61,6 +78,7 @@ export function checkAuthScope(approval, ledger) {
 }
 
 export function executionRecords(approval) {
+  if (approval.renewal_collection_closure_sha256 !== undefined) return readmissionRecords;
   return approval.collection_closure_sha256 === undefined ? originalRecords : renewalRecords;
 }
 
@@ -82,30 +100,26 @@ function processAlive(pid) {
   catch (error) { return error.code !== 'ESRCH'; }
 }
 
-export function verifyCollectionClosure(journal, approval, isAlive = processAlive) {
-  assert(/^[a-f0-9]{64}$/.test(approval.collection_closure_sha256 ?? ''), 'COLLECTION_CLOSURE_REQUIRED');
-  assert.equal(journal.hash(COLLECTION_CLOSURE), approval.collection_closure_sha256, 'COLLECTION_CLOSURE_DRIFT');
-  const closure = journal.read(COLLECTION_CLOSURE);
+function verifyRecordedCollection(journal, approval, history, isAlive) {
+  assert(/^[a-f0-9]{64}$/.test(approval[history.field] ?? ''), 'COLLECTION_CLOSURE_REQUIRED');
+  assert.equal(journal.hash(history.closure), approval[history.field], 'COLLECTION_CLOSURE_DRIFT');
+  const closure = journal.read(history.closure);
   assert(closure.project === PROJECT && closure.phase === 'COLLECTION' && closure.forwarding_attempts === 0 &&
     closure.process_ended === true && closure.listener_closed === true && closure.result_uncertain === false,
   'COLLECTION_CLOSURE_NOT_ELIGIBLE');
-  const files = [
-    LOCK, originalRecords.form, originalRecords.stopped,
-    'staff-integrated-expired-window-20261110.json',
-    'staff-integrated-expired-approval-20261110.json',
-    'staff-integrated-expired-admission-20261110.json',
-  ];
+  const { records } = history;
+  const files = [records.lock, records.form, records.stopped, history.window, history.approval, history.admission];
   assert.deepEqual(Object.keys(closure.files).sort(), [...files].sort(), 'COLLECTION_CLOSURE_FILES');
   for (const file of files) assert.equal(journal.hash(file), closure.files[file], 'COLLECTION_HISTORY_DRIFT');
-  const lock = journal.read(LOCK), form = journal.read(originalRecords.form), stopped = journal.read(originalRecords.stopped);
+  const lock = journal.read(records.lock), form = journal.read(records.form), stopped = journal.read(records.stopped);
   assert(Number.isInteger(lock.pid) && lock.pid > 0 && form.pid === lock.pid && stopped.pid === lock.pid &&
     stopped.phase === 'COLLECTION' && stopped.no_retry === true && !isAlive(lock.pid), 'COLLECTION_PROCESS_NOT_CLOSED');
-  const oldWindow = verifyWindow(journal.read('staff-integrated-expired-window-20261110.json'));
+  const oldWindow = verifyWindow(journal.read(history.window));
   const newWindow = verifyWindow(journal.read(WINDOW));
-  assert(lock.window_sha256 === closure.files['staff-integrated-expired-window-20261110.json'] &&
+  assert(lock.window_sha256 === closure.files[history.window] &&
     Date.parse(stopped.utc) >= oldWindow.cutoff - 25000 && newWindow.start > oldWindow.end,
   'COLLECTION_WINDOW_NOT_RENEWED');
-  const previous = journal.read('staff-integrated-expired-approval-20261110.json');
+  const previous = journal.read(history.approval);
   assert(previous.window_sha256 === lock.window_sha256, 'COLLECTION_OLD_APPROVAL_DRIFT');
   for (const key of [
     'project', 'explicitly_authorized', 'stop_on_error_no_retry', 'no_account_changes', 'no_refresh', 'owner_mode',
@@ -114,15 +128,27 @@ export function verifyCollectionClosure(journal, approval, isAlive = processAliv
   ]) assert.deepEqual(approval[key], previous[key], 'COLLECTION_AUTH_SCOPE_CHANGED');
 }
 
+export function verifyCollectionClosure(journal, approval, isAlive = processAlive) {
+  verifyRecordedCollection(journal, approval, originalCollection, isAlive);
+  if (approval.renewal_collection_closure_sha256 !== undefined) {
+    verifyRecordedCollection(journal, approval, renewedCollection, isAlive);
+    const previous = journal.read(renewedCollection.approval);
+    assert.equal(previous.collection_closure_sha256, approval.collection_closure_sha256, 'COLLECTION_CHAIN_DRIFT');
+    assert.equal(journal.read(renewedCollection.admission).window_sha256, previous.window_sha256, 'COLLECTION_ADMISSION_DRIFT');
+  }
+}
+
 export function verifyLaunchState(journal, approval, isAlive = processAlive) {
   const allowed = new Set();
-  if (approval.collection_closure_sha256 !== undefined) {
+  if (approval.collection_closure_sha256 !== undefined || approval.renewal_collection_closure_sha256 !== undefined) {
     verifyCollectionClosure(journal, approval, isAlive);
-    allowed.add(LOCK);
-    allowed.add(originalRecords.stopped);
+    for (const name of Object.values(originalRecords)) allowed.add(name);
+    if (approval.renewal_collection_closure_sha256 !== undefined) {
+      for (const name of Object.values(renewalRecords)) allowed.add(name);
+    }
   }
   assert(!journal.names().some(name => !allowed.has(name) &&
-    /^(?:staff-integrated-(?:launch|renewal-launch)-lock|integrated-auth-|integrated-execution-|integrated-renewal-|command-|reads-|[A-Z][0-9]+-(?:intent|reservation|result|ack)|native-(?:ready|ended)|renewed-native-lock|owner-a-readmission-01-business-handoff|STOP\.json|CLOSE\.json)/.test(name)),
+    /^(?:staff-integrated-(?:launch|renewal-launch|readmission-launch)-lock|integrated-auth-|integrated-form-|integrated-execution-|integrated-renewal-|integrated-readmission-|command-|reads-|[A-Z][0-9]+-(?:intent|reservation|result|ack)|native-(?:ready|ended)|renewed-native-lock|owner-a-readmission-01-business-handoff|STOP\.json|CLOSE\.json)/.test(name)),
   'PRIOR_DISPATCH_OR_LOCK');
   return executionRecords(approval);
 }
@@ -154,8 +180,11 @@ function loadOperationalInputs(workspace, approvalSha) {
   const approval = journal.read(APPROVAL);
   const records = executionRecords(approval);
   const originalIntegration = path.join(workspace, 'outputs/staff-integrated-review-20261110/manifesto.json');
-  const integratedPackage = approval.collection_closure_sha256 === undefined ? originalIntegration :
-    path.join(workspace, 'outputs/staff-integrated-renewal-20261111/manifesto.json');
+  const renewedIntegration = path.join(workspace, 'outputs/staff-integrated-renewal-20261111/manifesto.json');
+  const readmission = approval.renewal_collection_closure_sha256 !== undefined;
+  const previousIntegration = readmission ? renewedIntegration : originalIntegration;
+  const integratedPackage = readmission ? path.join(workspace, 'outputs/staff-integrated-readmission-20261111/manifesto.json') :
+    approval.collection_closure_sha256 === undefined ? originalIntegration : renewedIntegration;
   const window = verifyWindow(journal.read(WINDOW));
   const windowHash = journal.hash(WINDOW);
   const ledger = journal.read(ACCOUNTING);
@@ -167,7 +196,11 @@ function loadOperationalInputs(workspace, approvalSha) {
   assert.equal(reviewed.accounting_sha256, approval.accounting_sha256);
   if (approval.collection_closure_sha256 !== undefined) {
     assert.equal(reviewed.collection_closure_sha256, approval.collection_closure_sha256);
-    assert.equal(reviewed.previous_integration_manifest_sha256, digest(originalIntegration));
+    assert.equal(reviewed.previous_integration_manifest_sha256, digest(previousIntegration));
+    if (readmission) {
+      assert.equal(reviewed.renewal_collection_closure_sha256, approval.renewal_collection_closure_sha256);
+      assert.equal(journal.read(renewedCollection.approval).integration_manifest_sha256, reviewed.previous_integration_manifest_sha256);
+    }
   }
   assert.deepEqual(Object.keys(reviewed.files).sort(), [...PACKAGE_FILES].sort());
   const manifestPath = path.join(approvedPackage, 'manifesto.json');
@@ -197,7 +230,7 @@ function loadOperationalInputs(workspace, approvalSha) {
     assert.equal(journal.hash(ACCOUNTING), approval.accounting_sha256);
     assert.equal(digest(integratedPackage), approval.integration_manifest_sha256);
     assert.equal(journal.hash('staff-integrated-supplement-authorization-20261110.json'), approval.supplement_authorization_record_sha256);
-    if (approval.collection_closure_sha256 !== undefined) assert.equal(digest(originalIntegration), reviewed.previous_integration_manifest_sha256);
+    if (approval.collection_closure_sha256 !== undefined) assert.equal(digest(previousIntegration), reviewed.previous_integration_manifest_sha256);
     assert.equal(digest(manifestPath), MANIFEST);
     assert.equal(journal.hash('accepted-addendum-link.json'), ADDENDUM);
     assert.equal(digest(path.join(repo, 'qa/sql/staff_business_checkpoint_readonly_TEST.sql')), CHECKPOINT);

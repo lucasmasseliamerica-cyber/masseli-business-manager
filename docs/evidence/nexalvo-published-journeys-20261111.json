@@ -1,0 +1,185 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "branch": "automation/nexalvo-qa-actions",
+  "published_preview": {
+    "commit": "d554b2b67be1f87c72158be0a3c131086f6a2e66",
+    "deployment_id": "dpl_8c6aAPEMkrhLm4pT5mhw56dfB6o6",
+    "url": "https://masseli-business-manager-kb2n942fr-lucas-masseli.vercel.app/",
+    "owner_auth_reused_from": "6deca2b327d5edc559d59f91de02356bdcca46d0",
+    "final_view": "Dashboard"
+  },
+  "business_browser": {
+    "catalog_fixture_visible": true,
+    "active_sale_fixture_visible_in_pos": true,
+    "inactive_photo_fixture_excluded_from_pos": true,
+    "catalog_state": [
+      {
+        "name": "ZZ_QA_PHOTO_CATALOG_20261021_EXCLUSIVE",
+        "active": false,
+        "photo_reference_present": false
+      },
+      {
+        "name": "ZZ_QA_SALE_B_20261021_EXCLUSIVE",
+        "active": true,
+        "photo_reference_present": false
+      }
+    ],
+    "purchases_loaded": true,
+    "suppliers_loaded": true,
+    "new_customer_control_visible": true,
+    "cash_flow_loaded": true,
+    "report": {
+      "period": "2026-10",
+      "timezone": "America/New_York",
+      "currency": "USD",
+      "cancelled_ui": 251,
+      "cancelled_sql": 251,
+      "revenue_ui": 0,
+      "revenue_sql": 0,
+      "active_orders_ui": 0,
+      "active_orders_sql": 0
+    },
+    "persistent_journeys_started": 0
+  },
+  "origins": {
+    "current": "https://masseli-business-manager-kb2n942fr-lucas-masseli.vercel.app",
+    "previous": "https://masseli-business-manager-ewdbjnobw-lucas-masseli.vercel.app",
+    "local": "http://127.0.0.1:5173",
+    "options": [
+      {
+        "code": "ORIGIN_DENIED",
+        "function": "manage-staff-user",
+        "status": 403,
+        "exact_allow": false,
+        "origin": "Current"
+      },
+      {
+        "code": "ORIGIN_DENIED",
+        "function": "manage-staff-user",
+        "status": 403,
+        "exact_allow": false,
+        "origin": "Previous"
+      },
+      {
+        "code": null,
+        "function": "manage-staff-user",
+        "status": 204,
+        "exact_allow": true,
+        "origin": "Local"
+      },
+      {
+        "code": "ORIGIN_DENIED",
+        "function": "platform-admin",
+        "status": 403,
+        "exact_allow": false,
+        "origin": "Current"
+      },
+      {
+        "code": "ORIGIN_DENIED",
+        "function": "platform-admin",
+        "status": 403,
+        "exact_allow": false,
+        "origin": "Previous"
+      },
+      {
+        "code": null,
+        "function": "platform-admin",
+        "status": 204,
+        "exact_allow": true,
+        "origin": "Local"
+      },
+      {
+        "code": "ORIGIN_DENIED",
+        "function": "terminal-payment",
+        "status": 403,
+        "exact_allow": false,
+        "origin": "Current"
+      },
+      {
+        "code": "ORIGIN_DENIED",
+        "function": "terminal-payment",
+        "status": 403,
+        "exact_allow": false,
+        "origin": "Previous"
+      },
+      {
+        "code": "ORIGIN_DENIED",
+        "function": "terminal-payment",
+        "status": 403,
+        "exact_allow": false,
+        "origin": "Local"
+      }
+    ],
+    "edge_inventory": [
+      {
+        "slug": "manage-staff-user",
+        "version": 6,
+        "status": "ACTIVE",
+        "verify_jwt": true,
+        "id": "9dad0ab5-fd65-43da-be56-da79c3cec5ba",
+        "bundle": "50a95817b3363fdbcbfd97b25f20b2c84a98cfdb93d5ade00e2fb5316897ef0d"
+      },
+      {
+        "slug": "platform-admin",
+        "version": 4,
+        "status": "ACTIVE",
+        "verify_jwt": true,
+        "id": "73321a48-1021-459d-aca0-1ac35f83b010",
+        "bundle": "2e2d21e5d450127cb776ab913b242699df22f46ec1b6729c4556c50aa9a4f495"
+      },
+      {
+        "slug": "terminal-payment",
+        "version": 1,
+        "status": "ACTIVE",
+        "verify_jwt": true,
+        "id": "b825056e-8d9a-4646-8c40-8e06578601ee",
+        "bundle": "c466f78a8081b968fa88b60c50398f52394a7c8c3cddf06848ad878e8071fe5a"
+      },
+      {
+        "slug": "terminal-webhook",
+        "version": 1,
+        "status": "ACTIVE",
+        "verify_jwt": false,
+        "id": "81ad2dec-921e-47ed-9503-b3581b8b4fdf",
+        "bundle": "1e39e3984966245b4590ab04b82186003f3cacec19655d197150068d0f0dfd51"
+      }
+    ],
+    "configuration_changes": 0
+  },
+  "staff": {
+    "receipt_sha256": "458245742c01ae49179dcf1aba4b2e9c0ce8c04bf9a35c59a55c957c68d3306c",
+    "manifest_sha256": "70b177897e78b8ca6414164915122bdf4f89ea5f2bb5f779e9fcebfdb9317f67",
+    "prior_unchanged": true,
+    "historical_receipts_verified": true,
+    "actual_expired_window_rejected": true,
+    "hypothetical_window_validated_in_memory": true,
+    "new_lock_absent": true,
+    "live_launches": 0,
+    "auth_scope": {
+      "owner_a_admin_get": 1,
+      "owner_a_post": 1,
+      "manager_admin_get": 1,
+      "manager_post": 1,
+      "employee_admin_get": 1,
+      "employee_post_existing_slot": 1
+    },
+    "balance": {
+      "edge": 17,
+      "patch": 4,
+      "authenticated_get": 83
+    },
+    "focused_regressions_passed": 12,
+    "window_confirmed": false
+  },
+  "stripe_test": {
+    "events": 0,
+    "attempts": 0,
+    "bindings": 0,
+    "dashboard_session": false,
+    "payments_dispatched": 0
+  },
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  }
+}
