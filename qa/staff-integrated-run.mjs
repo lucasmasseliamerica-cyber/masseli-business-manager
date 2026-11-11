@@ -43,6 +43,12 @@ const PACKAGE_FILES = [
   'qa/staff-integrated-run.mjs', 'qa/staff-integrated-auth.mjs', 'qa/staff-integrated-input.mjs',
   'qa/staff-integrated-business.mjs', 'qa/staff-integrated-control.mjs',
 ];
+const FRONTEND_REBIND = {
+  files: ['App.jsx', 'src/App.jsx'],
+  original_sha256: 'aabe235069c70ea2130c7a39aee52ffb2de585d78ba93546df71402855a561b2',
+  candidate_sha256: '5d4a78e51bcb1ac87dc455fe56066e3b12836fcee4d3f5ec6e66c7f3078ce450',
+  source_commit: 'd554b2b67be1f87c72158be0a3c131086f6a2e66',
+};
 
 export function openJournal(dir) {
   const target = name => {
@@ -156,6 +162,25 @@ export function verifyLaunchState(journal, approval, isAlive = processAlive) {
 const digest = file => sha256(fs.readFileSync(file));
 const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
+export function verifyRuntimeFiles(files, approval, reviewed, hashFile) {
+  const rebindSha = approval.frontend_rebind_manifest_sha256;
+  if (rebindSha !== undefined) {
+    assert(/^[a-f0-9]{64}$/.test(rebindSha) && rebindSha === approval.integration_manifest_sha256 &&
+      approval.renewal_collection_closure_sha256 !== undefined, 'FRONTEND_REBIND_APPROVAL');
+    assert.deepEqual(reviewed.frontend_rebind, FRONTEND_REBIND, 'FRONTEND_REBIND_SCOPE');
+    for (const target of FRONTEND_REBIND.files) {
+      const entries = files.filter(file => file.path === target);
+      assert.equal(entries.length, 1, 'FRONTEND_ORIGINAL_FILE_SCOPE');
+      assert.equal(entries[0].sha256_bytes, FRONTEND_REBIND.original_sha256, 'FRONTEND_ORIGINAL_PIN_DRIFT');
+    }
+  } else assert.equal(reviewed.frontend_rebind, undefined, 'FRONTEND_REBIND_APPROVAL');
+  for (const file of files) {
+    const expected = rebindSha !== undefined && FRONTEND_REBIND.files.includes(file.path)
+      ? FRONTEND_REBIND.candidate_sha256 : file.sha256_bytes;
+    assert.equal(hashFile(file.path), expected, 'BUSINESS_RUNTIME_FILE_DRIFT');
+  }
+}
+
 function readPublicConfig() {
   const values = {};
   for (const line of fs.readFileSync(path.join(repo, '.env.local'), 'utf8').split(/\r?\n/)) {
@@ -181,10 +206,13 @@ function loadOperationalInputs(workspace, approvalSha) {
   const records = executionRecords(approval);
   const originalIntegration = path.join(workspace, 'outputs/staff-integrated-review-20261110/manifesto.json');
   const renewedIntegration = path.join(workspace, 'outputs/staff-integrated-renewal-20261111/manifesto.json');
+  const readmissionIntegration = path.join(workspace, 'outputs/staff-integrated-readmission-20261111/manifesto.json');
+  const frontendRebind = approval.frontend_rebind_manifest_sha256 !== undefined;
   const readmission = approval.renewal_collection_closure_sha256 !== undefined;
   const previousIntegration = readmission ? renewedIntegration : originalIntegration;
-  const integratedPackage = readmission ? path.join(workspace, 'outputs/staff-integrated-readmission-20261111/manifesto.json') :
-    approval.collection_closure_sha256 === undefined ? originalIntegration : renewedIntegration;
+  let integratedPackage = approval.collection_closure_sha256 === undefined ? originalIntegration : renewedIntegration;
+  if (readmission) integratedPackage = readmissionIntegration;
+  if (frontendRebind) integratedPackage = path.join(workspace, 'outputs/staff-integrated-frontend-rebind-20261111/manifesto.json');
   const window = verifyWindow(journal.read(WINDOW));
   const windowHash = journal.hash(WINDOW);
   const ledger = journal.read(ACCOUNTING);
@@ -231,6 +259,7 @@ function loadOperationalInputs(workspace, approvalSha) {
     assert.equal(digest(integratedPackage), approval.integration_manifest_sha256);
     assert.equal(journal.hash('staff-integrated-supplement-authorization-20261110.json'), approval.supplement_authorization_record_sha256);
     if (approval.collection_closure_sha256 !== undefined) assert.equal(digest(previousIntegration), reviewed.previous_integration_manifest_sha256);
+    if (frontendRebind) assert.equal(digest(readmissionIntegration), reviewed.previous_readmission_manifest_sha256);
     assert.equal(digest(manifestPath), MANIFEST);
     assert.equal(journal.hash('accepted-addendum-link.json'), ADDENDUM);
     assert.equal(digest(path.join(repo, 'qa/sql/staff_business_checkpoint_readonly_TEST.sql')), CHECKPOINT);
@@ -238,7 +267,7 @@ function loadOperationalInputs(workspace, approvalSha) {
     for (const record of ledger.historical_bindings) assert.equal(journal.hash(record.name), record.sha256);
     if (approval.collection_closure_sha256 !== undefined) verifyCollectionClosure(journal, approval);
     for (const file of manifest.artifacts) assert.equal(digest(path.join(approvedPackage, file.path)), file.sha256_bytes);
-    for (const file of code.files) assert.equal(digest(path.join(repo, file.path)), file.sha256_bytes);
+    verifyRuntimeFiles(code.files, approval, reviewed, file => digest(path.join(repo, file)));
   };
   verify();
   verifyLaunchState(journal, approval);

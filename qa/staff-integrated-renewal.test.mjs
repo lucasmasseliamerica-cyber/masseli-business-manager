@@ -5,7 +5,60 @@ import os from 'node:os';
 import path from 'node:path';
 import { ADDENDUM, CHECKPOINT, MANIFEST, sha256 } from './staff-integrated-business.mjs';
 import { PROJECT } from './staff-integrated-auth.mjs';
-import { assertReadyProcess, executionRecords, openJournal, runIntegratedStaff, verifyLaunchState, waitForResult } from './staff-integrated-run.mjs';
+import { assertReadyProcess, executionRecords, openJournal, runIntegratedStaff, verifyLaunchState, verifyRuntimeFiles, waitForResult } from './staff-integrated-run.mjs';
+
+function frontendRuntimeFixture() {
+  const frontend = {
+    files: ['App.jsx', 'src/App.jsx'],
+    original_sha256: 'aabe235069c70ea2130c7a39aee52ffb2de585d78ba93546df71402855a561b2',
+    candidate_sha256: '5d4a78e51bcb1ac87dc455fe56066e3b12836fcee4d3f5ec6e66c7f3078ce450',
+    source_commit: 'd554b2b67be1f87c72158be0a3c131086f6a2e66',
+  };
+  const files = [
+    ...frontend.files.map(file => ({ path: file, sha256_bytes: frontend.original_sha256 })),
+    { path: 'supabase/functions/_shared/manage-staff-user-core.mjs', sha256_bytes: 'c'.repeat(64) },
+  ];
+  const reviewed = { frontend_rebind: frontend };
+  const manifestHash = sha256(JSON.stringify(reviewed));
+  const approval = {
+    integration_manifest_sha256: manifestHash, frontend_rebind_manifest_sha256: manifestHash,
+    renewal_collection_closure_sha256: 'd'.repeat(64),
+  };
+  const current = new Map(files.map(file => [file.path, file.sha256_bytes]));
+  const check = (permit = approval, binding = reviewed) => verifyRuntimeFiles(files, permit, binding, name => current.get(name));
+  return { frontend, files, reviewed, approval, current, check };
+}
+
+test('frontend runtime keeps the original pins unless the proposed manifest is explicitly approved', () => {
+  const { frontend, current, check } = frontendRuntimeFixture();
+  check({}, {});
+  current.set('App.jsx', frontend.candidate_sha256);
+  assert.throws(() => check({}, {}), /BUSINESS_RUNTIME_FILE_DRIFT/);
+  assert.throws(() => check({}), /FRONTEND_REBIND_APPROVAL/);
+});
+
+test('frontend runtime accepts only both exact reviewed bytes with the matching readmission approval', () => {
+  const { frontend, approval, current, check } = frontendRuntimeFixture();
+  current.set('App.jsx', frontend.candidate_sha256);
+  assert.throws(() => check(), /BUSINESS_RUNTIME_FILE_DRIFT/);
+  current.set('src/App.jsx', frontend.candidate_sha256);
+  check();
+  assert.throws(() => check({ ...approval, frontend_rebind_manifest_sha256: 'e'.repeat(64) }), /FRONTEND_REBIND_APPROVAL/);
+  assert.throws(() => check({ ...approval, renewal_collection_closure_sha256: undefined }), /FRONTEND_REBIND_APPROVAL/);
+  current.set('src/App.jsx', 'f'.repeat(64));
+  assert.throws(() => check(), /BUSINESS_RUNTIME_FILE_DRIFT/);
+});
+
+test('frontend runtime rejects scope changes, missing original pins and drift in staff code', () => {
+  const { frontend, files, approval, current, check } = frontendRuntimeFixture();
+  for (const file of frontend.files) current.set(file, frontend.candidate_sha256);
+  assert.throws(() => check(approval, { frontend_rebind: { ...frontend, files: ['App.jsx', files[2].path] } }), /FRONTEND_REBIND_SCOPE/);
+  current.set(files[2].path, 'e'.repeat(64));
+  assert.throws(() => check(), /BUSINESS_RUNTIME_FILE_DRIFT/);
+  current.set(files[2].path, files[2].sha256_bytes);
+  files[1].sha256_bytes = frontend.candidate_sha256;
+  assert.throws(() => check(), /FRONTEND_ORIGINAL_PIN_DRIFT/);
+});
 
 const closureName = 'staff-integrated-collection-expired-20261110.json';
 
