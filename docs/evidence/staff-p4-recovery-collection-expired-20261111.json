@@ -1,0 +1,44 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "proposal_sha256": "7d85662d199fb402c487445643a8d6ca08ad2e4b525dcbc53b74003fad8c5cb7",
+  "launcher_qa_head": "cd74e6f47412acf1bc33547c7630d7099378537f",
+  "launcher_manifest_sha256": "b5caf4407bef9503d66012322a44a198c551625b2f91974007e1bbb31591b13b",
+  "window_record_sha256": "33d5e858373f9cdddd8c4dbad269b3869080f373d3a21ce041f838c3ab754d18",
+  "window_utc": ["2026-11-11T20:05:00Z", "2026-11-11T20:20:00Z"],
+  "superseded_window_utc": ["2026-11-11T20:20:00Z", "2026-11-11T20:35:00Z"],
+  "admission": {
+    "observed_utc": "2026-11-11T20:05:06.632487Z",
+    "original_and_P4_checkpoints_exact": true,
+    "edge_version": 6,
+    "edge_sources_exact": 4,
+    "verify_jwt": true,
+    "competing_staff_relation_locks": 0,
+    "manager_and_employee_profiles_active": true,
+    "both_target_employees_active": true,
+    "audits_in_scope": 2
+  },
+  "collection": {
+    "masked_form_rendered": true,
+    "pid": 7528,
+    "stop_phase": "COLLECTION",
+    "stopped_utc": "2026-11-11T20:19:35.063Z",
+    "ended_utc": "2026-11-11T20:19:35.070Z",
+    "exit_code": 2,
+    "process_ended": true,
+    "identity_receipt_created": false,
+    "ready_created": false,
+    "result_uncertain": false
+  },
+  "cases_not_dispatched": ["R1", "R2", "R3", "R4"],
+  "new_consumption": { "identity_GET": 0, "login_POST": 0, "Edge": 0, "PATCH": 0, "audits": 0 },
+  "cumulative_consumption": { "Edge": 2, "PATCH": 2 },
+  "preserved_receipts_sha256": {
+    "approval": "9078a462a0967a11823b7d1e26fa6d575fb031eadf4a789e28c311fd3a1cc602",
+    "lock": "ec436900c9a87546bd02548e01834525bbce835525ae1312b7ee268bb43deae0",
+    "admission": "8b53f36ca6477d8515a21aa19432bba89dbca5f83cb5c09970bf3546ca8df72b",
+    "initial": "aed997452aa172d539906f7724e228fb1a84b8347add4d627043004ee12c753c",
+    "stop": "497e06efa594c687a15628960c896f31f9bccb2efaa6b87e19010626f7c9c3c3",
+    "ended": "cc11c24ed227b98445a1355f6014486fa4cf65d28fe938985a9f7fed9fa6310d"
+  },
+  "operational_coverage": "16/60"
+}
