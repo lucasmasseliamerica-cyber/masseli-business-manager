@@ -1,21 +1,20 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { MANIFEST, requestTimeout, sha256, verifyWindow } from './staff-integrated-business.mjs';
-import { openJournal } from './staff-integrated-run.mjs';
+import { assertReadyProcess, executionRecords, openJournal, waitForResult } from './staff-integrated-run.mjs';
 
 const root = process.cwd();
 const journalPath = path.join(root, 'work/staff-user-service/business-run-20261107-0410');
 const pkg = path.join(root, 'outputs/staff-business-homologation-review-20261104');
 const journal = openJournal(journalPath);
+const records = executionRecords(journal.read('staff-integrated-approval.json'));
 const load = name => fs.readFileSync(path.join(pkg, name));
 const same = (row, expected) => Object.entries(expected).every(([key, value]) => JSON.stringify(row?.[key]) === JSON.stringify(value));
 
 function writeCommand(id, value) {
   const file = 'command-' + id + '.json';
-  const ready = journal.read('native-ready.json');
-  assert(ready.same_process_auth_and_executor === true && ready.pid === journal.read('staff-integrated-launch-lock.json').pid, 'NATIVE_READY_REQUIRED');
+  assertReadyProcess(journal, records);
   assert(!journal.exists('STOP.json') && !journal.exists('CLOSE.json') && !journal.exists('native-ended.json'), 'BATCH_CLOSED');
   assert(!journal.exists(file) && !journal.names().some(name =>
     /^command-[A-Za-z0-9_-]+\.json$/.test(name) && !journal.exists(name.slice(8, -5) + '-result.json')), 'PENDING_OR_REPEATED_COMMAND');
@@ -172,8 +171,7 @@ async function main() {
   if (mode === 'wait') {
     const name = id + '-result.json';
     const until = Date.now() + 24000;
-    while (!journal.exists(name) && !journal.exists('native-ended.json') && !journal.exists('integrated-execution-stopped.json') && Date.now() < until) await delay(200);
-    if (!journal.exists(name)) return { status: 'NO_RESULT', id };
+    if (!await waitForResult(journal, records, name, until)) return { status: 'NO_RESULT', id };
     const result = journal.read(name);
     return result.mode === 'reads' ? { status: 'READ_RESULT_READY', id, count: result.results.length } : result;
   }

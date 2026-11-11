@@ -1,5 +1,13 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Staff — complemento registrado e coleta expirada antes de Auth (11/11/2026 UTC)
+
+- [x] Complemento específico registrado e reafirmado com o mesmo saldo. OWNER A e MANAGER mantêm um login cada, EMPLOYEE mantém a autorização anterior. A tentativa manual MANAGER continua possivelmente consumida.
+- [x] Execução de 10/11, 20:36–21:21 UTC, encerrou na coleta às 21:10:35 UTC. PID 19208 encerrado, porta local fechada e zero artefatos de encaminhamento Auth ou negócio. Registros originais preservados por hashes. [Evidência](./evidence/staff-integrated-collection-expired-20261111.json).
+- [x] Renovação local preparada para a coleta sem envios. Cinco regressões novas PASS, sem repetir as seis verificações anteriores ou suítes de negócio. Qualquer tentativa Auth/negócio, processo ativo, histórico divergente ou resultado incerto bloqueia a readmissão.
+- [ ] Confirmar disponibilidade e nova janela exclusiva, atualizar somente a admissão atual e executar coleta/homologação no mesmo PID. Última leitura TEST às 20:36:23 UTC de 10/11 mostrou perfis e employees MANAGER/EMPLOYEE inativos. O estado atual requer nova admissão.
+**Staff suspenso. 21 casos ainda sem execução, 0/17 Edge, 0/4 PATCH e cobertura 16/60.** [Procedimento](./QA_STAFF_INTEGRATED_RENEWAL_20261111.md).
+
 ## Staff — coleta e executor integrados localmente (10/11/2026)
 
 - [x] Mesmo PID para coleta mascarada, Auth e execução do plano aprovado. Sessões em memória, controlador sem credenciais e leituras Auth contadas uma vez. Seis verificações sintéticas passaram.

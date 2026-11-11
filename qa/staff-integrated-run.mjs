@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ACTORS, ORIGIN, PROJECT, acquireStaffSessions, publicKeyForTest } from './staff-integrated-auth.mjs';
 import { ADDENDUM, CHECKPOINT, MANIFEST, createBusinessExecutor, requestTimeout, sha256, verifyWindow } from './staff-integrated-business.mjs';
@@ -13,6 +14,14 @@ const ADMISSION = 'staff-integrated-admission.json';
 const APPROVAL = 'staff-integrated-approval.json';
 const ACCOUNTING = 'staff-integrated-auth-accounting-20261110.json';
 const LOCK = 'staff-integrated-launch-lock.json';
+const COLLECTION_CLOSURE = 'staff-integrated-collection-expired-20261110.json';
+const originalRecords = Object.freeze({
+  lock: LOCK, form: 'integrated-form-opened.json', stopped: 'integrated-execution-stopped.json',
+});
+const renewalRecords = Object.freeze({
+  lock: 'staff-integrated-renewal-launch-lock.json',
+  form: 'integrated-renewal-form-opened.json', stopped: 'integrated-renewal-execution-stopped.json',
+});
 const PACKAGE_FILES = [
   'qa/staff-integrated-run.mjs', 'qa/staff-integrated-auth.mjs', 'qa/staff-integrated-input.mjs',
   'qa/staff-integrated-business.mjs', 'qa/staff-integrated-control.mjs',
@@ -51,6 +60,73 @@ export function checkAuthScope(approval, ledger) {
   assert(approval.owner_additional_login === ownerAllowance && approval.owner_additional_admin_get === ownerAllowance, 'OWNER_APPROVAL_SCOPE');
 }
 
+export function executionRecords(approval) {
+  return approval.collection_closure_sha256 === undefined ? originalRecords : renewalRecords;
+}
+
+export function assertReadyProcess(journal, records) {
+  const ready = journal.read('native-ready.json'), lock = journal.read(records.lock);
+  assert(ready.same_process_auth_and_executor === true && ready.pid === lock.pid &&
+    lock.window_sha256 === journal.hash(WINDOW), 'NATIVE_READY_REQUIRED');
+}
+
+export async function waitForResult(journal, records, name, until) {
+  while (!journal.exists(name) && !journal.exists('native-ended.json') && !journal.exists(records.stopped) && Date.now() < until) {
+    await delay(200);
+  }
+  return journal.exists(name);
+}
+
+function processAlive(pid) {
+  try { process.kill(pid, 0); return true; }
+  catch (error) { return error.code !== 'ESRCH'; }
+}
+
+export function verifyCollectionClosure(journal, approval, isAlive = processAlive) {
+  assert(/^[a-f0-9]{64}$/.test(approval.collection_closure_sha256 ?? ''), 'COLLECTION_CLOSURE_REQUIRED');
+  assert.equal(journal.hash(COLLECTION_CLOSURE), approval.collection_closure_sha256, 'COLLECTION_CLOSURE_DRIFT');
+  const closure = journal.read(COLLECTION_CLOSURE);
+  assert(closure.project === PROJECT && closure.phase === 'COLLECTION' && closure.forwarding_attempts === 0 &&
+    closure.process_ended === true && closure.listener_closed === true && closure.result_uncertain === false,
+  'COLLECTION_CLOSURE_NOT_ELIGIBLE');
+  const files = [
+    LOCK, originalRecords.form, originalRecords.stopped,
+    'staff-integrated-expired-window-20261110.json',
+    'staff-integrated-expired-approval-20261110.json',
+    'staff-integrated-expired-admission-20261110.json',
+  ];
+  assert.deepEqual(Object.keys(closure.files).sort(), [...files].sort(), 'COLLECTION_CLOSURE_FILES');
+  for (const file of files) assert.equal(journal.hash(file), closure.files[file], 'COLLECTION_HISTORY_DRIFT');
+  const lock = journal.read(LOCK), form = journal.read(originalRecords.form), stopped = journal.read(originalRecords.stopped);
+  assert(Number.isInteger(lock.pid) && lock.pid > 0 && form.pid === lock.pid && stopped.pid === lock.pid &&
+    stopped.phase === 'COLLECTION' && stopped.no_retry === true && !isAlive(lock.pid), 'COLLECTION_PROCESS_NOT_CLOSED');
+  const oldWindow = verifyWindow(journal.read('staff-integrated-expired-window-20261110.json'));
+  const newWindow = verifyWindow(journal.read(WINDOW));
+  assert(lock.window_sha256 === closure.files['staff-integrated-expired-window-20261110.json'] &&
+    Date.parse(stopped.utc) >= oldWindow.cutoff - 25000 && newWindow.start > oldWindow.end,
+  'COLLECTION_WINDOW_NOT_RENEWED');
+  const previous = journal.read('staff-integrated-expired-approval-20261110.json');
+  assert(previous.window_sha256 === lock.window_sha256, 'COLLECTION_OLD_APPROVAL_DRIFT');
+  for (const key of [
+    'project', 'explicitly_authorized', 'stop_on_error_no_retry', 'no_account_changes', 'no_refresh', 'owner_mode',
+    'owner_additional_login', 'owner_additional_admin_get', 'manager_additional_login', 'employee_additional_login',
+    'manager_existing_admin_get', 'employee_existing_admin_get', 'accounting_sha256', 'supplement_authorization_record_sha256',
+  ]) assert.deepEqual(approval[key], previous[key], 'COLLECTION_AUTH_SCOPE_CHANGED');
+}
+
+export function verifyLaunchState(journal, approval, isAlive = processAlive) {
+  const allowed = new Set();
+  if (approval.collection_closure_sha256 !== undefined) {
+    verifyCollectionClosure(journal, approval, isAlive);
+    allowed.add(LOCK);
+    allowed.add(originalRecords.stopped);
+  }
+  assert(!journal.names().some(name => !allowed.has(name) &&
+    /^(?:staff-integrated-(?:launch|renewal-launch)-lock|integrated-auth-|integrated-execution-|integrated-renewal-|command-|reads-|[A-Z][0-9]+-(?:intent|reservation|result|ack)|native-(?:ready|ended)|renewed-native-lock|owner-a-readmission-01-business-handoff|STOP\.json|CLOSE\.json)/.test(name)),
+  'PRIOR_DISPATCH_OR_LOCK');
+  return executionRecords(approval);
+}
+
 const digest = file => sha256(fs.readFileSync(file));
 const json = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 
@@ -74,9 +150,12 @@ function loadOperationalInputs(workspace, approvalSha) {
   }
   const journal = openJournal(path.join(workspace, 'work/staff-user-service/business-run-20261107-0410'));
   const approvedPackage = path.join(workspace, 'outputs/staff-business-homologation-review-20261104');
-  const integratedPackage = path.join(workspace, 'outputs/staff-integrated-review-20261110/manifesto.json');
   assert.equal(journal.hash(APPROVAL), approvalSha);
   const approval = journal.read(APPROVAL);
+  const records = executionRecords(approval);
+  const originalIntegration = path.join(workspace, 'outputs/staff-integrated-review-20261110/manifesto.json');
+  const integratedPackage = approval.collection_closure_sha256 === undefined ? originalIntegration :
+    path.join(workspace, 'outputs/staff-integrated-renewal-20261111/manifesto.json');
   const window = verifyWindow(journal.read(WINDOW));
   const windowHash = journal.hash(WINDOW);
   const ledger = journal.read(ACCOUNTING);
@@ -86,6 +165,10 @@ function loadOperationalInputs(workspace, approvalSha) {
   assert.equal(approval.integration_manifest_sha256, digest(integratedPackage));
   const reviewed = json(integratedPackage);
   assert.equal(reviewed.accounting_sha256, approval.accounting_sha256);
+  if (approval.collection_closure_sha256 !== undefined) {
+    assert.equal(reviewed.collection_closure_sha256, approval.collection_closure_sha256);
+    assert.equal(reviewed.previous_integration_manifest_sha256, digest(originalIntegration));
+  }
   assert.deepEqual(Object.keys(reviewed.files).sort(), [...PACKAGE_FILES].sort());
   const manifestPath = path.join(approvedPackage, 'manifesto.json');
   assert.equal(digest(manifestPath), MANIFEST);
@@ -113,23 +196,24 @@ function loadOperationalInputs(workspace, approvalSha) {
     assert.equal(journal.hash(ADMISSION), admissionHash);
     assert.equal(journal.hash(ACCOUNTING), approval.accounting_sha256);
     assert.equal(digest(integratedPackage), approval.integration_manifest_sha256);
+    assert.equal(journal.hash('staff-integrated-supplement-authorization-20261110.json'), approval.supplement_authorization_record_sha256);
+    if (approval.collection_closure_sha256 !== undefined) assert.equal(digest(originalIntegration), reviewed.previous_integration_manifest_sha256);
     assert.equal(digest(manifestPath), MANIFEST);
     assert.equal(journal.hash('accepted-addendum-link.json'), ADDENDUM);
     assert.equal(digest(path.join(repo, 'qa/sql/staff_business_checkpoint_readonly_TEST.sql')), CHECKPOINT);
     for (const [file, hash] of Object.entries(reviewed.files)) assert.equal(digest(path.join(repo, file)), hash);
     for (const record of ledger.historical_bindings) assert.equal(journal.hash(record.name), record.sha256);
+    if (approval.collection_closure_sha256 !== undefined) verifyCollectionClosure(journal, approval);
     for (const file of manifest.artifacts) assert.equal(digest(path.join(approvedPackage, file.path)), file.sha256_bytes);
     for (const file of code.files) assert.equal(digest(path.join(repo, file.path)), file.sha256_bytes);
   };
   verify();
-  assert(!journal.names().some(name =>
-    /^(?:staff-integrated-launch-lock|integrated-auth-|integrated-execution-|command-|[A-Z][0-9]+-(?:intent|reservation|result|ack)|native-(?:ready|ended)|renewed-native-lock|owner-a-readmission-01-business-handoff|STOP\.json|CLOSE\.json)/.test(name)),
-  'PRIOR_DISPATCH_OR_LOCK');
-  return { journal, plan, window, ownerMode: approval.owner_mode, publicKey: readPublicConfig(), verify, windowHash };
+  verifyLaunchState(journal, approval);
+  return { journal, plan, window, ownerMode: approval.owner_mode, publicKey: readPublicConfig(), verify, windowHash, records };
 }
 
 // Both stages use the same Map and PID. This entry also supports local synthetic transports.
-export async function runIntegratedStaff({ journal, plan, core, window, ownerMode, publicKey, verify, collect, authRequest, businessRequest }) {
+export async function runIntegratedStaff({ journal, plan, core, window, ownerMode, publicKey, verify, collect, authRequest, businessRequest, records = originalRecords }) {
   const sessions = new Map();
   let phase = 'COLLECTION';
   const gate = () => {
@@ -153,7 +237,7 @@ export async function runIntegratedStaff({ journal, plan, core, window, ownerMod
       plan.steps.every(step => journal.exists(step.id + '-ack.json') && journal.read(step.id + '-ack.json').passed === true);
     return { pid: process.pid, phase, passed };
   } catch {
-    journal.save('integrated-execution-stopped.json', { pid: process.pid, phase, no_retry: true, utc: new Date().toISOString() });
+    journal.save(records.stopped, { pid: process.pid, phase, no_retry: true, utc: new Date().toISOString() });
     return { pid: process.pid, phase, passed: false };
   } finally { sessions.clear(); }
 }
@@ -165,12 +249,12 @@ async function main() {
   const core = await import(pathToFileURL(path.join(repo, 'supabase/functions/_shared/manage-staff-user-core.mjs')).href);
   for (const step of config.plan.steps) if (step.method === 'POST') core.parseStaffRequest(step.payload);
   config.verify();
-  config.journal.save(LOCK, { pid: process.pid, window_sha256: config.windowHash, utc: new Date().toISOString() });
+  config.journal.save(config.records.lock, { pid: process.pid, window_sha256: config.windowHash, utc: new Date().toISOString() });
   const result = await runIntegratedStaff({
     ...config, core, collect: () => collectStaffInput({
       ownerMode: config.ownerMode, deadline: config.window.cutoff - 25000,
       onReady: url => {
-        config.journal.save('integrated-form-opened.json', { pid: process.pid, masked_fields: 4, utc: new Date().toISOString() });
+        config.journal.save(config.records.form, { pid: process.pid, masked_fields: 4, utc: new Date().toISOString() });
         console.log(url);
       },
     }),

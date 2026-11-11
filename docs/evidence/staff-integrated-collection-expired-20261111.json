@@ -1,0 +1,141 @@
+{
+  "status": "WINDOW_EXPIRED_DURING_LOCAL_COLLECTION",
+  "observed_utc": "2026-11-11T03:13:42.950Z",
+  "code_before": "fa8c2d1c1417e39957b2bca2e38d2f7e7e30996a",
+  "collection": {
+    "project": "msinksoilkluooxenecy",
+    "phase": "COLLECTION",
+    "observed_utc": "2026-11-11T03:13:42.950Z",
+    "pid": 19208,
+    "stop_utc": "2026-11-10T21:10:35.011Z",
+    "process_ended": true,
+    "listener_closed": true,
+    "forwarding_attempts": 0,
+    "result_uncertain": false,
+    "files": {
+      "staff-integrated-expired-window-20261110.json": "5d9a9f2087ca7e97088f0ebe9a2bcde8ab2c0276e3b3dccece3dc6cefd275dfe",
+      "staff-integrated-expired-approval-20261110.json": "e84a270c1ce4f292b7beda0506cf6a5d3d7173e2ae5034e1fa3b659a3c2b35dc",
+      "staff-integrated-expired-admission-20261110.json": "492fdea361af1e8c371feb0ad949f71684e729c3a7b15e60186843b16d9c98a0",
+      "staff-integrated-launch-lock.json": "dc613764ea4a38ea657f63f9dcb4ba84edbad277e1bce2799efabb25636befa1",
+      "integrated-form-opened.json": "0490fddae56016a0825d78a5a9b43eb9b0bea49c18f5e8b7724e898cf563efe5",
+      "integrated-execution-stopped.json": "317445e0798d49c73bf5f76668849e088325f0d3b8ba1aab83a9d4850e7b942e"
+    },
+    "evidence_basis": "COLLECTION terminal receipt, empty Auth/business dispatch journal, reviewed source control flow, process and listener ended"
+  },
+  "authorization": {
+    "project": "msinksoilkluooxenecy",
+    "recorded_utc": "2026-11-11T03:13:42.956Z",
+    "status": "EXISTING_SUPPLEMENT_REAFFIRMED_NOT_INCREMENTED",
+    "existing_authorization_sha256": "971c082178052cb4123669e64937109a312c4966eda09ed57ff825368b3d1a1f",
+    "original_business_manifest_sha256": "de56f442bf76ed402cdc2a83c629bfd7a59205bf43cbd882a807a1c0230bc94f",
+    "collection_closure_sha256": "59f585a107473da45e89087a0b575529998837f62895b00d0b0dae65005e4c9e",
+    "additional_slots_created_by_reaffirmation": 0,
+    "available": {
+      "OWNER_A": {
+        "administrative_GET": 1,
+        "Auth_POST": 1
+      },
+      "MANAGER": {
+        "administrative_GET": 1,
+        "Auth_POST": 1
+      },
+      "EMPLOYEE": {
+        "administrative_GET": 1,
+        "Auth_POST": 1
+      }
+    },
+    "manual_manager_possibly_consumed": 1,
+    "business": {
+      "Edge": {
+        "used": 0,
+        "max": 17
+      },
+      "PATCH": {
+        "used": 0,
+        "max": 4
+      }
+    },
+    "requires_new_operator_window": true,
+    "staff_suspended": true
+  },
+  "last_TEST_read_utc": "2026-11-10T20:36:23.45959+00:00",
+  "last_observed_profiles": [
+    {
+      "id": "88eddcda-d8b5-4474-b5d7-19860dd97fba",
+      "role": "OWNER",
+      "active": true
+    },
+    {
+      "id": "f37e9907-47c4-48bf-94b7-9a6fa5de1f88",
+      "role": "OWNER",
+      "active": true
+    },
+    {
+      "id": "96042557-c717-4750-9dd1-88b36958c6d1",
+      "role": "MANAGER",
+      "active": false
+    },
+    {
+      "id": "0e03a482-5b3c-4225-baf7-4ae1ab7e9e58",
+      "role": "EMPLOYEE",
+      "active": false
+    }
+  ],
+  "last_observed_employees": [
+    {
+      "id": "09abb5af-1074-4a97-9391-19639ef67faf",
+      "active": false
+    },
+    {
+      "id": "7e2fbd68-117a-444e-9f7e-d4014b36ecbd",
+      "active": false
+    },
+    {
+      "id": "30000000-0000-4000-8000-000000000003",
+      "active": true
+    },
+    {
+      "id": "8bc7ab61-6c9e-4dd4-a19a-a504f57de002",
+      "active": true
+    }
+  ],
+  "last_observed_staff_audit_count": 0,
+  "final_remote_state_refreshed": false,
+  "TEST_requests_this_continuation": 0,
+  "cases": {
+    "P1": "NOT_EXECUTED",
+    "P2": "NOT_EXECUTED",
+    "P3": "NOT_EXECUTED",
+    "P4": "NOT_EXECUTED",
+    "N1": "NOT_EXECUTED",
+    "N2": "NOT_EXECUTED",
+    "U1": "NOT_EXECUTED",
+    "G1": "NOT_EXECUTED",
+    "N3": "NOT_EXECUTED",
+    "N4": "NOT_EXECUTED",
+    "N5": "NOT_EXECUTED",
+    "N6": "NOT_EXECUTED",
+    "N7": "NOT_EXECUTED",
+    "U2": "NOT_EXECUTED",
+    "U3": "NOT_EXECUTED",
+    "G2": "NOT_EXECUTED",
+    "N8": "NOT_EXECUTED",
+    "R1": "NOT_EXECUTED",
+    "R2": "NOT_EXECUTED",
+    "R3": "NOT_EXECUTED",
+    "R4": "NOT_EXECUTED"
+  },
+  "coverage": {
+    "completed": 16,
+    "total": 60
+  },
+  "synthetic_renewal_tests": {
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0
+  },
+  "revised_integration_manifest_sha256": "597162e42625301656f2ee8dd1c3a9ef4a44c384c2a434960c66320df01fa356",
+  "reaffirmation_creates_extra_auth_slots": false,
+  "original_business_source_files_changed": false,
+  "original_suites_rerun": false
+}
