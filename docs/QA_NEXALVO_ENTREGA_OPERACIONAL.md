@@ -4,7 +4,7 @@ A operação do NEXALVO continua após o cancelamento do evento de 15/11/2026. O
 
 | Frente | Estado | Critério restante e próxima ação |
 | --- | --- | --- |
-| Preview e autenticação | Preview TEST verificado | Login de operador TEST existente, empresa/unidade conferidas, navegação interna e sessão restaurada após reload. Reusar a URL protegida da Vercel. [Evidência anterior](./evidence/nexalvo-vercel-preview-20261111.json) |
+| Preview e autenticação | OWNER TEST verificado | Sessão real na empresa fictícia QA, unidade LOJA QA - TESTE, navegação para Pedidos, Configurações e Estoque e sessão restaurada após reload. [Evidência](./evidence/nexalvo-operational-continuation-20261111.json) |
 | Configuração inicial | Implementada e verificada localmente | Em Configurações → Configuração inicial, o OWNER percorre empresa/impostos, unidades, estoque inicial, produtos e operadores. Cada passo abre o formulário existente. Validar persistência na empresa de teste após salvar e recarregar, com valores da própria empresa. |
 | Permissões e staff | Janela pendente | A coleta anterior encerrou em COLLECTION antes de Auth. PID 16660 encerrado, sem despacho da integração. Saldo **17 Edge e 4 PATCH**, incluindo recuperação. Vincular nova janela aos recibos já preservados e validar a admissão no launcher, que bloqueia o lock da última coleta. Executar o pacote fixado com sessões reais no mesmo processo. [Pacote staff](./QA_STAFF_INTEGRATED_RENEWAL_20261111.md) |
 | Produtos, estoque e clientes | Evidência parcial válida | Confirmar CRUD com SKU, preço, composição/custo, produto visível no PDV, saldo por unidade e cliente arquivável. Usar fixtures TEST autorizadas e conservar históricos. C1 e fotos continuam válidos no seu escopo. C2 permanece consumido. |
@@ -23,7 +23,7 @@ No cenário local, abertura de 100, despesa Cash de 60 com a categoria da abertu
 
 ## Publicação e recuperação
 
-O [Preview TEST atual](https://masseli-business-manager-kb2n942fr-lucas-masseli.vercel.app/) está em READY no deployment dpl_8c6aAPEMkrhLm4pT5mhw56dfB6o6, commit d554b2b67be1f87c72158be0a3c131086f6a2e66. A tela inicial e o reload da rota de autenticação passaram no navegador. A URL anterior abriu novamente e funciona como referência de retorno da QA. Login com operador TEST segue pendente.
+O [Preview TEST atual](https://masseli-business-manager-kb2n942fr-lucas-masseli.vercel.app/) está em READY no deployment dpl_8c6aAPEMkrhLm4pT5mhw56dfB6o6, commit d554b2b67be1f87c72158be0a3c131086f6a2e66. A tela inicial e o reload da rota de autenticação passaram no navegador. A URL anterior abriu novamente e funciona como referência de retorno da QA. O login do OWNER TEST e a restauração da sessão após reload foram conferidos no navegador. O painel Configuração inicial apareceu na conta autenticada.
 
 A equipe `lucas-masseli` está no plano Hobby. A Vercel reserva Hobby para uso pessoal não comercial. A opção comercial equivalente é Pro, com base de **US$ 20/mês**, um assento de deploy e US$ 20/mês de crédito de uso. Assentos extras, consumo adicional e impostos podem aumentar o custo. A mudança é de plano da equipe, em Settings → Billing, com aprovação específica do custo. [Vercel Hobby](https://vercel.com/docs/plans/hobby) · [Vercel Pro](https://vercel.com/docs/plans/pro-plan#platform-fee)
 

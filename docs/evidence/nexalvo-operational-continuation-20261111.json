@@ -97,7 +97,21 @@
     "login_screen": true,
     "callback_reload": true,
     "prior_preview_reopened": true,
-    "operator_authenticated": false
+    "operator_authenticated": true,
+    "authenticated_browser": {
+      "operator_role": "OWNER",
+      "test_tenant_confirmed": true,
+      "test_location": "LOJA QA - TESTE",
+      "views": [
+        "Dashboard",
+        "Orders",
+        "Settings",
+        "Inventory"
+      ],
+      "company_setup_visible": true,
+      "session_restored_after_reload": true,
+      "observed_utc": "2026-11-11T14:12:29.6489684Z"
+    }
   },
   "cash_migration_disposition": "USER_REQUESTED_REVIEW_ONLY",
   "cash_migration_applied": 0

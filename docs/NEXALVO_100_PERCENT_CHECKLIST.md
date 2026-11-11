@@ -4,7 +4,8 @@
 - [x] Fluxo de configuração inicial da empresa implementado. Navegação do OWNER e ausência dos atalhos para EMPLOYEE verificadas em navegador com HTTP interceptado.
 - [x] Ensaio local de restauração lógica concluído. O aceite integral aguarda backup TEST autorizado e restauração isolada dos demais serviços.
 - [ ] Revisar a migração TEST de fechamento de caixa, validada em PostgreSQL descartável. Homologação persistente depende de fixture e autorização.
-- [ ] Login e navegação interna no Preview, nova janela staff, homologações persistentes restantes e configuração Stripe TEST. S700 física é dependência do aceite de cartão presencial.
+- [x] Login OWNER no Preview TEST, empresa e unidade QA, navegação interna e sessão após reload verificados. [Evidência](./evidence/nexalvo-operational-continuation-20261111.json)
+- [ ] Nova janela staff, homologações persistentes restantes e configuração Stripe TEST. S700 física é dependência do aceite de cartão presencial.
 - [ ] Verificar os gates de produção. A equipe Vercel está no Hobby. A migração ao plano comercial exige aprovação do custo.
 
 [Evidência do marco](./evidence/nexalvo-operational-continuation-20261111.json) · [Entrega operacional](./QA_NEXALVO_ENTREGA_OPERACIONAL.md)
