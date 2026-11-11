@@ -103,8 +103,10 @@ test('PATCH binds the exact company, target and prior updated_at, then checks th
 
 test('one masked loopback field accepts a single synthetic token from its own origin', async () => {
   let open;
+  const receipts = [];
   const urlReady = new Promise(resolve => { open = resolve; });
-  const received = collectOwnerToken({ deadline: Date.now() + 5_000, onReady: open });
+  const received = collectOwnerToken({ deadline: Date.now() + 5_000, onReady: open,
+    onAccepted: (...args) => receipts.push(args) });
   const url = await urlReady;
   const page = await fetch(url);
   const html = await page.text();
@@ -113,7 +115,9 @@ test('one masked loopback field accepts a single synthetic token from its own or
   const token = 'synthetic.parts.only';
   const forbidden = await fetch(url, { method: 'POST', headers: { Origin: 'http://unrelated.test' }, body: token });
   assert.equal(forbidden.status, 403);
+  assert.deepEqual(receipts, []);
   const response = await fetch(url, { method: 'POST', headers: { Origin: new URL(url).origin }, body: token });
   assert.equal(response.status, 204);
+  assert.deepEqual(receipts, [[]]);
   assert.equal(await received, token);
 });

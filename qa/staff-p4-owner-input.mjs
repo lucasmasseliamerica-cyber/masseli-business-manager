@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
 
-export async function collectOwnerToken({ deadline, onReady }) {
+export async function collectOwnerToken({ deadline, onReady, onAccepted = () => {} }) {
   const route = '/' + randomBytes(24).toString('hex');
   const nonce = randomBytes(18).toString('base64');
   let origin, submitted = false, timer, resolve, reject;
@@ -13,22 +13,30 @@ export async function collectOwnerToken({ deadline, onReady }) {
 <title>NEXALVO TEST — recuperação R1–R4</title><h1>Recuperação staff no TEST</h1>
 <form autocomplete="off"><label>Access token da sessão existente OWNER A
 <input name="token" type="password" required maxlength="8192" autocomplete="new-password"></label>
-<button disabled>Confirmar sessão existente</button></form><p role="status"></p>
+<button disabled>Confirmar sessão existente</button></form><p role="status" aria-live="polite"></p>
 <script nonce="${nonce}">
 const form = document.querySelector('form');
 const button = document.querySelector('button');
+const status = document.querySelector('[role=status]');
 form.addEventListener('submit', async event => {
   event.preventDefault();
   if (button.disabled) return;
+  const body = new FormData(form).get('token').trim();
+  if (!/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/.test(body)) {
+    status.textContent = 'Formato inválido. Confira o access token da sessão OWNER A.';
+    return;
+  }
   button.disabled = true;
-  const body = new FormData(form).get('token');
   form.reset();
-  let message = 'Coleta interrompida.';
+  status.textContent = 'Enviando ao coletor local…';
   try {
     const response = await fetch(location.pathname, {method:'POST',body,credentials:'omit',cache:'no-store',redirect:'error'});
-    if (response.ok) message = 'Entrada recebida. Aguarde a conferência da sessão.';
-  } catch {}
-  document.querySelector('[role=status]').textContent = message;
+    status.textContent = response.status === 204
+      ? 'Token recebido pelo coletor local. Aguarde a validação da identidade OWNER A.'
+      : 'O coletor local recusou a entrada. Informe o status ao Codex.';
+  } catch {
+    status.textContent = 'Não foi possível confirmar o recebimento local. Informe o status ao Codex.';
+  }
 });
 button.disabled = false;
 </script></html>`;
@@ -53,6 +61,7 @@ button.disabled = false;
       }
       const token = buffer.toString('utf8');
       assert(offset === length && Date.now() < deadline && /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token));
+      onAccepted();
       res.writeHead(204, { Connection: 'close' }).end();
       resolve(token);
     } catch {

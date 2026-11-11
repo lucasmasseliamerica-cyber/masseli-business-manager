@@ -282,7 +282,12 @@ async function main(workspace, approvalSha) {
   journal.save('lock.json', { approval_sha256: approvalSha, pid: process.pid, utc: new Date().toISOString() });
   let token, step = 'COLLECTION';
   try {
-    token = await collectOwnerToken({ deadline: window.end - 25_000, onReady: url => console.log(url) });
+    token = await collectOwnerToken({
+      deadline: window.end - 25_000,
+      onReady: url => console.log(url),
+      onAccepted: () => journal.save('collection-receipt.json', { pid: process.pid, received_utc: new Date().toISOString() }),
+    });
+    step = 'COLLECTION_RECEIVED';
     verify();
     step = 'OWNER_IDENTITY';
     const receipt = await checkExistingOwner({ origin: appOrigin, projectUrl: ORIGIN, publicKey: key,
@@ -307,12 +312,14 @@ async function main(workspace, approvalSha) {
     assert.equal(expected.staff_audits.length, 4);
     journal.save('closed.json', { passed: true, audits: 4, utc: new Date().toISOString() });
     console.log('RECOVERY_R1_R4_PASS');
-  } catch {
+  } catch (error) {
     const resultName = step + '-result.json';
     const reserved = ids.includes(step) && journal.exists(step + '-reservation.json');
     const result = ids.includes(step) && journal.exists(resultName) ? journal.read(resultName) : null;
+    const collectionReason = step === 'COLLECTION' && ['OWNER_COLLECTION_EXPIRED', 'OWNER_COLLECTION_REJECTED', 'OWNER_COLLECTION_LISTENER'].includes(error?.message)
+      ? error.message : undefined;
     if (!journal.exists('stop.json')) journal.save('stop.json', { step, uncertain: result?.uncertain || (reserved && !result),
-      read_only_reconciliation_required: reserved, no_retry: true, utc: new Date().toISOString() });
+      collection_reason: collectionReason, read_only_reconciliation_required: reserved, no_retry: true, utc: new Date().toISOString() });
     console.log('RECOVERY_R1_R4_STOPPED');
     process.exitCode = 2;
   } finally {
