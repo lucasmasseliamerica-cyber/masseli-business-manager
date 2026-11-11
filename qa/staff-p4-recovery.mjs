@@ -156,14 +156,16 @@ export function loadRecoveryBundle(workspace) {
   return { actions: proposal.actions, original, reconciled };
 }
 
-function verifyWindow(approval) {
+export function verifyWindow(approval) {
   assert(approval.project === PROJECT && approval.proposal_sha256 === proposalHash && approval.exclusive_confirmed === true &&
     approval.owner_mode === 'existing' && approval.max_Edge === 2 && approval.max_PATCH === 2, 'RECOVERY_APPROVAL_SCOPE');
   for (const time of [approval.start_utc, approval.end_utc]) {
     assert(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/.test(time) && new Date(time).toISOString() === time.replace('Z', '.000Z'));
   }
   const window = { start: Date.parse(approval.start_utc), end: Date.parse(approval.end_utc) };
-  assert(window.start >= Date.parse('2026-11-11T20:15:00Z') && window.end > window.start);
+  const advanced = approval.start_utc === '2026-11-11T20:05:00Z' && approval.end_utc === '2026-11-11T20:20:00Z' &&
+    approval.previous_window_released === true;
+  assert((advanced || window.start >= Date.parse('2026-11-11T20:15:00Z')) && window.end > window.start);
   return window;
 }
 
@@ -243,7 +245,9 @@ async function main(workspace, approvalSha) {
   assert.equal(journal.hash('approval.json'), approvalSha);
   const approval = journal.read('approval.json');
   const window = verifyWindow(approval);
-  const launcher = path.join(workspace, bundleDir, 'manifesto-executor-recuperacao.json');
+  const advanced = window.start < Date.parse('2026-11-11T20:15:00Z');
+  const launcher = path.join(workspace, bundleDir, advanced ? 'manifesto-executor-recuperacao-1505.json' : 'manifesto-executor-recuperacao.json');
+  const confirmedWindow = path.join(workspace, bundleDir, 'janela-recuperacao-1505-confirmada.json');
   const query = path.join(workspace, bundleDir, 'checkpoint-recuperacao-readonly.sql');
   const verify = () => {
     requestTimeout(window, 'RECOVERY');
@@ -254,6 +258,13 @@ async function main(workspace, approvalSha) {
     assert.equal(hashFile(launcher), approval.launcher_manifest_sha256);
     const manifest = readJson(launcher);
     assert.equal(manifest.proposal_sha256, proposalHash);
+    if (advanced) {
+      assert.equal(hashFile(confirmedWindow), approval.window_record_sha256);
+      assert.equal(manifest.window_record_sha256, approval.window_record_sha256);
+      const record = readJson(confirmedWindow);
+      assert(record.start_utc === approval.start_utc && record.end_utc === approval.end_utc &&
+        record.previous_window_released === true && record.exclusive_confirmed === true && record.proposal_sha256 === proposalHash);
+    }
     assert.equal(hashFile(query), manifest.checkpoint_with_locks_sha256);
     assert.deepEqual(Object.keys(manifest.files).sort(), [...launcherFiles].sort());
     for (const [name, hash] of Object.entries(manifest.files)) assert.equal(hashFile(path.join(repo, name)), hash);
