@@ -1,5 +1,9 @@
 # Staff TEST — restauração isolada após P4
 
+R1–R4 concluíram na janela de 20h46–21h01 UTC. A admissão confirmou P4, e o formulário corrigido registrou o recebimento às 20h52:20 UTC antes da confirmação da identidade OWNER A. Cada caso teve um envio, HTTP 200 e conferência do estado gravado. O processo encerrou às 20h52:58 UTC com saída 0. [Evidência da recuperação](./evidence/staff-p4-recovery-pass-20261111.json)
+
+Os perfis MANAGER e EMPLOYEE e seus registros de funcionário ficaram inativos. O vínculo original do EMPLOYEE e o cargo original foram restaurados, e o vínculo temporário do MANAGER foi removido. Os quatro `updated_at` avançaram. R1 e R2 acrescentaram uma auditoria cada, totalizando quatro com as duas anteriores preservadas. Consumo acumulado de **4/17 Edge e 4/4 PATCH**, com saldo nominal de **13 Edge e 0 PATCH**. O escopo isolado de R1–R4 está encerrado. A homologação das permissões permanece pendente.
+
 A recuperação R1–R4 foi autorizada para o manifesto SHA-256 `7d85662d199fb402c487445643a8d6ca08ad2e4b525dcbc53b74003fad8c5cb7`. A janela exclusiva foi antecipada para 20h05–20h20 UTC e encerrou na coleta, sem registro de validação de identidade ou encaminhamento. A admissão de 20h05:06 UTC confirmou o estado de P4, com os dois perfis e seus registros de funcionário ativos e duas auditorias. [Evidência do lote encerrado](./evidence/staff-integrated-business-stopped-20261111.json) · [Evidência da coleta encerrada](./evidence/staff-p4-recovery-collection-expired-20261111.json)
 
 | Ordem | Envio | Efeito previsto | Auditorias novas |
@@ -21,7 +25,7 @@ Os quatro `updated_at` devem avançar. A conferência final exige os demais camp
 
 Seis verificações locais passaram, incluindo drift de microssegundos, auditorias, filtro de PATCH, prazo após reserva, parada sem replay e coleta mascarada por loopback com texto sintético. Quatro verificações adicionais cobriram a vinculação da janela antecipada e suas rejeições. A leitura local dos artefatos históricos confirmou os quatro IDs, o checkpoint original, os hashes de P4 e as duas auditorias. [Executor](../qa/staff-p4-recovery.mjs) · [Testes](../qa/staff-p4-recovery.test.mjs)
 
-O PID 7528 encerrou às 20h19:35 UTC, com `RECOVERY_R1_R4_STOPPED` e saída 2. O manifesto da janela antecipada tem SHA-256 `b5caf4407bef9503d66012322a44a198c551625b2f91974007e1bbb31591b13b`. O diário exclusivo guarda a admissão, o lock, a parada e o término. R1–R4 seguem sem intenção ou reserva, e o saldo autorizado foi preservado. A retomada depende da sessão OWNER A disponível, de nova janela exclusiva e da conferência dos recibos da coleta encerrada. A janela que foi substituída também permanece encerrada para este fim.
+O PID 7528 encerrou às 20h19:35 UTC, com `RECOVERY_R1_R4_STOPPED` e saída 2. O manifesto da janela antecipada tem SHA-256 `b5caf4407bef9503d66012322a44a198c551625b2f91974007e1bbb31591b13b`. O diário exclusivo guarda a admissão, o lock, a parada e o término. A coleta encerrada antes da renovação registrou zero reservas e zero envios de R1–R4.
 
 O operador informou que confirmou o formulário. O coletor anterior registrava o término da etapa, mas não gravava um recibo no momento do recebimento. Por isso, o diário não permite atribuir a causa do encerramento. Uma reprodução com token fictício no mesmo navegador retornou HTTP 204. A versão local ajustada valida o formato no formulário e grava `collection-receipt.json` com PID e horário antes de confirmar o recebimento na tela. A conferência da identidade continua no recibo separado do Auth. O teste local no navegador confirmou o aviso de formato inválido, o recebimento de um token fictício válido e o registro sem token. A versão ajustada precisa ser vinculada ao manifesto da próxima janela.
 

@@ -1,0 +1,133 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "status": "RECOVERY_R1_R4_PASS",
+  "proposal_sha256": "7d85662d199fb402c487445643a8d6ca08ad2e4b525dcbc53b74003fad8c5cb7",
+  "launcher_qa_head": "e937f69654fc8d3474b28b5f602520a673269409",
+  "launcher_manifest_sha256": "4e58bb5d6162342286bfce1d8180b60dfcc994f7806b072cb4ddccfea2b149cb",
+  "window_record_sha256": "91e8031e932bb25a7448490220ce9eed08229905f47a45c05e25832654de62c2",
+  "window_utc": [
+    "2026-11-11T20:46:00Z",
+    "2026-11-11T21:01:00Z"
+  ],
+  "admission": {
+    "observed_utc": "2026-11-11T20:46:09.386464Z",
+    "p4_exact": true,
+    "competing_staff_relation_locks": 0,
+    "edge_version": 6,
+    "edge_sources_exact": 4,
+    "verify_jwt": true
+  },
+  "collection": {
+    "pid": 3120,
+    "received_utc": "2026-11-11T20:52:20.219Z",
+    "identity_confirmed": true,
+    "identity_code": "OWNER_A_SESSION_CONFIRMED",
+    "ended_utc": "2026-11-11T20:52:58.937Z",
+    "exit_code": 0
+  },
+  "cases": [
+    {
+      "id": "R1",
+      "method": "POST",
+      "http": 200,
+      "forwarding_attempts": 1,
+      "audits": 1,
+      "verified": true,
+      "result_uncertain": false,
+      "result_sha256": "c3c4869a5531a3ef39418acfd414707a224c014827e642e6332e090318e0c8eb",
+      "ack_sha256": "a52188f7678e1849c8ff5daac4aa65132a091adfae22b3739a6af31523b37ad9",
+      "restored": {
+        "active": false,
+        "original_semantic_fields_match": true,
+        "updated_at_advanced": true,
+        "employee_link_present": true
+      }
+    },
+    {
+      "id": "R2",
+      "method": "POST",
+      "http": 200,
+      "forwarding_attempts": 1,
+      "audits": 1,
+      "verified": true,
+      "result_uncertain": false,
+      "result_sha256": "34e7ccea9b46f97800d8370de45f7f73a2ea166bcefdfa93f0fd3e97b5f632bc",
+      "ack_sha256": "ec52b3c5ebb24795f922ddce635cdb2dd9d2c8d3651ef9c47aedd8a0333cf722",
+      "restored": {
+        "active": false,
+        "original_semantic_fields_match": true,
+        "updated_at_advanced": true,
+        "employee_link_present": false
+      }
+    },
+    {
+      "id": "R3",
+      "method": "PATCH",
+      "http": 200,
+      "forwarding_attempts": 1,
+      "audits": 0,
+      "verified": true,
+      "result_uncertain": false,
+      "result_sha256": "f6e9ccc640089e1ea60a8066e560c3203896bd3528953742ef631563ef642829",
+      "ack_sha256": "ee25b0dcd1e522a96601c9a039c146a401c4485935b67c82f29d55af0f553ff0",
+      "restored": {
+        "active": false,
+        "original_semantic_fields_match": true,
+        "updated_at_advanced": true,
+        "original_job_title_restored": true
+      }
+    },
+    {
+      "id": "R4",
+      "method": "PATCH",
+      "http": 200,
+      "forwarding_attempts": 1,
+      "audits": 0,
+      "verified": true,
+      "result_uncertain": false,
+      "result_sha256": "01dabf797e54910e7a7bd06f7161cf4db613720e289421b2c401be5b82328239",
+      "ack_sha256": "683a4cf32e19db9f36a50bd09905344a3adcf8299fc39b5a575399d4567aa7ba",
+      "restored": {
+        "active": false,
+        "original_semantic_fields_match": true,
+        "updated_at_advanced": true
+      }
+    }
+  ],
+  "final": {
+    "observed_utc": "2026-11-11T20:52:57.962Z",
+    "original_semantic_fields_match": true,
+    "existing_audits_preserved": 2,
+    "new_audits": 2,
+    "total_audits": 4
+  },
+  "consumption": {
+    "recovery": {
+      "Edge": 2,
+      "PATCH": 2,
+      "identity_GET": 1,
+      "login_POST": 0
+    },
+    "cumulative": {
+      "Edge": 4,
+      "PATCH": 4
+    },
+    "remaining": {
+      "Edge": 13,
+      "PATCH": 0
+    }
+  },
+  "receipts_sha256": {
+    "approval.json": "ec5175f8fc8d187a648affef47eb6e5cdee6bb72040d081241caf9846ec486d9",
+    "admission.json": "13fc2b953b394f0b5e1332a56062e4122b103727a905fd8ee9692972636a5d3f",
+    "initial.json": "deec865d1b346b2204cfb222ed3c95ecdef0c9cfdd6926626eeeeb42e9f71e57",
+    "lock.json": "97eadf2309616ba957a50dbf50df295c6f0470db7890437b88fab0f0007703ee",
+    "collection-receipt.json": "a579e03a2ac77d4060f725fd93a5f7d96f963f7ea9812e737a4e3d88b6ec2930",
+    "identity.json": "b1ccb70e1682a045ee98693e5b541127b31aa67f25e0a78e6ef55988856d02f7",
+    "ready.json": "984d430cadff7f49dc5e9a6c39361654332cc660ba28dd69a5209a60a8b239e0",
+    "closed.json": "1a3aef926827253380edd877c2ae98ced7b6b55938c4710bbc303b95050b879e",
+    "ended.json": "634f9e3634fddaa5babcba5423c8116bfdece49f14c481f7f49dd25b36caae67",
+    "R4-after.json": "4c65658843beb568480ae5c930e178438e08ae5286e0e1a657011aef9c2e6063"
+  },
+  "operational_coverage": "16/60"
+}
