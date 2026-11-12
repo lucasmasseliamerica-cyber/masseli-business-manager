@@ -1,0 +1,118 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "manifest_sha256": "b7139c713a1a56351383621f8482f06f48ecc2e4bdbb22be9f1be34714deaf78",
+  "auth_addendum_sha256": "a039fb3b56643214626e971f376ea6c3dd21f8f2d3a61cb5019dd2d755bb5c71",
+  "window_utc": [
+    "2026-11-12T03:52:08Z",
+    "2026-11-12T04:27:08Z",
+    "2026-11-12T04:37:08Z"
+  ],
+  "stopped": "baseline",
+  "ended_utc": "2026-11-12T04:10:54.336Z",
+  "auth": {
+    "OWNER_A": {
+      "identity_get": 200,
+      "login_post": null,
+      "admin_get": null
+    },
+    "MANAGER": {
+      "identity_get": 200,
+      "login_post": 200,
+      "admin_get": 200
+    },
+    "EMPLOYEE": {
+      "identity_get": 200,
+      "login_post": 200,
+      "admin_get": 200
+    }
+  },
+  "failure": {
+    "id": "MANAGER-salary",
+    "http": 200,
+    "passed": false,
+    "body_saved": false,
+    "expected": {
+      "rows": 1,
+      "salary_visible": true
+    },
+    "same_tenant": true,
+    "actor_employee_matches": false,
+    "manager_relationship_matches": false,
+    "permissions_verified": {
+      "viewFinancials": true,
+      "manageUsers": false
+    },
+    "rpc_md5": "9e7acd73476259dac84c5d4953dbed95"
+  },
+  "cases": {
+    "ATIVAR-M": {
+      "http": 200,
+      "passed": true,
+      "audits": 1
+    },
+    "ATIVAR-E": {
+      "http": 200,
+      "passed": true,
+      "audits": 1
+    },
+    "RESTAURAR-E": {
+      "http": 200,
+      "passed": true,
+      "audits": 1
+    },
+    "RESTAURAR-M": {
+      "http": 200,
+      "passed": true,
+      "audits": 1
+    }
+  },
+  "original_cases_not_run": [
+    "N1",
+    "N2",
+    "N3",
+    "N4",
+    "N5",
+    "N6",
+    "N7",
+    "N8",
+    "U1",
+    "U2",
+    "U3",
+    "G1",
+    "G2"
+  ],
+  "final": {
+    "observed_utc": "2026-11-12T04:10:53.006408+00:00",
+    "manager_active": false,
+    "employee_active": false,
+    "profiles_match_baseline_except_updated_at": true,
+    "employees_unchanged": true,
+    "historical_audits_preserved": 4,
+    "new_audits": 4,
+    "audits_total": 8
+  },
+  "spent": {
+    "edge_original_cases": 0,
+    "edge_additional": 4,
+    "patch": 0,
+    "authenticated_get": 28,
+    "authenticated_get_breakdown": {
+      "identity": 3,
+      "permissions": 25
+    },
+    "sql_read_only": 9,
+    "auth_admin_get": 2,
+    "auth_login_post": 2
+  },
+  "artifact_sha256": {
+    "approval.json": "fe74f818c11c513e934fda8833039ad62c3a1e83c6cf6e5e7ecd399f6f930b6f",
+    "GET-25-intent.json": "35220e981e568b302e2432676a3fb89485876425d136efe714a9fbf5f8656dc2",
+    "GET-25-result.json": "eedeb6df418f4a59ff20b0dee4bbbc9c62eeb1c0dc3dec81110af45f6b0bae55",
+    "SQL-01-checkpoint.json": "72e48b1ce986c6ea5cbc1bbb5725df081bd1700c69d86c98ee1bc3a06c323500",
+    "SQL-05-checkpoint.json": "1834af64740dad798bb069ec7b8a3ebfa32b7aa3a971ff01767f3c86c25635bf",
+    "SQL-09-checkpoint.json": "965fc192f9d6804a6428ec291f733bc74eaa236173f5c39255b476bda8a105d5",
+    "closed.json": "b2195f0f83f091660828ff7b06bb44ae23f03385ce1d4620532bf469002ea067",
+    "ended.json": "e33fab2dca2db2949ac424e8ebe75b3770c4d6ec0a692bdb090a5d3600777c10"
+  },
+  "coverage": "16/60"
+}

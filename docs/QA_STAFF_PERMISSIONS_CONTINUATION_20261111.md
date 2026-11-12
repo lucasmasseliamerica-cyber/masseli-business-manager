@@ -72,3 +72,18 @@ Os recibos da homologação anterior registram um GET administrativo e um login 
 Após autorização explícita do adendo e confirmação de uma janela válida, preparar `approval.json` e `edge-admission.json` em `work/staff-user-service/staff-permissions-continuation-password-20261112`. A aprovação mantém os campos e limites do manifesto base e acrescenta `auth_addendum_sha256`, `auth_explicitly_authorized=true` e o objeto `auth` do adendo. Executar `node C:/Users/lucas/Documents/NEXALVO-P005-ISOLATED/qa/staff-continuation-password.mjs <SHA_ADENDO> <SHA_APROVACAO>`. O formulário local mascarado recebe a sessão OWNER A, a chave administrativa TEST e as duas senhas atuais. O mesmo processo confirma as três identidades e mantém as sessões em memória até encerrar. O checkpoint atual precede qualquer ativação. Entregar cada checkpoint via stdin ao mesmo launcher com `--checkpoint <SHA_ADENDO> <SHA_APROVACAO> SQL-NN`.
 
 O ensaio local bloqueou a abertura sem aprovação Auth e a admissão com token OWNER inválido, sem nenhuma chamada remota. Três regressões da coleta integrada confirmaram a permanência no mesmo processo, zero login para OWNER A na modalidade de sessão existente e interrupção antes de EMPLOYEE após despacho incerto de MANAGER.
+
+## Resultado da janela de 11/11/2026 em Nova York
+
+O operador autorizou o adendo Auth na janela já confirmada. O formulário usou a sessão de OWNER A e um login por senha de MANAGER e EMPLOYEE. As três identidades, os dois GET administrativos, os dois POST Auth e o checkpoint de admissão passaram. O executor encerrou às 23h10min54s em Nova York, depois de confirmar a restauração. [Evidência de execução](./evidence/staff-continuation-baseline-restored-20261112.json)
+
+| Etapa | Resultado |
+| --- | --- |
+| `ATIVAR-M`, `ATIVAR-E` | HTTP 200 e confirmação por checkpoint. Uma auditoria por caso. |
+| Baseline autenticado | 24 de 25 leituras encaminhadas passaram. `MANAGER-salary` retornou HTTP 200, porém falhou o predicado que exige um registro com salário visível. O diário guarda status e veredito, sem o corpo da resposta. |
+| N1–N8, U1–U3 e G1–G2 | Zero envios. |
+| `RESTAURAR-E`, `RESTAURAR-M` | HTTP 200 e confirmação por checkpoint. Uma auditoria por caso. |
+
+O checkpoint após as ativações confirma que o funcionário canário pertence à empresa do MANAGER e não é seu registro nem um subordinado vinculado. As leituras confirmaram `viewFinancials=true` e `manageUsers=false`. Na definição versionada, `viewFinancials` determina o mascaramento de salário em registros já visíveis. A própria linha tem regras de visibilidade distintas. Essa evidência orienta a revisão do canário, sem atribuir um corpo de resposta que o executor não registrou.
+
+O checkpoint final confirma MANAGER e EMPLOYEE inativos, os mesmos campos de perfil salvo `updated_at` e os registros `employees` intactos. As quatro auditorias anteriores foram preservadas e quatro novas foram confirmadas. Consumo da continuação: **0/13 Edge dos casos**, **4/4 Edge de ativação/restauração**, **0 PATCH**, **28/59 GET autenticados** (três identidades e 25 permissões), **9/36 leituras SQL**, **2/2 GET administrativos Auth** e **2/2 POST Auth**. Uma nova ativação exige novo escopo para preparação e restauração. O lote encerrou com resultado determinado e a cobertura segue em **16/60**.
