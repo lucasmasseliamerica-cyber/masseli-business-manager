@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import fs, {readFileSync} from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import vm from 'node:vm';
 
 const source=readFileSync('qa/p0-purchase-browser-persistent.TEST.mjs','utf8');
@@ -29,6 +31,7 @@ test('planned reversal rejects a missing ledger entry or an incorrect amount',as
 
 test('an uncertain purchase submission stops the journey and closes only its browser',async()=>{
  const apiPaths=[],clicks=[],messages=[];
+ const stages=[];
  let closed=0,run;
  const uncertainty=new Error('No purchase receipt observed');
  const locator=text=>({
@@ -50,6 +53,8 @@ test('an uncertain purchase submission stops the journey and closes only its bro
    throw new Error('Unexpected API call');
   },
   chromium:{launch:async()=>({newPage:async()=>page,close:async()=>{closed++}})},
+  journalDir:'mock-journal',findOrder:async()=>null,
+  openPurchaseRunJournal:()=>({reserve:step=>stages.push(step),confirm:()=>assert.fail('No confirmed receipt'),stop:()=>stages.push('stopped')}),
   waitForOrder:async()=>{throw uncertainty},
  });
  vm.runInContext(source.slice(journey),context);
@@ -58,5 +63,24 @@ test('an uncertain purchase submission stops the journey and closes only its bro
  assert.equal(clicks.filter(text=>text==='Submit Order').length,1);
  assert.equal(clicks.at(-1),'Submit Order');
  assert.equal(closed,1);
+ assert.deepEqual(stages,['create','stopped']);
  assert.deepEqual(messages,['P0.05 STOPPED {"tag":"mock-tag","poId":null,"next":"READ_ONLY_RECONCILIATION"}']);
+});
+
+test('the purchase journal reserves each stage once and rejects reusing a run directory',()=>{
+ const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'nexalvo-purchase-journal-'));
+ try{
+  const context=vm.createContext({assert,fs,path});
+  vm.runInContext(source.slice(source.indexOf('function openPurchaseRunJournal('),journey)+';globalThis.open=openPurchaseRunJournal;',context);
+  const dir=path.join(scratch,'QA_P005_BROWSER_ISOLATED');
+  const journal=context.open(dir,'QA_P005_BROWSER_ISOLATED');
+  assert.throws(()=>journal.reserve('pay'));
+  journal.reserve('create');
+  assert.throws(()=>journal.reserve('create'));
+  journal.confirm('create','mock-order');
+  journal.reserve('receive','mock-order');
+  journal.stop('mock-order');
+  assert.equal(JSON.parse(readFileSync(path.join(dir,'stopped.json'))).unconfirmed_stage,'receive');
+  assert.throws(()=>context.open(dir,'QA_P005_BROWSER_ISOLATED'),{code:'EEXIST'});
+ }finally{fs.rmSync(scratch,{recursive:true,force:true});}
 });

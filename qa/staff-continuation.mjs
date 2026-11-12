@@ -9,6 +9,7 @@ import { requestTimeout, sha256 } from './staff-integrated-business.mjs';
 import { openJournal } from './staff-integrated-run.mjs';
 import { compareCheckpointState } from './staff-p4-recovery.mjs';
 import { collectContinuationTokens } from './staff-continuation-input.mjs';
+import { buildStaffSalaryRevision, staffSalaryIndicator } from './staff-salary-review.mjs';
 import { parseStaffRequest, validStaffProfileReceipt } from '../supabase/functions/_shared/manage-staff-user-core.mjs';
 
 const repo = fileURLToPath(new URL('..', import.meta.url));
@@ -66,10 +67,10 @@ export function validatePlan(plan, original, defaults, readPlan, baseline) {
   }
 }
 
-export function scopeApproval(approval, manifestHash) {
+export function scopeApproval(approval, manifestHash, approvedBudget) {
   assert(approval.project === PROJECT && approval.manifest_sha256 === manifestHash && approval.exclusive_confirmed === true &&
     approval.additional_scope_confirmed === true && approval.stop_on_uncertainty_no_retry === true, 'CONTINUATION_APPROVAL_REQUIRED');
-  assert.deepEqual(approval.budget, { Edge_original_cases: 13, Edge_additional: 4, Edge_restore_reserved: 2, PATCH: 0,
+  assert.deepEqual(approval.budget, approvedBudget ?? { Edge_original_cases: 13, Edge_additional: 4, Edge_restore_reserved: 2, PATCH: 0,
     GET_authenticated_additional: 4, GET_authenticated_total: 59, SQL_read_only: 36 });
   const times = [approval.start_utc, approval.cutoff_utc, approval.end_utc];
   assert(times.every(iso), 'CONTINUATION_WINDOW_FORMAT');
@@ -121,17 +122,22 @@ export async function executeContinuation({ plan, baseline, business, defaults, 
   journal.save('restore-budget.json', { Edge_reserved_for_restoration: 2, PATCH: 0 });
   let uncertain = false;
   let readCount = 0;
+  const readLimit = Object.values(plan.authenticated_read_plan).flat().length;
   let deterministicStop = null;
   let stage = 'admission';
   async function readGroup(name) {
     for (const check of plan.authenticated_read_plan[name]) {
       gate('HOMOLOGATION');
-      assert(++readCount <= 56);
+      assert(++readCount <= readLimit && readLimit <= 56);
       journal.save(`GET-${readCount}-intent.json`, { id: check.id, actor: check.actor, path: check.path });
       let response;
       try { response = await dispatch(check.actor, 'GET', check.path, undefined, 'HOMOLOGATION'); } catch {}
-      const passed = response?.http === 200 && validateRead(check, response.value, business);
-      journal.save(`GET-${readCount}-result.json`, { id: check.id, http: response?.http ?? null, passed });
+      const salary = check.expect.salary_state;
+      const indicator = salary && response?.http === 200
+        ? staffSalaryIndicator(response.value, business, check.expect.employee_id) : null;
+      const passed = response?.http === 200 && (salary ? indicator === salary : validateRead(check, response.value, business));
+      journal.save(`GET-${readCount}-result.json`, { id: check.id, http: response?.http ?? null, passed,
+        ...(salary ? { salary_indicator: indicator } : {}) });
       if (!passed) return false;
     }
     return true;
@@ -197,7 +203,8 @@ export async function executeContinuation({ plan, baseline, business, defaults, 
       plan.current.profiles.slice().sort((a,b)=>a.id.localeCompare(b.id)));
     for (const profile of confirmed.profiles) assert.equal(profile.semantic_md5_excluding_updated_at,
       baseline.profiles.find(original => original.id === profile.id).semantic_md5_excluding_updated_at, 'FINAL_SEMANTIC_PROFILE_DRIFT');
-    if (!deterministicStop) assert.equal(confirmed.staff_audits.length, 13);
+    const expectedAudits = [...plan.setup, ...plan.steps, ...plan.recovery].reduce((total, step) => total + step.expected_audits_inserted, 0);
+    if (!deterministicStop) assert.equal(confirmed.staff_audits.length, baseline.staff_audits.length + expectedAudits);
     journal.save('closed.json', { passed: !deterministicStop, restored: true, audits: confirmed.staff_audits.length, permission_GETs: readCount });
   } catch (error) {
     journal.save('stop.json', { stage, result_uncertain: uncertain, no_retry: true });
@@ -218,13 +225,15 @@ function publicKey() {
   return publicKeyForTest(env.VITE_SUPABASE_ANON_KEY);
 }
 
-export async function loadContinuation(workspace, manifestSha) {
+export async function loadContinuation(workspace, manifestSha, { salaryRevision = false } = {}) {
   const dir = path.join(workspace, packageDir);
-  const manifestFile = path.join(dir, 'manifesto-executor.json');
+  const manifestFile = path.join(dir, salaryRevision ? 'manifesto-executor-salary-review.json' : 'manifesto-executor.json');
   assert(/^[a-f0-9]{64}$/.test(manifestSha) && digest(manifestFile) === manifestSha, 'EXECUTOR_MANIFEST_DRIFT');
   const manifest = readJson(manifestFile);
-  assert.deepEqual(Object.keys(manifest.package_files).sort(), ['checkpoint-continuacao.sql', 'controlador-leituras-candidato.mjs',
-    'manifesto.json', 'plano-continuacao.json', 'prova-employees-inativos.json']);
+  const required = ['checkpoint-continuacao.sql', 'controlador-leituras-candidato.mjs',
+    'manifesto.json', 'plano-continuacao.json', 'prova-employees-inativos.json'];
+  if (salaryRevision) required.push('complemento-auth-senhas.json', 'manifesto-executor.json', 'plano-salary-review.json');
+  assert.deepEqual(Object.keys(manifest.package_files).sort(), required.sort());
   const verify = () => {
     assert.equal(digest(manifestFile), manifestSha);
     for (const [name, hash] of Object.entries(manifest.package_files)) assert.equal(digest(path.join(dir, name)), hash, 'PACKAGE_FILE_DRIFT');
@@ -256,6 +265,26 @@ export async function loadContinuation(workspace, manifestSha) {
     const value = Object.hasOwn(check.expect, 'salary_visible') && Array.isArray(receipt.value)
       ? receipt.value.map(row => ({ ...row, hourly_rate: row.hourly_rate_visible ? 1 : null })) : receipt.value;
     assert(receipt.id === check.id && receipt.status === 200 && validateRead(check, value, original.business_A));
+  }
+  if (salaryRevision) {
+    const closed = path.join(workspace, 'work/staff-user-service/staff-permissions-continuation-password-20261112');
+    const closedState = readJson(path.join(closed, 'closed.json'));
+    assert.deepEqual(closedState, { passed: false, restored: true, audits: 8, permission_GETs: 25 });
+    const restored = readJson(path.join(closed, 'SQL-09-checkpoint.json'));
+    assert.equal(restored.staff_audits.length, 8);
+    assert.deepEqual(restored.employees, baseline.employees);
+    assert.deepEqual(restored.role_defaults, readJson(path.join(closed, 'SQL-01-checkpoint.json')).role_defaults);
+    assert.deepEqual(restored.staff_contracts, plan.staff_live_contracts);
+    const completed = Array.from({ length: 25 }, (_, i) => {
+      const { id, actor, path: route } = plan.authenticated_read_plan.baseline[i];
+      assert.deepEqual(readJson(path.join(closed, `GET-${i+1}-intent.json`)), { id, actor, path: route });
+      return readJson(path.join(closed, `GET-${i+1}-result.json`));
+    });
+    const revised = buildStaffSalaryRevision(plan, restored, completed);
+    assert.deepEqual(revised, readJson(path.join(dir, 'plano-salary-review.json')));
+    assert.deepEqual(manifest.revision_budget, { Edge_original_cases: 13, Edge_additional: 4, Edge_restore_reserved: 2, PATCH: 0,
+      GET_authenticated_total: 37, SQL_read_only: 36 });
+    return { plan: revised, baseline: restored, business: original.business_A, defaults, verify, manifest };
   }
   return { plan, baseline, business: original.business_A, defaults, verify, manifest };
 }

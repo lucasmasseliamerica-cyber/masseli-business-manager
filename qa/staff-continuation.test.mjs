@@ -38,6 +38,8 @@ function syntheticRun(bundle, behavior = {}) {
       calls.gets.push(check.id);
       if (Object.hasOwn(check.expect, 'boolean')) return { http: 200, value: check.expect.boolean };
       const id = new URL(url, 'https://test.invalid').searchParams.get('id').slice(3);
+      if (check.expect.salary_state) return { http: 200, value: check.expect.salary_state === 'empty' ? [] :
+        [{ id, business_id: business, hourly_rate: check.expect.salary_state === 'null' ? null : 1 }] };
       return { http: 200, value: check.expect.rows === 0 ? [] : [{ id, business_id: business,
         hourly_rate: check.expect.salary_visible === false ? null : 1 }] };
     }
@@ -82,6 +84,21 @@ test('coleta mascarada só devolve 204 após gravar o recibo sanitizado', async 
   assert.equal((await fetch(url, request)).status, 204);
   assert.equal(accepted, 1);
   assert.deepEqual(await collecting, tokens);
+});
+
+test('salary review: corrected predicates run on the restored eight-audit checkpoint', {
+  skip: !root || !process.env.NEXALVO_SALARY_REVIEW_MANIFEST,
+}, async () => {
+  const data = await loadContinuation(root, process.env.NEXALVO_SALARY_REVIEW_MANIFEST, { salaryRevision: true });
+  const run = syntheticRun(data);
+  await run.run();
+  assert.equal(run.calls.posts.length, 17);
+  assert.equal(run.calls.sql.length, 35);
+  assert.equal(run.calls.gets.length, 34);
+  assert.equal(run.records.get('closed.json').audits, 17);
+  assert.deepEqual([...run.records.values()].filter(value => value.salary_indicator).map(value => [value.id, value.salary_indicator]),
+    [['MANAGER-salary','exposed'],['MANAGER-salary-unrelated','empty'],['EMPLOYEE-salary','null'],['EMPLOYEE-salary-unrelated','empty']]);
+  assert([...run.records.values()].filter(value => value.salary_indicator).every(value => !Object.hasOwn(value, 'hourly_rate')));
 });
 
 describe('pacote exato, sem acesso remoto', { skip: !root || !digest }, () => {

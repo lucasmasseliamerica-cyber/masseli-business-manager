@@ -10,8 +10,8 @@ import { requestTimeout, sha256 } from './staff-integrated-business.mjs';
 import { executeContinuation, loadContinuation, scopeApproval } from './staff-continuation.mjs';
 
 const baseHash = 'b7139c713a1a56351383621f8482f06f48ecc2e4bdbb22be9f1be34714deaf78';
-const dir = 'work/staff-user-service/staff-permissions-continuation-password-20261112';
-const packet = 'outputs/staff-permissions-continuation-review-20261111/complemento-auth-senhas.json';
+const dir = 'work/staff-user-service/staff-permissions-continuation-salary-review';
+const packet = 'outputs/staff-permissions-continuation-review-20261111/manifesto-executor-salary-review.json';
 const closedDir = 'work/staff-user-service/staff-permissions-continuation-20261111';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const digest = file => sha256(fs.readFileSync(file));
@@ -36,7 +36,7 @@ function current(checkpoint, request) {
 
 async function openAdmission(addendumHash, approvalHash) {
   assert(/^[a-f0-9]{64}$/.test(addendumHash) && /^[a-f0-9]{64}$/.test(approvalHash), 'ADDENDUM_HASH_REQUIRED');
-  const bundle = await loadContinuation(process.cwd(), baseHash);
+  const bundle = await loadContinuation(process.cwd(), addendumHash, { salaryRevision: true });
   const addendumFile = path.resolve(packet);
   assert.equal(digest(addendumFile), addendumHash, 'ADDENDUM_DRIFT');
   const addendum = JSON.parse(fs.readFileSync(addendumFile, 'utf8'));
@@ -50,9 +50,10 @@ async function openAdmission(addendumHash, approvalHash) {
   const previousClosure = previous.read('closed-before-input.json');
   const journal = openJournal(dir);
   const approval = journal.read('approval.json');
-  const window = scopeApproval(approval, baseHash);
+  const window = scopeApproval(approval, addendumHash, bundle.manifest.revision_budget);
   assert.deepEqual(approval.auth, authScope);
-  assert(approval.auth_addendum_sha256 === addendumHash && approval.auth_explicitly_authorized === true, 'AUTH_APPROVAL_REQUIRED');
+  assert(approval.auth_addendum_sha256 === addendumHash && approval.auth_explicitly_authorized === true &&
+    approval.salary_revision_explicitly_authorized === true && approval.audits_max === 9, 'AUTH_APPROVAL_REQUIRED');
   const edge = journal.read('edge-admission.json');
   const expected = bundle.manifest.edge;
   assert(edge.project === PROJECT && edge.edge_id === expected.id && edge.edge_version === expected.version && edge.status === 'ACTIVE' &&

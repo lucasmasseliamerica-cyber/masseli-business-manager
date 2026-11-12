@@ -1,0 +1,40 @@
+{
+  "manifest_sha256": "9a2d732e2eb23081c72ae81ee98ea4b12d801f06d224435777d77be57b84458d",
+  "scope": "DISPOSABLE_POSTGRES_ONLY",
+  "postgres": "17.11",
+  "definition": "20261017_catalog_security_hardening_TEST.sql",
+  "cases": [
+    {
+      "label": "manager_own_with_finance",
+      "status": "exposed"
+    },
+    {
+      "label": "manager_subordinate_with_finance",
+      "status": "exposed"
+    },
+    {
+      "label": "manager_unlinked_with_finance",
+      "status": "empty"
+    },
+    {
+      "label": "manager_foreign_even_with_link",
+      "status": "empty"
+    },
+    {
+      "label": "manager_own_without_finance",
+      "status": "null"
+    },
+    {
+      "label": "manager_subordinate_without_finance",
+      "status": "null"
+    },
+    {
+      "label": "employee_own_without_finance",
+      "status": "null"
+    },
+    {
+      "label": "employee_unlinked",
+      "status": "empty"
+    }
+  ]
+}

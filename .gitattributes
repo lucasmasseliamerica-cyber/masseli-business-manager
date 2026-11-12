@@ -25,3 +25,5 @@ qa/sql/staff_business_checkpoint_readonly_TEST.sql text eol=lf
 qa/staff-integrated-*.mjs text eol=lf
 qa/staff-p4-*.mjs text eol=lf
 qa/staff-continuation*.mjs text eol=lf
+qa/staff-salary-review*.mjs text eol=lf
+qa/p0-purchase-browser-persistent.TEST.mjs text eol=lf
