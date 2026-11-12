@@ -31,6 +31,8 @@ Manter a S700 dedicada ao NEXALVO durante o ensaio. O aplicativo usa uma tentati
 
 O Preview está verificado e o teste de entrada do webhook recebeu `405 METHOD_NOT_ALLOWED` para GET. A leitura confirmou zero vínculos, tentativas e eventos. O Stripe Dashboard solicitou login. A revisão da configuração depende da seleção do sandbox, da empresa/unidade QA e de um leitor identificado com localização nos EUA. [Evidência do Preview](./evidence/nexalvo-vercel-preview-20261111.json)
 
+Na continuação após o cancelamento do evento, a leitura do TEST de 20h58 UTC confirmou zero vínculos, tentativas, eventos e autorizações de venda. A unidade candidata é `LOJA QA - TESTE`, ativa e única na empresa de QA já usada no Preview, com ID `a3e4b2ed-eb00-4963-afd0-38c256aff87d`. Para completar a configuração de sandbox, faltam a conta Stripe TEST, a localização, o S700 simulado e o teto. A homologação física continua como etapa própria. [Leitura sanitizada](./evidence/nexalvo-independent-readonly-20261111.json)
+
 Para o ensaio no sandbox, o leitor simulado pode executar o fluxo server-driven antes da chegada da S700 física. Após iniciar a ação de pagamento pelo NEXALVO, o operador de teste apresenta um cartão simulado no leitor pelo helper Stripe `present_payment_method`. Cada caso deve conferir a tentativa no Supabase, o PaymentIntent na Stripe e os efeitos previstos na venda, no estoque e no financeiro. O roteiro de homologação inclui aprovação, recusa, cancelamento e recarga com a mesma tentativa. [Testes Stripe Terminal](https://docs.stripe.com/terminal/references/testing#simulated-card-presentment) · [Roteiro](./QA_NEXALVO_EVENTO_20261115.md)
 
 ## Recuperação e efeitos

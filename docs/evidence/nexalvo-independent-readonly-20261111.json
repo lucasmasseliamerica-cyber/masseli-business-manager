@@ -1,0 +1,39 @@
+{
+  "project": "msinksoilkluooxenecy",
+  "scope": "READ_ONLY_CONTINUATION",
+  "terminal": {
+    "events": 0,
+    "attempts": 0,
+    "bindings": 0,
+    "observed_utc": "2026-11-11T20:58:09.634831+00:00",
+    "authorizations": 0,
+    "enabled_bindings": 0,
+    "qa_unit_verified_utc": "2026-11-11T21:01:45.799314+00:00",
+    "qa_unit": {
+      "id": "a3e4b2ed-eb00-4963-afd0-38c256aff87d",
+      "name": "LOJA QA - TESTE",
+      "active": true,
+      "business_id": "d627563b-2ce4-491d-8cf6-141ef28d0f63"
+    },
+    "sandbox_binding": "pending",
+    "stripe_requests_sent": 0
+  },
+  "cash_and_purchases": {
+    "observed_utc": "2026-11-11T20:58:10.377218+00:00",
+    "purchase_rpcs": [
+      {
+        "md5": "60a5ebb422936aae5d2b1abb38688c65",
+        "name": "fn_create_purchase_order"
+      },
+      {
+        "md5": "51ae83d203731a294af7a19bf7e44944",
+        "name": "fn_receive_purchase_order"
+      }
+    ],
+    "cash_close_md5": "abc12e6f24daac827c1fea828377e7a0",
+    "cash_migration_precondition_matches": true,
+    "purchase_idempotent_create_present": false
+  },
+  "remote_writes": 0,
+  "operational_coverage": "16/60"
+}

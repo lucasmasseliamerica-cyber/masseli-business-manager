@@ -10,10 +10,11 @@
 - [x] Staff TEST. Três sessões confirmadas no mesmo processo. P1–P4 PASS, com duas auditorias e consumo de 2/17 Edge e 2/4 PATCH. [Evidência](./evidence/staff-integrated-business-stopped-20261111.json)
 - [x] Staff TEST. Recuperação isolada R1–R4 autorizada dentro do saldo original. Executor separado preparado com seis testes locais PASS. [Procedimento](./QA_STAFF_RECUPERACAO_P4_20261111.md)
 - [x] Staff TEST. R1–R4 PASS na janela de 20h46–21h01 UTC. Perfis e registros de funcionário restaurados para inativos. Quatro auditorias no recorte, incluindo duas preservadas. Consumo acumulado **4/17 Edge e 4/4 PATCH**. [Evidência](./evidence/staff-p4-recovery-pass-20261111.json)
-- [ ] Staff TEST. Revisar separadamente o filtro `business_B` e definir o escopo dos casos de homologação de permissões pendentes.
+- [x] Staff TEST. Pacote de continuação N1–N8, U1–U3 e G1–G2 preparado. Controlador candidato corrigido e conferido localmente. Os recibos de P1–P4 e R1–R4 ficam encerrados. [Pacote](./QA_STAFF_PERMISSIONS_CONTINUATION_20261111.md)
+- [ ] Staff TEST. Vincular o executor sucessor, o adicional de quatro Edge e quatro GET e a janela exclusiva antes de ativar os perfis. O roteiro reserva dois Edge para restaurá-los e prevê zero PATCH.
 - [x] Runner de compras P0.05 encerra em falha sem compensação automática. Quatro regressões locais PASS. [Implementação](../qa/p0-purchase-browser-persistent.TEST.mjs) · [Testes](../qa/purchase-compensation-regression.test.mjs)
 - [ ] Jornada P0.05 persistente. Preparar vínculo dos recibos por etapa, intenção durável, orçamento e autorização própria. Nenhuma execução remota nesta etapa.
-- [ ] Homologações persistentes, revisão das origens do Preview e configuração Stripe TEST. S700 física é dependência do aceite de cartão presencial. A integração de IA está adiada.
+- [ ] Homologações persistentes, revisão das origens do Preview e configuração Stripe TEST. Leitura recente confirmou uma unidade QA candidata ativa e zero vínculos ou tentativas. A próxima etapa depende da conta sandbox, localização, leitor e teto. S700 física é dependência do aceite de cartão presencial. A integração de IA está adiada. [Leituras independentes](./evidence/nexalvo-independent-readonly-20261111.json)
 - [ ] Verificar os gates de produção. A equipe Vercel está no Hobby. A migração ao plano comercial exige aprovação do custo.
 
 [Evidência do marco](./evidence/nexalvo-operational-continuation-20261111.json) · [Entrega operacional](./QA_NEXALVO_ENTREGA_OPERACIONAL.md)
@@ -25,7 +26,7 @@
 - [x] [Preview QA](https://masseli-business-manager-ewdbjnobw-lucas-masseli.vercel.app) publicado com Supabase TEST e cartão desativado. Acesso inicial, troca de idioma, rota direta e reload conferidos em desktop e tela móvel. [Evidência](./evidence/nexalvo-vercel-preview-20261111.json)
 - [ ] Entrar como operador TEST e fechar a configuração Stripe TEST com sandbox, empresa/unidade, localização, leitor e teto confirmados.
 - [ ] Confirmar a entrega da S700, executar o ensaio publicado e aprovar a passagem para o ambiente de operação. [Checklist do evento](./QA_NEXALVO_EVENTO_20261115.md)
-- [ ] Staff continua suspenso. A janela de 11/11 encerrou na coleta, antes de Auth, com zero dos 17 Edge e 4 PATCH usados. Cobertura operacional **16/60**.
+- [ ] Staff continua suspenso. A coleta anterior à homologação encerrou antes de Auth, com zero envios naquela janela. O estado atual consta no pacote de continuação. Cobertura operacional **16/60**.
 
 ## Staff — complemento registrado e coleta expirada antes de Auth (11/11/2026 UTC)
 
