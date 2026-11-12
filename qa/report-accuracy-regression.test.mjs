@@ -44,6 +44,9 @@ for (const [label, source] of [['root App.jsx', root], ['src/App.jsx', src]]) {
   test(`${label}: revenue excludes collected tax and allocates discounts across products`, () => {
     const api = analytics(source);
     assert.equal(api.saleNetRevenue({ total: 55, tax: 5 }), 50, 'legacy rows fall back to total minus tax');
+    const legacy = { ...sales[1], subtotal: null, total: 99, tax: 9, discount: 10 };
+    assert.deepEqual(api.getSalesAnalytics([legacy], range),
+      { grossSales: 100, discounts: 10, netSales: 90, taxCollected: 9, totalRevenue: 90, orders: 1, avgOrderValue: 90 });
     const totals = api.getSalesAnalytics(sales, range);
     assert.deepEqual(totals, { grossSales: 150, discounts: 10, netSales: 140, taxCollected: 14, totalRevenue: 140, orders: 2, avgOrderValue: 70 });
     const products = api.getProductPerformance(sales, range);

@@ -11,11 +11,55 @@ function section(start, end) {
   return source.slice(a, b);
 }
 function rest(fetchImpl) {
-  const context = vm.createContext({ supabaseFetch: fetchImpl, Date, Set, Map, Number, JSON, Object, String });
+  const context = vm.createContext({ supabaseFetch: fetchImpl, Date, Set, Map, Number, JSON, Object, String,
+    isUuid: value => typeof value === 'string' && /^[a-f0-9-]{36}$/i.test(value) });
   vm.runInContext(section('let _unconfirmedRpcWrite =', 'function encodeStorageObjectPath(')
     + ';globalThis.api=supabaseRest;', context);
   return context.api;
 }
+
+test('expense creation requires a scoped receipt and blocks uncertain legacy replay', async () => {
+  const id = '11111111-1111-4111-8111-111111111111';
+  const args = { p_business_id: 'tenant-a', p_location_id: 'unit-a', p_expense_date: '2026-11-11', p_category: 'Supplies', p_amount: 12.34 };
+  const receipt = { id, business_id: 'tenant-a', location_id: 'unit-a', expense_date: '2026-11-11', category: 'Supplies', amount: '12.34' };
+  for (const body of [null, { ...receipt, business_id: 'tenant-b' }, { ...receipt, amount: '12.35' }]) {
+    let calls = 0;
+    const api = rest(async () => { calls++; return Response.json(body); });
+    await assert.rejects(api.rpc('fn_create_expense', args), { code: 'EXPENSE_RECEIPT_UNCONFIRMED', commitUncertain: true });
+    await assert.rejects(api.rpc('fn_create_expense', args), { commitUncertain: true });
+    assert.equal(calls, 1);
+  }
+  const idempotent = rest(async () => Response.json(null));
+  await assert.rejects(idempotent.rpc('fn_create_expense_idempotent', args), { code: 'EXPENSE_RECEIPT_UNCONFIRMED', commitUncertain: true });
+  const valid = rest(async () => Response.json(receipt));
+  assert.equal((await valid.rpc('fn_create_expense', args)).id, id);
+});
+
+test('task acknowledgement prevents repeating a mutation when the reload fails', async () => {
+  let rejectRead = true;
+  const mutations = [];
+  const reports = [];
+  const data = [{ id: 'task-a', title: 'Task', status: 'pending' }];
+  const context = vm.createContext({
+    useState: () => [data, () => {}], useRef: current => ({ current }), useCallback: fn => fn, useEffect: () => {},
+    supabaseAuth: { hasSession: () => true }, isUuid: () => true,
+    supabaseRest: {
+      async rpc(name, payload) { mutations.push([name, payload.p_task_id]); },
+      async select() { if (rejectRead) throw new Error('load unavailable'); return []; },
+    },
+  });
+  vm.runInContext(section('function useSupabaseTasks(', 'function useSupabaseShifts(') + ';globalThis.tasks=useSupabaseTasks;', context);
+  const [, persist, reload] = context.tasks('tenant-a', (...args) => reports.push(args));
+  const next = [{ ...data[0], status: 'done' }];
+  await assert.rejects(persist(next), { rpcSucceeded: true });
+  await assert.rejects(persist(next), /Refresh tasks/);
+  assert.deepEqual(mutations, [['fn_toggle_task_status', 'task-a']]);
+  assert.deepEqual(reports, [['tasks', 'reload', 'load unavailable']]);
+  rejectRead = false;
+  await reload();
+  await persist(next);
+  assert.equal(mutations.length, 2, 'a successful reload permits a new deliberate action');
+});
 
 test('CSV reports neutralize spreadsheet formulas without changing numeric financial amounts', () => {
   const context = vm.createContext({ String });

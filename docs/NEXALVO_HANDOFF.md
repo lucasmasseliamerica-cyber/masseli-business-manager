@@ -1,5 +1,7 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+O [lote autônomo de 11/11/2026](./QA_NEXALVO_LOTE_AUTONOMO_20261111.md) registra o estado vigente do executor staff, as correções operacionais e os escopos pendentes. Cobertura comprovada **16/60**.
+
 **Lote autônomo encerrado:** [três correções, transição staff e evidências finais](./QA_AUTONOMOUS_BATCH_20261103.md).
 Código 37c2fde: staff/recibo 79/79, fornecedor 50/50 e modal 16/16, CI isolada Linux/Windows
 e builds PASS; componentes anteriores conferidos por hash, sem repetição desnecessária.

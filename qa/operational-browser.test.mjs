@@ -591,6 +591,12 @@ test('SIMULATED HTTP: enabled Stripe checkout recovers the same attempt after lo
     assert.deepEqual(state.terminalCalls.map(call => call.action), ['readiness', 'start', 'status']);
     assert.equal(state.saleAttempts.length, 0, 'the browser must not finalize Stripe through fn_create_sale');
     assert.equal(state.sales.length, 1);
+    await reopened.getByRole('button', { name: 'Done', exact: true }).click();
+    await page.getByText('Order #1001 · In Store', { exact: true }).click();
+    const details = page.getByRole('dialog');
+    await details.getByRole('status').getByText('This sale requires Stripe refund reconciliation.').waitFor();
+    assert.equal(await details.getByRole('button', { name: 'Cancel Sale', exact: true }).count(), 0);
+    assert.equal(state.reversalAttempts.length, 0);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });

@@ -2357,6 +2357,21 @@ const supabaseRest = {
     try { if (res.status !== 204) body = await res.json(); }
     catch (cause) { if (res.ok && !harmless) throw unconfirmed(cause, res.status); }
     if (!res.ok) throw new Error(`rpc ${fnName} failed (${res.status}): ${JSON.stringify(body)}`);
+    if (fnName === "fn_create_expense" || fnName === "fn_create_expense_idempotent") {
+      const amount = body?.amount;
+      const valid = body && !Array.isArray(body) && isUuid(body.id)
+        && body.business_id === args.p_business_id && body.location_id === args.p_location_id
+        && body.expense_date === args.p_expense_date && body.category === args.p_category
+        && (typeof amount === "number" || (typeof amount === "string" && amount.trim() !== ""))
+        && Number.isFinite(Number(amount)) && Number(amount) > 0 && Number(amount) === args.p_amount;
+      if (!valid) {
+        const error = unconfirmed(null, res.status);
+        error.message = "The expense result is unconfirmed. Check expense history and cash flow before trying again.";
+        error.code = "EXPENSE_RECEIPT_UNCONFIRMED";
+        error.commitUncertain = true;
+        throw error;
+      }
+    }
     if (fnName === "fn_pay_purchase_order") {
       const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
       const amount = body?.amount;
@@ -3972,6 +3987,7 @@ function useSupabaseAudit(businessId, reportLoadError, clearLoadError) {
 
 function useSupabaseTasks(businessId, reportLoadError, clearLoadError) {
   const [data, setData] = useState(null);
+  const needsRefresh = useRef(false);
   const reload = useCallback(async () => {
     if (!businessId || !supabaseAuth.hasSession()) { setData([]); return []; }
     const [tasksRows, activityRows, userRows] = await Promise.all([
@@ -3986,22 +4002,42 @@ function useSupabaseTasks(businessId, reportLoadError, clearLoadError) {
       activityByTask.get(a.task_id).push({ id:a.id, date:a.occurred_at, userId:a.user_id || "", userName:userNames[a.user_id] || "Unknown", action:a.action });
     }
     const mapped = (tasksRows || []).map((t) => ({ id:t.id, title:t.title, assignedTo:t.assigned_to || "", dueDate:t.due_date || "", priority:t.priority || "Medium", status:t.status, notes:t.notes || "", completedAt:t.completed_at || null, completedBy:t.completed_by || null, createdAt:t.created_at, activity:activityByTask.get(t.id) || [] }));
-    setData(mapped); clearLoadError?.("tasks"); return mapped;
+    setData(mapped); needsRefresh.current = false; clearLoadError?.("tasks"); return mapped;
   }, [businessId, clearLoadError]);
   useEffect(() => { reload().catch((e) => { console.error("Supabase tasks load failed", e); reportLoadError?.("tasks","initial",e.message); }); }, [reload, reportLoadError]);
   const persist = useCallback(async (next) => {
+    if (needsRefresh.current) throw new Error("Refresh tasks before making another change.");
     const before = data || []; const nextRows = next || [];
     const nextIds = new Set(nextRows.map((x) => x.id));
-    for (const old of before) if (!nextIds.has(old.id)) await supabaseRest.rpc("fn_save_task",{p_business_id:businessId,p_task_id:old.id,p_operation:"delete",p_title:null,p_assigned_to:null,p_due_date:null,p_priority:null,p_notes:null});
+    let changed = false;
+    for (const old of before) if (!nextIds.has(old.id)) {
+      await supabaseRest.rpc("fn_save_task",{p_business_id:businessId,p_task_id:old.id,p_operation:"delete",p_title:null,p_assigned_to:null,p_due_date:null,p_priority:null,p_notes:null});
+      changed = true;
+    }
     for (const row of nextRows) {
       const old = before.find((x) => x.id === row.id);
       const taskId = isUuid(row.id) ? row.id : newDbId();
       const detailsChanged = !old || ["title","assignedTo","dueDate","priority","notes"].some((k) => (old?.[k] ?? "") !== (row?.[k] ?? ""));
-      if (detailsChanged) await supabaseRest.rpc("fn_save_task",{p_business_id:businessId,p_task_id:taskId,p_operation:"upsert",p_title:row.title,p_assigned_to:row.assignedTo || null,p_due_date:row.dueDate || null,p_priority:row.priority || "Medium",p_notes:row.notes || null});
-      if (old && old.status !== row.status) await supabaseRest.rpc("fn_toggle_task_status",{p_task_id:old.id,p_status:row.status});
+      if (detailsChanged) {
+        await supabaseRest.rpc("fn_save_task",{p_business_id:businessId,p_task_id:taskId,p_operation:"upsert",p_title:row.title,p_assigned_to:row.assignedTo || null,p_due_date:row.dueDate || null,p_priority:row.priority || "Medium",p_notes:row.notes || null});
+        changed = true;
+      }
+      if (old && old.status !== row.status) {
+        await supabaseRest.rpc("fn_toggle_task_status",{p_task_id:old.id,p_status:row.status});
+        changed = true;
+      }
     }
-    return reload();
-  }, [businessId, data, reload]);
+    try {
+      return await reload();
+    } catch (cause) {
+      if (!changed) throw cause;
+      needsRefresh.current = true;
+      reportLoadError?.("tasks", "reload", cause?.message);
+      const error = new Error("Task changes were saved. Refresh to see the latest list.");
+      error.rpcSucceeded = true;
+      throw error;
+    }
+  }, [businessId, data, reload, reportLoadError]);
   return [data, persist, reload];
 }
 
@@ -5971,6 +6007,8 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
   const [advancing, setAdvancing] = useState(false);
   const [printPreview, setPrintPreview] = useState(null); // { title, html } | null
   const cancelled = sale.status === "cancelled";
+  const needsStripeRefund = String(sale.paymentMethod || "").trim().toLowerCase() === "stripe terminal";
+  const refundNotice = "This sale requires Stripe refund reconciliation.";
   const fulfillment = sale.fulfillmentStatus || "Completed";
   const nextStatus = nextFulfillmentStatus(fulfillment);
   const canAdvance = !cancelled && can("manageSales") && fulfillment !== "Completed";
@@ -6004,8 +6042,8 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
   const doCancel = async () => {
     if (busy) return;
     if (!can("reverseSales")) { showToast("You don't have permission to reverse sales.", "danger"); setConfirming(false); return; }
-    if (sale.paymentMethod === "Stripe Terminal") {
-      showToast(currentLanguage() === "pt-BR" ? "Esta venda exige conciliação de reembolso Stripe." : "This sale requires Stripe refund reconciliation.", "danger");
+    if (needsStripeRefund) {
+      showToast(translateUI(refundNotice), "danger");
       setConfirming(false);
       return;
     }
@@ -6198,8 +6236,10 @@ function SaleDetailModal({ dark, sale, onClose, products, inventory, setInventor
         </PrimaryButton>
       )}
       {!cancelled && can("reverseSales") && (
-        <GhostButton dark={dark} full onClick={() => setConfirming(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85", width: "100%" }}>
-          <Undo2 size={15} />{translateUI("Cancel Sale")}</GhostButton>
+        needsStripeRefund
+          ? <div role="status" className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI(refundNotice)}</div>
+          : <GhostButton dark={dark} full onClick={() => setConfirming(true)} style={{ color: "#FF6B85", borderColor: "#FF6B85", width: "100%" }}>
+              <Undo2 size={15} />{translateUI("Cancel Sale")}</GhostButton>
       )}
       {!cancelled && !can("reverseSales") && (
         <div className="text-xs text-center" style={{ color: dark ? C.textMutedDark : C.textMutedLight }}>{translateUI("You don't have permission to reverse sales.")}</div>
@@ -8819,7 +8859,7 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
   const submit = async () => {
     if (submitting || uncertain) return;
     if (!can("manageExpenses")) { setError("You don't have permission to add expenses."); return; }
-    const amt = Number(amount);
+    const amt = round2(Number(amount));
     if (!Number.isFinite(amt) || amt <= 0) { setError("Enter a valid amount."); return; }
     if (!isValidCalendarDate(date)) { setError("Enter a valid expense date."); return; }
     if (!(settings.expenseCategories || []).includes(category)) { setError("Select a valid expense category."); return; }
@@ -8831,7 +8871,7 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
       if (expenseOps?.remote) {
         if (!locationId) { setError("Select a location."); return; }
         try {
-          await expenseOps.create({ requestId: requestIdRef.current, amount: round2(amt), date, category, vendor, paymentMethod, locationId, recurring, description });
+          await expenseOps.create({ requestId: requestIdRef.current, amount: amt, date, category, vendor, paymentMethod, locationId, recurring, description });
           showToast(`Expense added: ${fmtMoney(amt)}`); onClose();
         } catch (e) {
           // rpcSucceeded (set by useSupabaseExpenses.ops.create) means fn_create_expense itself
@@ -8842,7 +8882,7 @@ function ExpenseModal({ dark, onClose, expenses, setExpenses, expenseOps, cashTx
         }
         return;
       }
-      const exp = { id: uid("exp"), amount: round2(amt), date: parseLocalDate(date).toISOString(), category, vendor, paymentMethod, locationId, location: loc?.name || "", recurring, description, status: "completed", createdBy: currentUser?.id };
+      const exp = { id: uid("exp"), amount: amt, date: parseLocalDate(date).toISOString(), category, vendor, paymentMethod, locationId, location: loc?.name || "", recurring, description, status: "completed", createdBy: currentUser?.id };
       await setExpenses([exp, ...expenses]);
       await persistCash([{ id: uid("cash"), date: exp.date, type: "expense", category, amount: exp.amount, paymentMethod, locationId, location: loc?.name || "", description: description || vendor, relatedExpenseId: exp.id }, ...cashTx]);
       await logAudit(auditLog, setAuditLog, currentUser, "Expense Added", `${category} · ${fmtMoney(exp.amount)} · ${vendor}`);
@@ -9919,7 +9959,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
 
   // Hard, data-level enforcement: someone without manageTasks only ever sees an array containing
   // their own assignments — there is no filter tab or UI state that can surface anyone else's task.
-  const baseTasks = canManage ? tasks : tasks.filter((t) => t.assignedTo === myEmployeeId);
+  const baseTasks = canManage ? tasks : myEmployeeId ? tasks.filter((t) => t.assignedTo === myEmployeeId) : [];
   const sorted = [...baseTasks].sort((a, b) => (a.dueDate || "").localeCompare(b.dueDate || ""));
   const filtered =
     filter === "mine" ? sorted.filter((t) => t.assignedTo === myEmployeeId) :
@@ -9933,7 +9973,7 @@ function TasksView({ dark, tasks, persistTasks, employees, currentUser, can, aud
     // Marking done is allowed for the assignee themselves, or anyone with manageTasks — checked
     // here against the freshest record, not just whether the checkbox happened to be reachable.
     const latest = tasks.find((t) => t.id === task.id) || task;
-    const allowed = canManage || latest.assignedTo === myEmployeeId;
+    const allowed = canManage || Boolean(myEmployeeId && latest.assignedTo === myEmployeeId);
     if (!allowed) { showToast("You can only update your own tasks.", "danger"); return; }
     const next = latest.status === "done"
       ? { ...latest, status: "pending", completedAt: null, completedBy: null, activity: logActivity(latest, "Reopened") }
@@ -10025,6 +10065,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
       showToast(task ? "Task updated" : "Task created");
       onClose();
     } catch (e) {
+      if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); return; }
       setError(e?.message || "Unable to save this task.");
     } finally {
       setSubmitting(false);
@@ -10041,6 +10082,7 @@ function TaskFormModal({ dark, task, onClose, tasks, persistTasks, employees, cu
       showToast("Task deleted", "danger");
       onClose();
     } catch (e) {
+      if (e?.rpcSucceeded) { showToast(e.message, "good"); onClose(); return; }
       setError(e?.message || "Unable to delete this task.");
       setConfirmingDelete(false);
     } finally {
@@ -10199,10 +10241,10 @@ function percentChange(current, previous) {
 // ---- Sales Performance KPIs ----
 function getSalesAnalytics(sales, range) {
   const inRange = filterSalesByRange(sales, range);
-  const grossSales = round2(inRange.reduce((a, s) => a + (s.subtotal || 0), 0));
   const discounts = round2(inRange.reduce((a, s) => a + (s.discount || 0), 0));
   const taxCollected = round2(inRange.reduce((a, s) => a + (s.tax || 0), 0));
-  const netSales = round2(grossSales - discounts); // subtotal after discount, before tax
+  const netSales = round2(inRange.reduce((sum, sale) => sum + saleNetRevenue(sale), 0));
+  const grossSales = round2(netSales + discounts);
   const totalRevenue = netSales;
   const orders = inRange.length;
   const avgOrderValue = orders > 0 ? round2(totalRevenue / orders) : null; // null, never divide-by-zero

@@ -2,6 +2,8 @@
 
 O evento de 15/11/2026 foi cancelado. A data deixa de ser critério de entrega. A cobertura permanece **16/60**. A configuração inicial e o ensaio de restauração locais constam no [marco operacional](./QA_NEXALVO_ENTREGA_OPERACIONAL.md).
 
+Estado vigente em 11/11/2026, horário de Nova York. Staff parou na checagem salarial, com perfis restaurados e 13 casos de negócio ainda pendentes. A revisão do executor e as correções de despesa, tarefas, compras, relatórios e conciliação Stripe foram validadas de forma isolada. Os critérios reais abaixo permanecem sujeitos aos respectivos recortes, fixtures e autorizações. [Lote atual](./QA_NEXALVO_LOTE_AUTONOMO_20261111.md)
+
 ## Staff — complemento registrado e coleta expirada antes de Auth (11/11/2026 UTC)
 
 - [x] Complemento específico registrado e reafirmado com o mesmo saldo. OWNER A e MANAGER mantêm um login cada, EMPLOYEE mantém a autorização anterior. A tentativa manual MANAGER continua possivelmente consumida.
@@ -507,7 +509,7 @@ O percentual B mede somente a venda QA Other de USD0,49 e seu estorno. Não repr
 | --- | --- | --- |
 | Salários sem SELECT direto após hardening público | CONCLUÍDO | [USER_CONFIRMED_SQL](../docs/NEXALVO_100_PERCENT_CHECKLIST.md): Pós-preflight público real 16/16 confirmado; teste por perfil real ainda separado |
 | Sessões MANAGER/EMPLOYEE independentes e vínculos ativos | BLOQUEADO | Coleta Auth M/E autorizada, zero envios; vínculo com sessão OWNER A utilizável no mesmo fluxo não comprovado. Perfis/employees M/E inativos no baseline |
-| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Migração, Edge v6 pelo adendo e gates aprovados; 21 casos autorizados não enviados por falta das sessões M/E |
+| Gestão segura de perfis e permissões sem escalonamento | BLOQUEADO | Migração e Edge v6 confirmadas. P1–P4 e R1–R4 encerrados. Os 13 casos restantes pararam antes do primeiro envio na checagem salarial; revisão local pronta para escopo e janela. [Lote atual](./QA_NEXALVO_LOTE_AUTONOMO_20261111.md) |
 | UI: funcionário, ponto/pausa e tarefa persistidos/reconsultados | BLOQUEADO | Perfis/vínculos prontos e autorização de dados QA isolados |
 
 ### Configurações/unidades
