@@ -54,7 +54,9 @@ O controlador montou `business_id=eq.undefined` ao usar `plan.business_B`. O pac
 
 A coleta da janela de 20h05–20h20 UTC encerrou com zero encaminhamentos. Na janela de 20h46–21h01 UTC, R1–R4 passaram após a confirmação da sessão OWNER A. O checkpoint final confirmou os campos originais, dois perfis e dois registros de funcionário inativos, e quatro auditorias. Staff permanece suspenso e a cobertura segue em **16/60**. [Evidência da recuperação](./evidence/staff-p4-recovery-pass-20261111.json)
 
-O pacote de continuação fixa a correção de `business_B_canary` no candidato de leituras e reaproveita 23 recibos válidos do baseline. A próxima execução usaria 13 Edge nos casos N/U/G e quatro Edge adicionais para ativar e restaurar os dois perfis, com os registros de funcionário inativos. Os quatro Edge adicionais e o executor sucessor precisam estar vinculados antes de abrir a janela. [Pacote de continuação](./QA_STAFF_PERMISSIONS_CONTINUATION_20261111.md)
+O executor sucessor está vinculado aos payloads, ao filtro `business_B_canary`, aos 23 recibos válidos e ao checkpoint pós-R4. Sete testes direcionados e o ensaio PostgreSQL descartável passaram. A próxima execução exige quatro Edge adicionais para preparação/restauração, quatro GET adicionais, até 36 leituras SQL e janela exclusiva. Os 13 Edge históricos ficam reservados aos casos N/U/G, com zero PATCH. [Pacote de continuação](./QA_STAFF_PERMISSIONS_CONTINUATION_20261111.md)
+
+Stripe TEST, correção de caixa e idempotência de compras têm pacotes remotos separados para revisão. A instalação do Terminal já está comprovada. A preparação atual conferiu os escopos e não consumiu novas escritas. [Pacotes independentes](./QA_NEXALVO_MUDANCAS_REMOTAS_INDEPENDENTES_20261111.md)
 
 ## Histórico da admissão staff da janela 09h50–10h35
 
