@@ -10,7 +10,7 @@ permissions:
 jobs:
   calendar:
     # Staff-only commits select their affected checks below; do not rerun closed calendar work.
-    if: ${{ !contains(github.event.head_commit.message, '[staff-offline]') && !contains(github.event.head_commit.message, '[purchase-offline]') && !contains(github.event.head_commit.message, '[staff-ui-offline]') && !contains(github.event.head_commit.message, '[app-startup-offline]') }}
+    if: ${{ !contains(github.event.head_commit.message, '[staff-offline]') && !contains(github.event.head_commit.message, '[purchase-offline]') && !contains(github.event.head_commit.message, '[staff-ui-offline]') && !contains(github.event.head_commit.message, '[app-startup-offline]') && !contains(github.event.head_commit.message, '[cash-offline]') }}
     strategy:
       fail-fast: false
       matrix:
@@ -26,6 +26,51 @@ jobs:
       - run: npm ci
       - run: node --test --test-reporter=tap qa/procurement-calendar-regression.test.mjs qa/purchase-supplier-usability-regression.test.mjs qa/report-accuracy-regression.test.mjs
       - run: npm run build
+  cash-report:
+    if: ${{ contains(github.event.head_commit.message, '[cash-offline]') }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      VITE_SUPABASE_URL: https://msinksoilkluooxenecy.supabase.co
+      VITE_SUPABASE_ANON_KEY: sb_publishable_SYNTHETIC_CASH_BROWSER
+      VITE_CARD_PAYMENT_MODE: stripe_terminal
+      VITE_STRIPE_TERMINAL_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save --package-lock=false playwright@1.64.0
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: Cash ledger and affected report validation, synthetic rows only
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test --test-reporter=tap qa/cash-ledger-report-regression.test.mjs qa/report-accuracy-regression.test.mjs qa/cash-register-validation-regression.test.mjs | tee cash-unit.tap
+      - run: npm run build
+      - name: Read-only UI regression with intercepted backend, no QA sessions
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 4192 --strictPort > cash-vite.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          node --input-type=module -e 'let ready=false;for(let i=0;i<120;i++){try{if((await fetch("http://127.0.0.1:4192")).ok){ready=true;break}}catch{}await new Promise(r=>setTimeout(r,100))}if(!ready)process.exit(2)'
+          node --test --test-reporter=tap qa/cash-report-browser.test.mjs | tee cash-browser.tap
+      - name: Archive synthetic reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cash-offline-${{ matrix.os }}
+          path: |
+            cash-unit.tap
+            cash-browser.tap
   staff-recovery:
     if: ${{ contains(github.event.head_commit.message, '[staff-offline]') }}
     strategy:

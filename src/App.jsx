@@ -1163,7 +1163,7 @@ function cashRegisterEntries(register, cashTx) {
     const isLegacyOpening = !t.ledgerType && t.type === "income"
       && t.category === CASH_REGISTER_CATEGORIES.OPENING
       && t.description === "Register opened" && !t.relatedExpenseId && !t.relatedSaleId;
-    if (t.ledgerType === "opening_balance" || isLegacyOpening) return false;
+    if ((t.ledgerType || t.type) === "opening_balance" || isLegacyOpening) return false;
 
     // Supabase cash-register RPCs stamp related_cash_register_id on every drawer movement.
     // Prefer that authoritative relationship because it is exactly what fn_close_cash_register
@@ -1182,7 +1182,7 @@ function cashRegisterEntries(register, cashTx) {
 // same function rather than recomputing it.
 function calculateExpectedCash(register, cashTx) {
   if (!register) return 0;
-  const net = cashRegisterEntries(register, cashTx).reduce((a, t) => a + (t.type === "income" ? t.amount : -t.amount), 0);
+  const net = cashRegisterEntries(register, cashTx).reduce((a, t) => a + ((t.ledgerType || t.type) === "income" ? t.amount : -t.amount), 0);
   return round2((register.openingCash || 0) + net);
 }
 
@@ -1195,13 +1195,13 @@ function cashRegisterBreakdown(register, cashTx) {
   const entries = cashRegisterEntries(register, cashTx).sort((a, b) => new Date(b.date) - new Date(a.date));
   let cashSales = 0, additions = 0, withdrawals = 0, drops = 0, expensesTotal = 0, refunds = 0, adjustments = 0;
   for (const t of entries) {
-    const signed = t.type === "income" ? t.amount : -t.amount;
+    const signed = (t.ledgerType || t.type) === "income" ? t.amount : -t.amount;
     if (t.category === CASH_REGISTER_CATEGORIES.ADDITION) additions += t.amount;
     else if (t.category === CASH_REGISTER_CATEGORIES.WITHDRAWAL) withdrawals += t.amount;
     else if (t.category === CASH_REGISTER_CATEGORIES.DROP) drops += t.amount;
     else if (t.category === CASH_REGISTER_CATEGORIES.ADJUSTMENT) adjustments += signed;
     else if (t.category === "Sale Cancellation" || t.category === "Expense Reversal") refunds += signed;
-    else if (t.relatedSaleId) cashSales += signed;
+    else if ((t.ledgerType || t.type) === "income" && t.relatedSaleId) cashSales += signed;
     else if (t.relatedExpenseId) expensesTotal += t.amount;
     else adjustments += signed; // e.g. a cash-paid supplier payment — still correctly included in the total, generically bucketed
   }
@@ -10387,7 +10387,9 @@ function getCashRegisterAnalytics(cashRegisters, cashTx, range) {
   const balanced = closedInRange.filter((r) => (r.difference || 0) === 0);
   const overages = closedInRange.filter((r) => (r.difference || 0) > 0);
   const shortages = closedInRange.filter((r) => (r.difference || 0) < 0);
-  const cashSalesInRange = round2((cashTx || []).filter((t) => t.paymentMethod === "Cash" && t.type === "income" && t.relatedSaleId && withinRange(t.date, range)).reduce((a, t) => a + t.amount, 0));
+  // Opening balances are displayed as income, but their original ledger discriminator
+  // never represents a sale, even if an imported row carries an incorrect sale_id.
+  const cashSalesInRange = round2((cashTx || []).filter((t) => t.paymentMethod === "Cash" && (t.ledgerType || t.type) === "income" && t.relatedSaleId && withinRange(t.date, range)).reduce((a, t) => a + t.amount, 0));
   return {
     closedCount: closedInRange.length, balancedCount: balanced.length,
     overageCount: overages.length, overageTotal: round2(overages.reduce((a, r) => a + r.difference, 0)),

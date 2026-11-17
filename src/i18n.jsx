@@ -103,6 +103,7 @@ export const PORTUGUESE = {
   "Customers": "Clientes",
   "Employees": "Funcionários",
   "Reports": "Relatórios",
+  "Custom Range": "Intervalo personalizado",
   "Settings": "Configurações",
   "More": "Mais",
   "All sections": "Todas as seções",
