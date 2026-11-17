@@ -1,0 +1,22 @@
+TAP version 13
+# Subtest: SIMULATED HTTP en: Cash Sales excludes opening balance through reload and preserves the stored balanced close
+ok 1 - SIMULATED HTTP en: Cash Sales excludes opening balance through reload and preserves the stored balanced close
+  ---
+  duration_ms: 1432.70507
+  type: 'test'
+  ...
+# Subtest: SIMULATED HTTP pt-BR: Cash Sales excludes opening balance through reload and preserves the stored balanced close
+ok 2 - SIMULATED HTTP pt-BR: Cash Sales excludes opening balance through reload and preserves the stored balanced close
+  ---
+  duration_ms: 1183.385343
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3019.394974

@@ -1,5 +1,19 @@
 # NEXALVO — Continuidade entre conversas (QA/TEST)
 
+## Retomada mais recente — 17/11/2026 (America/New_York)
+
+Leia o [checkpoint Cloud](./QA_NEXALVO_CLOUD_RETOMADA_20261117.md) e o [recibo sanitizado](./evidence/nexalvo-cloud-operational-20261117.json). Base QA atualizada de forma não destrutiva até `e050b0b`; correção Cash independente `0ee443a` e patches compatíveis de build `e0e7bbf` publicados somente na QA.
+
+Cobertura **20/60 (33,33%) confirmada pelo operador**, sem novos critérios por mocks. C1 18/18, staff v7 API 13/13, caixa RPC 4/4 e compras `_02` UI 4/4 encerrados; migrações já verificadas não devem ser reaplicadas. Perfis staff restaurados/inativos. A/B e C2 preservados.
+
+O Windows não é compartilhado com este workspace. `c4be296`, o checkpoint Windows de 17/11 e diários recentes não foram acessados. Sem Desktop Commander nesta sessão, estado da paginação não confirmado e backup SUSPENDED. Caixa UI: último relato 0/3, saldo atual desconhecido até journal; não repetir Auth ou envios por inferência.
+
+26 regressões afetadas + 2 Chromium com HTTP interceptado PASS; build Preview PASS. CI nº 6 offline Linux/Windows SUCCESS; nº 7 e seus resultados finais no recibo. QA integral nº 278 FAIL no gate npm; nº 279/280 SKIPPED não são PASS. Patches reduziram 14 alertas para 11 altos de build, runtime zero; política npm continua FAIL, sem force/allowlist ampliada.
+
+Preview histórico preservado. Sucessor foi compilado, mas publicação não verificada; TEST/Preview retornam CONNECT 403 do proxy nesta sessão e não há integração Vercel utilizável. Nenhum deploy via API, Auth real, escrita TEST, exportação ou custo neste lote. Próximo passo: complementar acesso/recibos em um único retorno, reconciliar admissão e só então retomar o escopo autorizado. Não sobrescrever o checkpoint Windows.
+
+## Histórico preservado — substituído pelo estado acima quando houver divergência
+
 O [lote autônomo de 11/11/2026](./QA_NEXALVO_LOTE_AUTONOMO_20261111.md) registra o estado vigente do executor staff, as correções operacionais e os escopos pendentes. Cobertura comprovada **16/60**.
 
 **Lote autônomo encerrado:** [três correções, transição staff e evidências finais](./QA_AUTONOMOUS_BATCH_20261103.md).

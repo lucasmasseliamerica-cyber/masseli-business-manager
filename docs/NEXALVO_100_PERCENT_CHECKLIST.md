@@ -1,5 +1,19 @@
 # NEXALVO — Checklist macro/micro para 100% de conclusão
 
+## Estado atual — 17/11/2026 (America/New_York)
+
+- Cobertura mais recente confirmada pelo operador: **20/60 (33,33%)**. Não foi aumentada neste lote.
+- C1 real 18/18, staff v7 API 13/13, caixa RPC 4/4 e compras `_02` UI 4/4 encerrados, com restauração informada. Não repetir nem reaplicar as cinco migrações já verificadas. Staff continua suspenso/inativo.
+- [x] Defeito Cash 145 → 45 reproduzido e corrigido em `0ee443a`; tipo original preservado nos cálculos. 26 testes afetados + 2 de UI interceptada PASS, sem homologação financeira nova.
+- [x] Patches compatíveis Vite/parser em `e0e7bbf`, build Preview PASS e seis arquivos de saída idênticos.
+- [ ] Gate npm: **FAIL**, 11 alertas altos de tooling/picomatch; runtime zero. Política preservada.
+- [ ] Preview sucessor: compilado/testado localmente; publicação ainda não verificada.
+- [ ] Windows/paginação, caixa UI e leituras de relatórios: acesso/diários/admissão atuais necessários; nenhum saldo/Auth é presumido. Backup **SUSPENDED**, estado pós-admissão desconhecido.
+
+[Checkpoint Cloud e próximos gates](./QA_NEXALVO_CLOUD_RETOMADA_20261117.md) · [Evidências](./evidence/nexalvo-cloud-operational-20261117.json). O checkpoint Windows de 17/11 não estava acessível; os detalhes abaixo são históricos e não renovam autorizações/saldos.
+
+## Registro anterior preservado
+
 ## Entrega operacional após o cancelamento do evento
 - [x] Fluxo de configuração inicial da empresa implementado. Navegação do OWNER e ausência dos atalhos para EMPLOYEE verificadas em navegador com HTTP interceptado.
 - [x] Ensaio local de restauração lógica concluído. O aceite integral aguarda backup TEST autorizado e restauração isolada dos demais serviços.

@@ -1,0 +1,372 @@
+{
+  "schema_version": 1,
+  "record_date": "2026-11-17",
+  "user_facing_timezone": "America/New_York",
+  "scope": "CLOUD_OFFLINE_CASH_REPORT_AND_COMPATIBLE_BUILD_PATCHES",
+  "repository": "lucasmasseliamerica-cyber/masseli-business-manager",
+  "branch": "automation/nexalvo-qa-actions",
+  "supabase_project_ref": "msinksoilkluooxenecy",
+  "baseline_sha": "e050b0b46567c63553d66d7816850e7bec844cfd",
+  "cash_code_sha": "0ee443a0dfc6a7d0ece6d3af5a7f78c3b61db149",
+  "build_patch_code_sha": "e0e7bbf1758bec42f63565a80c97975d4a82f70c",
+  "windows_local_commit_c4be296_accessed": false,
+  "windows_nov17_checkpoint_accessed": false,
+  "operational_coverage": {
+    "completed": 20,
+    "total": 60,
+    "percent": 33.33,
+    "source": "USER_CONFIRMED_LATEST_RECEIPT",
+    "available_historical_detailed_ledger_completed": 16,
+    "four_new_macro_row_mappings": "BLOCKED_MISSING_WINDOWS_CHECKPOINT",
+    "criteria_promoted_this_session": 0
+  },
+  "preserved_closed_user_reported_scopes": {
+    "C1_REAL": "18/18_PASS_CLOSED",
+    "STAFF_V7_API": "13/13_PASS_RESTORED_INACTIVE_UI_NOT_PROVEN",
+    "CASH_RPC": "4/4_PASS_UI_NOT_PROVEN",
+    "PURCHASE_02_UI": "4/4_PASS_STOCK_COST_FINANCIAL_RESTORED",
+    "CASH_PURCHASE_MIGRATIONS": "5_INSTALLED_VERIFIED_NOT_REAPPLIED",
+    "A_PHOTOS": "PASS_CLOSED",
+    "B_SALE_1253": "17/17_PASS_CLOSED",
+    "C2": "BLOCKED_NO_RETRY"
+  },
+  "local_checks": {
+    "before_new_cash_tests": {
+      "tests": 12,
+      "pass_count": 4,
+      "fail_count": 8,
+      "expected_failure_reproduction": true
+    },
+    "affected_unit_tests": {
+      "tests": 26,
+      "pass_count": 26,
+      "fail_count": 0,
+      "skipped": 0,
+      "evidence": "cash-report-unit-20261117.tap"
+    },
+    "compiled_preview_browser": {
+      "tests": 2,
+      "pass_count": 2,
+      "fail_count": 0,
+      "skipped": 0,
+      "backend": "INTERCEPTED_SYNTHETIC_ONLY",
+      "languages": [
+        "en",
+        "pt-BR"
+      ],
+      "viewport": [
+        "desktop",
+        "mobile"
+      ],
+      "evidence": "cash-report-browser-20261117.tap"
+    },
+    "unique_affected_scenarios": 28,
+    "build": "PASS",
+    "app_and_src_app_identical": true,
+    "workflow_yaml": "PASS",
+    "diff_secret_scan": "PASS",
+    "artifact_secret_scan": "PASS",
+    "artifact_file_hashes_identical_before_after_dependency_patch": true
+  },
+  "dependency_audit": {
+    "before": {
+      "total": 14,
+      "high": 11,
+      "moderate": 3,
+      "critical": 0,
+      "runtime": 0
+    },
+    "after": {
+      "total": 11,
+      "high": 11,
+      "moderate": 0,
+      "critical": 0,
+      "runtime": 0
+    },
+    "policy": "FAIL_UNCHANGED_FAIL_CLOSED",
+    "compatible_patches": {
+      "vite": "6.4.4 -> 6.4.6",
+      "postcss-selector-parser": "6.1.4 -> 6.1.6"
+    },
+    "resolved_advisories": [
+      "GHSA-rj75-hqrm-r3gf",
+      "GHSA-8g5g-mxqh-grgj"
+    ],
+    "remaining_advisories": [
+      "GHSA-fc5q-39xc-vjpf"
+    ],
+    "affected_packages": [
+      "anymatch",
+      "chokidar",
+      "fast-glob",
+      "fdir",
+      "micromatch",
+      "picomatch",
+      "readdirp",
+      "sucrase",
+      "tailwindcss",
+      "tinyglobby",
+      "vite"
+    ],
+    "picomatch_latest_observed": "4.0.7",
+    "picomatch_affected_range": "<=4.0.7",
+    "compatible_published_fix_found": false,
+    "force_fix_or_policy_allowlist_expansion": false
+  },
+  "ci": {
+    "offline_6": {
+      "id": "44138544187",
+      "number": 6,
+      "sha": "0ee443a0dfc6a7d0ece6d3af5a7f78c3b61db149",
+      "status": "SUCCESS",
+      "executed_platforms": [
+        "ubuntu-latest",
+        "windows-latest"
+      ],
+      "evidence": "PUBLIC_GITHUB_RUN_AND_JOB_STEP_CONCLUSIONS",
+      "ci_tap_artifacts_downloaded": false,
+      "commands_per_platform": "26 unit + 2 browser; same as local files"
+    },
+    "offline_7": {
+      "id": "44141264320",
+      "number": 7,
+      "sha": "e0e7bbf1758bec42f63565a80c97975d4a82f70c",
+      "status": "SUCCESS",
+      "executed_job_count": 2,
+      "executed_job_failure_count": 0,
+      "scope": "AFFECTED_OFFLINE_CHECKS_ONLY_NOT_AUTHENTICATED_HOMOLOGATION",
+      "evidence": "PUBLIC_GITHUB_RUN_AND_JOB_STEP_CONCLUSIONS",
+      "ci_tap_artifacts_downloaded": false,
+      "local_same_command_counts": {
+        "unit_tests": 26,
+        "browser_tests": 2,
+        "per_platform": 28
+      },
+      "job_evidence": [
+        {
+          "id": "134244381231",
+          "platform": "ubuntu-latest",
+          "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/44141264320/job/134244381231",
+          "all_steps": "SUCCESS",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npm ci",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npm install --no-save --package-lock=false playwright@1.64.0",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npx --no-install playwright install --with-deps chromium",
+              "conclusion": "success"
+            },
+            {
+              "name": "Cash ledger and affected report validation, synthetic rows only",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npm run build",
+              "conclusion": "success"
+            },
+            {
+              "name": "Read-only UI regression with intercepted backend, no QA sessions",
+              "conclusion": "success"
+            },
+            {
+              "name": "Archive synthetic reports",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ],
+          "html_sha256": "f5362c23f90036594078e9fa59cc944298a19fce399823fa45cac48c0c9b32c8"
+        },
+        {
+          "id": "134244381804",
+          "platform": "windows-latest",
+          "url": "https://github.com/lucasmasseliamerica-cyber/masseli-business-manager/actions/runs/44141264320/job/134244381804",
+          "all_steps": "SUCCESS",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npm ci",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npm install --no-save --package-lock=false playwright@1.64.0",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npx --no-install playwright install --with-deps chromium",
+              "conclusion": "success"
+            },
+            {
+              "name": "Cash ledger and affected report validation, synthetic rows only",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run npm run build",
+              "conclusion": "success"
+            },
+            {
+              "name": "Read-only UI regression with intercepted backend, no QA sessions",
+              "conclusion": "success"
+            },
+            {
+              "name": "Archive synthetic reports",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ],
+          "html_sha256": "028d2c201290e43f8f18c406f59d2d7ab75147a47a692c7bfb9a83f82c6746c2"
+        }
+      ],
+      "index_html_sha256": "44c6366cfab16755bb5e94e4557f817a1d90ad1526e91671e7e63e3ed12bef49"
+    },
+    "legacy_278": {
+      "id": "43951118487",
+      "status": "FAIL_NPM_POLICY_AGGREGATOR_INCOMPLETE",
+      "counts_as_integral_approval": false
+    },
+    "legacy_279": {
+      "id": "44138544100",
+      "status": "SKIPPED_OFFLINE_MARKER",
+      "counts_as_pass": false
+    },
+    "legacy_280": {
+      "id": "44141264529",
+      "status": "SKIPPED_OFFLINE_MARKER",
+      "counts_as_pass": false
+    }
+  },
+  "preview": {
+    "historical_reference": "https://masseli-business-manager-4oj8jbkxw-lucas-masseli.vercel.app/",
+    "historical_code": "e050b0b46567c63553d66d7816850e7bec844cfd",
+    "candidate_built": true,
+    "candidate_code_sha": "e0e7bbf1758bec42f63565a80c97975d4a82f70c",
+    "candidate_archive": {
+      "basename": "nexalvo-qa-e0e7bbf-preview-dist.zip",
+      "bytes": 184785,
+      "sha256": "7fdf61715403aa7ef35b55d229dfc4e4daf4d206494b99082b1e6e11b44b986e"
+    },
+    "candidate_files": [
+      {
+        "path": "assets/App-BHUuKx6b.js",
+        "bytes": 408550,
+        "sha256": "92b003bf440e6958225a992601ebe8a51fddadb0e53a121c76ee3f2075e73ef6"
+      },
+      {
+        "path": "assets/icons-DqaAL-MG.js",
+        "bytes": 15609,
+        "sha256": "2d0c29a756cba2d446ec55fb71b33f01ef0665da446e696eda1ea839598379bc"
+      },
+      {
+        "path": "assets/index-DCTwtY-1.js",
+        "bytes": 67723,
+        "sha256": "8b94348131b4a0748b44e971d1db33b6cc22fd129f976491863db2017dfc3e77"
+      },
+      {
+        "path": "assets/index-DnbHXmRw.css",
+        "bytes": 14356,
+        "sha256": "216eb0b35d57cce39532737aee4bdb1aab06da8ebc867508f42a3debc352aaf3"
+      },
+      {
+        "path": "assets/react-vendor-BqH9RPIO.js",
+        "bytes": 142932,
+        "sha256": "54b21454c6292da84a6505653e40f6ffb48e7175d504088a9075e61ffb0d3798"
+      },
+      {
+        "path": "index.html",
+        "bytes": 484,
+        "sha256": "dfe9d91f73caa38085b3e65f73425cafdfc865324942da23cecccf8e085de821"
+      }
+    ],
+    "candidate_publication": "NOT_VERIFIED",
+    "deployment_api_invoked": false,
+    "automatic_git_deployment": "NOT_VERIFIED",
+    "terminal_enabled": false,
+    "charges_enabled": false
+  },
+  "access": {
+    "windows": "NO_DESKTOP_COMMANDER_TOOL_IN_THIS_SESSION_NOT_A_GLOBAL_OUTAGE_CLAIM",
+    "test_and_preview_requests": "PROXY_CONNECT_403_SERVICE_NOT_REACHED",
+    "vercel_integration": "NOT_AVAILABLE_IN_THIS_SESSION",
+    "current_owner_b_session": "NOT_AVAILABLE_OR_VERIFIED",
+    "pagefile_effective_state_and_result_receipt": "NOT_ACCESSED"
+  },
+  "budgets": {
+    "real_auth_requests_this_session": 0,
+    "business_requests_forwarded_this_session": 0,
+    "sql_requests_this_session": 0,
+    "storage_mutations_this_session": 0,
+    "export_requests_this_session": 0,
+    "cash_ui_last_reported_consumed": 0,
+    "cash_ui_last_reported_limit": 3,
+    "cash_ui_current_remaining": "UNKNOWN_RECONCILE_ORIGINAL_WINDOWS_JOURNAL_FIRST",
+    "historical_backup_exports_after_windows_admission": "UNKNOWN_NOT_ASSUMED_ZERO"
+  },
+  "backup": {
+    "status": "SUSPENDED",
+    "proposal": "BOUNDED_BINARY_PGDUMP_TO_AGE_PUBLIC_RECIPIENT_DIRECT_TO_USB",
+    "execution_admitted": false,
+    "plaintext_export_to_c_drive": false,
+    "restore_verified": false
+  },
+  "production_or_main_modified": false,
+  "accounts_or_claims_or_profiles_changed": false,
+  "paid_service_purchased": false,
+  "commercial_homologation": "INCOMPLETE",
+  "evidence_sha256": {
+    "cash-report-unit-20261117.tap": "4911fccc58670d515861137e588416044f21e3c52b6f745a08713cc4eb876adc",
+    "cash-report-browser-20261117.tap": "55f36bb238446f7c8b22a9a6fc4c7d2c24e80b70164129ac2d0aa7d88bc476ad",
+    "npm-audit.json": "ecbc358e37b2de3cb10973ccf3d0ea7f2668226c603bf0e2cb56fa2e16ef25f5",
+    "npm-audit-after.json": "2635e3965b38043befe45bce2ee74f52b2dec910c28844d25944886b5bb59889",
+    "npm-audit-runtime-after.json": "d56efa368af7755c8b1bfe0dc65a94afe38f5fd26d4f48d26920cf731e772d95",
+    "preview-build-after-dependencies.log": "441ea037cb1a972051fabcf5830144e5658a670ecb27920c7c0ea26acacb19f5"
+  }
+}

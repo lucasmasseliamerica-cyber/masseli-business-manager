@@ -1,0 +1,166 @@
+TAP version 13
+# Subtest: App.jsx: opening mapped to income with an invalid sale link cannot inflate Cash Sales from 45 to 145
+ok 1 - App.jsx: opening mapped to income with an invalid sale link cannot inflate Cash Sales from 45 to 145
+  ---
+  duration_ms: 0.688665
+  type: 'test'
+  ...
+# Subtest: App.jsx: sale-linked expense remains a drawer adjustment rather than a negative cash sale
+ok 2 - App.jsx: sale-linked expense remains a drawer adjustment rather than a negative cash sale
+  ---
+  duration_ms: 0.2464
+  type: 'test'
+  ...
+# Subtest: App.jsx: original ledger type controls the sign even when presentation type differs
+ok 3 - App.jsx: original ledger type controls the sign even when presentation type differs
+  ---
+  duration_ms: 0.293661
+  type: 'test'
+  ...
+# Subtest: App.jsx: unmapped original opening rows are excluded without losing an expense using the opening category
+ok 4 - App.jsx: unmapped original opening rows are excluded without losing an expense using the opening category
+  ---
+  duration_ms: 0.115914
+  type: 'test'
+  ...
+# Subtest: App.jsx: legacy income rows work and noncash unlinked or out-of-period rows never become Cash Sales
+ok 5 - App.jsx: legacy income rows work and noncash unlinked or out-of-period rows never become Cash Sales
+  ---
+  duration_ms: 0.098267
+  type: 'test'
+  ...
+# Subtest: App.jsx: stored balanced closes and gross sale/refund categories retain their separate meanings
+ok 6 - App.jsx: stored balanced closes and gross sale/refund categories retain their separate meanings
+  ---
+  duration_ms: 0.253651
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: opening mapped to income with an invalid sale link cannot inflate Cash Sales from 45 to 145
+ok 7 - src/App.jsx: opening mapped to income with an invalid sale link cannot inflate Cash Sales from 45 to 145
+  ---
+  duration_ms: 0.212199
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: sale-linked expense remains a drawer adjustment rather than a negative cash sale
+ok 8 - src/App.jsx: sale-linked expense remains a drawer adjustment rather than a negative cash sale
+  ---
+  duration_ms: 0.25949
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: original ledger type controls the sign even when presentation type differs
+ok 9 - src/App.jsx: original ledger type controls the sign even when presentation type differs
+  ---
+  duration_ms: 0.18669
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: unmapped original opening rows are excluded without losing an expense using the opening category
+ok 10 - src/App.jsx: unmapped original opening rows are excluded without losing an expense using the opening category
+  ---
+  duration_ms: 0.134271
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: legacy income rows work and noncash unlinked or out-of-period rows never become Cash Sales
+ok 11 - src/App.jsx: legacy income rows work and noncash unlinked or out-of-period rows never become Cash Sales
+  ---
+  duration_ms: 0.12011
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: stored balanced closes and gross sale/refund categories retain their separate meanings
+ok 12 - src/App.jsx: stored balanced closes and gross sale/refund categories retain their separate meanings
+  ---
+  duration_ms: 0.09303
+  type: 'test'
+  ...
+# Subtest: App.jsx: invalid cash movements fail before the remote RPC
+ok 13 - App.jsx: invalid cash movements fail before the remote RPC
+  ---
+  duration_ms: 1.525051
+  type: 'test'
+  ...
+# Subtest: App.jsx: valid cash movement is normalized before the remote RPC
+ok 14 - App.jsx: valid cash movement is normalized before the remote RPC
+  ---
+  duration_ms: 0.478759
+  type: 'test'
+  ...
+# Subtest: App.jsx: invalid actual cash fails before close RPC and preview requires a finite value
+ok 15 - App.jsx: invalid actual cash fails before close RPC and preview requires a finite value
+  ---
+  duration_ms: 0.690878
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: invalid cash movements fail before the remote RPC
+ok 16 - src/App.jsx: invalid cash movements fail before the remote RPC
+  ---
+  duration_ms: 0.446631
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: valid cash movement is normalized before the remote RPC
+ok 17 - src/App.jsx: valid cash movement is normalized before the remote RPC
+  ---
+  duration_ms: 0.593982
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: invalid actual cash fails before close RPC and preview requires a finite value
+ok 18 - src/App.jsx: invalid actual cash fails before close RPC and preview requires a finite value
+  ---
+  duration_ms: 0.498959
+  type: 'test'
+  ...
+# Subtest: root and src application copies remain identical after cash validation changes
+ok 19 - root and src application copies remain identical after cash validation changes
+  ---
+  duration_ms: 15.367035
+  type: 'test'
+  ...
+# Subtest: root App.jsx: revenue excludes collected tax and allocates discounts across products
+ok 20 - root App.jsx: revenue excludes collected tax and allocates discounts across products
+  ---
+  duration_ms: 1.97023
+  type: 'test'
+  ...
+# Subtest: root App.jsx: customer and production metrics remain inside the selected period and ignore invalid durations
+ok 21 - root App.jsx: customer and production metrics remain inside the selected period and ignore invalid durations
+  ---
+  duration_ms: 1.216547
+  type: 'test'
+  ...
+# Subtest: root App.jsx: report UI validates custom dates and presents tax separately
+ok 22 - root App.jsx: report UI validates custom dates and presents tax separately
+  ---
+  duration_ms: 0.347272
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: revenue excludes collected tax and allocates discounts across products
+ok 23 - src/App.jsx: revenue excludes collected tax and allocates discounts across products
+  ---
+  duration_ms: 1.086352
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: customer and production metrics remain inside the selected period and ignore invalid durations
+ok 24 - src/App.jsx: customer and production metrics remain inside the selected period and ignore invalid durations
+  ---
+  duration_ms: 0.795845
+  type: 'test'
+  ...
+# Subtest: src/App.jsx: report UI validates custom dates and presents tax separately
+ok 25 - src/App.jsx: report UI validates custom dates and presents tax separately
+  ---
+  duration_ms: 0.26613
+  type: 'test'
+  ...
+# Subtest: root and src application copies remain identical after report accuracy changes
+ok 26 - root and src application copies remain identical after report accuracy changes
+  ---
+  duration_ms: 0.09328
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 132.903554

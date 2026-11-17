@@ -1,5 +1,26 @@
 # NEXALVO — Matriz de aceitação operacional v2
 
+## Estado atual — 17/11/2026 (America/New_York)
+
+**20/60 — 33,33%, conforme confirmação mais recente do operador.** Zero novos critérios por simulação neste lote. O ledger detalhado disponível abaixo ainda corresponde a 16/60; os quatro vínculos adicionais dependem do checkpoint Windows de 17/11. Seus antigos totais PENDENTE/BLOQUEADO não são uma contagem atual reconciliada.
+
+| Recorte atual | Estado | Evidência / limite |
+| --- | --- | --- |
+| C1 real | CONCLUÍDO | 18/18 informado, encerrado; sem repetição |
+| Staff v7 API | CONCLUÍDO no escopo API | 13/13 informado, restauração/inatividade preservadas; UI separada |
+| Caixa RPC | CONCLUÍDO no escopo RPC | 4/4 informado; não comprova caixa UI |
+| Compras `_02` UI | CONCLUÍDO nesse ciclo | 4/4 informado, estoque/custos/financeiro restaurados |
+| Cálculo Cash e patches de build | CONCLUÍDO em código | 26 testes + 2 Chromium interceptados e build PASS; nenhum critério macro promovido |
+| Caixa UI 10 + 2 → 12 e relatórios com registros existentes | BLOQUEADO nesta sessão | Journal, guards/ponte reais, sessão OWNER B, saldo e candidata publicados ainda não conferidos |
+| Paginação Windows / Preview sucessor | BLOQUEADO nesta sessão | Sem Desktop Commander/Vercel utilizáveis; rede Cloud retorna CONNECT 403 antes do serviço |
+| Dependências de build | PENDENTE com gate FAIL | 14 → 11 alertas; runtime zero; picomatch sem patch publicado identificado |
+| Backup | BLOQUEADO / SUSPENDED | Diários pós-admissão desconhecidos e estabilidade Windows não confirmada |
+| C2, Stripe sandbox/S700 e demais critérios sem recibo | BLOQUEADO ou PENDENTE conforme escopo | Sem nova autorização/execução; flags de cartão permanecem desabilitadas |
+
+[Checkpoint, qualificações e orçamento](./QA_NEXALVO_CLOUD_RETOMADA_20261117.md) · [Recibo sanitizado](./evidence/nexalvo-cloud-operational-20261117.json). As linhas acima são recortes, não critérios macro novos nem parcelas a somar novamente.
+
+## Histórico detalhado preservado — não usar como admissão atual
+
 O evento de 15/11/2026 foi cancelado. A data deixa de ser critério de entrega. A cobertura permanece **16/60**. A configuração inicial e o ensaio de restauração locais constam no [marco operacional](./QA_NEXALVO_ENTREGA_OPERACIONAL.md).
 
 Estado vigente em 11/11/2026, horário de Nova York. Staff parou na checagem salarial, com perfis restaurados e 13 casos de negócio ainda pendentes. A revisão do executor e as correções de despesa, tarefas, compras, relatórios e conciliação Stripe foram validadas de forma isolada. Os critérios reais abaixo permanecem sujeitos aos respectivos recortes, fixtures e autorizações. [Lote atual](./QA_NEXALVO_LOTE_AUTONOMO_20261111.md)
