@@ -2,7 +2,8 @@ name: NEXALVO operational - offline only
 on:
   push:
     branches: [automation/nexalvo-qa-actions]
-    paths: ['App.jsx', 'src/App.jsx', 'src/main.jsx', 'src/AppErrorBoundary.jsx', 'src/i18n.jsx', 'supabase/functions/manage-staff-user/**', 'supabase/functions/_shared/manage-staff-user-core.mjs', 'qa/manage-staff-user*.mjs', 'qa/staff-write-recovery-browser.test.mjs', 'qa/staff-deactivation-feedback.test.mjs', 'qa/supplier-payment-receipt.test.mjs', 'qa/procurement-calendar-regression.test.mjs', 'qa/app-error-boundary.test.mjs', 'qa/app-startup-recovery-browser.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
+    # Lockfile and cash test changes must retain the offline regression gates.
+    paths: ['package.json', 'package-lock.json', 'qa/cash-ledger-report-regression.test.mjs', 'qa/cash-report-browser.test.mjs', 'App.jsx', 'src/App.jsx', 'src/main.jsx', 'src/AppErrorBoundary.jsx', 'src/i18n.jsx', 'supabase/functions/manage-staff-user/**', 'supabase/functions/_shared/manage-staff-user-core.mjs', 'qa/manage-staff-user*.mjs', 'qa/staff-write-recovery-browser.test.mjs', 'qa/staff-deactivation-feedback.test.mjs', 'qa/supplier-payment-receipt.test.mjs', 'qa/procurement-calendar-regression.test.mjs', 'qa/app-error-boundary.test.mjs', 'qa/app-startup-recovery-browser.test.mjs', '.github/workflows/nexalvo-operational-offline.yml']
 permissions:
   contents: read
 # Reuses the documented [c2-offline] commit mechanism to keep the legacy TEST
